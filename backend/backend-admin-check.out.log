@@ -1,0 +1,8 @@
+
+> backend@1.0.0 start
+> node dist/server.js
+
+◇ injected env (8) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000

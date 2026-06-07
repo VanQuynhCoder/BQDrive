@@ -1,0 +1,65 @@
+import mongoose from "mongoose";
+import { BaseDocument } from "../../base/baseModel";
+import {
+  PaymentMethodEnum,
+  PaymentStatusEnum,
+  PaymentTypeEnum,
+} from "../../constants/model.const";
+
+export type IPayment = BaseDocument & {
+  bookingId: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
+  amount: number;
+  method: string;
+  status: string;
+  paymentType: string;
+  paidAt?: Date;
+  transactionCode?: string;
+};
+
+const paymentSchema = new mongoose.Schema(
+  {
+    bookingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Booking",
+      required: true,
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    amount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    method: {
+      type: String,
+      enum: Object.values(PaymentMethodEnum),
+      default: PaymentMethodEnum.CASH,
+    },
+    status: {
+      type: String,
+      enum: Object.values(PaymentStatusEnum),
+      default: PaymentStatusEnum.PENDING,
+    },
+    paymentType: {
+      type: String,
+      enum: Object.values(PaymentTypeEnum),
+      default: PaymentTypeEnum.DEPOSIT,
+    },
+    paidAt: {
+      type: Date,
+    },
+    transactionCode: {
+      type: String,
+      trim: true,
+    },
+  },
+  { timestamps: true },
+);
+
+const PaymentModel = mongoose.model<IPayment>("Payment", paymentSchema);
+
+export { PaymentModel };

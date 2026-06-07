@@ -1,0 +1,42 @@
+Error: EBUSY: resource busy or locked, open 'D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\booking.route.ts'
+    at Object.readFileSync (node:fs:440:20)
+    at Object.compileChanged (D:\DoAn_LuanVanTotNghiep\backend\node_modules\ts-node-dev\lib\compiler.js:210:41)
+    at FSWatcher.restart (D:\DoAn_LuanVanTotNghiep\backend\node_modules\ts-node-dev\lib\index.js:226:18)
+    at FSWatcher.emit (node:events:508:28)
+    at FSWatcher.emit (node:domain:489:12)
+    at FSWatcher.emitWithAll (D:\DoAn_LuanVanTotNghiep\backend\node_modules\chokidar\index.js:540:8)
+    at FSWatcher._emit (D:\DoAn_LuanVanTotNghiep\backend\node_modules\chokidar\index.js:632:8)
+    at listener (D:\DoAn_LuanVanTotNghiep\backend\node_modules\chokidar\lib\nodefs-handler.js:370:20) {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'D:\\DoAn_LuanVanTotNghiep\\backend\\src\\routers\\apis\\booking.route.ts'
+}
+Error: EBUSY: resource busy or locked, open 'D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\booking.route.ts'
+    at Object.readFileSync (node:fs:440:20)
+    at Object.compileChanged (D:\DoAn_LuanVanTotNghiep\backend\node_modules\ts-node-dev\lib\compiler.js:210:41)
+    at FSWatcher.restart (D:\DoAn_LuanVanTotNghiep\backend\node_modules\ts-node-dev\lib\index.js:226:18)
+    at FSWatcher.emit (node:events:508:28)
+    at FSWatcher.emit (node:domain:489:12)
+    at FSWatcher.emitWithAll (D:\DoAn_LuanVanTotNghiep\backend\node_modules\chokidar\index.js:540:8)
+    at FSWatcher._emit (D:\DoAn_LuanVanTotNghiep\backend\node_modules\chokidar\index.js:632:8)
+    at listener (D:\DoAn_LuanVanTotNghiep\backend\node_modules\chokidar\lib\nodefs-handler.js:370:20) {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'D:\\DoAn_LuanVanTotNghiep\\backend\\src\\routers\\apis\\booking.route.ts'
+}
+Error: EBUSY: resource busy or locked, open 'D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\cart.route.ts'
+    at Object.readFileSync (node:fs:440:20)
+    at Object.compileChanged (D:\DoAn_LuanVanTotNghiep\backend\node_modules\ts-node-dev\lib\compiler.js:210:41)
+    at FSWatcher.restart (D:\DoAn_LuanVanTotNghiep\backend\node_modules\ts-node-dev\lib\index.js:226:18)
+    at FSWatcher.emit (node:events:508:28)
+    at FSWatcher.emit (node:domain:489:12)
+    at FSWatcher.emitWithAll (D:\DoAn_LuanVanTotNghiep\backend\node_modules\chokidar\index.js:540:8)
+    at FSWatcher._emit (D:\DoAn_LuanVanTotNghiep\backend\node_modules\chokidar\index.js:632:8)
+    at listener (D:\DoAn_LuanVanTotNghiep\backend\node_modules\chokidar\lib\nodefs-handler.js:370:20) {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'open',
+  path: 'D:\\DoAn_LuanVanTotNghiep\\backend\\src\\routers\\apis\\cart.route.ts'
+}

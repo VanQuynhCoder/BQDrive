@@ -1,0 +1,908 @@
+
+> backend@1.0.0 dev
+> ts-node-dev --respawn --transpile-only src/server.ts
+
+[INFO] 09:22:10 ts-node-dev ver. 2.0.0 (using ts-node ver. 10.9.2, typescript ver. 6.0.3)
+◇ injected env (14) from .env // tip: ⌘ suppress logs { quiet: true }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+[INFO] 09:28:59 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\payment.route.ts has been modified
+◇ injected env (14) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+ERROR DETAIL: BaseError: Người dùng không tồn tại
+    at ErrorHelper.userNotExist (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:79:12)
+    at AuthRoute.login (D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\auth.route.ts:167:25)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:18:9 {
+  info: {
+    status: 404,
+    code: '-7',
+    message: 'Người dùng không tồn tại',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Người dùng không tồn tại
+    at ErrorHelper.userNotExist (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:79:12)
+    at AuthRoute.login (D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\auth.route.ts:167:25)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:18:9 {
+  info: {
+    status: 404,
+    code: '-7',
+    message: 'Người dùng không tồn tại',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Người dùng không tồn tại
+    at ErrorHelper.userNotExist (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:79:12)
+    at AuthRoute.login (D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\auth.route.ts:167:25)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:18:9 {
+  info: {
+    status: 404,
+    code: '-7',
+    message: 'Người dùng không tồn tại',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Token không hợp lệ
+    at ErrorHelper.badToken (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:119:12)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:39:24)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:295:15
+    at processParams (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:582:12)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:291:5) {
+  info: {
+    status: 401,
+    code: '-12',
+    message: 'Token không hợp lệ',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Token không hợp lệ
+    at ErrorHelper.badToken (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:119:12)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:39:24)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:295:15
+    at processParams (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:582:12)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:291:5) {
+  info: {
+    status: 401,
+    code: '-12',
+    message: 'Token không hợp lệ',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Người dùng không tồn tại
+    at ErrorHelper.userNotExist (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:79:12)
+    at AuthRoute.login (D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\auth.route.ts:167:25)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:18:9 {
+  info: {
+    status: 404,
+    code: '-7',
+    message: 'Người dùng không tồn tại',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Người dùng không tồn tại
+    at ErrorHelper.userNotExist (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:79:12)
+    at AuthRoute.login (D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\auth.route.ts:167:25)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:18:9 {
+  info: {
+    status: 404,
+    code: '-7',
+    message: 'Người dùng không tồn tại',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Mật khẩu không đúng
+    at ErrorHelper.userPasswordNotCorrect (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:95:12)
+    at AuthRoute.login (D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\auth.route.ts:184:25)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:18:9 {
+  info: {
+    status: 400,
+    code: '-9',
+    message: 'Mật khẩu không đúng',
+    data: undefined
+  }
+}
+[INFO] 11:00:20 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\helper\car-status.helper.ts has been modified
+◇ injected env (14) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:00:53 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\car.route.ts has been modified
+◇ injected env (14) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:01:33 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\car.route.ts has been modified
+◇ injected env (14) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:02:47 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\booking.route.ts has been modified
+◇ injected env (14) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:03:08 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\booking.route.ts has been modified
+◇ injected env (14) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:03:20 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\cart.route.ts has been modified
+◇ injected env (14) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:09:09 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\helper\car-status.helper.ts has been modified
+◇ injected env (14) from .env // tip: ⌘ enable debugging { debug: true }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:22:10 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\cart.route.ts has been modified
+◇ injected env (14) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:22:38 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\booking.route.ts has been modified
+◇ injected env (14) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:22:47 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\booking.route.ts has been modified
+◇ injected env (14) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:22:56 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\booking.route.ts has been modified
+◇ injected env (14) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:23:06 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\booking.route.ts has been modified
+◇ injected env (14) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:23:40 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\car.route.ts has been modified
+◇ injected env (14) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:23:56 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\car.route.ts has been modified
+◇ injected env (14) from .env // tip: ⌘ enable debugging { debug: true }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:24:06 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\car.route.ts has been modified
+◇ injected env (14) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:41:12 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\app.ts has been modified
+◇ injected env (14) from .env // tip: ⌘ enable debugging { debug: true }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 11:41:34 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\app.ts has been modified
+◇ injected env (14) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+ERROR DETAIL: MongoServerError: E11000 duplicate key error collection: bqdrive.users index: email_1 dup key: { email: "hoadinh0977@gmail.com" }
+    at InsertOneOperation.handleOk (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongodb\src\operations\insert.ts:79:13)
+    at executeOperationWithRetries (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongodb\src\operations\execute_operation.ts:267:26)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at executeOperation (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongodb\src\operations\execute_operation.ts:127:12)
+    at Collection.insertOne (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongodb\src\collection.ts:294:12)
+    at model.$__save (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongoose\lib\model.js:428:16)
+    at model.save (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongoose\lib\model.js:667:5)
+    at model.create (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongoose\lib\model.js:2747:5)
+    at AdminRoute.sendBusinessOtp (D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\admin.route.ts:154:7)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:18:9 {
+  errorLabelSet: Set(0) {},
+  errorResponse: {
+    index: 0,
+    code: 11000,
+    errmsg: 'E11000 duplicate key error collection: bqdrive.users index: email_1 dup key: { email: "hoadinh0977@gmail.com" }',
+    keyPattern: { email: 1 },
+    keyValue: { email: 'hoadinh0977@gmail.com' }
+  },
+  index: 0,
+  code: 11000,
+  keyPattern: { email: 1 },
+  keyValue: { email: 'hoadinh0977@gmail.com' }
+}
+ERROR DETAIL: MongoServerError: E11000 duplicate key error collection: bqdrive.users index: email_1 dup key: { email: "hoadinh0977@gmail.com" }
+    at InsertOneOperation.handleOk (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongodb\src\operations\insert.ts:79:13)
+    at executeOperationWithRetries (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongodb\src\operations\execute_operation.ts:267:26)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at executeOperation (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongodb\src\operations\execute_operation.ts:127:12)
+    at Collection.insertOne (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongodb\src\collection.ts:294:12)
+    at model.$__save (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongoose\lib\model.js:428:16)
+    at model.save (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongoose\lib\model.js:667:5)
+    at model.create (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongoose\lib\model.js:2747:5)
+    at AdminRoute.sendBusinessOtp (D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\admin.route.ts:154:7)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:18:9 {
+  errorLabelSet: Set(0) {},
+  errorResponse: {
+    index: 0,
+    code: 11000,
+    errmsg: 'E11000 duplicate key error collection: bqdrive.users index: email_1 dup key: { email: "hoadinh0977@gmail.com" }',
+    keyPattern: { email: 1 },
+    keyValue: { email: 'hoadinh0977@gmail.com' }
+  },
+  index: 0,
+  code: 11000,
+  keyPattern: { email: 1 },
+  keyValue: { email: 'hoadinh0977@gmail.com' }
+}
+ERROR DETAIL: MongoServerError: E11000 duplicate key error collection: bqdrive.users index: email_1 dup key: { email: "hoadinh0977@gmail.com" }
+    at InsertOneOperation.handleOk (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongodb\src\operations\insert.ts:79:13)
+    at executeOperationWithRetries (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongodb\src\operations\execute_operation.ts:267:26)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at executeOperation (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongodb\src\operations\execute_operation.ts:127:12)
+    at Collection.insertOne (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongodb\src\collection.ts:294:12)
+    at model.$__save (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongoose\lib\model.js:428:16)
+    at model.save (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongoose\lib\model.js:667:5)
+    at model.create (D:\DoAn_LuanVanTotNghiep\backend\node_modules\mongoose\lib\model.js:2747:5)
+    at AdminRoute.sendBusinessOtp (D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\admin.route.ts:154:7)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:18:9 {
+  errorLabelSet: Set(0) {},
+  errorResponse: {
+    index: 0,
+    code: 11000,
+    errmsg: 'E11000 duplicate key error collection: bqdrive.users index: email_1 dup key: { email: "hoadinh0977@gmail.com" }',
+    keyPattern: { email: 1 },
+    keyValue: { email: 'hoadinh0977@gmail.com' }
+  },
+  index: 0,
+  code: 11000,
+  keyPattern: { email: 1 },
+  keyValue: { email: 'hoadinh0977@gmail.com' }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Mật khẩu không đúng
+    at ErrorHelper.userPasswordNotCorrect (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:95:12)
+    at AuthRoute.login (D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\auth.route.ts:184:25)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:18:9 {
+  info: {
+    status: 400,
+    code: '-9',
+    message: 'Mật khẩu không đúng',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Mật khẩu không đúng
+    at ErrorHelper.userPasswordNotCorrect (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:95:12)
+    at AuthRoute.login (D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\auth.route.ts:184:25)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:18:9 {
+  info: {
+    status: 400,
+    code: '-9',
+    message: 'Mật khẩu không đúng',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+ERROR DETAIL: BaseError: Không đủ quyền truy cập
+    at ErrorHelper.permissionDeny (D:\DoAn_LuanVanTotNghiep\backend\src\base\error.ts:38:12)
+    at D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:52:29
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at authentication (D:\DoAn_LuanVanTotNghiep\backend\src\base\baseRoute.ts:37:7)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17)
+    at next (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\route.js:117:3)
+    at handle (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (D:\DoAn_LuanVanTotNghiep\backend\node_modules\router\lib\layer.js:152:17) {
+  info: {
+    status: 403,
+    code: '-2',
+    message: 'Không đủ quyền truy cập',
+    data: undefined
+  }
+}
+[INFO] 12:22:26 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\car.route.ts has been modified
+◇ injected env (14) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 12:51:38 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\helper\booking-hold.helper.ts has been modified
+◇ injected env (14) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 12:52:02 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\helper\booking-hold.helper.ts has been modified
+◇ injected env (14) from .env // tip: ⌘ suppress logs { quiet: true }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 13:18:41 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\helper\rental.helper.ts has been modified
+◇ injected env (14) from .env // tip: ⌘ override existing { override: true }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 13:18:50 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\cart.route.ts has been modified
+◇ injected env (14) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 13:19:20 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\booking.route.ts has been modified
+◇ injected env (14) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 13:20:20 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\booking.route.ts has been modified
+◇ injected env (14) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 13:20:30 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\booking.route.ts has been modified
+◇ injected env (14) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 13:20:38 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\booking.route.ts has been modified
+◇ injected env (14) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000
+[INFO] 13:20:45 Restarting: D:\DoAn_LuanVanTotNghiep\backend\src\routers\apis\booking.route.ts has been modified
+◇ injected env (14) from .env // tip: ⌘ override existing { override: true }
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000

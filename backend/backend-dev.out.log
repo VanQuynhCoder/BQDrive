@@ -1,0 +1,8 @@
+
+> backend@1.0.0 start
+> node dist/server.js
+
+◇ injected env (3) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+MongoDB Connected Successfully
+Database Name: bqdrive
+Server running on port 5000

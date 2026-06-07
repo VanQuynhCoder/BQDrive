@@ -1,0 +1,24 @@
+import express from "express";
+import authRoute from "./auth.route";
+import brandRoute from "./brand.route";
+import businessRoute from "./business.route";
+import cartRoute from "./cart.route";
+import bookingRoute from "./booking.route";
+import paymentRoute from "./payment.route";
+import dashboardRoute from "./dashboard.route";
+import privateOwnerRequestRoute from "./private-owner-request.route";
+import adminRoute from "./admin.route";
+import contractRoute from "./contract.route";
+const router = express.Router();
+
+router.use("/auth", authRoute);
+router.use("/admin", adminRoute);
+router.use("/brand", brandRoute);
+router.use("/business", businessRoute);
+router.use("/cart", cartRoute);
+router.use("/bookings", bookingRoute);
+router.use("/payments", paymentRoute);
+router.use("/dashboard", dashboardRoute);
+router.use("/private-owner-requests", privateOwnerRequestRoute);
+router.use("/contracts", contractRoute);
+export default router;
