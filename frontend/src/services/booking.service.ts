@@ -5,6 +5,7 @@ export const bookingService = {
     carId: string;
     startDate: string;
     endDate: string;
+    rentalMode: "DAILY" | "HOURLY";
     note?: string;
   }) => {
     const res = await api.post("/bookings/createBooking", data);

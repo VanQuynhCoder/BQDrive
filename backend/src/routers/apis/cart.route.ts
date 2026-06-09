@@ -10,10 +10,17 @@ import {
   BookingStatusEnum,
   CarStatusEnum,
   CartStatusEnum,
+  RentalModeEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
 
 const RENTER_ROLES = [UserRoleEnum.CUSTOMER, UserRoleEnum.PRIVATE_OWNER];
+const BLOCKING_BOOKING_STATUSES = [
+  BookingStatusEnum.PENDING,
+  BookingStatusEnum.WAITING_PAYMENT,
+  BookingStatusEnum.CONFIRMED,
+  BookingStatusEnum.IN_PROGRESS,
+];
 
 class CartRoute extends BaseRoute {
   constructor() {
@@ -70,7 +77,7 @@ class CartRoute extends BaseRoute {
     const existedBooking = await BookingModel.findOne({
       carId,
       status: {
-        $in: [BookingStatusEnum.PENDING, BookingStatusEnum.CONFIRMED],
+        $in: BLOCKING_BOOKING_STATUSES,
       },
       isDeleted: false,
       startDate: { $lt: end },
@@ -101,13 +108,17 @@ class CartRoute extends BaseRoute {
 
   async addToCart(req: Request, res: Response) {
     const authUser = (req as any).user;
-    const { carId, startDate, endDate } = req.body;
+    const { carId, startDate, endDate, rentalMode } = req.body;
     await expireOldCarts();
 
-    if (!carId || !startDate || !endDate) {
+    if (!carId || !startDate || !endDate || !rentalMode) {
       throw ErrorHelper.requestDataInvalid(
         "Thiếu carId, startDate hoặc endDate",
       );
+    }
+
+    if (!Object.values(RentalModeEnum).includes(rentalMode)) {
+      throw ErrorHelper.requestDataInvalid("Hinh thuc thue khong hop le");
     }
 
     const car = await CarModel.findOne({
@@ -130,7 +141,7 @@ class CartRoute extends BaseRoute {
       throw ErrorHelper.requestDataInvalid("Ngày thuê không hợp lệ");
     }
 
-    const rentalResult = calculateRentalPrice(car, start, end);
+    const rentalResult = calculateRentalPrice(car, start, end, rentalMode);
     const totalPrice = rentalResult.totalPrice;
 
     const expiredAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -140,6 +151,7 @@ class CartRoute extends BaseRoute {
       carId,
       startDate: start,
       endDate: end,
+      rentalMode: rentalResult.rentalMode,
       totalPrice,
       expiredAt,
       status: CartStatusEnum.ACTIVE,

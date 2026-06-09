@@ -5,6 +5,7 @@ export const cartService = {
     carId: string;
     startDate: string;
     endDate: string;
+    rentalMode: "DAILY" | "HOURLY";
   }) => {
     const res = await api.post("/cart/addToCart", data);
     return res.data.data.cart;

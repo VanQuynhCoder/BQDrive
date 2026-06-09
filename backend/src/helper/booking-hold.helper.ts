@@ -46,7 +46,7 @@ export async function getCheckoutStartedBookingIdSet(bookingIds: unknown[]) {
 export async function expireAbandonedPendingBookings(now = new Date()) {
   const cutoff = getBookingHoldCutoff(now);
   const staleBookings = await BookingModel.find({
-    status: BookingStatusEnum.PENDING,
+    status: { $in: [BookingStatusEnum.PENDING, BookingStatusEnum.WAITING_PAYMENT] },
     $or: [{ paidAmount: { $lte: 0 } }, { paidAmount: { $exists: false } }],
     isDeleted: false,
     createdAt: { $lte: cutoff },
@@ -63,7 +63,7 @@ export async function expireAbandonedPendingBookings(now = new Date()) {
   const result = await BookingModel.updateMany(
     {
       _id: { $in: staleBookingIds },
-      status: BookingStatusEnum.PENDING,
+      status: { $in: [BookingStatusEnum.PENDING, BookingStatusEnum.WAITING_PAYMENT] },
       $or: [{ paidAmount: { $lte: 0 } }, { paidAmount: { $exists: false } }],
       isDeleted: false,
     } as any,

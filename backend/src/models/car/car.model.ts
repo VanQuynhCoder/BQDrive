@@ -16,6 +16,8 @@ export type ICar = BaseDocument & {
   licensePlate?: string;
   pricePerDay?: number;
   pricePerHour?: number;
+  allowDailyRental?: boolean;
+  allowHourlyRental?: boolean;
   rentalUnit: string;
   seats: number;
   fuelType?: string;
@@ -60,6 +62,14 @@ const carSchema = new mongoose.Schema(
     pricePerHour: {
       type: Number,
       min: 0,
+    },
+    allowDailyRental: {
+      type: Boolean,
+      default: true,
+    },
+    allowHourlyRental: {
+      type: Boolean,
+      default: false,
     },
     rentalUnit: {
       type: String,

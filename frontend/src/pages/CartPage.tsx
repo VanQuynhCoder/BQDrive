@@ -15,6 +15,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -38,6 +39,7 @@ type CartItem = {
   carId?: CartCar;
   startDate: string;
   endDate: string;
+  rentalMode?: string;
   totalPrice?: number;
   expiredAt?: string;
   status?: string;
@@ -74,10 +76,10 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 const HOUR_MS = 1000 * 60 * 60;
 
-function getRentalInfo(car?: CartCar) {
-  if (car?.rentalUnit === "HOUR") {
+function getRentalInfo(car: CartCar | undefined, rentalMode?: string) {
+  if (rentalMode === "HOURLY" || (!rentalMode && car?.rentalUnit === "HOUR")) {
     return {
-      price: car.pricePerHour || 0,
+      price: car?.pricePerHour || 0,
       unit: "giờ",
       label: "Số giờ thuê",
       modeLabel: "Thuê theo giờ",
@@ -92,14 +94,14 @@ function getRentalInfo(car?: CartCar) {
   };
 }
 
-function calculateRentalTime(car: CartCar | undefined, start: string, end: string) {
+function calculateRentalTime(rentalMode: string | undefined, start: string, end: string) {
   const startDate = new Date(start);
   const endDate = new Date(end);
   const diffMs = endDate.getTime() - startDate.getTime();
 
   if (diffMs <= 0) return 0;
 
-  if (car?.rentalUnit === "HOUR") {
+  if (rentalMode === "HOURLY") {
     return Math.ceil(diffMs / HOUR_MS);
   }
 
@@ -143,7 +145,7 @@ export default function CartPage() {
         }
       })
       .catch((error: unknown) => {
-        alert(getErrorMessage(error, "Không thể tải giỏ hàng"));
+        toast.error(getErrorMessage(error, "Không thể tải giỏ hàng"));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -188,7 +190,7 @@ export default function CartPage() {
       await cartService.removeFromCart(id);
       await refreshCart();
     } catch (error: unknown) {
-      alert(getErrorMessage(error, "Xóa thất bại"));
+      toast.error(getErrorMessage(error, "Xóa thất bại"));
     }
   };
 
@@ -280,9 +282,9 @@ export default function CartPage() {
 
             {carts.map((item) => {
               const car = item.carId;
-              const rental = getRentalInfo(car);
+              const rental = getRentalInfo(car, item.rentalMode);
               const rentalTime = calculateRentalTime(
-                car,
+                item.rentalMode,
                 item.startDate,
                 item.endDate,
               );

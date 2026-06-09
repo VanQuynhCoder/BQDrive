@@ -8,6 +8,10 @@ import { CartModel } from "../../models/cart/cart.model";
 import { syncRentedCarStatuses } from "../../helper/car-status.helper";
 import { expireOldCarts } from "../../helper/cart.helper";
 import {
+  getCarRentalSupport,
+  normalizeRentalMode,
+} from "../../helper/rental.helper";
+import {
   expireAbandonedPendingBookings,
   getCheckoutStartedBookingIdSet,
 } from "../../helper/booking-hold.helper";
@@ -18,6 +22,7 @@ import {
   CarStatusEnum,
   CartStatusEnum,
   UserRoleEnum,
+  RentalModeEnum,
   RentalUnitEnum,
 } from "../../constants/model.const";
 
@@ -26,6 +31,13 @@ enum RentalAvailabilityEnum {
   HELD_IN_CART = "HELD_IN_CART",
   PENDING_CONFIRMATION = "PENDING_CONFIRMATION",
 }
+
+const BLOCKING_BOOKING_STATUSES = [
+  BookingStatusEnum.PENDING,
+  BookingStatusEnum.WAITING_PAYMENT,
+  BookingStatusEnum.CONFIRMED,
+  BookingStatusEnum.IN_PROGRESS,
+];
 
 class CarRoute extends BaseRoute {
   constructor() {
@@ -219,6 +231,7 @@ class CarRoute extends BaseRoute {
     carIds: unknown[],
     requestedStart?: Date,
     requestedEnd?: Date,
+    rentalMode?: string,
   ) {
     const bookabilityMap = new Map<
       string,
@@ -248,7 +261,7 @@ class CarRoute extends BaseRoute {
       BookingModel.distinct("carId", {
         carId: { $in: carIds },
         status: {
-          $in: [BookingStatusEnum.PENDING, BookingStatusEnum.CONFIRMED],
+          $in: BLOCKING_BOOKING_STATUSES,
         },
         isDeleted: false,
         startDate: { $lt: requestedEnd },
@@ -269,6 +282,32 @@ class CarRoute extends BaseRoute {
         unavailableReason: "Xe không khả dụng trong thời gian đã chọn",
       });
     });
+
+    const selectedRentalMode = normalizeRentalMode(rentalMode);
+
+    if (selectedRentalMode) {
+      const cars = await CarModel.find({ _id: { $in: carIds } } as any)
+        .select("_id rentalUnit allowDailyRental allowHourlyRental")
+        .lean();
+
+      cars.forEach((car) => {
+        const support = getCarRentalSupport(car);
+        const isSupported =
+          selectedRentalMode === RentalModeEnum.DAILY
+            ? support.allowDailyRental
+            : support.allowHourlyRental;
+
+        if (!isSupported) {
+          bookabilityMap.set(String(car._id), {
+            isBookable: false,
+            unavailableReason:
+              selectedRentalMode === RentalModeEnum.DAILY
+                ? "Xe khong ho tro thue theo ngay"
+                : "Xe khong ho tro thue theo gio",
+          });
+        }
+      });
+    }
 
     return bookabilityMap;
   }
@@ -317,6 +356,8 @@ class CarRoute extends BaseRoute {
       licensePlate,
       pricePerDay,
       pricePerHour,
+      allowDailyRental,
+      allowHourlyRental,
       rentalUnit,
       seats,
       fuelType,
@@ -329,21 +370,30 @@ class CarRoute extends BaseRoute {
       throw ErrorHelper.requestDataInvalid("Thiếu brandId, name hoặc seats");
     }
 
-    const selectedRentalUnit = rentalUnit || RentalUnitEnum.DAY;
+    const dailyEnabled =
+      typeof allowDailyRental === "boolean"
+        ? allowDailyRental
+        : rentalUnit !== RentalUnitEnum.HOUR;
+    const hourlyEnabled =
+      typeof allowHourlyRental === "boolean"
+        ? allowHourlyRental
+        : rentalUnit === RentalUnitEnum.HOUR;
+    const selectedRentalUnit =
+      hourlyEnabled && !dailyEnabled ? RentalUnitEnum.HOUR : RentalUnitEnum.DAY;
 
-    if (!Object.values(RentalUnitEnum).includes(selectedRentalUnit)) {
+    if (!dailyEnabled && !hourlyEnabled) {
       throw ErrorHelper.requestDataInvalid("Đơn vị thuê xe không hợp lệ");
     }
 
     if (
-      selectedRentalUnit === RentalUnitEnum.DAY &&
+      dailyEnabled &&
       (!pricePerDay || Number(pricePerDay) <= 0)
     ) {
       throw ErrorHelper.requestDataInvalid("Xe thuê theo ngày cần pricePerDay");
     }
 
     if (
-      selectedRentalUnit === RentalUnitEnum.HOUR &&
+      hourlyEnabled &&
       (!pricePerHour || Number(pricePerHour) <= 0)
     ) {
       throw ErrorHelper.requestDataInvalid("Xe thuê theo giờ cần pricePerHour");
@@ -357,6 +407,8 @@ class CarRoute extends BaseRoute {
       licensePlate,
       pricePerDay,
       pricePerHour,
+      allowDailyRental: dailyEnabled,
+      allowHourlyRental: hourlyEnabled,
       rentalUnit: selectedRentalUnit,
       seats,
       fuelType,
@@ -384,6 +436,7 @@ class CarRoute extends BaseRoute {
       maxPrice,
       keyword,
       rentalUnit,
+      rentalMode,
       startDate,
       endDate,
     } =
@@ -397,7 +450,17 @@ class CarRoute extends BaseRoute {
 
     if (brandId) filter.brandId = brandId;
     if (seats) filter.seats = Number(seats);
-    if (rentalUnit) filter.rentalUnit = rentalUnit;
+    if (rentalUnit) {
+      const selectedMode = normalizeRentalMode(String(rentalUnit));
+
+      if (selectedMode === RentalModeEnum.HOURLY) {
+        filter.$or = [{ allowHourlyRental: true }, { rentalUnit: RentalUnitEnum.HOUR }];
+      }
+
+      if (selectedMode === RentalModeEnum.DAILY) {
+        filter.$or = [{ allowDailyRental: true }, { rentalUnit: RentalUnitEnum.DAY }];
+      }
+    }
 
     if (minPrice || maxPrice) {
       const priceFilter: any = {};
@@ -428,6 +491,7 @@ class CarRoute extends BaseRoute {
       carIds,
       requestedStart,
       requestedEnd,
+      typeof rentalMode === "string" ? rentalMode : undefined,
     );
     const carsWithAvailability = cars.map((car) =>
       this.withRentalAvailability(
@@ -448,11 +512,7 @@ class CarRoute extends BaseRoute {
   async getOneCar(req: Request, res: Response) {
     const id = req.params.id as string;
     await expireOldCarts();
-    const rentedCarIds = await syncRentedCarStatuses();
-
-    if (rentedCarIds.some((carId) => String(carId) === id)) {
-      throw ErrorHelper.recordNotFound("Xe");
-    }
+    await expireAbandonedPendingBookings();
 
     const car = await CarModel.findOne({
       _id: id,
@@ -466,10 +526,26 @@ class CarRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Xe");
     }
 
-    const availabilityMap = await this.getRentalAvailabilityMap([car._id]);
+    const requestedStart =
+      typeof req.query.startDate === "string"
+        ? new Date(req.query.startDate)
+        : undefined;
+    const requestedEnd =
+      typeof req.query.endDate === "string"
+        ? new Date(req.query.endDate)
+        : undefined;
+    const bookabilityMap = await this.getScheduleBookabilityMap(
+      [car._id],
+      requestedStart,
+      requestedEnd,
+      typeof req.query.rentalMode === "string"
+        ? req.query.rentalMode
+        : undefined,
+    );
     const carWithAvailability = this.withRentalAvailability(
       car,
-      availabilityMap.get(String(car._id)) || RentalAvailabilityEnum.AVAILABLE,
+      RentalAvailabilityEnum.AVAILABLE,
+      bookabilityMap.get(String(car._id)),
     );
 
     return res.status(200).json({
@@ -508,6 +584,40 @@ class CarRoute extends BaseRoute {
     const business = await this.getOwnerBusiness(authUser);
 
     const updateData = { ...req.body };
+
+    const dailyEnabled =
+      typeof updateData.allowDailyRental === "boolean"
+        ? updateData.allowDailyRental
+        : updateData.rentalUnit !== RentalUnitEnum.HOUR;
+    const hourlyEnabled =
+      typeof updateData.allowHourlyRental === "boolean"
+        ? updateData.allowHourlyRental
+        : updateData.rentalUnit === RentalUnitEnum.HOUR;
+
+    if (!dailyEnabled && !hourlyEnabled) {
+      throw ErrorHelper.requestDataInvalid(
+        "Can bat it nhat mot hinh thuc thue xe",
+      );
+    }
+
+    if (
+      dailyEnabled &&
+      (!updateData.pricePerDay || Number(updateData.pricePerDay) <= 0)
+    ) {
+      throw ErrorHelper.requestDataInvalid("Xe thue theo ngay can pricePerDay");
+    }
+
+    if (
+      hourlyEnabled &&
+      (!updateData.pricePerHour || Number(updateData.pricePerHour) <= 0)
+    ) {
+      throw ErrorHelper.requestDataInvalid("Xe thue theo gio can pricePerHour");
+    }
+
+    updateData.allowDailyRental = dailyEnabled;
+    updateData.allowHourlyRental = hourlyEnabled;
+    updateData.rentalUnit =
+      hourlyEnabled && !dailyEnabled ? RentalUnitEnum.HOUR : RentalUnitEnum.DAY;
 
     if (updateData.rentalUnit) {
       if (!Object.values(RentalUnitEnum).includes(updateData.rentalUnit)) {

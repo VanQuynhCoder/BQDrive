@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { BaseDocument } from "../../base/baseModel";
 import {
   BookingStatusEnum,
+  RentalModeEnum,
   PaymentOptionEnum,
 } from "../../constants/model.const";
 
@@ -12,6 +13,7 @@ export type IBooking = BaseDocument & {
   cartId?: mongoose.Types.ObjectId;
   startDate: Date;
   endDate: Date;
+  rentalMode: string;
   totalPrice: number;
 
   paymentOption: string;
@@ -55,6 +57,12 @@ const bookingSchema = new mongoose.Schema(
     endDate: {
       type: Date,
       required: true,
+    },
+    rentalMode: {
+      type: String,
+      enum: Object.values(RentalModeEnum),
+      required: true,
+      default: RentalModeEnum.DAILY,
     },
     totalPrice: {
       type: Number,

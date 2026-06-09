@@ -60,6 +60,7 @@ type Booking = {
   businessId?: BookingBusiness;
   startDate: string;
   endDate: string;
+  rentalMode?: string;
   totalPrice?: number;
   depositAmount?: number;
   remainingAmount?: number;
@@ -98,10 +99,10 @@ function getShortId(id?: string) {
   return id ? `#${id.slice(-8).toUpperCase()}` : "--";
 }
 
-function getRentalInfo(car?: BookingCar) {
-  if (car?.rentalUnit === "HOUR") {
+function getRentalInfo(car: BookingCar | undefined, rentalMode?: string) {
+  if (rentalMode === "HOURLY" || (!rentalMode && car?.rentalUnit === "HOUR")) {
     return {
-      price: car.pricePerHour || 0,
+      price: car?.pricePerHour || 0,
       unit: "giờ",
       label: "Số giờ thuê",
       mode: "Thuê theo giờ",
@@ -118,14 +119,14 @@ function getRentalInfo(car?: BookingCar) {
 
 const HOUR_MS = 1000 * 60 * 60;
 
-function calculateRentalTime(car: BookingCar | undefined, start: string, end: string) {
+function calculateRentalTime(rentalMode: string | undefined, start: string, end: string) {
   const startDate = new Date(start);
   const endDate = new Date(end);
   const diffMs = endDate.getTime() - startDate.getTime();
 
   if (Number.isNaN(diffMs) || diffMs <= 0) return 0;
 
-  if (car?.rentalUnit === "HOUR") {
+  if (rentalMode === "HOURLY") {
     return Math.ceil(diffMs / HOUR_MS);
   }
 
@@ -374,8 +375,12 @@ export default function BookingDetailPage() {
   }
 
   const car = booking.carId;
-  const rental = getRentalInfo(car);
-  const rentalTime = calculateRentalTime(car, booking.startDate, booking.endDate);
+  const rental = getRentalInfo(car, booking.rentalMode);
+  const rentalTime = calculateRentalTime(
+    booking.rentalMode,
+    booking.startDate,
+    booking.endDate,
+  );
   const statusInfo = getStatusInfo(booking.status);
   const paymentInfo = getPaymentInfo(booking);
   const StatusIcon = statusInfo.icon;

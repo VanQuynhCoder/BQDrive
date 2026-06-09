@@ -18,10 +18,17 @@ import {
   CarStatusEnum,
   CartStatusEnum,
   PaymentOptionEnum,
+  RentalModeEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
 
 const RENTER_ROLES = [UserRoleEnum.CUSTOMER, UserRoleEnum.PRIVATE_OWNER];
+const BLOCKING_BOOKING_STATUSES = [
+  BookingStatusEnum.PENDING,
+  BookingStatusEnum.WAITING_PAYMENT,
+  BookingStatusEnum.CONFIRMED,
+  BookingStatusEnum.IN_PROGRESS,
+];
 
 function calculatePaymentAmounts(totalPrice: number, paymentOption: string) {
   if (paymentOption === PaymentOptionEnum.FULL) {
@@ -190,7 +197,7 @@ class BookingRoute extends BaseRoute {
     const existedBooking = await BookingModel.findOne({
       carId,
       status: {
-        $in: [BookingStatusEnum.PENDING, BookingStatusEnum.CONFIRMED],
+        $in: BLOCKING_BOOKING_STATUSES,
       },
       isDeleted: false,
       startDate: { $lt: end },
@@ -227,10 +234,11 @@ class BookingRoute extends BaseRoute {
 
   async createBooking(req: Request, res: Response) {
     const authUser = (req as any).user;
-    const { carId, startDate, endDate, note, paymentOption } = req.body;
+    const { carId, startDate, endDate, rentalMode, note, paymentOption } =
+      req.body;
     await expireOldCarts();
 
-    if (!carId || !startDate || !endDate) {
+    if (!carId || !startDate || !endDate || !rentalMode) {
       throw ErrorHelper.requestDataInvalid(
         "Thiếu carId, startDate hoặc endDate",
       );
@@ -246,6 +254,10 @@ class BookingRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Xe");
     }
 
+    if (!Object.values(RentalModeEnum).includes(rentalMode)) {
+      throw ErrorHelper.requestDataInvalid("Hinh thuc thue khong hop le");
+    }
+
     const start = new Date(startDate);
     const end = new Date(endDate);
 
@@ -256,7 +268,7 @@ class BookingRoute extends BaseRoute {
       throw ErrorHelper.requestDataInvalid("Ngày thuê không hợp lệ");
     }
 
-    const rentalResult = calculateRentalPrice(car, start, end);
+    const rentalResult = calculateRentalPrice(car, start, end, rentalMode);
     const totalPrice = rentalResult.totalPrice;
 
     const selectedPaymentOption = paymentOption || PaymentOptionEnum.DEPOSIT;
@@ -276,6 +288,7 @@ class BookingRoute extends BaseRoute {
       carId: car._id,
       startDate: start,
       endDate: end,
+      rentalMode: rentalResult.rentalMode,
       totalPrice,
       paymentOption: selectedPaymentOption,
       depositAmount: paymentAmounts.depositAmount,
@@ -283,7 +296,7 @@ class BookingRoute extends BaseRoute {
       paidAmount: paymentAmounts.paidAmount,
       isDepositRefundable: true,
       note,
-      status: BookingStatusEnum.PENDING,
+      status: BookingStatusEnum.WAITING_PAYMENT,
     });
 
     return res.status(201).json({
@@ -359,13 +372,14 @@ class BookingRoute extends BaseRoute {
       cartId: cart._id,
       startDate: cart.startDate,
       endDate: cart.endDate,
+      rentalMode: cart.rentalMode,
       totalPrice: cart.totalPrice,
       paymentOption: selectedPaymentOption,
       depositAmount: paymentAmounts.depositAmount,
       remainingAmount: paymentAmounts.remainingAmount,
       paidAmount: paymentAmounts.paidAmount,
       isDepositRefundable: true,
-      status: BookingStatusEnum.PENDING,
+      status: BookingStatusEnum.WAITING_PAYMENT,
     });
 
     cart.status = CartStatusEnum.BOOKED;
@@ -449,7 +463,7 @@ class BookingRoute extends BaseRoute {
     const booking = await BookingModel.findOne({
       _id: id,
       userId: authUser.userId,
-      status: BookingStatusEnum.PENDING,
+      status: { $in: [BookingStatusEnum.PENDING, BookingStatusEnum.WAITING_PAYMENT] },
       isDeleted: false,
     } as any);
 
@@ -479,7 +493,7 @@ class BookingRoute extends BaseRoute {
     const booking = await BookingModel.findOne({
       _id: id,
       businessId: business._id,
-      status: BookingStatusEnum.PENDING,
+      status: { $in: [BookingStatusEnum.PENDING, BookingStatusEnum.WAITING_PAYMENT] },
       isDeleted: false,
     } as any);
 
@@ -504,7 +518,7 @@ class BookingRoute extends BaseRoute {
     const overlappedConfirmedBooking = await BookingModel.findOne({
       _id: { $ne: booking._id },
       carId: booking.carId,
-      status: BookingStatusEnum.CONFIRMED,
+      status: { $in: BLOCKING_BOOKING_STATUSES },
       isDeleted: false,
       startDate: { $lt: end },
       endDate: { $gt: start },

@@ -32,7 +32,10 @@ type CarForm = {
   seats: string;
   fuelType: FuelType;
   transmission: string;
-  price: string;
+  allowDailyRental: boolean;
+  allowHourlyRental: boolean;
+  pricePerDay: string;
+  pricePerHour: string;
   mainImage: string;
   galleryImages: string[];
   description: string;
@@ -46,7 +49,10 @@ const emptyForm: CarForm = {
   seats: "4",
   fuelType: "GASOLINE",
   transmission: "AUTOMATIC",
-  price: "",
+  allowDailyRental: true,
+  allowHourlyRental: false,
+  pricePerDay: "",
+  pricePerHour: "",
   mainImage: "",
   galleryImages: [],
   description: "",
@@ -120,7 +126,14 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 function toForm(car: BusinessCar): CarForm {
-  const isElectric = car.fuelType === "ELECTRIC";
+  const allowDailyRental =
+    typeof car.allowDailyRental === "boolean"
+      ? car.allowDailyRental
+      : car.rentalUnit !== "HOUR";
+  const allowHourlyRental =
+    typeof car.allowHourlyRental === "boolean"
+      ? car.allowHourlyRental
+      : car.rentalUnit === "HOUR";
   const images = car.images || [];
 
   return {
@@ -131,7 +144,10 @@ function toForm(car: BusinessCar): CarForm {
     seats: String(car.seats || 4),
     fuelType: car.fuelType || "GASOLINE",
     transmission: car.transmission || "AUTOMATIC",
-    price: String(isElectric ? car.pricePerHour || "" : car.pricePerDay || ""),
+    allowDailyRental,
+    allowHourlyRental,
+    pricePerDay: String(car.pricePerDay || ""),
+    pricePerHour: String(car.pricePerHour || ""),
     mainImage: images[0] || "",
     galleryImages: images.slice(1),
     description: car.description || "",
@@ -147,9 +163,6 @@ export default function BusinessCarsPage() {
   const [form, setForm] = useState<CarForm>(emptyForm);
   const [editingCar, setEditingCar] = useState<BusinessCar | null>(null);
   const [deleteCar, setDeleteCar] = useState<BusinessCar | null>(null);
-
-  const isElectric = form.fuelType === "ELECTRIC";
-  const priceLabel = isElectric ? "Giá thuê theo giờ *" : "Giá thuê theo ngày *";
 
   const fetchData = async () => {
     setLoading(true);
@@ -209,16 +222,8 @@ export default function BusinessCarsPage() {
     setForm(emptyForm);
   };
 
-  const updateForm = (field: keyof CarForm, value: string) => {
+  const updateForm = <K extends keyof CarForm>(field: K, value: CarForm[K]) => {
     setForm((prev) => {
-      if (field === "fuelType") {
-        return {
-          ...prev,
-          fuelType: value,
-          price: "",
-        };
-      }
-
       return {
         ...prev,
         [field]: value,
@@ -325,7 +330,8 @@ export default function BusinessCarsPage() {
 
   const buildPayload = (): CreateCarData | null => {
     const name = form.name.trim();
-    const price = Number(form.price);
+    const pricePerDay = Number(form.pricePerDay);
+    const pricePerHour = Number(form.pricePerHour);
     const seats = Number(form.seats);
 
     if (!name || !form.brandId || !form.type || !form.fuelType || !form.seats) {
@@ -338,8 +344,24 @@ export default function BusinessCarsPage() {
       return null;
     }
 
-    if (!Number.isFinite(price) || price <= 0) {
+    if (!form.allowDailyRental && !form.allowHourlyRental) {
       toast.error("Giá thuê phải lớn hơn 0");
+      return null;
+    }
+
+    if (
+      form.allowDailyRental &&
+      (!Number.isFinite(pricePerDay) || pricePerDay <= 0)
+    ) {
+      toast.error("Gia thue theo ngay phai lon hon 0");
+      return null;
+    }
+
+    if (
+      form.allowHourlyRental &&
+      (!Number.isFinite(pricePerHour) || pricePerHour <= 0)
+    ) {
+      toast.error("Gia thue theo gio phai lon hon 0");
       return null;
     }
 
@@ -358,9 +380,12 @@ export default function BusinessCarsPage() {
       seats,
       fuelType: form.fuelType,
       transmission: form.transmission,
-      rentalUnit: isElectric ? "HOUR" : "DAY",
-      pricePerHour: isElectric ? price : undefined,
-      pricePerDay: isElectric ? undefined : price,
+      allowDailyRental: form.allowDailyRental,
+      allowHourlyRental: form.allowHourlyRental,
+      rentalUnit:
+        form.allowHourlyRental && !form.allowDailyRental ? "HOUR" : "DAY",
+      pricePerHour: form.allowHourlyRental ? pricePerHour : undefined,
+      pricePerDay: form.allowDailyRental ? pricePerDay : undefined,
       images,
       description: form.description.trim(),
     };
@@ -694,15 +719,50 @@ export default function BusinessCarsPage() {
 
                 <label className="block">
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                    {priceLabel}
+                    Gia thue theo ngay
                   </span>
-                  <input
-                    value={form.price}
-                    onChange={(event) => updateForm("price", event.target.value)}
-                    className="min-h-11 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10"
-                    inputMode="numeric"
-                    placeholder={isElectric ? "150000" : "900000"}
-                  />
+                  <span className="flex min-h-11 items-center gap-3 rounded-lg border border-slate-200 px-4">
+                    <input
+                      type="checkbox"
+                      checked={form.allowDailyRental}
+                      onChange={(event) =>
+                        updateForm("allowDailyRental", event.target.checked)
+                      }
+                    />
+                    <input
+                      value={form.pricePerDay}
+                      onChange={(event) =>
+                        updateForm("pricePerDay", event.target.value)
+                      }
+                      className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
+                      inputMode="numeric"
+                      placeholder="900000"
+                    />
+                  </span>
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-sm font-extrabold text-slate-700">
+                    Gia thue theo gio
+                  </span>
+                  <span className="flex min-h-11 items-center gap-3 rounded-lg border border-slate-200 px-4">
+                    <input
+                      type="checkbox"
+                      checked={form.allowHourlyRental}
+                      onChange={(event) =>
+                        updateForm("allowHourlyRental", event.target.checked)
+                      }
+                    />
+                    <input
+                      value={form.pricePerHour}
+                      onChange={(event) =>
+                        updateForm("pricePerHour", event.target.value)
+                      }
+                      className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
+                      inputMode="numeric"
+                      placeholder="150000"
+                    />
+                  </span>
                 </label>
               </div>
 

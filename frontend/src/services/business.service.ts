@@ -15,6 +15,7 @@ export type PaymentStatus =
   | "REFUNDED"
   | string;
 export type RentalUnit = "DAY" | "HOUR";
+export type RentalMode = "DAILY" | "HOURLY";
 export type FuelType = "GASOLINE" | "DIESEL" | "ELECTRIC" | "HYBRID" | string;
 
 export type BusinessUser = {
@@ -54,6 +55,8 @@ export type BusinessCar = {
   businessId?: BusinessProfile;
   pricePerDay?: number;
   pricePerHour?: number;
+  allowDailyRental?: boolean;
+  allowHourlyRental?: boolean;
   rentalUnit?: RentalUnit | string;
   seats?: number;
   fuelType?: FuelType;
@@ -118,7 +121,9 @@ export type CreateCarData = {
   licensePlate?: string;
   pricePerDay?: number;
   pricePerHour?: number;
-  rentalUnit: RentalUnit;
+  allowDailyRental: boolean;
+  allowHourlyRental: boolean;
+  rentalUnit?: RentalUnit;
   seats: number;
   fuelType: FuelType;
   transmission?: string;

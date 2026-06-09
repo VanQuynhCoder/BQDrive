@@ -46,8 +46,11 @@ export enum CartStatusEnum {
 
 export enum BookingStatusEnum {
   PENDING = "PENDING",
+  WAITING_PAYMENT = "WAITING_PAYMENT",
   CONFIRMED = "CONFIRMED",
+  IN_PROGRESS = "IN_PROGRESS",
   CANCELLED = "CANCELLED",
+  REJECTED = "REJECTED",
   COMPLETED = "COMPLETED",
   NO_SHOW = "NO_SHOW",
 }
@@ -78,6 +81,10 @@ export enum PaymentTypeEnum {
 export enum RentalUnitEnum {
   DAY = "DAY",
   HOUR = "HOUR",
+}
+export enum RentalModeEnum {
+  DAILY = "DAILY",
+  HOURLY = "HOURLY",
 }
 export enum PrivateOwnerRequestStatusEnum {
   PENDING = "PENDING",

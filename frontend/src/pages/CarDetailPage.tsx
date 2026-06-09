@@ -43,6 +43,8 @@ type CarDetail = {
   description?: string;
   pricePerDay?: number;
   pricePerHour?: number;
+  allowDailyRental?: boolean;
+  allowHourlyRental?: boolean;
   rentalUnit?: string;
   seats?: number;
   fuelType?: string;
@@ -57,7 +59,10 @@ type CarDetail = {
   rentalAvailability?: RentalAvailability;
   availabilityLabel?: string;
   isBookable?: boolean;
+  unavailableReason?: string;
 };
+
+type RentalMode = "DAILY" | "HOURLY";
 
 type ApiError = {
   response?: {
@@ -120,10 +125,23 @@ function getRentalValidationMessage(
   return "";
 }
 
-function getRentalInfo(car?: CarDetail) {
-  if (car?.rentalUnit === "HOUR") {
+function getRentalModes(car?: CarDetail | null) {
+  const allowDailyRental =
+    typeof car?.allowDailyRental === "boolean"
+      ? car.allowDailyRental
+      : car?.rentalUnit !== "HOUR";
+  const allowHourlyRental =
+    typeof car?.allowHourlyRental === "boolean"
+      ? car.allowHourlyRental
+      : car?.rentalUnit === "HOUR";
+
+  return { allowDailyRental, allowHourlyRental };
+}
+
+function getRentalInfo(car: CarDetail | null | undefined, rentalMode: RentalMode) {
+  if (rentalMode === "HOURLY") {
     return {
-      price: Number(car.pricePerHour || 0),
+      price: Number(car?.pricePerHour || 0),
       unit: "giờ",
       label: "Số giờ thuê",
       priceLabel: "Giá thuê theo giờ",
@@ -140,12 +158,12 @@ function getRentalInfo(car?: CarDetail) {
   };
 }
 
-function calculateRentalTime(car: Pick<CarDetail, "rentalUnit">, start: Date, end: Date) {
+function calculateRentalTime(rentalMode: RentalMode, start: Date, end: Date) {
   const diffMs = end.getTime() - start.getTime();
 
   if (diffMs <= 0) return 0;
 
-  if (car?.rentalUnit === "HOUR") {
+  if (rentalMode === "HOURLY") {
     return Math.ceil(diffMs / HOUR_MS);
   }
 
@@ -208,9 +226,12 @@ function getAvailabilityInfo(car?: CarDetail | null) {
 
   return {
     label: car?.availabilityLabel || "Sẵn sàng",
-    badgeClass: "bg-emerald-50 text-emerald-700",
+    badgeClass:
+      car?.isBookable === false
+        ? "bg-red-50 text-red-700"
+        : "bg-emerald-50 text-emerald-700",
     isBookable: car?.isBookable !== false,
-    message: "",
+    message: car?.unavailableReason || "",
   };
 }
 
@@ -220,6 +241,7 @@ export default function CarDetailPage() {
 
   const [car, setCar] = useState<CarDetail | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+  const [rentalMode, setRentalMode] = useState<RentalMode>("DAILY");
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -232,10 +254,49 @@ export default function CarDetailPage() {
   useEffect(() => {
     if (!id) return;
 
-    carService.getOneCar(id).then(setCar).catch(console.log);
+    carService
+      .getOneCar(id)
+      .then((nextCar) => {
+        setCar(nextCar);
+        const modes = getRentalModes(nextCar);
+        setRentalMode(
+          modes.allowDailyRental || !modes.allowHourlyRental
+            ? "DAILY"
+            : "HOURLY",
+        );
+      })
+      .catch(console.log);
   }, [id]);
 
   const galleryImages = useMemo(() => getCarImages(car || undefined), [car]);
+
+  useEffect(() => {
+    if (!id || !startDate || !endDate || !startTime || !endTime) return;
+
+    const start = new Date(buildDateTime(startDate, startTime));
+    const end = new Date(buildDateTime(endDate, endTime));
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+      return;
+    }
+
+    let active = true;
+
+    carService
+      .getOneCar(id, {
+        startDate: buildDateTime(startDate, startTime),
+        endDate: buildDateTime(endDate, endTime),
+        rentalMode,
+      })
+      .then((nextCar) => {
+        if (active) setCar(nextCar);
+      })
+      .catch(console.log);
+
+    return () => {
+      active = false;
+    };
+  }, [id, startDate, endDate, startTime, endTime, rentalMode]);
 
   const openImageViewer = (index: number) => {
     setActiveImageIndex(index);
@@ -277,8 +338,9 @@ export default function CarDetailPage() {
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
+  const supportedRentalModes = getRentalModes(car);
   const rentalInfo = car
-    ? getRentalInfo(car)
+    ? getRentalInfo(car, rentalMode)
     : {
         price: 0,
         unit: "ngày",
@@ -295,8 +357,8 @@ export default function CarDetailPage() {
     const start = new Date(buildDateTime(startDate, startTime));
     const end = new Date(buildDateTime(endDate, endTime));
 
-    return calculateRentalTime(car, start, end);
-  }, [car, startDate, endDate, startTime, endTime]);
+    return calculateRentalTime(rentalMode, start, end);
+  }, [car, rentalMode, startDate, endDate, startTime, endTime]);
 
   const totalPrice = rentalTime * rentalInfo.price;
 
@@ -304,6 +366,21 @@ export default function CarDetailPage() {
     () => getRentalValidationMessage(startDate, endDate, startTime, endTime),
     [startDate, endDate, startTime, endTime],
   );
+  const rentalModeValidationMessage = useMemo(() => {
+    if (rentalMode === "DAILY" && !supportedRentalModes.allowDailyRental) {
+      return "Xe khong ho tro thue theo ngay";
+    }
+
+    if (rentalMode === "HOURLY" && !supportedRentalModes.allowHourlyRental) {
+      return "Xe khong ho tro thue theo gio";
+    }
+
+    if (rentalMode === "HOURLY" && rentalTime > 0 && (rentalTime < 2 || rentalTime > 24)) {
+      return "Thue theo gio chi ho tro tu 2 den 24 gio";
+    }
+
+    return "";
+  }, [rentalMode, rentalTime, supportedRentalModes.allowDailyRental, supportedRentalModes.allowHourlyRental]);
 
   const shouldShowRentalValidation =
     Boolean(startDate || endDate) && Boolean(rentalValidationMessage);
@@ -312,7 +389,8 @@ export default function CarDetailPage() {
     Boolean(car) &&
     availabilityInfo.isBookable &&
     rentalTime > 0 &&
-    !rentalValidationMessage;
+    !rentalValidationMessage &&
+    !rentalModeValidationMessage;
 
   const validateBeforeSubmit = () => {
     if (!availabilityInfo.isBookable) {
@@ -322,6 +400,11 @@ export default function CarDetailPage() {
 
     if (rentalValidationMessage) {
       toast.error(rentalValidationMessage);
+      return false;
+    }
+
+    if (rentalModeValidationMessage) {
+      toast.error(rentalModeValidationMessage);
       return false;
     }
 
@@ -354,6 +437,7 @@ export default function CarDetailPage() {
         carId: id,
         startDate: buildDateTime(startDate, startTime),
         endDate: buildDateTime(endDate, endTime),
+        rentalMode,
       });
 
       toast.success("Đã thêm vào giỏ hàng");
@@ -381,6 +465,7 @@ export default function CarDetailPage() {
         carId: id,
         startDate: buildDateTime(startDate, startTime),
         endDate: buildDateTime(endDate, endTime),
+        rentalMode,
       });
 
       toast.success("Đặt xe thành công");
@@ -757,6 +842,36 @@ export default function CarDetailPage() {
 
               <div className="mt-6 space-y-4 border-y border-border py-5">
                 <div className="grid gap-3 sm:grid-cols-2">
+                  {supportedRentalModes.allowDailyRental && (
+                    <button
+                      type="button"
+                      onClick={() => setRentalMode("DAILY")}
+                      className={`min-h-12 rounded-lg border px-4 text-sm font-extrabold transition ${
+                        rentalMode === "DAILY"
+                          ? "border-secondary bg-secondary text-primary"
+                          : "border-border bg-white text-primary hover:bg-soft"
+                      }`}
+                    >
+                      ThuÃª theo ngÃ y
+                    </button>
+                  )}
+
+                  {supportedRentalModes.allowHourlyRental && (
+                    <button
+                      type="button"
+                      onClick={() => setRentalMode("HOURLY")}
+                      className={`min-h-12 rounded-lg border px-4 text-sm font-extrabold transition ${
+                        rentalMode === "HOURLY"
+                          ? "border-secondary bg-secondary text-primary"
+                          : "border-border bg-white text-primary hover:bg-soft"
+                      }`}
+                    >
+                      ThuÃª theo giá»
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
                     <span className="mb-1 block text-sm font-bold text-primary">
                       Ngày nhận
@@ -844,6 +959,13 @@ export default function CarDetailPage() {
                   <p className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold leading-6 text-red-600">
                     <X size={17} className="mt-0.5 shrink-0" />
                     {rentalValidationMessage}
+                  </p>
+                )}
+
+                {rentalModeValidationMessage && (
+                  <p className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold leading-6 text-red-600">
+                    <X size={17} className="mt-0.5 shrink-0" />
+                    {rentalModeValidationMessage}
                   </p>
                 )}
               </div>

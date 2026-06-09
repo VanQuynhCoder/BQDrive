@@ -22,6 +22,8 @@ type CarCardProps = {
     name: string;
     pricePerDay?: number;
     pricePerHour?: number;
+    allowDailyRental?: boolean;
+    allowHourlyRental?: boolean;
     rentalUnit?: string;
     seats: number;
     fuelType?: string;
@@ -53,7 +55,16 @@ function formatPrice(price: number) {
 }
 
 function getRentalPrice(car: CarCardProps["car"]) {
-  if (car.rentalUnit === "HOUR") {
+  const allowDailyRental =
+    typeof car.allowDailyRental === "boolean"
+      ? car.allowDailyRental
+      : car.rentalUnit !== "HOUR";
+  const allowHourlyRental =
+    typeof car.allowHourlyRental === "boolean"
+      ? car.allowHourlyRental
+      : car.rentalUnit === "HOUR";
+
+  if (!allowDailyRental && allowHourlyRental) {
     return {
       price: car.pricePerHour || 0,
       unit: "giờ",

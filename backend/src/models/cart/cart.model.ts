@@ -1,12 +1,13 @@
 import mongoose from "mongoose";
 import { BaseDocument } from "../../base/baseModel";
-import { CartStatusEnum } from "../../constants/model.const";
+import { CartStatusEnum, RentalModeEnum } from "../../constants/model.const";
 
 export type ICart = BaseDocument & {
   userId: mongoose.Types.ObjectId;
   carId: mongoose.Types.ObjectId;
   startDate: Date;
   endDate: Date;
+  rentalMode: string;
   totalPrice: number;
   expiredAt: Date;
   status: string;
@@ -31,6 +32,12 @@ const cartSchema = new mongoose.Schema(
     endDate: {
       type: Date,
       required: true,
+    },
+    rentalMode: {
+      type: String,
+      enum: Object.values(RentalModeEnum),
+      required: true,
+      default: RentalModeEnum.DAILY,
     },
     totalPrice: {
       type: Number,

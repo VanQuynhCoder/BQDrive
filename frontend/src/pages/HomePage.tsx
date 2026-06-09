@@ -35,6 +35,8 @@ type HomeCar = {
   name: string;
   pricePerDay?: number;
   pricePerHour?: number;
+  allowDailyRental?: boolean;
+  allowHourlyRental?: boolean;
   rentalUnit?: string;
   seats: number;
   fuelType?: string;
