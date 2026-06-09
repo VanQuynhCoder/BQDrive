@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import toast from "react-hot-toast";
 import {
@@ -99,12 +99,29 @@ function formatCurrency(value?: number) {
   }).format(value || 0);
 }
 
+function getRentalPriceText(car: BusinessCar) {
+  const allowDailyRental =
+    typeof car.allowDailyRental === "boolean"
+      ? car.allowDailyRental
+      : car.rentalUnit !== "HOUR";
+  const allowHourlyRental =
+    typeof car.allowHourlyRental === "boolean"
+      ? car.allowHourlyRental
+      : car.rentalUnit === "HOUR";
+  const prices = [
+    allowDailyRental ? `${formatCurrency(car.pricePerDay)} / ngÃ y` : "",
+    allowHourlyRental ? `${formatCurrency(car.pricePerHour)} / giá»` : "",
+  ].filter(Boolean);
+
+  return prices.join(" | ") || "--";
+}
+
 function getStatusBadge(status?: string) {
   const map: Record<string, { label: string; tone: "green" | "red" | "yellow" | "gray" }> = {
-    APPROVED: { label: "Đã duyệt", tone: "green" },
-    RENTED: { label: "Đang được thuê", tone: "yellow" },
-    PENDING: { label: "Chờ duyệt", tone: "yellow" },
-    REJECTED: { label: "Từ chối", tone: "red" },
+    APPROVED: { label: "ÄÃ£ duyá»‡t", tone: "green" },
+    RENTED: { label: "Äang Ä‘Æ°á»£c thuÃª", tone: "yellow" },
+    PENDING: { label: "Chá» duyá»‡t", tone: "yellow" },
+    REJECTED: { label: "Tá»« chá»‘i", tone: "red" },
   };
 
   return map[status || ""] || { label: status || "--", tone: "gray" };
@@ -174,7 +191,7 @@ export default function BusinessCarsPage() {
       setCars(nextCars);
       setBrands(nextBrands);
     } catch {
-      toast.error("Không thể tải danh sách xe");
+      toast.error("KhÃ´ng thá»ƒ táº£i danh sÃ¡ch xe");
     } finally {
       setLoading(false);
     }
@@ -190,7 +207,7 @@ export default function BusinessCarsPage() {
         setBrands(nextBrands);
       })
       .catch(() => {
-        toast.error("Không thể tải danh sách xe");
+        toast.error("KhÃ´ng thá»ƒ táº£i danh sÃ¡ch xe");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -244,7 +261,7 @@ export default function BusinessCarsPage() {
     );
 
     if (invalidFile) {
-      toast.error("Vui lòng chỉ chọn file ảnh");
+      toast.error("Vui lÃ²ng chá»‰ chá»n file áº£nh");
       return;
     }
 
@@ -253,7 +270,7 @@ export default function BusinessCarsPage() {
     );
 
     if (oversizeFile) {
-      toast.error("Mỗi ảnh xe nên nhỏ hơn 1MB");
+      toast.error("Má»—i áº£nh xe nÃªn nhá» hÆ¡n 1MB");
       return;
     }
 
@@ -263,9 +280,9 @@ export default function BusinessCarsPage() {
         ...prev,
         mainImage,
       }));
-      toast.success("Đã chọn ảnh chính của xe");
+      toast.success("ÄÃ£ chá»n áº£nh chÃ­nh cá»§a xe");
     } catch {
-      toast.error("Không thể đọc file ảnh");
+      toast.error("KhÃ´ng thá»ƒ Ä‘á»c file áº£nh");
     }
   };
 
@@ -278,7 +295,7 @@ export default function BusinessCarsPage() {
     if (selectedFiles.length === 0) return;
 
     if (form.galleryImages.length + selectedFiles.length > maxGalleryImages) {
-      toast.error(`Chỉ được chọn tối đa ${maxGalleryImages} ảnh phụ cho mỗi xe`);
+      toast.error(`Chá»‰ Ä‘Æ°á»£c chá»n tá»‘i Ä‘a ${maxGalleryImages} áº£nh phá»¥ cho má»—i xe`);
       return;
     }
 
@@ -287,7 +304,7 @@ export default function BusinessCarsPage() {
     );
 
     if (invalidFile) {
-      toast.error("Vui lòng chỉ chọn file ảnh");
+      toast.error("Vui lÃ²ng chá»‰ chá»n file áº£nh");
       return;
     }
 
@@ -296,7 +313,7 @@ export default function BusinessCarsPage() {
     );
 
     if (oversizeFile) {
-      toast.error("Mỗi ảnh xe nên nhỏ hơn 1MB");
+      toast.error("Má»—i áº£nh xe nÃªn nhá» hÆ¡n 1MB");
       return;
     }
 
@@ -306,9 +323,9 @@ export default function BusinessCarsPage() {
         ...prev,
         galleryImages: [...prev.galleryImages, ...images],
       }));
-      toast.success("Đã chọn ảnh xe");
+      toast.success("ÄÃ£ chá»n áº£nh xe");
     } catch {
-      toast.error("Không thể đọc file ảnh");
+      toast.error("KhÃ´ng thá»ƒ Ä‘á»c file áº£nh");
     }
   };
 
@@ -335,17 +352,17 @@ export default function BusinessCarsPage() {
     const seats = Number(form.seats);
 
     if (!name || !form.brandId || !form.type || !form.fuelType || !form.seats) {
-      toast.error("Vui lòng nhập đầy đủ thông tin bắt buộc");
+      toast.error("Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ thÃ´ng tin báº¯t buá»™c");
       return null;
     }
 
     if (!Number.isFinite(seats) || seats <= 0) {
-      toast.error("Số ghế không hợp lệ");
+      toast.error("Sá»‘ gháº¿ khÃ´ng há»£p lá»‡");
       return null;
     }
 
     if (!form.allowDailyRental && !form.allowHourlyRental) {
-      toast.error("Giá thuê phải lớn hơn 0");
+      toast.error("GiÃ¡ thuÃª pháº£i lá»›n hÆ¡n 0");
       return null;
     }
 
@@ -366,7 +383,7 @@ export default function BusinessCarsPage() {
     }
 
     if (!form.mainImage) {
-      toast.error("Vui lòng chọn ảnh chính của xe");
+      toast.error("Vui lÃ²ng chá»n áº£nh chÃ­nh cá»§a xe");
       return null;
     }
 
@@ -401,16 +418,16 @@ export default function BusinessCarsPage() {
     try {
       if (editingCar) {
         await businessService.updateCar(editingCar._id, payload);
-        toast.success("Đã cập nhật xe, vui lòng chờ Admin duyệt lại");
+        toast.success("ÄÃ£ cáº­p nháº­t xe, vui lÃ²ng chá» Admin duyá»‡t láº¡i");
       } else {
         await businessService.createCar(payload);
-        toast.success("Đã thêm xe, trạng thái đang chờ Admin duyệt");
+        toast.success("ÄÃ£ thÃªm xe, tráº¡ng thÃ¡i Ä‘ang chá» Admin duyá»‡t");
       }
 
       closeForm();
       await fetchData();
     } catch (error) {
-      toast.error(getErrorMessage(error, "Lưu xe thất bại"));
+      toast.error(getErrorMessage(error, "LÆ°u xe tháº¥t báº¡i"));
     } finally {
       setSubmitting(false);
     }
@@ -422,11 +439,11 @@ export default function BusinessCarsPage() {
     setSubmitting(true);
     try {
       await businessService.deleteCar(deleteCar._id);
-      toast.success("Đã xóa xe");
+      toast.success("ÄÃ£ xÃ³a xe");
       setDeleteCar(null);
       await fetchData();
     } catch (error) {
-      toast.error(getErrorMessage(error, "Xóa xe thất bại"));
+      toast.error(getErrorMessage(error, "XÃ³a xe tháº¥t báº¡i"));
     } finally {
       setSubmitting(false);
     }
@@ -437,14 +454,14 @@ export default function BusinessCarsPage() {
       <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm font-bold uppercase text-secondary">
-            Kho xe doanh nghiệp
+            Kho xe doanh nghiá»‡p
           </p>
           <h2 className="mt-2 text-3xl font-extrabold text-primary">
-            Quản lý xe
+            Quáº£n lÃ½ xe
           </h2>
           <p className="mt-2 max-w-2xl text-slate-500">
-            Thêm hoặc cập nhật xe. Mọi xe mới và xe chỉnh sửa sẽ ở trạng thái
-            chờ Admin duyệt trước khi hiển thị cho khách hàng.
+            ThÃªm hoáº·c cáº­p nháº­t xe. Má»i xe má»›i vÃ  xe chá»‰nh sá»­a sáº½ á»Ÿ tráº¡ng thÃ¡i
+            chá» Admin duyá»‡t trÆ°á»›c khi hiá»ƒn thá»‹ cho khÃ¡ch hÃ ng.
           </p>
         </div>
 
@@ -454,7 +471,7 @@ export default function BusinessCarsPage() {
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2 font-extrabold text-white transition hover:bg-primaryDark"
         >
           <Plus size={19} className="text-secondary" />
-          Thêm xe
+          ThÃªm xe
         </button>
       </section>
 
@@ -464,18 +481,18 @@ export default function BusinessCarsPage() {
             <thead className="bg-slate-50 text-xs font-extrabold uppercase text-slate-500">
               <tr>
                 <th className="px-5 py-4">Xe</th>
-                <th className="px-5 py-4">Hãng</th>
-                <th className="px-5 py-4">Nhiên liệu</th>
-                <th className="px-5 py-4">Giá thuê</th>
-                <th className="px-5 py-4">Trạng thái</th>
-                <th className="px-5 py-4 text-right">Thao tác</th>
+                <th className="px-5 py-4">HÃ£ng</th>
+                <th className="px-5 py-4">NhiÃªn liá»‡u</th>
+                <th className="px-5 py-4">GiÃ¡ thuÃª</th>
+                <th className="px-5 py-4">Tráº¡ng thÃ¡i</th>
+                <th className="px-5 py-4 text-right">Thao tÃ¡c</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading && (
                 <tr>
                   <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
-                    Đang tải danh sách xe...
+                    Äang táº£i danh sÃ¡ch xe...
                   </td>
                 </tr>
               )}
@@ -505,7 +522,7 @@ export default function BusinessCarsPage() {
                               {car.name}
                             </p>
                             <p className="text-xs font-semibold text-slate-500">
-                              {car.licensePlate || "--"} · {car.seats || 0} ghế
+                              {car.licensePlate || "--"} Â· {car.seats || 0} gháº¿
                             </p>
                           </div>
                         </div>
@@ -524,9 +541,7 @@ export default function BusinessCarsPage() {
                         </span>
                       </td>
                       <td className="px-5 py-4 font-extrabold text-primary">
-                        {carIsElectric
-                          ? `${formatCurrency(car.pricePerHour)} / giờ`
-                          : `${formatCurrency(car.pricePerDay)} / ngày`}
+                        {getRentalPriceText(car)}
                       </td>
                       <td className="px-5 py-4">
                         <div className="space-y-1">
@@ -549,7 +564,7 @@ export default function BusinessCarsPage() {
                             className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 font-bold text-slate-700 transition hover:bg-slate-200"
                           >
                             <Edit size={16} />
-                            Sửa
+                            Sá»­a
                           </button>
                           <button
                             type="button"
@@ -557,7 +572,7 @@ export default function BusinessCarsPage() {
                             className="inline-flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 font-bold text-red-700 transition hover:bg-red-100"
                           >
                             <Trash2 size={16} />
-                            Xóa
+                            XÃ³a
                           </button>
                         </div>
                       </td>
@@ -568,7 +583,7 @@ export default function BusinessCarsPage() {
               {!loading && cars.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
-                    Doanh nghiệp chưa có xe nào.
+                    Doanh nghiá»‡p chÆ°a cÃ³ xe nÃ o.
                   </td>
                 </tr>
               )}
@@ -583,10 +598,10 @@ export default function BusinessCarsPage() {
             <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-primary px-6 py-5 text-white">
               <div>
                 <p className="text-sm font-bold uppercase text-secondary">
-                  {editingCar ? "Cập nhật xe" : "Thêm xe mới"}
+                  {editingCar ? "Cáº­p nháº­t xe" : "ThÃªm xe má»›i"}
                 </p>
                 <h3 className="mt-1 text-2xl font-extrabold">
-                  {editingCar ? editingCar.name : "Gửi xe chờ Admin duyệt"}
+                  {editingCar ? editingCar.name : "Gá»­i xe chá» Admin duyá»‡t"}
                 </h3>
               </div>
               <button
@@ -594,8 +609,8 @@ export default function BusinessCarsPage() {
                 onClick={closeForm}
                 disabled={submitting}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
-                aria-label="Đóng modal"
-                title="Đóng modal"
+                aria-label="ÄÃ³ng modal"
+                title="ÄÃ³ng modal"
               >
                 <X size={20} />
               </button>
@@ -605,7 +620,7 @@ export default function BusinessCarsPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block">
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                    Tên xe *
+                    TÃªn xe *
                   </span>
                   <input
                     value={form.name}
@@ -617,7 +632,7 @@ export default function BusinessCarsPage() {
 
                 <label className="block">
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                    Hãng xe *
+                    HÃ£ng xe *
                   </span>
                   <select
                     value={form.brandId}
@@ -626,7 +641,7 @@ export default function BusinessCarsPage() {
                     }
                     className="min-h-11 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10"
                   >
-                    <option value="">Chọn hãng xe</option>
+                    <option value="">Chá»n hÃ£ng xe</option>
                     {brandOptions.map((brand) => (
                       <option key={brand._id} value={brand._id}>
                         {brand.name}
@@ -637,7 +652,7 @@ export default function BusinessCarsPage() {
 
                 <label className="block">
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                    Dòng xe *
+                    DÃ²ng xe *
                   </span>
                   <select
                     value={form.type}
@@ -654,7 +669,7 @@ export default function BusinessCarsPage() {
 
                 <label className="block">
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                    Biển số
+                    Biá»ƒn sá»‘
                   </span>
                   <input
                     value={form.licensePlate}
@@ -668,7 +683,7 @@ export default function BusinessCarsPage() {
 
                 <label className="block">
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                    Số ghế *
+                    Sá»‘ gháº¿ *
                   </span>
                   <input
                     value={form.seats}
@@ -681,7 +696,7 @@ export default function BusinessCarsPage() {
 
                 <label className="block">
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                    Nhiên liệu *
+                    NhiÃªn liá»‡u *
                   </span>
                   <select
                     value={form.fuelType}
@@ -700,7 +715,7 @@ export default function BusinessCarsPage() {
 
                 <label className="block">
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                    Hộp số
+                    Há»™p sá»‘
                   </span>
                   <select
                     value={form.transmission}
@@ -775,17 +790,17 @@ export default function BusinessCarsPage() {
                       </div>
                       <div>
                         <p className="text-sm font-extrabold text-primary">
-                          Ảnh chính *
+                          áº¢nh chÃ­nh *
                         </p>
                         <p className="mt-1 text-sm text-slate-500">
-                          Ảnh đầu tiên hiển thị trên trang chủ.
+                          áº¢nh Ä‘áº§u tiÃªn hiá»ƒn thá»‹ trÃªn trang chá»§.
                         </p>
                       </div>
                     </div>
 
                     <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2 font-extrabold text-white transition hover:bg-primaryDark">
                       <Upload size={18} className="text-secondary" />
-                      Chọn ảnh chính
+                      Chá»n áº£nh chÃ­nh
                       <input
                         type="file"
                         accept="image/*"
@@ -800,25 +815,25 @@ export default function BusinessCarsPage() {
                       <div className="group relative aspect-[16/10] overflow-hidden rounded-lg border border-secondary/30 bg-white">
                         <img
                           src={form.mainImage}
-                          alt="Ảnh chính của xe"
+                          alt="áº¢nh chÃ­nh cá»§a xe"
                           className="h-full w-full object-cover"
                         />
                         <span className="absolute left-3 top-3 rounded-lg bg-secondary px-3 py-1 text-xs font-extrabold text-primary">
-                          Ảnh chính
+                          áº¢nh chÃ­nh
                         </span>
                         <button
                           type="button"
                           onClick={removeMainImage}
                           className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg bg-slate-950/75 text-white opacity-100 transition hover:bg-red-600 sm:opacity-0 sm:group-hover:opacity-100"
-                          aria-label="Xóa ảnh chính"
-                          title="Xóa ảnh chính"
+                          aria-label="XÃ³a áº£nh chÃ­nh"
+                          title="XÃ³a áº£nh chÃ­nh"
                         >
                           <X size={16} />
                         </button>
                       </div>
                     ) : (
                       <div className="flex aspect-[16/10] items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-sm font-bold text-slate-400">
-                        Chưa chọn ảnh chính
+                        ChÆ°a chá»n áº£nh chÃ­nh
                       </div>
                     )}
                   </div>
@@ -832,17 +847,17 @@ export default function BusinessCarsPage() {
                       </div>
                       <div>
                         <p className="text-sm font-extrabold text-primary">
-                          Ảnh phụ mô tả
+                          áº¢nh phá»¥ mÃ´ táº£
                         </p>
                         <p className="mt-1 text-sm text-slate-500">
-                          Tối đa {maxGalleryImages} ảnh phụ, mỗi ảnh dưới 1MB.
+                          Tá»‘i Ä‘a {maxGalleryImages} áº£nh phá»¥, má»—i áº£nh dÆ°á»›i 1MB.
                         </p>
                       </div>
                     </div>
 
                     <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-primary px-5 py-2 font-extrabold text-primary transition hover:bg-primary hover:text-white">
                       <Upload size={18} className="text-secondary" />
-                      Chọn ảnh phụ
+                      Chá»n áº£nh phá»¥
                       <input
                         type="file"
                         accept="image/*"
@@ -862,15 +877,15 @@ export default function BusinessCarsPage() {
                         >
                           <img
                             src={image}
-                            alt={`Ảnh phụ ${index + 1}`}
+                            alt={`áº¢nh phá»¥ ${index + 1}`}
                             className="h-full w-full object-cover"
                           />
                           <button
                             type="button"
                             onClick={() => removeGalleryImage(index)}
                             className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg bg-slate-950/75 text-white opacity-100 transition hover:bg-red-600 sm:opacity-0 sm:group-hover:opacity-100"
-                            aria-label="Xóa ảnh phụ"
-                            title="Xóa ảnh phụ"
+                            aria-label="XÃ³a áº£nh phá»¥"
+                            title="XÃ³a áº£nh phá»¥"
                           >
                             <X size={16} />
                           </button>
@@ -879,7 +894,7 @@ export default function BusinessCarsPage() {
                     </div>
                   ) : (
                     <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm font-bold text-slate-400">
-                      Có thể thêm ảnh nội thất, ngoại thất, cốp xe, đồng hồ...
+                      CÃ³ thá»ƒ thÃªm áº£nh ná»™i tháº¥t, ngoáº¡i tháº¥t, cá»‘p xe, Ä‘á»“ng há»“...
                     </div>
                   )}
                 </div>
@@ -887,7 +902,7 @@ export default function BusinessCarsPage() {
 
               <label className="mt-4 block">
                 <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                  Mô tả
+                  MÃ´ táº£
                 </span>
                 <textarea
                   value={form.description}
@@ -896,7 +911,7 @@ export default function BusinessCarsPage() {
                   }
                   rows={4}
                   className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10"
-                  placeholder="Mô tả tiện nghi, tình trạng xe..."
+                  placeholder="MÃ´ táº£ tiá»‡n nghi, tÃ¬nh tráº¡ng xe..."
                 />
               </label>
 
@@ -907,14 +922,14 @@ export default function BusinessCarsPage() {
                   disabled={submitting}
                   className="min-h-11 rounded-lg border border-slate-200 px-5 py-2 font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
                 >
-                  Hủy
+                  Há»§y
                 </button>
                 <button
                   disabled={submitting}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-2 font-extrabold text-primary transition hover:brightness-95 disabled:opacity-60"
                 >
                   {submitting && <Loader2 size={18} className="animate-spin" />}
-                  {editingCar ? "Cập nhật xe" : "Thêm xe"}
+                  {editingCar ? "Cáº­p nháº­t xe" : "ThÃªm xe"}
                 </button>
               </div>
             </form>
@@ -924,13 +939,13 @@ export default function BusinessCarsPage() {
 
       <AdminModal
         open={!!deleteCar}
-        title="Xóa xe"
+        title="XÃ³a xe"
         description={
           deleteCar
-            ? `Bạn chắc chắn muốn xóa xe ${deleteCar.name}?`
+            ? `Báº¡n cháº¯c cháº¯n muá»‘n xÃ³a xe ${deleteCar.name}?`
             : undefined
         }
-        confirmText="Xóa xe"
+        confirmText="XÃ³a xe"
         danger
         loading={submitting}
         onClose={() => setDeleteCar(null)}
