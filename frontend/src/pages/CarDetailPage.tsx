@@ -852,7 +852,7 @@ export default function CarDetailPage() {
                           : "border-border bg-white text-primary hover:bg-soft"
                       }`}
                     >
-                      ThuÃª theo ngÃ y
+                      Thuê theo ngày
                     </button>
                   )}
 
@@ -866,7 +866,7 @@ export default function CarDetailPage() {
                           : "border-border bg-white text-primary hover:bg-soft"
                       }`}
                     >
-                      ThuÃª theo giá»
+                      Thuê theo giờ
                     </button>
                   )}
                 </div>
