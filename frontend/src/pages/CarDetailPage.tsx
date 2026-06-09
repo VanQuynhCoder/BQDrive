@@ -30,6 +30,7 @@ import Footer from "../components/Footer";
 import { carService } from "../services/car.service";
 import { cartService } from "../services/cart.service";
 import { bookingService } from "../services/booking.service";
+import { authService } from "../services/auth.service";
 
 type RentalAvailability =
   | "AVAILABLE"
@@ -60,6 +61,7 @@ type CarDetail = {
 
 type ApiError = {
   response?: {
+    status?: number;
     data?: {
       message?: string;
     };
@@ -169,6 +171,17 @@ function getErrorMessage(error: unknown) {
   }
 
   return "Có lỗi xảy ra";
+}
+
+function isAuthenticationError(error: unknown) {
+  const apiError = error as ApiError;
+  const message = apiError.response?.data?.message;
+
+  return (
+    apiError.response?.status === 401 ||
+    message === "Token không hợp lệ" ||
+    message === "Vui lòng đăng nhập"
+  );
 }
 
 function getAvailabilityInfo(car?: CarDetail | null) {
@@ -315,11 +328,26 @@ export default function CarDetailPage() {
     return true;
   };
 
+  const redirectToLogin = () => {
+    authService.logout();
+    toast.error("Vui lòng đăng nhập");
+    navigate("/login");
+  };
+
+  const validateAuthentication = () => {
+    if (authService.isLoggedIn()) {
+      return true;
+    }
+
+    redirectToLogin();
+    return false;
+  };
+
   const handleAddToCart = async () => {
     if (isCartSubmitting) return;
 
     try {
-      if (!id || !car || !validateBeforeSubmit()) return;
+      if (!id || !car || !validateBeforeSubmit() || !validateAuthentication()) return;
 
       setIsCartSubmitting(true);
       await cartService.addToCart({
@@ -331,6 +359,11 @@ export default function CarDetailPage() {
       toast.success("Đã thêm vào giỏ hàng");
       navigate("/cart");
     } catch (error: unknown) {
+      if (isAuthenticationError(error)) {
+        redirectToLogin();
+        return;
+      }
+
       toast.error(getErrorMessage(error));
     } finally {
       setIsCartSubmitting(false);
@@ -341,7 +374,7 @@ export default function CarDetailPage() {
     if (isBookingSubmitting) return;
 
     try {
-      if (!id || !car || !validateBeforeSubmit()) return;
+      if (!id || !car || !validateBeforeSubmit() || !validateAuthentication()) return;
 
       setIsBookingSubmitting(true);
       const booking = await bookingService.createBooking({
@@ -353,6 +386,11 @@ export default function CarDetailPage() {
       toast.success("Đặt xe thành công");
       navigate(`/bookings/${booking._id}`);
     } catch (error: unknown) {
+      if (isAuthenticationError(error)) {
+        redirectToLogin();
+        return;
+      }
+
       toast.error(getErrorMessage(error));
     } finally {
       setIsBookingSubmitting(false);
