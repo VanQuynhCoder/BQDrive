@@ -6,6 +6,8 @@ import { Toaster } from "react-hot-toast";
 
 import App from "./App";
 import "./index.css";
+console.log("GOOGLE CLIENT:", import.meta.env.VITE_GOOGLE_CLIENT_ID);
+console.log("API URL:", import.meta.env.VITE_API_URL);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
