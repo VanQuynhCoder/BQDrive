@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   CreditCard,
@@ -163,6 +163,7 @@ function getInitialForm(): ContractForm {
 
 export default function PaymentPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   
 
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -314,6 +315,7 @@ export default function PaymentPage() {
         throw contractError;
       }
 
+      if (method === "MOMO") {
       console.log("PAYMENT DEBUG - CALL MOMO CREATE");
       const momoResult = await paymentService.createMomoPayment({
         bookingId: booking._id,
@@ -328,6 +330,35 @@ export default function PaymentPage() {
       }
 
       window.open(momoResult.payUrl, "_self");
+      return;
+      }
+
+      if (method === "VNPAY") {
+        const vnpayResult = await paymentService.createVnpayPayment({
+          bookingId: booking._id,
+          paymentType,
+        });
+
+        if (!vnpayResult?.payUrl) {
+          throw new Error("Khong lay duoc duong dan thanh toan VNPAY");
+        }
+
+        window.open(vnpayResult.payUrl, "_self");
+        return;
+      }
+
+      await paymentService.createPayment({
+        bookingId: booking._id,
+        method,
+        paymentType,
+      });
+
+      toast.success(
+        method === "CASH"
+          ? "Đã chọn thanh toán tiền mặt. Vui long cho business xac nhan booking."
+          : "Đã tạo yêu cầu thanh toán thành công.",
+      );
+      navigate(`/bookings/${booking._id}`);
     } catch (error) {
       console.error("PAYMENT DEBUG - HANDLE PAYMENT FAILED:", error);
       toast.error(getErrorMessage(error, "Thanh toán thất bại"));

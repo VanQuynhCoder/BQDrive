@@ -10,6 +10,11 @@ import {
   type CustomerPayment,
   type CustomerPaymentBooking,
 } from "../../services/payment.service";
+import {
+  getPaymentMethodLabel,
+  getPaymentStatusLabel,
+  getPaymentTypeLabel,
+} from "../../utils/display.util";
 
 function formatCurrency(value?: number) {
   return new Intl.NumberFormat("vi-VN", {
@@ -47,7 +52,7 @@ function getStatusLabel(status?: string) {
     REFUNDED: "Đã hoàn tiền",
   };
 
-  return map[status || ""] || status || "--";
+  return map[status || ""] || getPaymentStatusLabel(status);
 }
 
 function getBookingId(payment: CustomerPayment) {
@@ -145,10 +150,10 @@ export default function MyPaymentsPage() {
                         {formatCurrency(payment.amount)}
                       </td>
                       <td className="px-5 py-4 font-semibold text-slate-600">
-                        {payment.method || "--"}
+                        {getPaymentMethodLabel(payment.method)}
                       </td>
                       <td className="px-5 py-4 font-semibold text-slate-600">
-                        {payment.paymentType || "--"}
+                        {getPaymentTypeLabel(payment.paymentType)}
                       </td>
                       <td className="px-5 py-4">
                         <AdminStatusBadge

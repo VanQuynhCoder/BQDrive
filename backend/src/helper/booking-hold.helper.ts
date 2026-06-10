@@ -45,16 +45,33 @@ export async function getCheckoutStartedBookingIdSet(bookingIds: unknown[]) {
 
 export async function expireAbandonedPendingBookings(now = new Date()) {
   const cutoff = getBookingHoldCutoff(now);
-  const staleBookings = await BookingModel.find({
-    status: { $in: [BookingStatusEnum.PENDING, BookingStatusEnum.WAITING_PAYMENT] },
+  const staleWaitingPaymentBookings = await BookingModel.find({
+    status: BookingStatusEnum.WAITING_PAYMENT,
     $or: [{ paidAmount: { $lte: 0 } }, { paidAmount: { $exists: false } }],
     isDeleted: false,
     createdAt: { $lte: cutoff },
   } as any)
     .select("_id")
     .lean();
+  const stalePendingBookings = await BookingModel.find({
+    status: BookingStatusEnum.PENDING,
+    $or: [{ paidAmount: { $lte: 0 } }, { paidAmount: { $exists: false } }],
+    isDeleted: false,
+    createdAt: { $lte: cutoff },
+  } as any)
+    .select("_id")
+    .lean();
+  const stalePendingIds = stalePendingBookings.map((booking) => booking._id);
+  const checkoutStartedBookingIds =
+    await getCheckoutStartedBookingIdSet(stalePendingIds);
+  const stalePendingWithoutCheckoutIds = stalePendingIds.filter(
+    (bookingId) => !checkoutStartedBookingIds.has(String(bookingId)),
+  );
 
-  const staleBookingIds = staleBookings.map((booking) => booking._id);
+  const staleBookingIds = [
+    ...staleWaitingPaymentBookings.map((booking) => booking._id),
+    ...stalePendingWithoutCheckoutIds,
+  ];
 
   if (staleBookingIds.length === 0) {
     return { expiredCount: 0 };

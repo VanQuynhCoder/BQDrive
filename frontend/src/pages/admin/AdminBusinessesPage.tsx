@@ -27,6 +27,7 @@ import {
   type AdminBusiness,
   type CreateBusinessData,
 } from "../../services/admin.service";
+import { getBusinessTypeLabel } from "../../utils/display.util";
 
 type BusinessAction = "block" | "unblock" | "delete";
 type CreateBusinessStep = 1 | 2 | 3;
@@ -418,7 +419,7 @@ export default function AdminBusinessesPage() {
                               {business.businessName}
                             </p>
                             <p className="text-xs font-semibold text-slate-500">
-                              {business.businessType || "COMPANY"}
+                              {getBusinessTypeLabel(business.businessType)}
                             </p>
                           </div>
                         </div>
@@ -927,7 +928,7 @@ export default function AdminBusinessesPage() {
                 action.type === "block"
                   ? " - toàn bộ xe của doanh nghiệp sẽ bị ẩn khỏi hệ thống."
                   : action.type === "delete"
-                    ? " - chỉ xóa khi không còn booking PENDING hoặc CONFIRMED."
+                    ? " - chỉ xóa khi không còn booking chờ xác nhận hoặc đã xác nhận."
                     : ""
               }`
             : undefined

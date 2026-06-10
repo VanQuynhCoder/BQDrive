@@ -24,7 +24,13 @@ export class BaseRoute {
 
   authentication(req: Request, res: Response, next: NextFunction) {
     try {
-      const token = req.headers["x-token"] as string;
+      const xToken = req.headers["x-token"];
+      const authorization = req.headers.authorization;
+      const token =
+        (Array.isArray(xToken) ? xToken[0] : xToken) ||
+        (authorization?.startsWith("Bearer ")
+          ? authorization.slice("Bearer ".length).trim()
+          : undefined);
 
       if (!token) {
         throw ErrorHelper.unauthorized();

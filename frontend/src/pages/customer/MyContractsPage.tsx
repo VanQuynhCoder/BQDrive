@@ -11,6 +11,7 @@ import {
   type ContractCar,
   type RentalContract,
 } from "../../services/contract.service";
+import { getContractStatusLabel } from "../../utils/display.util";
 
 function formatCurrency(value?: number) {
   return new Intl.NumberFormat("vi-VN", {
@@ -147,7 +148,7 @@ export default function MyContractsPage() {
                         <td className="px-5 py-4">
                           <AdminStatusBadge
                             tone={getStatusTone(contract.status)}
-                            label={contract.status}
+                            label={getContractStatusLabel(contract.status)}
                           />
                         </td>
                         <td className="px-5 py-4">

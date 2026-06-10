@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { CreditCard, Loader2, Wallet, WalletCards } from "lucide-react";
+import { CheckCircle2, CreditCard, Loader2, Wallet, WalletCards } from "lucide-react";
 
 import AdminStatusBadge from "../../components/admin/AdminStatusBadge";
 import {
   privateOwnerService,
   type PrivateOwnerPayment,
 } from "../../services/privateOwner.service";
+import { paymentService } from "../../services/payment.service";
+import { getPaymentMethodLabel } from "../../utils/display.util";
 
 type PaymentFilter = "ALL" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
 
@@ -83,6 +85,7 @@ export default function PrivateOwnerPaymentsPage() {
   const [payments, setPayments] = useState<PrivateOwnerPayment[]>([]);
   const [filter, setFilter] = useState<PaymentFilter>("ALL");
   const [loading, setLoading] = useState(true);
+  const [updatingPaymentId, setUpdatingPaymentId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -133,6 +136,22 @@ export default function PrivateOwnerPaymentsPage() {
     if (filter === "ALL") return payments;
     return payments.filter((payment) => payment.status === filter);
   }, [filter, payments]);
+
+  const markCashPaymentPaid = async (paymentId: string) => {
+    setUpdatingPaymentId(paymentId);
+
+    try {
+      await paymentService.updatePaymentStatus(paymentId, {
+        status: "PAID",
+      });
+      setPayments(await privateOwnerService.getMyPayments());
+      toast.success("Da ghi nhan thanh toan tien mat");
+    } catch (error) {
+      toast.error("Khong the cap nhat thanh toan");
+    } finally {
+      setUpdatingPaymentId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -225,6 +244,7 @@ export default function PrivateOwnerPaymentsPage() {
               <tr>
                 <th className="px-5 py-4">Mã thanh toán</th>
                 <th className="px-5 py-4">Booking</th>
+                <th className="px-5 py-4">Thao tac</th>
                 <th className="px-5 py-4">Khách hàng</th>
                 <th className="px-5 py-4">Số tiền</th>
                 <th className="px-5 py-4">Phương thức</th>
@@ -235,7 +255,7 @@ export default function PrivateOwnerPaymentsPage() {
             <tbody className="divide-y divide-slate-100">
               {loading && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-8 text-center text-slate-500">
+                  <td colSpan={8} className="px-5 py-8 text-center text-slate-500">
                     <span className="inline-flex items-center gap-2">
                       <Loader2 size={18} className="animate-spin text-secondary" />
                       Đang tải thanh toán...
@@ -259,6 +279,25 @@ export default function PrivateOwnerPaymentsPage() {
                           : "--"}
                       </td>
                       <td className="px-5 py-4">
+                        {payment.method === "CASH" && payment.status === "PENDING" ? (
+                          <button
+                            type="button"
+                            onClick={() => markCashPaymentPaid(payment._id)}
+                            disabled={updatingPaymentId === payment._id}
+                            className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-extrabold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {updatingPaymentId === payment._id ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <CheckCircle2 size={14} />
+                            )}
+                            Da nhan tien
+                          </button>
+                        ) : (
+                          <span className="text-slate-400">--</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
                         <p className="font-extrabold text-primary">
                           {payment.userId?.name || "--"}
                         </p>
@@ -270,7 +309,7 @@ export default function PrivateOwnerPaymentsPage() {
                         {formatCurrency(payment.amount)}
                       </td>
                       <td className="px-5 py-4 font-semibold text-slate-600">
-                        {payment.method || "--"}
+                        {getPaymentMethodLabel(payment.method)}
                       </td>
                       <td className="px-5 py-4">
                         <AdminStatusBadge
@@ -287,7 +326,7 @@ export default function PrivateOwnerPaymentsPage() {
 
               {!loading && filteredPayments.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-8 text-center text-slate-500">
+                  <td colSpan={8} className="px-5 py-8 text-center text-slate-500">
                     Không có thanh toán phù hợp.
                   </td>
                 </tr>

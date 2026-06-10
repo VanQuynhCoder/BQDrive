@@ -51,6 +51,19 @@ export const paymentService = {
     return res.data.data;
   },
 
+  createVnpayPayment: async (data: {
+    bookingId: string;
+    paymentType: string;
+  }) => {
+    const res = await api.post("/payments/vnpay/create", data);
+    return res.data.data;
+  },
+
+  verifyVnpayReturn: async (queryString: string) => {
+    const res = await api.get(`/payments/vnpay/return${queryString}`);
+    return res.data.data;
+  },
+
   getMyPayments: async () => {
     const res = await api.get("/payments/getMyPayments");
     return res.data.data.payments as CustomerPayment[];

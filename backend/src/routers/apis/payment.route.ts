@@ -4,14 +4,20 @@ import { PaymentModel } from "../../models/payment/payment.model";
 import { BookingModel } from "../../models/booking/booking.model";
 import { BusinessModel } from "../../models/business/business.model";
 import { UserModel } from "../../models/user/user.model";
+import { CarModel } from "../../models/car/car.model";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
 import {
   createMomoPayment,
   verifyMomoSignature,
 } from "../../helper/momo.helper";
 import {
+  createVnpayPaymentUrl,
+  verifyVnpayReturn,
+} from "../../helper/vnpay.helper";
+import {
   BookingStatusEnum,
   BusinessTypeEnum,
+  CarStatusEnum,
   PaymentMethodEnum,
   PaymentOptionEnum,
   PaymentStatusEnum,
@@ -66,6 +72,14 @@ class PaymentRoute extends BaseRoute {
     );
 
     this.router.post("/momo/ipn", this.route(this.momoIpn));
+
+    this.router.post(
+      "/vnpay/create",
+      [this.authentication, this.roleGuard(RENTER_ROLES)],
+      this.route(this.createVnpayPayment),
+    );
+
+    this.router.get("/vnpay/return", this.route(this.vnpayReturn));
   }
 
   private getPaymentAmount(booking: any, paymentType: string) {
@@ -172,6 +186,7 @@ class PaymentRoute extends BaseRoute {
     let payment = await PaymentModel.findOne({
       bookingId: booking._id,
       paymentType: selectedPaymentType,
+      method: PaymentMethodEnum.MOMO,
       status: PaymentStatusEnum.PENDING,
     });
 
@@ -192,6 +207,11 @@ class PaymentRoute extends BaseRoute {
         paymentType: selectedPaymentType,
         status: PaymentStatusEnum.PENDING,
       });
+    }
+
+    if (booking.status === BookingStatusEnum.PENDING) {
+      booking.status = BookingStatusEnum.WAITING_PAYMENT;
+      await booking.save();
     }
 
     const orderId = `MOMO-${String(payment._id)}-${Date.now()}`;
@@ -265,6 +285,13 @@ class PaymentRoute extends BaseRoute {
     }
 
     if (Number(data.resultCode) === 0) {
+      if (Number(data.amount) !== Number(payment.amount)) {
+        return res.status(400).json({
+          status: 400,
+          message: "Payment amount mismatch",
+        });
+      }
+
       payment.status = PaymentStatusEnum.PAID;
       payment.paidAt = new Date();
       payment.transactionCode = String(data.transId || payment.transactionCode);
@@ -305,6 +332,227 @@ class PaymentRoute extends BaseRoute {
     return res.status(200).json({
       resultCode: data.resultCode,
       message: "Payment failed",
+    });
+  }
+
+  async createVnpayPayment(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const { bookingId, paymentType } = req.body;
+
+    if (!bookingId) {
+      throw ErrorHelper.requestDataInvalid("Thiáº¿u bookingId");
+    }
+
+    const booking = await BookingModel.findOne({
+      _id: bookingId,
+      userId: authUser.userId,
+      isDeleted: false,
+    } as any);
+
+    if (!booking) {
+      throw ErrorHelper.recordNotFound("Booking");
+    }
+
+    const selectedPaymentType =
+      paymentType ||
+      (booking.paymentOption === PaymentOptionEnum.FULL
+        ? PaymentTypeEnum.FULL
+        : PaymentTypeEnum.DEPOSIT);
+
+    if (!Object.values(PaymentTypeEnum).includes(selectedPaymentType)) {
+      throw ErrorHelper.requestDataInvalid("Loáº¡i thanh toÃ¡n khÃ´ng há»£p lá»‡");
+    }
+
+    const existedPaidPayment = await PaymentModel.findOne({
+      bookingId: booking._id,
+      paymentType: selectedPaymentType,
+      status: PaymentStatusEnum.PAID,
+    });
+
+    if (existedPaidPayment) {
+      throw ErrorHelper.requestDataInvalid(
+        "Khoáº£n thanh toÃ¡n nÃ y Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n",
+      );
+    }
+
+    let payment = await PaymentModel.findOne({
+      bookingId: booking._id,
+      paymentType: selectedPaymentType,
+      method: PaymentMethodEnum.VNPAY,
+      status: PaymentStatusEnum.PENDING,
+    });
+
+    const amount = this.getPaymentAmount(booking, selectedPaymentType);
+
+    if (amount <= 0) {
+      throw ErrorHelper.requestDataInvalid(
+        "Sá»‘ tiá»n cáº§n thanh toÃ¡n khÃ´ng há»£p lá»‡",
+      );
+    }
+
+    if (!payment) {
+      payment = await PaymentModel.create({
+        bookingId: booking._id,
+        userId: authUser.userId,
+        amount,
+        method: PaymentMethodEnum.VNPAY,
+        paymentType: selectedPaymentType,
+        status: PaymentStatusEnum.PENDING,
+      });
+    }
+
+    if (booking.status === BookingStatusEnum.PENDING) {
+      booking.status = BookingStatusEnum.WAITING_PAYMENT;
+      await booking.save();
+    }
+
+    const orderId = `VNPAY-${String(payment._id)}-${Date.now()}`;
+    const forwardedFor = req.headers["x-forwarded-for"];
+    const forwardedIp = Array.isArray(forwardedFor)
+      ? forwardedFor[0]
+      : forwardedFor?.split(",")[0]?.trim();
+    const ipAddr = forwardedIp || req.socket.remoteAddress || "127.0.0.1";
+
+    payment.transactionCode = orderId;
+    await payment.save();
+
+    const payUrl = createVnpayPaymentUrl({
+      amount,
+      orderId,
+      orderInfo: `Thanh toÃ¡n BQDrive ${String(booking._id)}`,
+      ipAddr,
+    });
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "Táº¡o thanh toÃ¡n VNPay thÃ nh cÃ´ng",
+      data: {
+        payment,
+        payUrl,
+      },
+    });
+  }
+
+  async vnpayReturn(req: Request, res: Response) {
+    const query = req.query as Record<string, any>;
+    const isValidSignature = verifyVnpayReturn(query);
+
+    if (!isValidSignature) {
+      return res.status(400).json({
+        status: 400,
+        code: "-3",
+        message: "Invalid VNPay signature",
+        data: null,
+      });
+    }
+
+    const txnRef = String(query.vnp_TxnRef || "");
+    const paymentId = txnRef.startsWith("VNPAY-")
+      ? txnRef.replace("VNPAY-", "").split("-")[0]
+      : "";
+
+    if (!paymentId) {
+      return res.status(400).json({
+        status: 400,
+        code: "-3",
+        message: "Invalid VNPay order id",
+        data: null,
+      });
+    }
+
+    const payment = await PaymentModel.findById(paymentId);
+
+    if (!payment) {
+      return res.status(404).json({
+        status: 404,
+        code: "-4",
+        message: "Payment not found",
+        data: null,
+      });
+    }
+
+    const booking = await BookingModel.findOne({
+      _id: payment.bookingId,
+      isDeleted: false,
+    } as any);
+
+    if (!booking) {
+      return res.status(404).json({
+        status: 404,
+        code: "-4",
+        message: "Booking not found",
+        data: null,
+      });
+    }
+
+    const isSuccess =
+      String(query.vnp_ResponseCode) === "00" &&
+      String(query.vnp_TransactionStatus) === "00";
+
+    if (payment.status === PaymentStatusEnum.PAID) {
+      return res.status(200).json({
+        status: 200,
+        code: "200",
+        message: "Payment already paid",
+        data: { payment, booking, success: true },
+      });
+    }
+
+    if (isSuccess) {
+      if (Number(query.vnp_Amount) / 100 !== Number(payment.amount)) {
+        return res.status(400).json({
+          status: 400,
+          code: "-3",
+          message: "Payment amount mismatch",
+          data: { payment, booking, success: false },
+        });
+      }
+
+      payment.status = PaymentStatusEnum.PAID;
+      payment.paidAt = new Date();
+      payment.transactionCode = String(query.vnp_TransactionNo || txnRef);
+
+      booking.paidAmount = booking.paidAmount + payment.amount;
+
+      if (payment.paymentType === PaymentTypeEnum.FULL) {
+        booking.remainingAmount = 0;
+      }
+
+      if (payment.paymentType === PaymentTypeEnum.DEPOSIT) {
+        booking.remainingAmount = booking.totalPrice - booking.paidAmount;
+      }
+
+      if (payment.paymentType === PaymentTypeEnum.REMAINING) {
+        booking.remainingAmount = 0;
+      }
+
+      if (booking.remainingAmount < 0) {
+        booking.remainingAmount = 0;
+      }
+
+      booking.status = BookingStatusEnum.CONFIRMED;
+
+      await booking.save();
+      await payment.save();
+
+      return res.status(200).json({
+        status: 200,
+        code: "200",
+        message: "VNPay payment success",
+        data: { payment, booking, success: true },
+      });
+    }
+
+    payment.status = PaymentStatusEnum.FAILED;
+    payment.transactionCode = String(query.vnp_TransactionNo || txnRef);
+    await payment.save();
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "VNPay payment failed",
+      data: { payment, booking, success: false },
     });
   }
 
@@ -376,11 +624,20 @@ class PaymentRoute extends BaseRoute {
 
     const existedPendingPayment = await PaymentModel.findOne({
       bookingId: booking._id,
+      method,
       paymentType: selectedPaymentType,
       status: PaymentStatusEnum.PENDING,
     });
 
     if (existedPendingPayment) {
+      if (
+        method === PaymentMethodEnum.CASH &&
+        booking.status === BookingStatusEnum.WAITING_PAYMENT
+      ) {
+        booking.status = BookingStatusEnum.PENDING;
+        await booking.save();
+      }
+
       return res.status(200).json({
         status: 200,
         code: "200",
@@ -417,6 +674,14 @@ class PaymentRoute extends BaseRoute {
       paymentType: selectedPaymentType,
       status: PaymentStatusEnum.PENDING,
     });
+
+    if (
+      method === PaymentMethodEnum.CASH &&
+      booking.status === BookingStatusEnum.WAITING_PAYMENT
+    ) {
+      booking.status = BookingStatusEnum.PENDING;
+      await booking.save();
+    }
 
     return res.status(201).json({
       status: 201,
@@ -515,19 +780,17 @@ class PaymentRoute extends BaseRoute {
       );
     }
 
-    if (authUser.role === UserRoleEnum.BUSINESS) {
-      const business = await BusinessModel.findOne({
-        userId: authUser.userId,
-        isDeleted: false,
-      });
+    const business = await BusinessModel.findOne({
+      userId: authUser.userId,
+      isDeleted: false,
+    });
 
-      if (!business) {
-        throw ErrorHelper.recordNotFound("Business");
-      }
+    if (!business) {
+      throw ErrorHelper.permissionDeny();
+    }
 
-      if (String(booking.businessId) !== String(business._id)) {
-        throw ErrorHelper.permissionDeny();
-      }
+    if (String(booking.businessId) !== String(business._id)) {
+      throw ErrorHelper.permissionDeny();
     }
 
     if (payment.status === PaymentStatusEnum.PAID) {
@@ -539,7 +802,6 @@ class PaymentRoute extends BaseRoute {
 
     if (status === PaymentStatusEnum.PAID) {
       payment.paidAt = new Date();
-      booking.status = BookingStatusEnum.CONFIRMED;
       booking.paidAmount = booking.paidAmount + payment.amount;
 
       if (payment.paymentType === PaymentTypeEnum.FULL) {
@@ -556,6 +818,35 @@ class PaymentRoute extends BaseRoute {
 
       if (booking.remainingAmount < 0) {
         booking.remainingAmount = 0;
+      }
+
+      if (payment.method === PaymentMethodEnum.CASH) {
+        if (booking.status !== BookingStatusEnum.CONFIRMED) {
+          throw ErrorHelper.requestDataInvalid(
+            "Booking can duoc xac nhan truoc khi ghi nhan thanh toan tien mat",
+          );
+        }
+
+        const car = await CarModel.findOneAndUpdate(
+          {
+            _id: booking.carId,
+            businessId: booking.businessId,
+            status: CarStatusEnum.APPROVED,
+            isDeleted: false,
+          } as any,
+          { status: CarStatusEnum.RENTED },
+          { new: true },
+        );
+
+        if (!car) {
+          throw ErrorHelper.requestDataInvalid(
+            "Xe hien khong kha dung de ban giao",
+          );
+        }
+
+        booking.status = BookingStatusEnum.IN_PROGRESS;
+      } else {
+        booking.status = BookingStatusEnum.CONFIRMED;
       }
 
       await booking.save();

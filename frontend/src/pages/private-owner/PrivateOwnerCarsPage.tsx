@@ -467,7 +467,7 @@ export default function PrivateOwnerCarsPage() {
           </h2>
           <p className="mt-2 max-w-2xl text-slate-500">
             ThÃªm, chá»‰nh sá»­a vÃ  theo dÃµi tráº¡ng thÃ¡i duyá»‡t xe. Xe thÃªm hoáº·c sá»­a
-            sáº½ á»Ÿ tráº¡ng thÃ¡i PENDING Ä‘á»ƒ Admin xÃ©t duyá»‡t.
+            sẽ ở trạng thái chờ duyệt để Admin xét duyệt.
           </p>
         </div>
 

@@ -71,7 +71,7 @@ export default function BusinessDashboardPage() {
     {
       label: "Doanh thu tháng",
       value: formatCurrency(dashboard?.revenueThisMonth),
-      detail: "Tính trên thanh toán PAID",
+      detail: "Tính trên thanh toán đã thanh toán",
       icon: CreditCard,
     },
   ];
@@ -182,7 +182,7 @@ export default function BusinessDashboardPage() {
                     Booking đang xử lý
                   </h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    PENDING cần xác nhận, CONFIRMED cần bàn giao.
+                    Booking chờ xác nhận cần duyệt, booking đã xác nhận cần bàn giao.
                   </p>
                 </div>
                 <BarChart3 size={24} className="text-secondary" />

@@ -6,6 +6,7 @@ import {
   Clock3,
   Loader2,
   UserX,
+  XCircle,
 } from "lucide-react";
 
 import AdminModal from "../../components/admin/AdminModal";
@@ -14,8 +15,9 @@ import {
   businessService,
   type BusinessBooking,
 } from "../../services/business.service";
+import { paymentService } from "../../services/payment.service";
 
-type BookingAction = "confirm" | "complete" | "no-show";
+type BookingAction = "confirm" | "reject" | "handover" | "complete" | "no-show";
 
 function formatDateTime(value?: string) {
   if (!value) return "--";
@@ -30,9 +32,11 @@ function getStatusBadge(status?: string) {
   const map: Record<string, { label: string; tone: "green" | "red" | "yellow" | "blue" | "gray" }> = {
     PENDING: { label: "Chờ xác nhận", tone: "yellow" },
     CONFIRMED: { label: "Đã xác nhận", tone: "blue" },
+    IN_PROGRESS: { label: "Đang thuê", tone: "blue" },
     COMPLETED: { label: "Hoàn tất", tone: "green" },
     CANCELLED: { label: "Đã hủy", tone: "gray" },
-    NO_SHOW: { label: "No Show", tone: "red" },
+    REJECTED: { label: "Từ chối", tone: "red" },
+    NO_SHOW: { label: "Không nhận xe", tone: "red" },
   };
 
   return map[status || ""] || { label: status || "--", tone: "gray" };
@@ -130,6 +134,22 @@ export default function BusinessBookingsPage() {
         toast.success("Đã xác nhận booking");
       }
 
+      if (action.type === "reject") {
+        await businessService.rejectBooking(action.booking._id);
+        toast.success("Da tu choi booking");
+      }
+
+      if (action.type === "handover") {
+        if (!action.booking.payment?._id) {
+          throw new Error("Booking chua co payment tien mat");
+        }
+
+        await paymentService.updatePaymentStatus(action.booking.payment._id, {
+          status: "PAID",
+        });
+        toast.success("Da giao xe va ghi nhan tien mat");
+      }
+
       if (action.type === "complete") {
         await businessService.completeBooking(action.booking._id);
         toast.success("Đã hoàn tất booking");
@@ -155,9 +175,13 @@ export default function BusinessBookingsPage() {
   const modalTitle =
     action?.type === "confirm"
       ? "Xác nhận booking"
+      : action?.type === "reject"
+        ? "Tu choi booking"
+        : action?.type === "handover"
+          ? "Giao xe / Da nhan tien"
       : action?.type === "complete"
         ? "Hoàn tất booking"
-        : "Đánh dấu No Show";
+        : "Đánh dấu không nhận xe";
 
   return (
     <div className="space-y-6">
@@ -202,6 +226,11 @@ export default function BusinessBookingsPage() {
                 bookings.map((booking) => {
                   const status = getStatusBadge(booking.status);
                   const payment = getPaymentBadge(booking);
+                  const cashPayment =
+                    booking.payment?.method === "CASH" ? booking.payment : null;
+                  const canHandoverCash =
+                    booking.status === "CONFIRMED" &&
+                    cashPayment?.status === "PENDING";
 
                   return (
                     <tr key={booking._id} className="hover:bg-slate-50">
@@ -250,7 +279,40 @@ export default function BusinessBookingsPage() {
                             </button>
                           )}
 
-                          {booking.status === "CONFIRMED" && (
+                          {booking.status === "PENDING" && (
+                            <button
+                              type="button"
+                              onClick={() => openAction("reject", booking)}
+                              className="inline-flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 font-bold text-red-700 transition hover:bg-red-100"
+                            >
+                              <XCircle size={16} />
+                              Tu choi
+                            </button>
+                          )}
+
+                          {canHandoverCash && (
+                            <button
+                              type="button"
+                              onClick={() => openAction("handover", booking)}
+                              className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 font-bold text-emerald-700 transition hover:bg-emerald-100"
+                            >
+                              <CheckCircle2 size={16} />
+                              Giao xe / Da nhan tien
+                            </button>
+                          )}
+
+                          {booking.status === "IN_PROGRESS" && (
+                            <button
+                              type="button"
+                              onClick={() => openAction("complete", booking)}
+                              className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 font-bold text-emerald-700 transition hover:bg-emerald-100"
+                            >
+                              <CheckCircle2 size={16} />
+                              Hoan tat
+                            </button>
+                          )}
+
+                          {booking.status === "CONFIRMED" && !canHandoverCash && (
                             <>
                               <button
                                 type="button"
@@ -266,13 +328,14 @@ export default function BusinessBookingsPage() {
                                 className="inline-flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 font-bold text-red-700 transition hover:bg-red-100"
                               >
                                 <UserX size={16} />
-                                No Show
+                                Không nhận xe
                               </button>
                             </>
                           )}
 
                           {booking.status !== "PENDING" &&
-                            booking.status !== "CONFIRMED" && (
+                            booking.status !== "CONFIRMED" &&
+                            booking.status !== "IN_PROGRESS" && (
                               <span className="text-sm font-semibold text-slate-400">
                                 --
                               </span>
@@ -308,11 +371,15 @@ export default function BusinessBookingsPage() {
         confirmText={
           action?.type === "confirm"
             ? "Xác nhận booking"
+            : action?.type === "reject"
+              ? "Tu choi"
+              : action?.type === "handover"
+                ? "Giao xe / Da nhan tien"
             : action?.type === "complete"
               ? "Hoàn tất"
-              : "No Show"
+              : "Không nhận xe"
         }
-        danger={action?.type === "no-show"}
+        danger={action?.type === "no-show" || action?.type === "reject"}
         loading={submitting}
         onClose={closeAction}
         onConfirm={confirmAction}

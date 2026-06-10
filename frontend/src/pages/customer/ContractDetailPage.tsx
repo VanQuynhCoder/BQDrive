@@ -12,6 +12,10 @@ import {
   type ContractCar,
   type RentalContract,
 } from "../../services/contract.service";
+import {
+  getContractStatusLabel,
+  getPaymentTypeLabel,
+} from "../../utils/display.util";
 
 function formatCurrency(value?: number) {
   return new Intl.NumberFormat("vi-VN", {
@@ -175,7 +179,7 @@ export default function ContractDetailPage() {
             </div>
             <AdminStatusBadge
               tone={getStatusTone(contract.status)}
-              label={contract.status}
+              label={getContractStatusLabel(contract.status)}
             />
           </div>
 
@@ -223,11 +227,11 @@ export default function ContractDetailPage() {
             />
             <InfoItem
               label="Phương án thanh toán"
-              value={contract.paymentOption}
+              value={getPaymentTypeLabel(contract.paymentOption)}
             />
             <InfoItem
               label="Trạng thái hợp đồng"
-              value={contract.status}
+              value={getContractStatusLabel(contract.status)}
             />
             <InfoItem
               label="Ngày ký"

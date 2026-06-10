@@ -75,21 +75,21 @@ function getErrorMessage(error: unknown, fallback: string) {
 function getStatusView(status: PrivateOwnerRequestStatus) {
   const map = {
     PENDING: {
-      label: "PENDING",
+      label: "Chờ duyệt",
       message: "Hồ sơ đang được Admin xem xét.",
       badgeClass: "bg-yellow-100 text-yellow-800 ring-yellow-200",
       iconClass: "bg-yellow-100 text-yellow-700",
       icon: Clock,
     },
     APPROVED: {
-      label: "APPROVED",
+      label: "Đã duyệt",
       message: "Bạn đã được cấp quyền Chủ xe tư nhân.",
       badgeClass: "bg-emerald-100 text-emerald-800 ring-emerald-200",
       iconClass: "bg-emerald-100 text-emerald-700",
       icon: CheckCircle2,
     },
     REJECTED: {
-      label: "REJECTED",
+      label: "Từ chối",
       message: "Hồ sơ đã bị từ chối.",
       badgeClass: "bg-red-100 text-red-800 ring-red-200",
       iconClass: "bg-red-100 text-red-700",

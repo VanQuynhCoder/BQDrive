@@ -84,6 +84,7 @@ export type BusinessBooking = {
   note?: string;
   noShowReason?: string;
   createdAt?: string;
+  payment?: BusinessPayment | null;
 };
 
 export type BusinessPayment = {
@@ -186,6 +187,13 @@ export const businessService = {
 
   confirmBooking: async (id: string) => {
     const res = await api.post(`/bookings/confirmBooking/${id}`);
+    return unwrap<{ booking: BusinessBooking }>(res).booking;
+  },
+
+  rejectBooking: async (id: string, rejectReason?: string) => {
+    const res = await api.post(`/bookings/rejectBooking/${id}`, {
+      rejectReason,
+    });
     return unwrap<{ booking: BusinessBooking }>(res).booking;
   },
 

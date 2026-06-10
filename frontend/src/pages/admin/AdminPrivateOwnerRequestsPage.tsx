@@ -13,9 +13,9 @@ type RequestAction = "approve" | "reject";
 
 const statusFilters = [
   { label: "Tất cả", value: "" },
-  { label: "PENDING", value: "PENDING" },
-  { label: "APPROVED", value: "APPROVED" },
-  { label: "REJECTED", value: "REJECTED" },
+  { label: "Chờ duyệt", value: "PENDING" },
+  { label: "Đã duyệt", value: "APPROVED" },
+  { label: "Từ chối", value: "REJECTED" },
 ];
 
 function getStatus(status: string) {

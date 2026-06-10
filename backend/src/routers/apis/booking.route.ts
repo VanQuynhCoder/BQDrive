@@ -5,6 +5,7 @@ import { CarModel } from "../../models/car/car.model";
 import { CartModel } from "../../models/cart/cart.model";
 import { BusinessModel } from "../../models/business/business.model";
 import { UserModel } from "../../models/user/user.model";
+import { PaymentModel } from "../../models/payment/payment.model";
 import { calculateRentalPrice } from "../../helper/rental.helper";
 import { releaseCarIfNoConfirmedBooking } from "../../helper/car-status.helper";
 import { expireOldCarts } from "../../helper/cart.helper";
@@ -95,6 +96,15 @@ class BookingRoute extends BaseRoute {
         this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
       ],
       this.route(this.confirmBooking),
+    );
+
+    this.router.post(
+      "/rejectBooking/:id",
+      [
+        this.authentication,
+        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
+      ],
+      this.route(this.rejectBooking),
     );
 
     this.router.post(
@@ -296,7 +306,7 @@ class BookingRoute extends BaseRoute {
       paidAmount: paymentAmounts.paidAmount,
       isDepositRefundable: true,
       note,
-      status: BookingStatusEnum.WAITING_PAYMENT,
+      status: BookingStatusEnum.PENDING,
     });
 
     return res.status(201).json({
@@ -379,7 +389,7 @@ class BookingRoute extends BaseRoute {
       remainingAmount: paymentAmounts.remainingAmount,
       paidAmount: paymentAmounts.paidAmount,
       isDepositRefundable: true,
-      status: BookingStatusEnum.WAITING_PAYMENT,
+      status: BookingStatusEnum.PENDING,
     });
 
     cart.status = CartStatusEnum.BOOKED;
@@ -444,12 +454,36 @@ class BookingRoute extends BaseRoute {
 
       return checkoutStartedBookingIds.has(String(booking._id));
     });
+    const visibleBookingIds = visibleBookings.map((booking) => booking._id);
+    const payments = await PaymentModel.find({
+      bookingId: { $in: visibleBookingIds },
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+    const paymentByBookingId = new Map<string, any>();
+
+    for (const payment of payments) {
+      const bookingId = String(payment.bookingId);
+      const currentPayment = paymentByBookingId.get(bookingId);
+
+      if (
+        !currentPayment ||
+        (payment.method === "CASH" && payment.status === "PENDING")
+      ) {
+        paymentByBookingId.set(bookingId, payment);
+      }
+    }
+
+    const bookingsWithPayment = visibleBookings.map((booking) => ({
+      ...booking.toObject(),
+      payment: paymentByBookingId.get(String(booking._id)) || null,
+    }));
 
     return res.status(200).json({
       status: 200,
       code: "200",
       message: "success",
-      data: { bookings: visibleBookings },
+      data: { bookings: bookingsWithPayment },
     });
   }
 
@@ -493,7 +527,7 @@ class BookingRoute extends BaseRoute {
     const booking = await BookingModel.findOne({
       _id: id,
       businessId: business._id,
-      status: { $in: [BookingStatusEnum.PENDING, BookingStatusEnum.WAITING_PAYMENT] },
+      status: BookingStatusEnum.PENDING,
       isDeleted: false,
     } as any);
 
@@ -551,6 +585,37 @@ class BookingRoute extends BaseRoute {
     });
   }
 
+  async rejectBooking(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const id = String(req.params.id);
+    const { rejectReason } = req.body;
+
+    const business = await this.getOwnerBusiness(authUser);
+    await expireAbandonedPendingBookings();
+
+    const booking = await BookingModel.findOne({
+      _id: id,
+      businessId: business._id,
+      status: BookingStatusEnum.PENDING,
+      isDeleted: false,
+    } as any);
+
+    if (!booking) {
+      throw ErrorHelper.recordNotFound("Booking PENDING");
+    }
+
+    booking.status = BookingStatusEnum.REJECTED;
+    booking.cancelReason = rejectReason || "Business rejected booking";
+    await booking.save();
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "Reject booking success",
+      data: { booking },
+    });
+  }
+
   async completeBooking(req: Request, res: Response) {
     const authUser = (req as any).user;
     const id = String(req.params.id);
@@ -560,12 +625,12 @@ class BookingRoute extends BaseRoute {
     const booking = await BookingModel.findOne({
       _id: id,
       businessId: business._id,
-      status: BookingStatusEnum.CONFIRMED,
+      status: BookingStatusEnum.IN_PROGRESS,
       isDeleted: false,
     } as any);
 
     if (!booking) {
-      throw ErrorHelper.recordNotFound("Booking CONFIRMED");
+      throw ErrorHelper.recordNotFound("Booking IN_PROGRESS");
     }
 
     booking.status = BookingStatusEnum.COMPLETED;

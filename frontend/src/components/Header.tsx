@@ -33,11 +33,11 @@ export default function Header() {
 
   let dashboardLink: DashboardLink | null = null;
   if (isAdmin) {
-    dashboardLink = { to: "/admin", label: "Dashboard Admin" };
+    dashboardLink = { to: "/admin", label: "Quản Trị Viên" };
   } else if (isBusiness) {
-    dashboardLink = { to: "/business", label: "Dashboard doanh nghiệp" };
+    dashboardLink = { to: "/business", label: "Quản Lý Doanh Nghiệp" };
   } else if (isPrivateOwner) {
-    dashboardLink = { to: "/private-owner", label: "Dashboard chủ xe" };
+    dashboardLink = { to: "/private-owner", label: "Quản Lý Xe của Bạn" };
   }
 
   const accountMenuItemClass =

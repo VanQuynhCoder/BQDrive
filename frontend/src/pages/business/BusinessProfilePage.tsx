@@ -7,6 +7,7 @@ import {
   businessService,
   type BusinessProfile,
 } from "../../services/business.service";
+import { getBusinessTypeLabel } from "../../utils/display.util";
 
 type ProfileForm = {
   businessName: string;
@@ -133,7 +134,7 @@ export default function BusinessProfilePage() {
                   {profile?.businessName || "--"}
                 </h3>
                 <p className="mt-1 text-sm font-semibold text-slate-500">
-                  {profile?.businessType || "COMPANY"}
+                  {getBusinessTypeLabel(profile?.businessType)}
                 </p>
               </div>
             </div>

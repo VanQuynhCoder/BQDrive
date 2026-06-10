@@ -81,7 +81,7 @@ export default function PrivateOwnerDashboardPage() {
     {
       label: "Doanh thu tháng",
       value: formatCurrency(dashboard?.revenueThisMonth),
-      detail: "Tính trên thanh toán PAID",
+      detail: "Tính trên thanh toán đã thanh toán",
       icon: CreditCard,
     },
   ];
@@ -189,7 +189,7 @@ export default function PrivateOwnerDashboardPage() {
                 Booking cần chú ý
               </h3>
               <p className="mt-1 text-sm text-slate-500">
-                PENDING cần xác nhận, CONFIRMED cần theo dõi bàn giao xe.
+                Booking chờ xác nhận cần duyệt, booking đã xác nhận cần theo dõi bàn giao xe.
               </p>
 
               <div className="mt-5 space-y-3">

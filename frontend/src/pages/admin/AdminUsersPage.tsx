@@ -15,9 +15,9 @@ type UserAction = "block" | "unblock" | "delete";
 
 const roleOptions: Array<{ label: string; value: "" | UserRole }> = [
   { label: "Tất cả", value: "" },
-  { label: "CUSTOMER", value: "CUSTOMER" },
-  { label: "BUSINESS", value: "BUSINESS" },
-  { label: "PRIVATE_OWNER", value: "PRIVATE_OWNER" },
+  { label: "Khách hàng", value: "CUSTOMER" },
+  { label: "Doanh nghiệp", value: "BUSINESS" },
+  { label: "Chủ xe tư nhân", value: "PRIVATE_OWNER" },
 ];
 
 function formatDate(date?: string) {

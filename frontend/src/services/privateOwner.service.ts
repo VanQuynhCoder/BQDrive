@@ -84,6 +84,7 @@ export type PrivateOwnerBooking = {
   note?: string;
   noShowReason?: string;
   createdAt?: string;
+  payment?: PrivateOwnerPayment | null;
 };
 
 export type PrivateOwnerPayment = {
@@ -186,6 +187,13 @@ export const privateOwnerService = {
 
   confirmBooking: async (id: string) => {
     const res = await api.post(`/bookings/confirmBooking/${id}`);
+    return unwrap<{ booking: PrivateOwnerBooking }>(res).booking;
+  },
+
+  rejectBooking: async (id: string, rejectReason?: string) => {
+    const res = await api.post(`/bookings/rejectBooking/${id}`, {
+      rejectReason,
+    });
     return unwrap<{ booking: PrivateOwnerBooking }>(res).booking;
   },
 

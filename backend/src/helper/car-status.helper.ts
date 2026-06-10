@@ -3,10 +3,16 @@ import { BookingModel } from "../models/booking/booking.model";
 import { CarModel } from "../models/car/car.model";
 
 export async function syncRentedCarStatuses() {
+  const inProgressCarIds = await BookingModel.distinct("carId", {
+    status: BookingStatusEnum.IN_PROGRESS,
+    isDeleted: false,
+  } as any);
+
   await CarModel.updateMany(
     {
       status: CarStatusEnum.RENTED,
       isDeleted: false,
+      _id: { $nin: inProgressCarIds },
     } as any,
     { status: CarStatusEnum.APPROVED },
   );
@@ -15,13 +21,15 @@ export async function syncRentedCarStatuses() {
 }
 
 export async function releaseCarIfNoConfirmedBooking(carId: unknown) {
-  const remainingConfirmedBooking = await BookingModel.exists({
+  const remainingActiveBooking = await BookingModel.exists({
     carId,
-    status: BookingStatusEnum.CONFIRMED,
+    status: {
+      $in: [BookingStatusEnum.CONFIRMED, BookingStatusEnum.IN_PROGRESS],
+    },
     isDeleted: false,
   } as any);
 
-  if (!remainingConfirmedBooking) {
+  if (!remainingActiveBooking) {
     await CarModel.findOneAndUpdate(
       {
         _id: carId,
