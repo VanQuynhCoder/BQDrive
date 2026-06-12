@@ -12,6 +12,7 @@ import {
   type RentalContract,
 } from "../../services/contract.service";
 import { getContractStatusLabel } from "../../utils/display.util";
+import { formatVietnamDateTime } from "../../utils/date.util";
 
 function formatCurrency(value?: number) {
   return new Intl.NumberFormat("vi-VN", {
@@ -24,7 +25,7 @@ function formatCurrency(value?: number) {
 function formatDateTime(value?: string) {
   if (!value) return "--";
 
-  return new Date(value).toLocaleString("vi-VN", {
+  return formatVietnamDateTime(value, {
     dateStyle: "short",
     timeStyle: "short",
   });

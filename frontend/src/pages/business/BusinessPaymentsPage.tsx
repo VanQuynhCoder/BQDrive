@@ -9,6 +9,7 @@ import {
 } from "../../services/business.service";
 import { paymentService } from "../../services/payment.service";
 import { getPaymentMethodLabel } from "../../utils/display.util";
+import { formatVietnamDateTime } from "../../utils/date.util";
 
 type PaymentFilter = "ALL" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
 
@@ -31,7 +32,7 @@ function formatCurrency(value?: number) {
 function formatDateTime(value?: string) {
   if (!value) return "--";
 
-  return new Date(value).toLocaleString("vi-VN", {
+  return formatVietnamDateTime(value, {
     dateStyle: "short",
     timeStyle: "short",
   });

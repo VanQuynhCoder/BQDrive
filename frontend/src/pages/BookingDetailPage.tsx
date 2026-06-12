@@ -26,6 +26,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { bookingService } from "../services/booking.service";
 import { getFirstCarImage } from "../utils/image.util";
+import { formatVietnamDateTime } from "../utils/date.util";
 
 type BookingStatus =
   | "PENDING"
@@ -86,7 +87,7 @@ function formatDateTime(date?: string) {
   const value = new Date(date);
   if (Number.isNaN(value.getTime())) return "--";
 
-  return value.toLocaleString("vi-VN", {
+  return formatVietnamDateTime(date, {
     hour: "2-digit",
     minute: "2-digit",
     day: "2-digit",

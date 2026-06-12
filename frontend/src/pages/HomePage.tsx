@@ -23,6 +23,7 @@ import { authService } from "../services/auth.service";
 import { bookingService } from "../services/booking.service";
 import { cartService } from "../services/cart.service";
 import { carService } from "../services/car.service";
+import { buildVietnamDateTime } from "../utils/date.util";
 
 type RentalAvailability =
   | "AVAILABLE"
@@ -81,10 +82,6 @@ const DEFAULT_START_TIME = "08:00";
 const DEFAULT_END_TIME = "18:00";
 const BOOKING_HOLD_MINUTES = 10;
 const BOOKING_HOLD_MS = BOOKING_HOLD_MINUTES * 60 * 1000;
-
-function buildDateTime(date: string, time: string) {
-  return `${date}T${time}:00`;
-}
 
 const serviceHighlights = [
   {
@@ -267,8 +264,8 @@ export default function HomePage() {
     }
 
     setAppliedSchedule({
-      startDate: buildDateTime(pickupDate, pickupTime),
-      endDate: buildDateTime(returnDate, returnTime),
+      startDate: buildVietnamDateTime(pickupDate, pickupTime),
+      endDate: buildVietnamDateTime(returnDate, returnTime),
     });
   };
 

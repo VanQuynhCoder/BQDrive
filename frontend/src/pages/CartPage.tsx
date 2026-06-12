@@ -21,6 +21,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { cartService } from "../services/cart.service";
 import { getFirstCarImage } from "../utils/image.util";
+import { formatVietnamDateTime } from "../utils/date.util";
 
 type CartCar = {
   _id?: string;
@@ -58,7 +59,7 @@ function formatPrice(price: number) {
 }
 
 function formatDateTime(date: string) {
-  return new Date(date).toLocaleString("vi-VN", {
+  return formatVietnamDateTime(date, {
     dateStyle: "short",
     timeStyle: "short",
   });

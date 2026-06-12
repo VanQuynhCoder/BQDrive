@@ -340,7 +340,7 @@ class PaymentRoute extends BaseRoute {
     const { bookingId, paymentType } = req.body;
 
     if (!bookingId) {
-      throw ErrorHelper.requestDataInvalid("Thiáº¿u bookingId");
+      throw ErrorHelper.requestDataInvalid("Thiếu bookingId");
     }
 
     const booking = await BookingModel.findOne({
@@ -360,7 +360,7 @@ class PaymentRoute extends BaseRoute {
         : PaymentTypeEnum.DEPOSIT);
 
     if (!Object.values(PaymentTypeEnum).includes(selectedPaymentType)) {
-      throw ErrorHelper.requestDataInvalid("Loáº¡i thanh toÃ¡n khÃ´ng há»£p lá»‡");
+      throw ErrorHelper.requestDataInvalid("Loại thanh toán không hợp lệ");
     }
 
     const existedPaidPayment = await PaymentModel.findOne({
@@ -371,7 +371,7 @@ class PaymentRoute extends BaseRoute {
 
     if (existedPaidPayment) {
       throw ErrorHelper.requestDataInvalid(
-        "Khoáº£n thanh toÃ¡n nÃ y Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n",
+        "Khoản thanh toán này đã được thanh toán",
       );
     }
 
@@ -386,7 +386,7 @@ class PaymentRoute extends BaseRoute {
 
     if (amount <= 0) {
       throw ErrorHelper.requestDataInvalid(
-        "Sá»‘ tiá»n cáº§n thanh toÃ¡n khÃ´ng há»£p lá»‡",
+        "Số tiền cần thanh toán không hợp lệ",
       );
     }
 
@@ -419,14 +419,14 @@ class PaymentRoute extends BaseRoute {
     const payUrl = createVnpayPaymentUrl({
       amount,
       orderId,
-      orderInfo: `Thanh toÃ¡n BQDrive ${String(booking._id)}`,
+      orderInfo: `Thanh toán BQDrive ${String(booking._id)}`,
       ipAddr,
     });
 
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Táº¡o thanh toÃ¡n VNPay thÃ nh cÃ´ng",
+      message: "Tạo thanh toán VNPay thành công",
       data: {
         payment,
         payUrl,

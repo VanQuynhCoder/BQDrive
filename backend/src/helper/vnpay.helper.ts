@@ -27,12 +27,28 @@ function sortObject(obj: Record<string, any>) {
 }
 
 function formatDate(date: Date) {
-  const yyyy = date.getFullYear();
-  const MM = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  const HH = String(date.getHours()).padStart(2, "0");
-  const mm = String(date.getMinutes()).padStart(2, "0");
-  const ss = String(date.getSeconds()).padStart(2, "0");
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  })
+    .formatToParts(date)
+    .reduce<Record<string, string>>((acc, part) => {
+      acc[part.type] = part.value;
+      return acc;
+    }, {});
+
+  const yyyy = parts.year;
+  const MM = parts.month;
+  const dd = parts.day;
+  const HH = parts.hour;
+  const mm = parts.minute;
+  const ss = parts.second;
 
   return `${yyyy}${MM}${dd}${HH}${mm}${ss}`;
 }

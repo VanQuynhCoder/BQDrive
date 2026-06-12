@@ -16,13 +16,14 @@ import {
   type PrivateOwnerBooking,
 } from "../../services/privateOwner.service";
 import { paymentService } from "../../services/payment.service";
+import { formatVietnamDateTime } from "../../utils/date.util";
 
 type BookingAction = "confirm" | "reject" | "handover" | "complete" | "no-show";
 
 function formatDateTime(value?: string) {
   if (!value) return "--";
 
-  return new Date(value).toLocaleString("vi-VN", {
+  return formatVietnamDateTime(value, {
     dateStyle: "short",
     timeStyle: "short",
   });

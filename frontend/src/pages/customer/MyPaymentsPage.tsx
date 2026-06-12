@@ -15,6 +15,7 @@ import {
   getPaymentStatusLabel,
   getPaymentTypeLabel,
 } from "../../utils/display.util";
+import { formatVietnamDateTime } from "../../utils/date.util";
 
 function formatCurrency(value?: number) {
   return new Intl.NumberFormat("vi-VN", {
@@ -27,7 +28,7 @@ function formatCurrency(value?: number) {
 function formatDateTime(value?: string) {
   if (!value) return "--";
 
-  return new Date(value).toLocaleString("vi-VN", {
+  return formatVietnamDateTime(value, {
     dateStyle: "short",
     timeStyle: "short",
   });
@@ -56,11 +57,17 @@ function getStatusLabel(status?: string) {
 }
 
 function getBookingId(payment: CustomerPayment) {
-  if (typeof payment.bookingId === "object") {
-    return (payment.bookingId as CustomerPaymentBooking)._id;
+  if (payment.bookingId && typeof payment.bookingId === "object") {
+    return (payment.bookingId as CustomerPaymentBooking)._id || "";
   }
 
-  return payment.bookingId || "--";
+  return typeof payment.bookingId === "string" ? payment.bookingId : "";
+}
+
+function formatShortId(id?: string) {
+  if (!id) return "--";
+
+  return `#${id.slice(-8).toUpperCase()}`;
 }
 
 export default function MyPaymentsPage() {
@@ -141,10 +148,10 @@ export default function MyPaymentsPage() {
                   payments.map((payment) => (
                     <tr key={payment._id} className="hover:bg-slate-50">
                       <td className="px-5 py-4 font-extrabold text-primary">
-                        #{payment._id.slice(-8).toUpperCase()}
+                        {formatShortId(payment._id)}
                       </td>
                       <td className="px-5 py-4 font-semibold text-slate-600">
-                        #{getBookingId(payment).slice(-8).toUpperCase()}
+                        {formatShortId(getBookingId(payment))}
                       </td>
                       <td className="px-5 py-4 font-extrabold text-primary">
                         {formatCurrency(payment.amount)}

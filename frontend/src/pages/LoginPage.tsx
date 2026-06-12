@@ -20,11 +20,22 @@ const inputShellClass =
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (typeof error === "object" && error !== null && "response" in error) {
     const response = (
-      error as { response?: { data?: { message?: unknown } } }
+      error as { response?: { data?: { message?: unknown; data?: unknown } } }
     ).response;
 
     if (typeof response?.data?.message === "string") {
+      if (
+        response.data.message === "Dữ liệu không hợp lệ" &&
+        typeof response.data.data === "string"
+      ) {
+        return response.data.data;
+      }
+
       return response.data.message;
+    }
+
+    if (typeof response?.data?.data === "string") {
+      return response.data.data;
     }
   }
 

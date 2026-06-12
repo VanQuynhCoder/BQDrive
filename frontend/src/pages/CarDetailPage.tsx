@@ -31,6 +31,10 @@ import { carService } from "../services/car.service";
 import { cartService } from "../services/cart.service";
 import { bookingService } from "../services/booking.service";
 import { authService } from "../services/auth.service";
+import {
+  buildVietnamDateTime,
+  getVietnamTodayDate,
+} from "../utils/date.util";
 
 type RentalAvailability =
   | "AVAILABLE"
@@ -89,10 +93,6 @@ function formatPrice(price: number) {
   return new Intl.NumberFormat("vi-VN").format(price || 0) + "đ";
 }
 
-function buildDateTime(date: string, time: string) {
-  return `${date}T${time}:00`;
-}
-
 function getRentalValidationMessage(
   startDate: string,
   endDate: string,
@@ -107,8 +107,8 @@ function getRentalValidationMessage(
     return "Vui lòng chọn giờ nhận và giờ trả xe";
   }
 
-  const start = new Date(buildDateTime(startDate, startTime));
-  const end = new Date(buildDateTime(endDate, endTime));
+  const start = new Date(buildVietnamDateTime(startDate, startTime));
+  const end = new Date(buildVietnamDateTime(endDate, endTime));
 
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
     return "Thời gian thuê xe không hợp lệ";
@@ -273,8 +273,8 @@ export default function CarDetailPage() {
   useEffect(() => {
     if (!id || !startDate || !endDate || !startTime || !endTime) return;
 
-    const start = new Date(buildDateTime(startDate, startTime));
-    const end = new Date(buildDateTime(endDate, endTime));
+    const start = new Date(buildVietnamDateTime(startDate, startTime));
+    const end = new Date(buildVietnamDateTime(endDate, endTime));
 
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
       return;
@@ -284,8 +284,8 @@ export default function CarDetailPage() {
 
     carService
       .getOneCar(id, {
-        startDate: buildDateTime(startDate, startTime),
-        endDate: buildDateTime(endDate, endTime),
+        startDate: buildVietnamDateTime(startDate, startTime),
+        endDate: buildVietnamDateTime(endDate, endTime),
         rentalMode,
       })
       .then((nextCar) => {
@@ -336,7 +336,7 @@ export default function CarDetailPage() {
     };
   }, [activeImageIndex, closeImageViewer, showNextImage, showPreviousImage]);
 
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const today = useMemo(() => getVietnamTodayDate(), []);
 
   const supportedRentalModes = getRentalModes(car);
   const rentalInfo = car
@@ -354,8 +354,8 @@ export default function CarDetailPage() {
   const rentalTime = useMemo(() => {
     if (!car || !startDate || !endDate || !startTime || !endTime) return 0;
 
-    const start = new Date(buildDateTime(startDate, startTime));
-    const end = new Date(buildDateTime(endDate, endTime));
+    const start = new Date(buildVietnamDateTime(startDate, startTime));
+    const end = new Date(buildVietnamDateTime(endDate, endTime));
 
     return calculateRentalTime(rentalMode, start, end);
   }, [car, rentalMode, startDate, endDate, startTime, endTime]);
@@ -435,8 +435,8 @@ export default function CarDetailPage() {
       setIsCartSubmitting(true);
       await cartService.addToCart({
         carId: id,
-        startDate: buildDateTime(startDate, startTime),
-        endDate: buildDateTime(endDate, endTime),
+        startDate: buildVietnamDateTime(startDate, startTime),
+        endDate: buildVietnamDateTime(endDate, endTime),
         rentalMode,
       });
 
@@ -463,8 +463,8 @@ export default function CarDetailPage() {
       setIsBookingSubmitting(true);
       const booking = await bookingService.createBooking({
         carId: id,
-        startDate: buildDateTime(startDate, startTime),
-        endDate: buildDateTime(endDate, endTime),
+        startDate: buildVietnamDateTime(startDate, startTime),
+        endDate: buildVietnamDateTime(endDate, endTime),
         rentalMode,
       });
 
