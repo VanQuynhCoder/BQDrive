@@ -9,10 +9,7 @@ import { PaymentModel } from "../../models/payment/payment.model";
 import { calculateRentalPrice } from "../../helper/rental.helper";
 import { releaseCarIfNoConfirmedBooking } from "../../helper/car-status.helper";
 import { expireOldCarts } from "../../helper/cart.helper";
-import {
-  expireAbandonedPendingBookings,
-  getCheckoutStartedBookingIdSet,
-} from "../../helper/booking-hold.helper";
+import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
 import {
   BookingStatusEnum,
   BusinessTypeEnum,
@@ -24,12 +21,21 @@ import {
 } from "../../constants/model.const";
 
 const RENTER_ROLES = [UserRoleEnum.CUSTOMER, UserRoleEnum.PRIVATE_OWNER];
-const BLOCKING_BOOKING_STATUSES = [
-  BookingStatusEnum.PENDING,
-  BookingStatusEnum.WAITING_PAYMENT,
-  BookingStatusEnum.CONFIRMED,
-  BookingStatusEnum.IN_PROGRESS,
+const OWNER_REVIEW_BOOKING_STATUSES = [
+  BookingStatusEnum.REQUESTED, // Trạng thái mới: khách vừa gửi yêu cầu, chủ xe cần duyệt
+  BookingStatusEnum.PENDING, // Trạng thái cũ: giữ tương thích booking đã tạo trước khi đổi flow
 ];
+const BLOCKING_BOOKING_STATUSES = [
+  BookingStatusEnum.REQUESTED, // Chặn lịch ngay khi khách gửi yêu cầu để tránh hai người đặt cùng slot
+  BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã đồng ý, khách đang chuẩn bị thanh toán
+  BookingStatusEnum.PAYMENT_PENDING, // Khách đã bắt đầu thanh toán, chưa có kết quả cuối
+  BookingStatusEnum.PAID, // Đã thanh toán, lịch thuê được giữ chính thức
+  BookingStatusEnum.IN_PROGRESS, // Xe đang được bàn giao/đang thuê thực tế
+  BookingStatusEnum.PENDING, // Trạng thái cũ: tương đương REQUESTED
+  BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: tương đương PAYMENT_PENDING
+  BookingStatusEnum.CONFIRMED, // Trạng thái cũ: tương đương đã được xác nhận
+];
+const BOOKABLE_CAR_STATUSES = [CarStatusEnum.APPROVED, CarStatusEnum.RENTED];
 
 function calculatePaymentAmounts(totalPrice: number, paymentOption: string) {
   if (paymentOption === PaymentOptionEnum.FULL) {
@@ -48,6 +54,26 @@ function calculatePaymentAmounts(totalPrice: number, paymentOption: string) {
     remainingAmount,
     paidAmount: 0,
   };
+}
+
+async function ensureNoOverlappedActiveBooking(booking: any) {
+  const start = new Date(booking.startDate);
+  const end = new Date(booking.endDate);
+
+  const overlappedBooking = await BookingModel.findOne({
+    _id: { $ne: booking._id },
+    carId: booking.carId,
+    status: { $in: BLOCKING_BOOKING_STATUSES },
+    isDeleted: false,
+    startDate: { $lt: end },
+    endDate: { $gt: start },
+  } as any);
+
+  if (overlappedBooking) {
+    throw ErrorHelper.requestDataInvalid(
+      "Xe đã có booking trong khoảng thời gian này",
+    );
+  }
 }
 
 class BookingRoute extends BaseRoute {
@@ -72,6 +98,12 @@ class BookingRoute extends BaseRoute {
       "/getMyBookings",
       [this.authentication, this.roleGuard(RENTER_ROLES)],
       this.route(this.getMyBookings),
+    );
+
+    this.router.get(
+      "/getMyBooking/:id",
+      [this.authentication, this.roleGuard(RENTER_ROLES)],
+      this.route(this.getMyBooking),
     );
 
     this.router.get(
@@ -256,7 +288,7 @@ class BookingRoute extends BaseRoute {
 
     const car = await CarModel.findOne({
       _id: carId,
-      status: CarStatusEnum.APPROVED,
+      status: { $in: BOOKABLE_CAR_STATUSES },
       isDeleted: false,
     } as any);
 
@@ -306,13 +338,13 @@ class BookingRoute extends BaseRoute {
       paidAmount: paymentAmounts.paidAmount,
       isDepositRefundable: true,
       note,
-      status: BookingStatusEnum.PENDING,
+      status: BookingStatusEnum.REQUESTED, // Booking mới: chờ chủ xe duyệt, chưa cho thanh toán
     });
 
     return res.status(201).json({
       status: 201,
       code: "201",
-      message: "Đặt xe thành công, vui lòng thanh toán để tiếp tục",
+      message: "Đã gửi yêu cầu đặt xe, vui lòng chờ chủ xe xác nhận",
       data: { booking },
     });
   }
@@ -345,7 +377,7 @@ class BookingRoute extends BaseRoute {
 
     const car = await CarModel.findOne({
       _id: cart.carId,
-      status: CarStatusEnum.APPROVED,
+      status: { $in: BOOKABLE_CAR_STATUSES },
       isDeleted: false,
     } as any);
     const start = new Date(cart.startDate);
@@ -389,7 +421,7 @@ class BookingRoute extends BaseRoute {
       remainingAmount: paymentAmounts.remainingAmount,
       paidAmount: paymentAmounts.paidAmount,
       isDepositRefundable: true,
-      status: BookingStatusEnum.PENDING,
+      status: BookingStatusEnum.REQUESTED, // Booking từ giỏ hàng cũng phải chờ chủ xe duyệt trước
     });
 
     cart.status = CartStatusEnum.BOOKED;
@@ -398,7 +430,7 @@ class BookingRoute extends BaseRoute {
     return res.status(201).json({
       status: 201,
       code: "201",
-      message: "Đặt xe từ giỏ hàng thành công, vui lòng thanh toán để tiếp tục",
+      message: "Đã gửi yêu cầu đặt xe từ giỏ hàng, vui lòng chờ chủ xe xác nhận",
       data: { booking },
     });
   }
@@ -424,6 +456,32 @@ class BookingRoute extends BaseRoute {
     });
   }
 
+  async getMyBooking(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const id = String(req.params.id);
+
+    await expireAbandonedPendingBookings();
+
+    const booking = await BookingModel.findOne({
+      _id: id,
+      userId: authUser.userId,
+      isDeleted: false,
+    } as any)
+      .populate("carId")
+      .populate("businessId");
+
+    if (!booking) {
+      throw ErrorHelper.recordNotFound("Booking");
+    }
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "success",
+      data: { booking },
+    });
+  }
+
   async getBusinessBookings(req: Request, res: Response) {
     const authUser = (req as any).user;
 
@@ -437,24 +495,7 @@ class BookingRoute extends BaseRoute {
       .populate("userId", "-password")
       .populate("carId")
       .sort({ createdAt: -1 });
-    const pendingBookingIds = bookings
-      .filter((booking) => booking.status === BookingStatusEnum.PENDING)
-      .map((booking) => booking._id);
-    const checkoutStartedBookingIds = await getCheckoutStartedBookingIdSet(
-      pendingBookingIds,
-    );
-    const visibleBookings = bookings.filter((booking) => {
-      if (booking.status !== BookingStatusEnum.PENDING) {
-        return true;
-      }
-
-      if ((booking.paidAmount || 0) > 0) {
-        return true;
-      }
-
-      return checkoutStartedBookingIds.has(String(booking._id));
-    });
-    const visibleBookingIds = visibleBookings.map((booking) => booking._id);
+    const visibleBookingIds = bookings.map((booking) => booking._id);
     const payments = await PaymentModel.find({
       bookingId: { $in: visibleBookingIds },
     })
@@ -474,7 +515,7 @@ class BookingRoute extends BaseRoute {
       }
     }
 
-    const bookingsWithPayment = visibleBookings.map((booking) => ({
+    const bookingsWithPayment = bookings.map((booking) => ({
       ...booking.toObject(),
       payment: paymentByBookingId.get(String(booking._id)) || null,
     }));
@@ -497,7 +538,16 @@ class BookingRoute extends BaseRoute {
     const booking = await BookingModel.findOne({
       _id: id,
       userId: authUser.userId,
-      status: { $in: [BookingStatusEnum.PENDING, BookingStatusEnum.WAITING_PAYMENT] },
+      status: {
+        $in: [
+          BookingStatusEnum.REQUESTED, // Khách được hủy khi chủ xe chưa duyệt
+          BookingStatusEnum.OWNER_APPROVED, // Khách được hủy khi đã duyệt nhưng chưa thanh toán
+          BookingStatusEnum.PAYMENT_PENDING, // Khách được hủy nếu đang chờ thanh toán và chưa trả tiền
+          BookingStatusEnum.PENDING, // Trạng thái cũ
+          BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ
+          BookingStatusEnum.CONFIRMED, // Trạng thái cũ trước khi tách OWNER_APPROVED/PAID
+        ],
+      },
       isDeleted: false,
     } as any);
 
@@ -527,7 +577,7 @@ class BookingRoute extends BaseRoute {
     const booking = await BookingModel.findOne({
       _id: id,
       businessId: business._id,
-      status: BookingStatusEnum.PENDING,
+      status: { $in: OWNER_REVIEW_BOOKING_STATUSES },
       isDeleted: false,
     } as any);
 
@@ -535,46 +585,19 @@ class BookingRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Booking PENDING");
     }
 
-    const checkoutStartedBookingIds = await getCheckoutStartedBookingIdSet([
-      booking._id,
-    ]);
-
-    if (
-      (booking.paidAmount || 0) <= 0 &&
-      !checkoutStartedBookingIds.has(String(booking._id))
-    ) {
-      throw ErrorHelper.requestDataInvalid(
-        "Booking chưa hoàn tất hợp đồng/thanh toán",
-      );
-    }
-    const start = new Date(booking.startDate);
-    const end = new Date(booking.endDate);
-    const overlappedConfirmedBooking = await BookingModel.findOne({
-      _id: { $ne: booking._id },
-      carId: booking.carId,
-      status: { $in: BLOCKING_BOOKING_STATUSES },
-      isDeleted: false,
-      startDate: { $lt: end },
-      endDate: { $gt: start },
-    } as any);
-
-    if (overlappedConfirmedBooking) {
-      throw ErrorHelper.requestDataInvalid(
-        "Xe đã có booking xác nhận trong khoảng thời gian này",
-      );
-    }
+    await ensureNoOverlappedActiveBooking(booking);
 
     const car = await CarModel.findOne({
       _id: booking.carId,
       businessId: business._id,
-      status: CarStatusEnum.APPROVED,
+      status: { $in: BOOKABLE_CAR_STATUSES },
       isDeleted: false,
     } as any);
 
     if (!car) {
       throw ErrorHelper.requestDataInvalid("Xe hiện không khả dụng để xác nhận");
     }
-    booking.status = BookingStatusEnum.CONFIRMED;
+    booking.status = BookingStatusEnum.OWNER_APPROVED; // Chủ xe đồng ý: khách bắt đầu được tạo hợp đồng/thanh toán
     await booking.save();
 
     return res.status(200).json({
@@ -596,7 +619,7 @@ class BookingRoute extends BaseRoute {
     const booking = await BookingModel.findOne({
       _id: id,
       businessId: business._id,
-      status: BookingStatusEnum.PENDING,
+      status: { $in: OWNER_REVIEW_BOOKING_STATUSES },
       isDeleted: false,
     } as any);
 
@@ -655,7 +678,13 @@ class BookingRoute extends BaseRoute {
     const booking = await BookingModel.findOne({
       _id: id,
       businessId: business._id,
-      status: BookingStatusEnum.CONFIRMED,
+      status: {
+        $in: [
+          BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã duyệt nhưng khách không đến
+          BookingStatusEnum.PAID, // Khách đã thanh toán nhưng không đến nhận xe
+          BookingStatusEnum.CONFIRMED, // Trạng thái cũ
+        ],
+      },
       isDeleted: false,
     } as any);
 

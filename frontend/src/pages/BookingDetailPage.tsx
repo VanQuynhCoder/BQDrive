@@ -29,9 +29,16 @@ import { getFirstCarImage } from "../utils/image.util";
 import { formatVietnamDateTime } from "../utils/date.util";
 
 type BookingStatus =
+  | "REQUESTED"
+  | "OWNER_APPROVED"
+  | "PAYMENT_PENDING"
+  | "PAID"
   | "PENDING"
+  | "WAITING_PAYMENT"
   | "CONFIRMED"
+  | "IN_PROGRESS"
   | "CANCELLED"
+  | "REJECTED"
   | "COMPLETED"
   | "NO_SHOW"
   | string;
@@ -150,6 +157,36 @@ function getSpecLabel(value?: string) {
 function getStatusInfo(status?: BookingStatus) {
   const value = status || "PENDING";
 
+  if (value === "OWNER_APPROVED") {
+    return {
+      label: "Chủ xe đã duyệt",
+      detail: "Chủ xe đã đồng ý cho thuê. Bạn có thể tạo hợp đồng và thanh toán.",
+      badgeClass: "bg-blue-50 text-blue-700",
+      panelClass: "border-blue-100 bg-blue-50 text-blue-700",
+      icon: BadgeCheck,
+    };
+  }
+
+  if (value === "PAYMENT_PENDING" || value === "WAITING_PAYMENT") {
+    return {
+      label: "Chờ thanh toán",
+      detail: "Bạn đã bắt đầu thanh toán, hệ thống đang chờ kết quả hoặc ghi nhận thanh toán.",
+      badgeClass: "bg-amber-50 text-amber-700",
+      panelClass: "border-amber-100 bg-amber-50 text-amber-700",
+      icon: CreditCard,
+    };
+  }
+
+  if (value === "PAID") {
+    return {
+      label: "Đã thanh toán",
+      detail: "Booking đã được thanh toán và lịch thuê đã được giữ chính thức.",
+      badgeClass: "bg-emerald-50 text-emerald-700",
+      panelClass: "border-emerald-100 bg-emerald-50 text-emerald-700",
+      icon: CheckCircle2,
+    };
+  }
+
   if (value === "CONFIRMED") {
     return {
       label: "Đã xác nhận",
@@ -255,12 +292,23 @@ function getPaymentInfo(booking: Booking) {
 function canPayBooking(booking: Booking, nextAmount: number) {
   return (
     nextAmount > 0 &&
-    !["CANCELLED", "COMPLETED", "NO_SHOW"].includes(booking.status || "")
+    [
+      "OWNER_APPROVED", // Chủ xe đã duyệt nên khách được thanh toán
+      "PAYMENT_PENDING", // Đang chờ thanh toán, cho phép quay lại thanh toán
+      "PAID", // Đã trả cọc, có thể thanh toán phần còn lại nếu còn tiền
+      "CONFIRMED", // Trạng thái cũ
+      "WAITING_PAYMENT", // Trạng thái cũ
+      "IN_PROGRESS",
+    ].includes(
+      booking.status || "",
+    )
   );
 }
 
 function canCancelBooking(booking: Booking) {
-  return booking.status === "PENDING";
+  return ["REQUESTED", "OWNER_APPROVED", "PENDING", "CONFIRMED"].includes(
+    booking.status || "",
+  );
 }
 
 export default function BookingDetailPage() {
@@ -277,8 +325,7 @@ export default function BookingDetailPage() {
     }
 
     try {
-      const bookings = (await bookingService.getMyBookings()) as Booking[];
-      const foundBooking = bookings.find((item) => item._id === id);
+      const foundBooking = (await bookingService.getMyBooking(id)) as Booking;
       setBooking(foundBooking || null);
     } catch (error) {
       const message =
@@ -395,12 +442,30 @@ export default function BookingDetailPage() {
     {
       key: "PENDING",
       label: "Gửi yêu cầu",
-      active: ["PENDING", "CONFIRMED", "COMPLETED"].includes(booking.status || ""),
+      active: [
+        "PENDING",
+        "REQUESTED",
+        "OWNER_APPROVED",
+        "PAYMENT_PENDING",
+        "PAID",
+        "WAITING_PAYMENT",
+        "CONFIRMED",
+        "IN_PROGRESS",
+        "COMPLETED",
+      ].includes(booking.status || ""),
     },
     {
       key: "CONFIRMED",
       label: "Xác nhận",
-      active: ["CONFIRMED", "COMPLETED"].includes(booking.status || ""),
+      active: [
+        "WAITING_PAYMENT",
+        "OWNER_APPROVED",
+        "PAYMENT_PENDING",
+        "PAID",
+        "CONFIRMED",
+        "IN_PROGRESS",
+        "COMPLETED",
+      ].includes(booking.status || ""),
     },
     {
       key: "COMPLETED",
@@ -515,6 +580,13 @@ export default function BookingDetailPage() {
                 <div className={`mt-6 rounded-lg border p-4 text-sm font-semibold leading-6 ${statusInfo.panelClass}`}>
                   {booking.cancelReason || booking.noShowReason || statusInfo.detail}
                 </div>
+              ) : false ? (
+                <div className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-amber-50 px-5 py-3 text-center font-extrabold text-amber-700">
+                  <Clock3 size={20} />
+                  {"PENDING" === "PENDING"
+                    ? "Chá» chá»§ xe xÃ¡c nháº­n"
+                    : "ChÆ°a thá»ƒ thanh toÃ¡n"}
+                </div>
               ) : (
                 <div className="mt-6 grid gap-3 md:grid-cols-3">
                   {timeline.map((item, index) => (
@@ -608,6 +680,13 @@ export default function BookingDetailPage() {
                   <CreditCard size={20} />
                   Thanh toán {formatPrice(paymentInfo.nextAmount)}
                 </Link>
+              ) : paymentInfo.nextAmount > 0 ? (
+                <div className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-amber-50 px-5 py-3 text-center font-extrabold text-amber-700">
+                  <Clock3 size={20} />
+                  {booking.status === "PENDING"
+                    ? "Chờ chủ xe xác nhận"
+                    : "Chưa thể thanh toán"}
+                </div>
               ) : (
                 <div className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-emerald-50 px-5 py-3 font-extrabold text-emerald-700">
                   <CheckCircle2 size={20} />

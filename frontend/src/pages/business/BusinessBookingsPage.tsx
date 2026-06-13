@@ -19,6 +19,8 @@ import { paymentService } from "../../services/payment.service";
 import { formatVietnamDateTime } from "../../utils/date.util";
 
 type BookingAction = "confirm" | "reject" | "handover" | "complete" | "no-show";
+const OWNER_REVIEW_STATUSES = ["REQUESTED", "PENDING"]; // Booking chờ chủ xe duyệt
+const READY_TO_HANDOVER_STATUSES = ["PAID", "OWNER_APPROVED", "CONFIRMED"]; // Booking đã duyệt/đã thanh toán, có thể bàn giao hoặc xử lý no-show
 
 function formatDateTime(value?: string) {
   if (!value) return "--";
@@ -30,6 +32,11 @@ function formatDateTime(value?: string) {
 }
 
 function getStatusBadge(status?: string) {
+  if (status === "REQUESTED") return { label: "Chờ chủ xe duyệt", tone: "yellow" as const };
+  if (status === "OWNER_APPROVED") return { label: "Đã duyệt", tone: "blue" as const };
+  if (status === "PAYMENT_PENDING") return { label: "Đang thanh toán", tone: "yellow" as const };
+  if (status === "PAID") return { label: "Đã thanh toán", tone: "green" as const };
+
   const map: Record<string, { label: string; tone: "green" | "red" | "yellow" | "blue" | "gray" }> = {
     PENDING: { label: "Chờ xác nhận", tone: "yellow" },
     CONFIRMED: { label: "Đã xác nhận", tone: "blue" },
@@ -230,7 +237,7 @@ export default function BusinessBookingsPage() {
                   const cashPayment =
                     booking.payment?.method === "CASH" ? booking.payment : null;
                   const canHandoverCash =
-                    booking.status === "CONFIRMED" &&
+                    READY_TO_HANDOVER_STATUSES.includes(booking.status || "") &&
                     cashPayment?.status === "PENDING";
 
                   return (
@@ -269,7 +276,7 @@ export default function BusinessBookingsPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex justify-end gap-2">
-                          {booking.status === "PENDING" && (
+                          {OWNER_REVIEW_STATUSES.includes(booking.status || "") && (
                             <button
                               type="button"
                               onClick={() => openAction("confirm", booking)}
@@ -280,7 +287,7 @@ export default function BusinessBookingsPage() {
                             </button>
                           )}
 
-                          {booking.status === "PENDING" && (
+                          {OWNER_REVIEW_STATUSES.includes(booking.status || "") && (
                             <button
                               type="button"
                               onClick={() => openAction("reject", booking)}
@@ -313,7 +320,7 @@ export default function BusinessBookingsPage() {
                             </button>
                           )}
 
-                          {booking.status === "CONFIRMED" && !canHandoverCash && (
+                          {READY_TO_HANDOVER_STATUSES.includes(booking.status || "") && !canHandoverCash && (
                             <>
                               <button
                                 type="button"
@@ -334,8 +341,8 @@ export default function BusinessBookingsPage() {
                             </>
                           )}
 
-                          {booking.status !== "PENDING" &&
-                            booking.status !== "CONFIRMED" &&
+                          {!OWNER_REVIEW_STATUSES.includes(booking.status || "") &&
+                            !READY_TO_HANDOVER_STATUSES.includes(booking.status || "") &&
                             booking.status !== "IN_PROGRESS" && (
                               <span className="text-sm font-semibold text-slate-400">
                                 --

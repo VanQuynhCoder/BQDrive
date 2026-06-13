@@ -62,7 +62,12 @@ class DashboardRoute extends BaseRoute {
       BookingModel.countDocuments({ isDeleted: false }),
       BookingModel.countDocuments({
         isDeleted: false,
-        status: BookingStatusEnum.PENDING,
+        status: {
+          $in: [
+            BookingStatusEnum.REQUESTED, // Trạng thái mới: chờ chủ xe duyệt
+            BookingStatusEnum.PENDING, // Trạng thái cũ
+          ],
+        },
       }),
       BookingModel.countDocuments({
         isDeleted: false,
@@ -155,12 +160,24 @@ class DashboardRoute extends BaseRoute {
       BookingModel.countDocuments({
         businessId: business._id,
         isDeleted: false,
-        status: BookingStatusEnum.PENDING,
+        status: {
+          $in: [
+            BookingStatusEnum.REQUESTED, // Trạng thái mới: chờ chủ xe duyệt
+            BookingStatusEnum.PENDING, // Trạng thái cũ
+          ],
+        },
       } as any),
       BookingModel.countDocuments({
         businessId: business._id,
         isDeleted: false,
-        status: BookingStatusEnum.CONFIRMED,
+        status: {
+          $in: [
+            BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã duyệt
+            BookingStatusEnum.PAYMENT_PENDING, // Khách đang thanh toán
+            BookingStatusEnum.PAID, // Đã thanh toán
+            BookingStatusEnum.CONFIRMED, // Trạng thái cũ
+          ],
+        },
       } as any),
       BookingModel.countDocuments({
         businessId: business._id,

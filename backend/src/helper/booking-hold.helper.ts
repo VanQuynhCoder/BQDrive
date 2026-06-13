@@ -46,32 +46,22 @@ export async function getCheckoutStartedBookingIdSet(bookingIds: unknown[]) {
 export async function expireAbandonedPendingBookings(now = new Date()) {
   const cutoff = getBookingHoldCutoff(now);
   const staleWaitingPaymentBookings = await BookingModel.find({
-    status: BookingStatusEnum.WAITING_PAYMENT,
+    status: {
+      $in: [
+        BookingStatusEnum.PAYMENT_PENDING, // Trạng thái mới: khách đã bắt đầu thanh toán nhưng chưa hoàn tất
+        BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: giữ tương thích dữ liệu cũ
+      ],
+    },
     $or: [{ paidAmount: { $lte: 0 } }, { paidAmount: { $exists: false } }],
     isDeleted: false,
     createdAt: { $lte: cutoff },
   } as any)
     .select("_id")
     .lean();
-  const stalePendingBookings = await BookingModel.find({
-    status: BookingStatusEnum.PENDING,
-    $or: [{ paidAmount: { $lte: 0 } }, { paidAmount: { $exists: false } }],
-    isDeleted: false,
-    createdAt: { $lte: cutoff },
-  } as any)
-    .select("_id")
-    .lean();
-  const stalePendingIds = stalePendingBookings.map((booking) => booking._id);
-  const checkoutStartedBookingIds =
-    await getCheckoutStartedBookingIdSet(stalePendingIds);
-  const stalePendingWithoutCheckoutIds = stalePendingIds.filter(
-    (bookingId) => !checkoutStartedBookingIds.has(String(bookingId)),
-  );
 
-  const staleBookingIds = [
-    ...staleWaitingPaymentBookings.map((booking) => booking._id),
-    ...stalePendingWithoutCheckoutIds,
-  ];
+  const staleBookingIds = staleWaitingPaymentBookings.map(
+    (booking) => booking._id,
+  );
 
   if (staleBookingIds.length === 0) {
     return { expiredCount: 0 };
@@ -80,7 +70,12 @@ export async function expireAbandonedPendingBookings(now = new Date()) {
   const result = await BookingModel.updateMany(
     {
       _id: { $in: staleBookingIds },
-      status: { $in: [BookingStatusEnum.PENDING, BookingStatusEnum.WAITING_PAYMENT] },
+      status: {
+        $in: [
+          BookingStatusEnum.PAYMENT_PENDING, // Chỉ auto hủy bước chờ thanh toán, không hủy yêu cầu chờ chủ xe duyệt
+          BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ
+        ],
+      },
       $or: [{ paidAmount: { $lte: 0 } }, { paidAmount: { $exists: false } }],
       isDeleted: false,
     } as any,

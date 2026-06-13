@@ -17,6 +17,11 @@ export const bookingService = {
     return res.data.data.bookings;
   },
 
+  getMyBooking: async (id: string) => {
+    const res = await api.get(`/bookings/getMyBooking/${id}`);
+    return res.data.data.booking;
+  },
+
   cancelBooking: async (id: string, cancelReason?: string) => {
     const res = await api.post(`/bookings/cancelBooking/${id}`, {
       cancelReason,

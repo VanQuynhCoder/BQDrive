@@ -26,6 +26,14 @@ import {
 } from "../../constants/model.const";
 
 const RENTER_ROLES = [UserRoleEnum.CUSTOMER, UserRoleEnum.PRIVATE_OWNER];
+const PAYMENT_ALLOWED_BOOKING_STATUSES = [
+  BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã duyệt nên khách được phép bắt đầu thanh toán
+  BookingStatusEnum.PAYMENT_PENDING, // Đã có giao dịch đang chờ, cho phép tạo lại link thanh toán
+  BookingStatusEnum.PAID, // Đã thanh toán trước đó, dùng để xử lý phần còn lại nếu có
+  BookingStatusEnum.IN_PROGRESS, // Đang thuê, có thể thanh toán phần còn lại/phụ phí
+  BookingStatusEnum.CONFIRMED, // Trạng thái cũ: tương đương đã được chủ xe xác nhận
+  BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: tương đương PAYMENT_PENDING
+];
 
 class PaymentRoute extends BaseRoute {
   constructor() {
@@ -92,6 +100,30 @@ class PaymentRoute extends BaseRoute {
     }
 
     return booking.depositAmount;
+  }
+
+  private assertBookingCanCreatePayment(booking: any) {
+    if (
+      !PAYMENT_ALLOWED_BOOKING_STATUSES.includes(
+        booking.status as BookingStatusEnum,
+      )
+    ) {
+      throw ErrorHelper.requestDataInvalid(
+        "Booking cần được chủ xe xác nhận trước khi thanh toán",
+      );
+    }
+  }
+
+  private async markCarRented(booking: any) {
+    await CarModel.findOneAndUpdate(
+      {
+        _id: booking.carId,
+        businessId: booking.businessId,
+        status: { $in: [CarStatusEnum.APPROVED, CarStatusEnum.RENTED] },
+        isDeleted: false,
+      } as any,
+      { status: CarStatusEnum.RENTED },
+    );
   }
 
   private async getOwnerBusiness(authUser: any) {
@@ -161,6 +193,8 @@ class PaymentRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Booking");
     }
 
+    this.assertBookingCanCreatePayment(booking);
+
     const selectedPaymentType =
       paymentType ||
       (booking.paymentOption === PaymentOptionEnum.FULL
@@ -209,8 +243,12 @@ class PaymentRoute extends BaseRoute {
       });
     }
 
-    if (booking.status === BookingStatusEnum.PENDING) {
-      booking.status = BookingStatusEnum.WAITING_PAYMENT;
+    if (
+      [BookingStatusEnum.OWNER_APPROVED, BookingStatusEnum.CONFIRMED].includes(
+        booking.status as BookingStatusEnum,
+      )
+    ) {
+      booking.status = BookingStatusEnum.PAYMENT_PENDING; // Khách đã mở cổng thanh toán, chờ kết quả trả về
       await booking.save();
     }
 
@@ -314,9 +352,10 @@ class PaymentRoute extends BaseRoute {
         booking.remainingAmount = 0;
       }
 
-      booking.status = BookingStatusEnum.CONFIRMED;
+      booking.status = BookingStatusEnum.PAID; // Thanh toán online thành công, lịch thuê được giữ chính thức
 
       await booking.save();
+      await this.markCarRented(booking);
       await payment.save();
 
       return res.status(200).json({
@@ -352,6 +391,8 @@ class PaymentRoute extends BaseRoute {
     if (!booking) {
       throw ErrorHelper.recordNotFound("Booking");
     }
+
+    this.assertBookingCanCreatePayment(booking);
 
     const selectedPaymentType =
       paymentType ||
@@ -401,8 +442,12 @@ class PaymentRoute extends BaseRoute {
       });
     }
 
-    if (booking.status === BookingStatusEnum.PENDING) {
-      booking.status = BookingStatusEnum.WAITING_PAYMENT;
+    if (
+      [BookingStatusEnum.OWNER_APPROVED, BookingStatusEnum.CONFIRMED].includes(
+        booking.status as BookingStatusEnum,
+      )
+    ) {
+      booking.status = BookingStatusEnum.PAYMENT_PENDING; // Khách đã mở cổng thanh toán VNPay
       await booking.save();
     }
 
@@ -531,9 +576,10 @@ class PaymentRoute extends BaseRoute {
         booking.remainingAmount = 0;
       }
 
-      booking.status = BookingStatusEnum.CONFIRMED;
+      booking.status = BookingStatusEnum.PAID; // VNPay trả thành công, booking chuyển sang đã thanh toán
 
       await booking.save();
+      await this.markCarRented(booking);
       await payment.save();
 
       return res.status(200).json({
@@ -581,6 +627,8 @@ class PaymentRoute extends BaseRoute {
     if (!booking) {
       throw ErrorHelper.recordNotFound("Booking");
     }
+
+    this.assertBookingCanCreatePayment(booking);
 
     if (
       [
@@ -632,9 +680,12 @@ class PaymentRoute extends BaseRoute {
     if (existedPendingPayment) {
       if (
         method === PaymentMethodEnum.CASH &&
-        booking.status === BookingStatusEnum.WAITING_PAYMENT
+        [
+          BookingStatusEnum.PAYMENT_PENDING,
+          BookingStatusEnum.WAITING_PAYMENT,
+        ].includes(booking.status as BookingStatusEnum)
       ) {
-        booking.status = BookingStatusEnum.PENDING;
+        booking.status = BookingStatusEnum.OWNER_APPROVED; // Tiền mặt chưa thu thì quay về trạng thái chủ xe đã duyệt
         await booking.save();
       }
 
@@ -677,9 +728,12 @@ class PaymentRoute extends BaseRoute {
 
     if (
       method === PaymentMethodEnum.CASH &&
-      booking.status === BookingStatusEnum.WAITING_PAYMENT
+      [
+        BookingStatusEnum.PAYMENT_PENDING,
+        BookingStatusEnum.WAITING_PAYMENT,
+      ].includes(booking.status as BookingStatusEnum)
     ) {
-      booking.status = BookingStatusEnum.PENDING;
+      booking.status = BookingStatusEnum.OWNER_APPROVED; // Chọn tiền mặt: chờ chủ xe thu khi bàn giao
       await booking.save();
     }
 
@@ -821,7 +875,13 @@ class PaymentRoute extends BaseRoute {
       }
 
       if (payment.method === PaymentMethodEnum.CASH) {
-        if (booking.status !== BookingStatusEnum.CONFIRMED) {
+        if (
+          ![
+            BookingStatusEnum.OWNER_APPROVED,
+            BookingStatusEnum.PAID,
+            BookingStatusEnum.CONFIRMED,
+          ].includes(booking.status as BookingStatusEnum)
+        ) {
           throw ErrorHelper.requestDataInvalid(
             "Booking can duoc xac nhan truoc khi ghi nhan thanh toan tien mat",
           );
@@ -831,7 +891,7 @@ class PaymentRoute extends BaseRoute {
           {
             _id: booking.carId,
             businessId: booking.businessId,
-            status: CarStatusEnum.APPROVED,
+            status: { $in: [CarStatusEnum.APPROVED, CarStatusEnum.RENTED] },
             isDeleted: false,
           } as any,
           { status: CarStatusEnum.RENTED },
@@ -844,9 +904,10 @@ class PaymentRoute extends BaseRoute {
           );
         }
 
-        booking.status = BookingStatusEnum.IN_PROGRESS;
+        booking.status = BookingStatusEnum.IN_PROGRESS; // Thu tiền mặt và bàn giao xe xong, chuyến thuê bắt đầu
       } else {
-        booking.status = BookingStatusEnum.CONFIRMED;
+        booking.status = BookingStatusEnum.PAID; // Chủ xe ghi nhận thanh toán không tiền mặt thành công
+        await this.markCarRented(booking);
       }
 
       await booking.save();

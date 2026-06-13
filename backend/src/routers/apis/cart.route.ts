@@ -16,11 +16,16 @@ import {
 
 const RENTER_ROLES = [UserRoleEnum.CUSTOMER, UserRoleEnum.PRIVATE_OWNER];
 const BLOCKING_BOOKING_STATUSES = [
-  BookingStatusEnum.PENDING,
-  BookingStatusEnum.WAITING_PAYMENT,
-  BookingStatusEnum.CONFIRMED,
-  BookingStatusEnum.IN_PROGRESS,
+  BookingStatusEnum.REQUESTED, // Khách đã gửi yêu cầu, giữ slot chờ chủ xe duyệt
+  BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã duyệt, giữ slot chờ khách thanh toán
+  BookingStatusEnum.PAYMENT_PENDING, // Khách đang thanh toán
+  BookingStatusEnum.PAID, // Đã thanh toán, lịch thuê chính thức
+  BookingStatusEnum.IN_PROGRESS, // Xe đang được thuê
+  BookingStatusEnum.PENDING, // Trạng thái cũ: REQUESTED
+  BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: PAYMENT_PENDING
+  BookingStatusEnum.CONFIRMED, // Trạng thái cũ
 ];
+const BOOKABLE_CAR_STATUSES = [CarStatusEnum.APPROVED, CarStatusEnum.RENTED];
 
 class CartRoute extends BaseRoute {
   constructor() {
@@ -123,7 +128,7 @@ class CartRoute extends BaseRoute {
 
     const car = await CarModel.findOne({
       _id: carId,
-      status: CarStatusEnum.APPROVED,
+      status: { $in: BOOKABLE_CAR_STATUSES },
       isDeleted: false,
     } as any);
 

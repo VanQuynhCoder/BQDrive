@@ -214,12 +214,24 @@ class BusinessRoute extends BaseRoute {
       }),
       BookingModel.countDocuments({
         businessId: business._id,
-        status: BookingStatusEnum.PENDING,
+        status: {
+          $in: [
+            BookingStatusEnum.REQUESTED, // Trạng thái mới: chờ chủ xe duyệt
+            BookingStatusEnum.PENDING, // Trạng thái cũ
+          ],
+        },
         isDeleted: false,
       }),
       BookingModel.countDocuments({
         businessId: business._id,
-        status: BookingStatusEnum.CONFIRMED,
+        status: {
+          $in: [
+            BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã duyệt, chờ thanh toán
+            BookingStatusEnum.PAYMENT_PENDING, // Khách đang thanh toán
+            BookingStatusEnum.PAID, // Đã thanh toán
+            BookingStatusEnum.CONFIRMED, // Trạng thái cũ
+          ],
+        },
         isDeleted: false,
       }),
       BookingModel.countDocuments({

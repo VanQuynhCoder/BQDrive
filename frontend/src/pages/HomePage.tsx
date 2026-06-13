@@ -186,7 +186,7 @@ export default function HomePage() {
         });
 
         myBookings.forEach((booking) => {
-          if (booking.status !== "PENDING") return;
+          if (!["REQUESTED", "PENDING"].includes(booking.status || "")) return; // REQUESTED là trạng thái mới chờ chủ xe duyệt, PENDING là dữ liệu cũ
 
           const paidAmount = booking.paidAmount || 0;
           if (paidAmount > 0) return;

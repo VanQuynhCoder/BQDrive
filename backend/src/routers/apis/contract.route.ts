@@ -115,6 +115,21 @@ class ContractRoute extends BaseRoute {
     }
 
     if (
+      ![
+        BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã duyệt, khách được tạo hợp đồng trước khi thanh toán
+        BookingStatusEnum.PAYMENT_PENDING, // Khách đang thanh toán, hợp đồng vẫn hợp lệ
+        BookingStatusEnum.PAID, // Đã thanh toán, hợp đồng có thể xem/tái dùng
+        BookingStatusEnum.IN_PROGRESS, // Đang thuê, hợp đồng vẫn còn hiệu lực
+        BookingStatusEnum.CONFIRMED, // Trạng thái cũ
+        BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ
+      ].includes(booking.status as BookingStatusEnum)
+    ) {
+      throw ErrorHelper.requestDataInvalid(
+        "Booking cần được chủ xe xác nhận trước khi tạo hợp đồng",
+      );
+    }
+
+    if (
       [
         BookingStatusEnum.CANCELLED,
         BookingStatusEnum.COMPLETED,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -6,6 +6,7 @@ import {
   Building2,
   CalendarCheck2,
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   CarFront,
   CheckCircle2,
@@ -64,9 +65,23 @@ type CarDetail = {
   availabilityLabel?: string;
   isBookable?: boolean;
   unavailableReason?: string;
+  unavailableRanges?: UnavailableRange[];
+};
+
+type UnavailableRange = {
+  bookingId?: string;
+  startDate: string;
+  endDate: string;
+  status?: string;
 };
 
 type RentalMode = "DAILY" | "HOURLY";
+
+type WheelOption = {
+  label: string;
+  value: string | number;
+  disabled?: boolean;
+};
 
 type ApiError = {
   response?: {
@@ -88,9 +103,187 @@ const FALLBACK_IMAGES = [
 const RENTAL_START_TIME = "08:00";
 const RENTAL_END_TIME = "18:00";
 const HOUR_MS = 1000 * 60 * 60;
+const TIME_OPTIONS = buildTimeOptions("08:00", "22:00", 30); // Dropdown giờ mỗi 30 phút, từ 08:00 đến 22:00.
+const HOURLY_DURATION_OPTIONS = [4, 5, 6, 7, 8]; // Thuê theo giờ chỉ cho 4-8 giờ.
+const WEEKDAY_LABELS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"]; // Header lịch bắt đầu từ thứ hai.
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat("vi-VN").format(price || 0) + "đ";
+}
+
+function buildTimeOptions(startTime: string, endTime: string, stepMinutes: number) {
+  const options: string[] = [];
+  const [startHour, startMinute] = startTime.split(":").map(Number);
+  const [endHour, endMinute] = endTime.split(":").map(Number);
+  const startTotal = startHour * 60 + startMinute;
+  const endTotal = endHour * 60 + endMinute;
+
+  for (let value = startTotal; value <= endTotal; value += stepMinutes) {
+    const hour = Math.floor(value / 60);
+    const minute = value % 60;
+    options.push(`${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`);
+  }
+
+  return options;
+}
+
+function timeToMinutes(time: string) {
+  const [hour, minute] = time.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function minutesToTime(totalMinutes: number) {
+  const hour = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function addHoursToTime(time: string, hours: number) {
+  return minutesToTime(timeToMinutes(time) + hours * 60);
+}
+
+function formatDateValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateValue(value: string) {
+  if (!value) return null;
+
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function addMonths(date: Date, amount: number) {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function getMonthDays(monthDate: Date) {
+  const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const daysInMonth = new Date(
+    monthDate.getFullYear(),
+    monthDate.getMonth() + 1,
+    0,
+  ).getDate();
+  const mondayStartOffset = (firstDay.getDay() + 6) % 7;
+  const cells: Array<Date | null> = Array.from({ length: mondayStartOffset }, () => null);
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    cells.push(new Date(monthDate.getFullYear(), monthDate.getMonth(), day));
+  }
+
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+
+  return cells;
+}
+
+function formatCalendarMonth(monthDate: Date) {
+  return `Tháng ${monthDate.getMonth() + 1}/${monthDate.getFullYear()}`;
+}
+
+function formatRentalDate(value: string) {
+  const date = parseDateValue(value);
+
+  if (!date) return "--";
+
+  return date.toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function formatRentalPickerSummary(
+  rentalMode: RentalMode,
+  startDate: string,
+  endDate: string,
+  startTime: string,
+  endTime: string,
+  rentalTime: number,
+) {
+  if (!startDate || !endDate) {
+    return "Chưa chọn lịch thuê";
+  }
+
+  const unit = rentalMode === "HOURLY" ? "giờ" : "ngày";
+
+  return `${startTime}, ${formatRentalDate(startDate)} - ${endTime}, ${formatRentalDate(
+    endDate,
+  )} | Thời gian thuê: ${rentalTime || 0} ${unit}`;
+}
+
+function isSameDateValue(left: string, right: string) {
+  return Boolean(left && right && left === right);
+}
+
+function getCurrentMinuteOfDay() {
+  const now = new Date();
+
+  return now.getHours() * 60 + now.getMinutes();
+}
+
+function TimeWheelPicker({
+  title,
+  options,
+  value,
+  onChange,
+}: {
+  title: string;
+  options: WheelOption[];
+  value: string | number;
+  onChange: (value: string | number) => void;
+}) {
+  const selectedOptionRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    selectedOptionRef.current?.scrollIntoView({
+      block: "center",
+      behavior: "smooth",
+    });
+  }, [value]);
+
+  return (
+    <section className="min-w-0">
+      <h4 className="mb-3 text-center text-xl font-extrabold text-primary">
+        {title}
+      </h4>
+      <div className="relative overflow-hidden rounded-lg bg-white">
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-14 -translate-y-1/2 rounded-lg bg-soft" />
+        <div className="relative z-10 max-h-44 snap-y snap-mandatory overflow-y-auto px-2 py-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {options.map((option) => {
+            const isSelected = option.value === value;
+
+            return (
+              <button
+                key={String(option.value)}
+                ref={isSelected ? selectedOptionRef : undefined}
+                type="button"
+                disabled={option.disabled}
+                onClick={() => onChange(option.value)}
+                className={`relative flex min-h-12 w-full snap-center items-center justify-center rounded-lg text-lg font-extrabold transition ${
+                  option.disabled
+                    ? "cursor-not-allowed text-slate-300 line-through"
+                    : isSelected
+                      ? "bg-soft text-secondary"
+                      : "text-slate-400 hover:bg-soft/70 hover:text-primary"
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function getRentalValidationMessage(
@@ -168,6 +361,59 @@ function calculateRentalTime(rentalMode: RentalMode, start: Date, end: Date) {
   }
 
   return Math.max(1, Math.ceil(diffMs / HOUR_MS / 24));
+}
+
+function formatUnavailableRange(range: UnavailableRange) {
+  const start = new Date(range.startDate);
+  const end = new Date(range.endDate);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return "";
+  }
+
+  const formatter = new Intl.DateTimeFormat("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  return `Từ ${formatter.format(start)} đến ${formatter.format(end)}`;
+}
+
+function doesRangeOverlapUnavailable(
+  ranges: UnavailableRange[] | undefined,
+  start: Date,
+  end: Date,
+) {
+  if (!ranges?.length) return false;
+
+  return ranges.some((range) => {
+    const unavailableStart = new Date(range.startDate);
+    const unavailableEnd = new Date(range.endDate);
+
+    if (
+      Number.isNaN(unavailableStart.getTime()) ||
+      Number.isNaN(unavailableEnd.getTime())
+    ) {
+      return false;
+    }
+
+    return start < unavailableEnd && end > unavailableStart;
+  });
+}
+
+function isDateInsideUnavailableRange(
+  ranges: UnavailableRange[] | undefined,
+  dateValue: string,
+) {
+  if (!ranges?.length || !dateValue) return false;
+
+  const dayStart = new Date(`${dateValue}T00:00:00`);
+  const dayEnd = new Date(`${dateValue}T23:59:59`);
+
+  return doesRangeOverlapUnavailable(ranges, dayStart, dayEnd);
 }
 
 function getCarImages(car?: CarDetail) {
@@ -248,6 +494,12 @@ export default function CarDetailPage() {
 
   const [startTime, setStartTime] = useState(RENTAL_START_TIME);
   const [endTime, setEndTime] = useState(RENTAL_END_TIME);
+  const [isRentalPickerOpen, setIsRentalPickerOpen] = useState(false); // Mở modal chọn lịch mới.
+  const [pickerMonth, setPickerMonth] = useState(
+    () => parseDateValue(getVietnamTodayDate()) || new Date(),
+  ); // Tháng đang hiển thị trong lịch.
+  const [hourlyDuration, setHourlyDuration] = useState(4); // Mặc định thuê theo giờ tối thiểu 4 giờ.
+  const [currentMinuteOfDay, setCurrentMinuteOfDay] = useState(getCurrentMinuteOfDay); // Dùng để khóa giờ đã qua trong ngày hiện tại.
   const [isBookingSubmitting, setIsBookingSubmitting] = useState(false);
   const [isCartSubmitting, setIsCartSubmitting] = useState(false);
 
@@ -338,6 +590,14 @@ export default function CarDetailPage() {
 
   const today = useMemo(() => getVietnamTodayDate(), []);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCurrentMinuteOfDay(getCurrentMinuteOfDay());
+    }, 60 * 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   const supportedRentalModes = getRentalModes(car);
   const rentalInfo = car
     ? getRentalInfo(car, rentalMode)
@@ -366,17 +626,33 @@ export default function CarDetailPage() {
     () => getRentalValidationMessage(startDate, endDate, startTime, endTime),
     [startDate, endDate, startTime, endTime],
   );
+  const unavailableRangeValidationMessage = useMemo(() => {
+    if (!car || !startDate || !endDate || !startTime || !endTime) {
+      return "";
+    }
+
+    const start = new Date(buildVietnamDateTime(startDate, startTime));
+    const end = new Date(buildVietnamDateTime(endDate, endTime));
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return "";
+    }
+
+    return doesRangeOverlapUnavailable(car.unavailableRanges, start, end)
+      ? "Xe đã được thuê trong khoảng thời gian bạn chọn"
+      : "";
+  }, [car, startDate, endDate, startTime, endTime]);
   const rentalModeValidationMessage = useMemo(() => {
     if (rentalMode === "DAILY" && !supportedRentalModes.allowDailyRental) {
-      return "Xe khong ho tro thue theo ngay";
+      return "Xe không hỗ trợ thuê theo ngày";
     }
 
     if (rentalMode === "HOURLY" && !supportedRentalModes.allowHourlyRental) {
-      return "Xe khong ho tro thue theo gio";
+      return "Xe không hỗ trợ thuê theo giờ";
     }
 
-    if (rentalMode === "HOURLY" && rentalTime > 0 && (rentalTime < 2 || rentalTime > 24)) {
-      return "Thue theo gio chi ho tro tu 2 den 24 gio";
+    if (rentalMode === "HOURLY" && rentalTime > 0 && (rentalTime < 4 || rentalTime > 8)) {
+      return "Thuê theo giờ chỉ hỗ trợ từ 4 đến 8 giờ";
     }
 
     return "";
@@ -390,7 +666,201 @@ export default function CarDetailPage() {
     availabilityInfo.isBookable &&
     rentalTime > 0 &&
     !rentalValidationMessage &&
+    !unavailableRangeValidationMessage &&
     !rentalModeValidationMessage;
+
+  const unavailableRanges = car?.unavailableRanges || [];
+  const latestHourlyStartTime = minutesToTime(timeToMinutes("22:00") - hourlyDuration * 60);
+  const hourlyStartTimeOptions = useMemo(
+    () =>
+      TIME_OPTIONS.filter(
+        (time) => timeToMinutes(time) <= timeToMinutes(latestHourlyStartTime),
+      ),
+    [latestHourlyStartTime],
+  );
+  const rentalPickerSummary = formatRentalPickerSummary(
+    rentalMode,
+    startDate,
+    endDate,
+    startTime,
+    endTime,
+    rentalTime,
+  );
+  const canSaveRentalPicker =
+    Boolean(startDate && endDate) &&
+    !rentalValidationMessage &&
+    !unavailableRangeValidationMessage &&
+    !rentalModeValidationMessage; // Nút Lưu trong modal chỉ sáng khi ngày/giờ hợp lệ.
+  const isPastTimeForDate = useCallback(
+    (dateValue: string, time: string) =>
+      isSameDateValue(dateValue, today) && timeToMinutes(time) <= currentMinuteOfDay,
+    [currentMinuteOfDay, today],
+  ); // Nếu chọn hôm nay thì các mốc giờ đã qua sẽ bị khóa.
+  const dailyStartTimeOptions: WheelOption[] = TIME_OPTIONS.map((time) => ({
+    label: time,
+    value: time,
+    disabled: isPastTimeForDate(startDate, time),
+  }));
+  const dailyEndTimeOptions: WheelOption[] = TIME_OPTIONS.map((time) => ({
+    label: time,
+    value: time,
+    disabled:
+      isPastTimeForDate(endDate, time) ||
+      (isSameDateValue(startDate, endDate) &&
+        timeToMinutes(time) <= timeToMinutes(startTime)),
+  }));
+  const hourlyStartWheelOptions: WheelOption[] = hourlyStartTimeOptions.map((time) => ({
+    label: time,
+    value: time,
+    disabled: isPastTimeForDate(startDate, time),
+  }));
+  const hourlyDurationWheelOptions: WheelOption[] = HOURLY_DURATION_OPTIONS.map((duration) => ({
+    label: `${duration} giờ`,
+    value: duration,
+  }));
+  const firstEnabledDailyStartTime = dailyStartTimeOptions.find(
+    (option) => !option.disabled,
+  )?.value as string | undefined;
+  const firstEnabledDailyEndTime = dailyEndTimeOptions.find(
+    (option) => !option.disabled,
+  )?.value as string | undefined;
+  const firstEnabledHourlyStartTime = hourlyStartWheelOptions.find(
+    (option) => !option.disabled,
+  )?.value as string | undefined;
+
+  useEffect(() => {
+    if (rentalMode !== "HOURLY") return;
+
+    // Khi thuê theo giờ, ngày trả luôn bằng ngày nhận và giờ trả tính từ số giờ thuê.
+    const nextStartTime =
+      hourlyStartTimeOptions.includes(startTime) && !isPastTimeForDate(startDate, startTime)
+        ? startTime
+        : firstEnabledHourlyStartTime;
+
+    if (nextStartTime && nextStartTime !== startTime) {
+      setStartTime(nextStartTime);
+      return;
+    }
+
+    if (startDate && endDate !== startDate) {
+      setEndDate(startDate);
+      return;
+    }
+
+    if (nextStartTime) {
+      const nextEndTime = addHoursToTime(nextStartTime, hourlyDuration);
+      if (endTime !== nextEndTime) {
+        setEndTime(nextEndTime);
+      }
+    }
+  }, [
+    endDate,
+    endTime,
+    hourlyDuration,
+    firstEnabledHourlyStartTime,
+    hourlyStartTimeOptions,
+    isPastTimeForDate,
+    rentalMode,
+    startDate,
+    startTime,
+  ]);
+
+  useEffect(() => {
+    if (rentalMode !== "DAILY") return;
+
+    if (startDate && dailyStartTimeOptions.some((option) => option.value === startTime && option.disabled)) {
+      if (firstEnabledDailyStartTime) setStartTime(firstEnabledDailyStartTime);
+      return;
+    }
+
+    if (endDate && dailyEndTimeOptions.some((option) => option.value === endTime && option.disabled)) {
+      if (firstEnabledDailyEndTime) setEndTime(firstEnabledDailyEndTime);
+    }
+  }, [
+    dailyEndTimeOptions,
+    dailyStartTimeOptions,
+    endDate,
+    endTime,
+    firstEnabledDailyEndTime,
+    firstEnabledDailyStartTime,
+    rentalMode,
+    startDate,
+    startTime,
+  ]);
+
+  const isCalendarDateDisabled = (dateValue: string) =>
+    dateValue < today || isDateInsideUnavailableRange(unavailableRanges, dateValue); // Khóa ngày quá khứ và ngày xe đã được thuê.
+
+  const isCalendarDateSelected = (dateValue: string) =>
+    dateValue === startDate || dateValue === endDate;
+
+  const isCalendarDateInRange = (dateValue: string) =>
+    rentalMode === "DAILY" &&
+    Boolean(startDate && endDate) &&
+    dateValue > startDate &&
+    dateValue < endDate;
+
+  const handleRentalModeChange = (nextMode: RentalMode) => {
+    setRentalMode(nextMode);
+
+    if (nextMode === "HOURLY") {
+      if (startDate) setEndDate(startDate);
+      setEndTime(addHoursToTime(startTime, hourlyDuration));
+    }
+  };
+
+  const handleCalendarDateClick = (dateValue: string) => {
+    if (isCalendarDateDisabled(dateValue)) {
+      toast.error("Xe không khả dụng trong ngày này");
+      return;
+    }
+
+    if (rentalMode === "HOURLY") {
+      // Thuê theo giờ chỉ chọn ngày bắt đầu, không chọn ngày trả riêng.
+      setStartDate(dateValue);
+      setEndDate(dateValue);
+      setEndTime(addHoursToTime(startTime, hourlyDuration));
+      return;
+    }
+
+    if (!startDate || (startDate && endDate)) {
+      setStartDate(dateValue);
+      setEndDate("");
+      return;
+    }
+
+    if (dateValue < startDate) {
+      setStartDate(dateValue);
+      setEndDate("");
+      return;
+    }
+
+    const proposedStart = new Date(buildVietnamDateTime(startDate, startTime));
+    const proposedEnd = new Date(buildVietnamDateTime(dateValue, endTime));
+
+    if (doesRangeOverlapUnavailable(unavailableRanges, proposedStart, proposedEnd)) {
+      toast.error("Khoảng thời gian này trùng với lịch xe đã được thuê");
+      return;
+    }
+
+    setEndDate(dateValue);
+  };
+
+  const handleSaveRentalPicker = () => {
+    if (!startDate || !endDate) {
+      toast.error("Vui lòng chọn đầy đủ ngày nhận và ngày trả xe");
+      return;
+    }
+
+    if (rentalValidationMessage || unavailableRangeValidationMessage || rentalModeValidationMessage) {
+      toast.error(
+        rentalValidationMessage || unavailableRangeValidationMessage || rentalModeValidationMessage,
+      );
+      return;
+    }
+
+    setIsRentalPickerOpen(false);
+  };
 
   const validateBeforeSubmit = () => {
     if (!availabilityInfo.isBookable) {
@@ -408,7 +878,32 @@ export default function CarDetailPage() {
       return false;
     }
 
+    if (unavailableRangeValidationMessage) {
+      toast.error(unavailableRangeValidationMessage);
+      return false;
+    }
+
     return true;
+  };
+
+  const handleStartDateChange = (value: string) => {
+    if (isDateInsideUnavailableRange(car?.unavailableRanges, value)) {
+      toast.error("Ngày nhận xe nằm trong khoảng xe đã được thuê");
+      setStartDate("");
+      return;
+    }
+
+    setStartDate(value);
+  };
+
+  const handleEndDateChange = (value: string) => {
+    if (isDateInsideUnavailableRange(car?.unavailableRanges, value)) {
+      toast.error("Ngày trả xe nằm trong khoảng xe đã được thuê");
+      setEndDate("");
+      return;
+    }
+
+    setEndDate(value);
   };
 
   const redirectToLogin = () => {
@@ -468,7 +963,7 @@ export default function CarDetailPage() {
         rentalMode,
       });
 
-      toast.success("Đặt xe thành công");
+      toast.success("Đã gửi yêu cầu đặt xe, vui lòng chờ chủ xe xác nhận");
       navigate(`/bookings/${booking._id}`);
     } catch (error: unknown) {
       if (isAuthenticationError(error)) {
@@ -841,11 +1336,49 @@ export default function CarDetailPage() {
               </div>
 
               <div className="mt-6 space-y-4 border-y border-border py-5">
+                <button
+                  type="button"
+                  onClick={() => setIsRentalPickerOpen(true)}
+                  className="w-full rounded-lg border border-border bg-soft p-4 text-left transition hover:border-secondary hover:bg-white"
+                >
+                  <span className="flex items-center gap-2 text-sm font-extrabold text-primary">
+                    <CalendarDays size={18} className="text-secondary" />
+                    Thời gian thuê xe
+                  </span>
+                  <span className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <span className="rounded-lg border border-border bg-white p-3">
+                      <span className="block text-xs font-bold uppercase text-muted">
+                        Nhận xe
+                      </span>
+                      <span className="mt-1 block text-sm font-extrabold text-primary">
+                        {startDate
+                          ? `${startTime}, ${formatRentalDate(startDate)}`
+                          : "Chọn ngày nhận"}
+                      </span>
+                    </span>
+                    <span className="rounded-lg border border-border bg-white p-3">
+                      <span className="block text-xs font-bold uppercase text-muted">
+                        Trả xe
+                      </span>
+                      <span className="mt-1 block text-sm font-extrabold text-primary">
+                        {endDate
+                          ? `${endTime}, ${formatRentalDate(endDate)}`
+                          : "Chọn ngày trả"}
+                      </span>
+                    </span>
+                  </span>
+                  <span className="mt-3 block text-xs font-semibold text-muted">
+                    {rentalMode === "HOURLY"
+                      ? `Thuê theo giờ từ 4 đến 8 giờ, hiện chọn ${hourlyDuration} giờ`
+                      : "Thuê theo ngày với giờ nhận và giờ trả dạng dropdown 30 phút"}
+                  </span>
+                </button>
+
                 <div className="grid gap-3 sm:grid-cols-2">
                   {supportedRentalModes.allowDailyRental && (
                     <button
                       type="button"
-                      onClick={() => setRentalMode("DAILY")}
+                      onClick={() => handleRentalModeChange("DAILY")}
                       className={`min-h-12 rounded-lg border px-4 text-sm font-extrabold transition ${
                         rentalMode === "DAILY"
                           ? "border-secondary bg-secondary text-primary"
@@ -859,7 +1392,7 @@ export default function CarDetailPage() {
                   {supportedRentalModes.allowHourlyRental && (
                     <button
                       type="button"
-                      onClick={() => setRentalMode("HOURLY")}
+                      onClick={() => handleRentalModeChange("HOURLY")}
                       className={`min-h-12 rounded-lg border px-4 text-sm font-extrabold transition ${
                         rentalMode === "HOURLY"
                           ? "border-secondary bg-secondary text-primary"
@@ -871,7 +1404,7 @@ export default function CarDetailPage() {
                   )}
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="hidden gap-3 sm:grid-cols-2">
                   <label className="block">
                     <span className="mb-1 block text-sm font-bold text-primary">
                       Ngày nhận
@@ -886,7 +1419,7 @@ export default function CarDetailPage() {
                         min={today}
                         className="min-w-0 flex-1 bg-transparent text-sm outline-none"
                         value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
+                        onChange={(e) => handleStartDateChange(e.target.value)}
                       />
                     </span>
                   </label>
@@ -907,7 +1440,7 @@ export default function CarDetailPage() {
                   </label>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="hidden gap-3 sm:grid-cols-2">
                   <label className="block">
                     <span className="mb-1 block text-sm font-bold text-primary">
                       Ngày trả
@@ -922,7 +1455,7 @@ export default function CarDetailPage() {
                         min={startDate || today}
                         className="min-w-0 flex-1 bg-transparent text-sm outline-none"
                         value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
+                        onChange={(e) => handleEndDateChange(e.target.value)}
                       />
                     </span>
                   </label>
@@ -962,11 +1495,42 @@ export default function CarDetailPage() {
                   </p>
                 )}
 
+                {unavailableRangeValidationMessage && (
+                  <p className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold leading-6 text-red-600">
+                    <X size={17} className="mt-0.5 shrink-0" />
+                    {unavailableRangeValidationMessage}
+                  </p>
+                )}
+
                 {rentalModeValidationMessage && (
                   <p className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold leading-6 text-red-600">
                     <X size={17} className="mt-0.5 shrink-0" />
                     {rentalModeValidationMessage}
                   </p>
+                )}
+
+                {unavailableRanges.length > 0 && (
+                  <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold leading-6 text-red-600">
+                    <div className="flex items-start gap-2">
+                      <X size={17} className="mt-0.5 shrink-0" />
+                      <div>
+                        <p className="font-extrabold">Xe đã được thuê:</p>
+                        <ul className="mt-1 space-y-1">
+                          {unavailableRanges.map((range) => {
+                            const label = formatUnavailableRange(range);
+
+                            if (!label) return null;
+
+                            return (
+                              <li key={range.bookingId || `${range.startDate}-${range.endDate}`}>
+                                - {label}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -1048,6 +1612,337 @@ export default function CarDetailPage() {
           </aside>
         </div>
       </main>
+
+      {isRentalPickerOpen && (
+        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-slate-950/45 px-0 sm:items-center sm:px-4">
+          <div className="max-h-[92vh] w-full overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-w-3xl sm:rounded-lg">
+            <div className="flex items-center border-b border-border px-4 py-3 sm:px-6">
+              <button
+                type="button"
+                onClick={() => setIsRentalPickerOpen(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-primary transition hover:bg-soft"
+                aria-label="Đóng lịch"
+                title="Đóng lịch"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="ml-4 grid flex-1 grid-cols-2 rounded-lg bg-soft p-1">
+                {supportedRentalModes.allowDailyRental && (
+                  <button
+                    type="button"
+                    onClick={() => handleRentalModeChange("DAILY")}
+                    className={`min-h-10 rounded-md text-sm font-extrabold transition ${
+                      rentalMode === "DAILY"
+                        ? "bg-white text-primary shadow-sm"
+                        : "text-muted hover:text-primary"
+                    }`}
+                  >
+                    Thuê theo ngày
+                  </button>
+                )}
+
+                {supportedRentalModes.allowHourlyRental && (
+                  <button
+                    type="button"
+                    onClick={() => handleRentalModeChange("HOURLY")}
+                    className={`min-h-10 rounded-md text-sm font-extrabold transition ${
+                      rentalMode === "HOURLY"
+                        ? "bg-white text-primary shadow-sm"
+                        : "text-muted hover:text-primary"
+                    }`}
+                  >
+                    Thuê theo giờ
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="max-h-[calc(92vh-170px)] overflow-y-auto px-4 py-5 sm:px-6">
+              <div className="mb-4 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setPickerMonth(addMonths(pickerMonth, -1))}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-primary transition hover:bg-soft"
+                  aria-label="Tháng trước"
+                  title="Tháng trước"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <p className="text-sm font-bold text-muted">
+                  Ngày đã thuê sẽ bị khóa trên lịch
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPickerMonth(addMonths(pickerMonth, 1))}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-primary transition hover:bg-soft"
+                  aria-label="Tháng sau"
+                  title="Tháng sau"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+
+              <div className="grid gap-8 md:grid-cols-2">
+                {[pickerMonth, addMonths(pickerMonth, 1)].map((monthDate) => (
+                  <section key={formatDateValue(monthDate)}>
+                    <h3 className="mb-4 text-center text-xl font-extrabold text-primary">
+                      {formatCalendarMonth(monthDate)}
+                    </h3>
+                    <div className="grid grid-cols-7 text-center text-xs font-extrabold text-muted">
+                      {WEEKDAY_LABELS.map((label) => (
+                        <span
+                          key={label}
+                          className={label === "CN" ? "text-secondary" : ""}
+                        >
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="mt-3 grid grid-cols-7 gap-y-2">
+                      {getMonthDays(monthDate).map((date, index) => {
+                        if (!date) {
+                          return <span key={`empty-${index}`} className="h-11" />;
+                        }
+
+                        const dateValue = formatDateValue(date);
+                        const isDisabled = isCalendarDateDisabled(dateValue);
+                        const isSelected = isCalendarDateSelected(dateValue);
+                        const isInRange = isCalendarDateInRange(dateValue);
+                        const isSunday = date.getDay() === 0;
+
+                        return (
+                          <button
+                            key={dateValue}
+                            type="button"
+                            disabled={isDisabled}
+                            onClick={() => handleCalendarDateClick(dateValue)}
+                            className={`mx-auto flex h-11 w-11 items-center justify-center rounded-lg text-sm font-extrabold transition ${
+                              isSelected
+                                ? "bg-secondary text-primary shadow-sm"
+                                : isInRange
+                                  ? "bg-secondary/15 text-primary"
+                                  : isDisabled
+                                    ? "cursor-not-allowed bg-slate-100 text-slate-300"
+                                    : isSunday
+                                      ? "text-secondary hover:bg-soft"
+                                      : "text-primary hover:bg-soft"
+                            }`}
+                            title={isDisabled ? "Xe không khả dụng ngày này" : undefined}
+                          >
+                            {date.getDate()}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </div>
+
+              <div className="mt-6 rounded-lg border border-border bg-white p-4">
+                {rentalMode === "DAILY" ? (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <TimeWheelPicker
+                      title="Nhận xe"
+                      options={dailyStartTimeOptions}
+                      value={startTime}
+                      onChange={(value) => setStartTime(String(value))}
+                    />
+                    <TimeWheelPicker
+                      title="Trả xe"
+                      options={dailyEndTimeOptions}
+                      value={endTime}
+                      onChange={(value) => setEndTime(String(value))}
+                    />
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <TimeWheelPicker
+                      title="Giờ nhận"
+                      options={hourlyStartWheelOptions}
+                      value={startTime}
+                      onChange={(value) => {
+                        const nextStartTime = String(value);
+                        setStartTime(nextStartTime);
+                        setEndTime(addHoursToTime(nextStartTime, hourlyDuration));
+                      }}
+                    />
+                    <TimeWheelPicker
+                      title="Số giờ thuê"
+                      options={hourlyDurationWheelOptions}
+                      value={hourlyDuration}
+                      onChange={(value) => {
+                        const nextDuration = Number(value);
+                        setHourlyDuration(nextDuration);
+                        setEndTime(addHoursToTime(startTime, nextDuration));
+                      }}
+                    />
+                    <section>
+                      <h4 className="mb-3 text-center text-xl font-extrabold text-primary">
+                        Giờ trả
+                      </h4>
+                      <div className="relative overflow-hidden rounded-lg bg-white">
+                        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-14 -translate-y-1/2 rounded-lg bg-soft" />
+                        <div className="relative z-10 flex h-44 items-center justify-center text-lg font-extrabold text-secondary">
+                          {endTime}
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                )}
+              </div>
+
+              <div className="hidden">
+                {rentalMode === "DAILY" ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-bold uppercase text-muted">
+                        Nhận xe
+                      </span>
+                      <span className="relative flex min-h-12 items-center rounded-lg border border-border bg-white shadow-sm transition focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
+                        <Clock size={17} className="pointer-events-none ml-3 shrink-0 text-secondary" />
+                        <select
+                          value={startTime}
+                          onChange={(event) => setStartTime(event.target.value)}
+                          className="min-h-12 w-full appearance-none bg-transparent px-3 pr-10 text-sm font-extrabold text-primary outline-none"
+                        >
+                          {TIME_OPTIONS.map((time) => (
+                            <option key={time} value={time}>
+                              {time}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown
+                          size={18}
+                          className="pointer-events-none absolute right-3 text-primary"
+                        />
+                      </span>
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-bold uppercase text-muted">
+                        Trả xe
+                      </span>
+                      <span className="relative flex min-h-12 items-center rounded-lg border border-border bg-white shadow-sm transition focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
+                        <Clock size={17} className="pointer-events-none ml-3 shrink-0 text-secondary" />
+                        <select
+                          value={endTime}
+                          onChange={(event) => setEndTime(event.target.value)}
+                          className="min-h-12 w-full appearance-none bg-transparent px-3 pr-10 text-sm font-extrabold text-primary outline-none"
+                        >
+                          {TIME_OPTIONS.map((time) => (
+                            <option key={time} value={time}>
+                              {time}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown
+                          size={18}
+                          className="pointer-events-none absolute right-3 text-primary"
+                        />
+                      </span>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-bold uppercase text-muted">
+                        Giờ nhận
+                      </span>
+                      <span className="relative flex min-h-12 items-center rounded-lg border border-border bg-white shadow-sm transition focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
+                        <Clock size={17} className="pointer-events-none ml-3 shrink-0 text-secondary" />
+                        <select
+                          value={startTime}
+                          onChange={(event) => {
+                            setStartTime(event.target.value);
+                            setEndTime(addHoursToTime(event.target.value, hourlyDuration));
+                          }}
+                          className="min-h-12 w-full appearance-none bg-transparent px-3 pr-10 text-sm font-extrabold text-primary outline-none"
+                        >
+                          {hourlyStartTimeOptions.map((time) => (
+                            <option key={time} value={time}>
+                              {time}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown
+                          size={18}
+                          className="pointer-events-none absolute right-3 text-primary"
+                        />
+                      </span>
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-bold uppercase text-muted">
+                        Số giờ thuê
+                      </span>
+                      <span className="relative flex min-h-12 items-center rounded-lg border border-border bg-white shadow-sm transition focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
+                        <Clock size={17} className="pointer-events-none ml-3 shrink-0 text-secondary" />
+                        <select
+                          value={hourlyDuration}
+                          onChange={(event) => {
+                            const nextDuration = Number(event.target.value);
+                            setHourlyDuration(nextDuration);
+                            setEndTime(addHoursToTime(startTime, nextDuration));
+                          }}
+                          className="min-h-12 w-full appearance-none bg-transparent px-3 pr-10 text-sm font-extrabold text-primary outline-none"
+                        >
+                          {HOURLY_DURATION_OPTIONS.map((duration) => (
+                            <option key={duration} value={duration}>
+                              {duration} giờ
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown
+                          size={18}
+                          className="pointer-events-none absolute right-3 text-primary"
+                        />
+                      </span>
+                    </label>
+
+                    <div>
+                      <span className="mb-1 block text-xs font-bold uppercase text-muted">
+                        Giờ trả
+                      </span>
+                      <div className="flex min-h-12 items-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-extrabold text-primary shadow-sm">
+                        <Clock size={17} className="shrink-0 text-secondary" />
+                        {endTime}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-border bg-white px-4 py-4 sm:px-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-extrabold text-primary">
+                    {rentalPickerSummary}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-muted">
+                    {rentalMode === "HOURLY"
+                      ? "Chỉ chọn 1 ngày, thời lượng từ 4 đến 8 giờ."
+                      : "Chọn ngày nhận và ngày trả, sau đó chọn giờ bằng dropdown."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSaveRentalPicker}
+                  disabled={!canSaveRentalPicker}
+                  className={`min-h-12 rounded-lg px-8 font-extrabold transition ${
+                    canSaveRentalPicker
+                      ? "bg-secondary text-primary hover:brightness-95"
+                      : "cursor-not-allowed bg-slate-300 text-white"
+                  }`}
+                >
+                  Lưu
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeImage && activeImageIndex !== null && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/85 px-4 py-6 backdrop-blur-sm">

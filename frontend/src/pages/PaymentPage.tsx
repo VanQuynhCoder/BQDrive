@@ -181,10 +181,9 @@ export default function PaymentPage() {
     }
 
     bookingService
-      .getMyBookings()
-      .then((data) => {
+      .getMyBooking(id)
+      .then((found: Booking) => {
         if (!active) return;
-        const found = (data as Booking[]).find((item) => item._id === id);
         setBooking(found || null);
         setPaymentType(found?.paymentOption === "FULL" ? "FULL" : "DEPOSIT");
       })
@@ -201,6 +200,14 @@ export default function PaymentPage() {
   }, [id]);
 
   const car = booking?.carId;
+  const canCreatePayment = [
+    "OWNER_APPROVED", // Trạng thái mới: chủ xe đã duyệt, được phép thanh toán
+    "PAYMENT_PENDING", // Trạng thái mới: đang chờ thanh toán, được quay lại thanh toán
+    "PAID", // Trạng thái mới: cho phép thanh toán phần còn lại nếu còn tiền
+    "CONFIRMED", // Trạng thái cũ
+    "WAITING_PAYMENT", // Trạng thái cũ
+    "IN_PROGRESS",
+  ].includes(booking?.status || "");
   const rental = getRentalInfo(car, booking?.rentalMode);
   const rentalTime = booking
     ? calculateRentalTime(booking.rentalMode, booking.startDate, booking.endDate)
@@ -291,6 +298,12 @@ export default function PaymentPage() {
     event.preventDefault();
 
     if (!booking) return;
+
+    if (!canCreatePayment) {
+      toast.error("Booking cần được chủ xe xác nhận trước khi thanh toán");
+      navigate(`/bookings/${booking._id}`);
+      return;
+    }
 
     const payload = validateForm();
     if (!payload) return;
@@ -392,6 +405,30 @@ export default function PaymentPage() {
               className="mt-5 inline-flex rounded-lg bg-secondary px-6 py-3 font-bold text-primary"
             >
               Về trang chủ
+            </Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!canCreatePayment) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="mx-auto max-w-7xl px-6 pt-32">
+          <div className="rounded-lg border border-border bg-white p-10 text-center">
+            <h1 className="text-2xl font-extrabold text-primary">
+              Booking đang chờ chủ xe xác nhận
+            </h1>
+            <p className="mx-auto mt-3 max-w-xl text-muted">
+              Sau khi chủ xe đồng ý cho thuê, hệ thống sẽ mở bước hợp đồng và thanh toán cho booking này.
+            </p>
+            <Link
+              to={`/bookings/${booking._id}`}
+              className="mt-5 inline-flex rounded-lg bg-secondary px-6 py-3 font-bold text-primary"
+            >
+              Xem chi tiết booking
             </Link>
           </div>
         </main>

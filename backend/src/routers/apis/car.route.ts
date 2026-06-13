@@ -33,11 +33,16 @@ enum RentalAvailabilityEnum {
 }
 
 const BLOCKING_BOOKING_STATUSES = [
-  BookingStatusEnum.PENDING,
-  BookingStatusEnum.WAITING_PAYMENT,
-  BookingStatusEnum.CONFIRMED,
-  BookingStatusEnum.IN_PROGRESS,
+  BookingStatusEnum.REQUESTED, // Khách đã gửi yêu cầu, tạm giữ slot để chủ xe duyệt
+  BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã duyệt, chờ khách thanh toán
+  BookingStatusEnum.PAYMENT_PENDING, // Khách đang thanh toán
+  BookingStatusEnum.PAID, // Đã thanh toán, lịch thuê chính thức
+  BookingStatusEnum.IN_PROGRESS, // Xe đang được thuê
+  BookingStatusEnum.PENDING, // Trạng thái cũ: REQUESTED
+  BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: PAYMENT_PENDING
+  BookingStatusEnum.CONFIRMED, // Trạng thái cũ
 ];
+const PUBLIC_CAR_STATUSES = [CarStatusEnum.APPROVED, CarStatusEnum.RENTED];
 
 class CarRoute extends BaseRoute {
   constructor() {
@@ -186,7 +191,12 @@ class CarRoute extends BaseRoute {
       } as any),
       BookingModel.find({
         carId: { $in: carIds },
-        status: BookingStatusEnum.PENDING,
+        status: {
+          $in: [
+            BookingStatusEnum.REQUESTED, // Booking mới đang chờ chủ xe duyệt
+            BookingStatusEnum.PENDING, // Booking cũ đang chờ chủ xe duyệt
+          ],
+        },
         isDeleted: false,
         endDate: { $gt: now },
       } as any)
@@ -312,6 +322,43 @@ class CarRoute extends BaseRoute {
     return bookabilityMap;
   }
 
+  private async getUnavailableRangeMap(carIds: unknown[]) {
+    const rangeMap = new Map<string, any[]>();
+
+    carIds.forEach((carId) => {
+      rangeMap.set(String(carId), []);
+    });
+
+    if (carIds.length === 0) {
+      return rangeMap;
+    }
+
+    const bookings = await BookingModel.find({
+      carId: { $in: carIds },
+      status: { $in: BLOCKING_BOOKING_STATUSES },
+      isDeleted: false,
+      endDate: { $gt: new Date() },
+    } as any)
+      .select("_id carId startDate endDate status")
+      .sort({ startDate: 1 })
+      .lean();
+
+    bookings.forEach((booking) => {
+      const carId = String(booking.carId);
+      const ranges = rangeMap.get(carId) || [];
+
+      ranges.push({
+        bookingId: booking._id,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        status: booking.status,
+      });
+      rangeMap.set(carId, ranges);
+    });
+
+    return rangeMap;
+  }
+
   private getAvailabilityLabel(availability: RentalAvailabilityEnum) {
     if (availability === RentalAvailabilityEnum.PENDING_CONFIRMATION) {
       return "Đang chờ xác nhận";
@@ -328,6 +375,7 @@ class CarRoute extends BaseRoute {
     car: any,
     availability: RentalAvailabilityEnum,
     bookability?: { isBookable: boolean; unavailableReason?: string },
+    unavailableRanges: any[] = [],
   ) {
     const carData = typeof car.toObject === "function" ? car.toObject() : car;
     const isScheduleBookable = bookability?.isBookable !== false;
@@ -341,6 +389,7 @@ class CarRoute extends BaseRoute {
       isBookable:
         availability === RentalAvailabilityEnum.AVAILABLE && isScheduleBookable,
       unavailableReason: bookability?.unavailableReason,
+      unavailableRanges,
     };
   }
 
@@ -443,7 +492,7 @@ class CarRoute extends BaseRoute {
       req.query;
 
     const filter: any = {
-      status: CarStatusEnum.APPROVED,
+      status: { $in: PUBLIC_CAR_STATUSES },
       isDeleted: false,
       isHidden: { $ne: true },
     };
@@ -487,17 +536,21 @@ class CarRoute extends BaseRoute {
     const requestedEnd =
       typeof endDate === "string" ? new Date(endDate) : undefined;
     const carIds = cars.map((car) => car._id);
-    const bookabilityMap = await this.getScheduleBookabilityMap(
-      carIds,
-      requestedStart,
-      requestedEnd,
-      typeof rentalMode === "string" ? rentalMode : undefined,
-    );
+    const [bookabilityMap, unavailableRangeMap] = await Promise.all([
+      this.getScheduleBookabilityMap(
+        carIds,
+        requestedStart,
+        requestedEnd,
+        typeof rentalMode === "string" ? rentalMode : undefined,
+      ),
+      this.getUnavailableRangeMap(carIds),
+    ]);
     const carsWithAvailability = cars.map((car) =>
       this.withRentalAvailability(
         car,
         RentalAvailabilityEnum.AVAILABLE,
         bookabilityMap.get(String(car._id)),
+        unavailableRangeMap.get(String(car._id)) || [],
       ),
     );
 
@@ -516,7 +569,7 @@ class CarRoute extends BaseRoute {
 
     const car = await CarModel.findOne({
       _id: id,
-      status: CarStatusEnum.APPROVED,
+      status: { $in: PUBLIC_CAR_STATUSES },
       isDeleted: false,
     } as any)
       .populate("brandId")
@@ -534,18 +587,22 @@ class CarRoute extends BaseRoute {
       typeof req.query.endDate === "string"
         ? new Date(req.query.endDate)
         : undefined;
-    const bookabilityMap = await this.getScheduleBookabilityMap(
-      [car._id],
-      requestedStart,
-      requestedEnd,
-      typeof req.query.rentalMode === "string"
-        ? req.query.rentalMode
-        : undefined,
-    );
+    const [bookabilityMap, unavailableRangeMap] = await Promise.all([
+      this.getScheduleBookabilityMap(
+        [car._id],
+        requestedStart,
+        requestedEnd,
+        typeof req.query.rentalMode === "string"
+          ? req.query.rentalMode
+          : undefined,
+      ),
+      this.getUnavailableRangeMap([car._id]),
+    ]);
     const carWithAvailability = this.withRentalAvailability(
       car,
       RentalAvailabilityEnum.AVAILABLE,
       bookabilityMap.get(String(car._id)),
+      unavailableRangeMap.get(String(car._id)) || [],
     );
 
     return res.status(200).json({

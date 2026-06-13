@@ -3,8 +3,14 @@ import { BookingModel } from "../models/booking/booking.model";
 import { CarModel } from "../models/car/car.model";
 
 export async function syncRentedCarStatuses() {
-  const inProgressCarIds = await BookingModel.distinct("carId", {
-    status: BookingStatusEnum.IN_PROGRESS,
+  const activeRentedCarIds = await BookingModel.distinct("carId", {
+    status: {
+      $in: [
+        BookingStatusEnum.PAID, // Đã thanh toán nên xe có lịch thuê chính thức
+        BookingStatusEnum.IN_PROGRESS, // Xe đang được bàn giao/đang thuê
+        BookingStatusEnum.CONFIRMED, // Trạng thái cũ: giữ tương thích dữ liệu cũ
+      ],
+    },
     isDeleted: false,
   } as any);
 
@@ -12,7 +18,7 @@ export async function syncRentedCarStatuses() {
     {
       status: CarStatusEnum.RENTED,
       isDeleted: false,
-      _id: { $nin: inProgressCarIds },
+      _id: { $nin: activeRentedCarIds },
     } as any,
     { status: CarStatusEnum.APPROVED },
   );
@@ -24,7 +30,11 @@ export async function releaseCarIfNoConfirmedBooking(carId: unknown) {
   const remainingActiveBooking = await BookingModel.exists({
     carId,
     status: {
-      $in: [BookingStatusEnum.CONFIRMED, BookingStatusEnum.IN_PROGRESS],
+      $in: [
+        BookingStatusEnum.PAID, // Còn booking đã thanh toán thì chưa trả xe về APPROVED
+        BookingStatusEnum.IN_PROGRESS, // Còn booking đang thuê thì chưa trả xe về APPROVED
+        BookingStatusEnum.CONFIRMED, // Trạng thái cũ
+      ],
     },
     isDeleted: false,
   } as any);
