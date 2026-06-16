@@ -9,14 +9,15 @@ colors: {
 
   secondary: "#EAB308",     // gold
   secondaryLight: "#FACC15",
+  secondarySoft: "#FEF9C3",
 
-  background: "#F8FAFC",
+  background: "#FAFAFA",
   surface: "#FFFFFF",
-  soft: "#F1F5F9",
+  soft: "#F8FAFC",
 
   text: "#0F172A",
   muted: "#64748B",
-  border: "#E2E8F0",
+  border: "#E5E7EB",
 },
       fontFamily: {
         sans: ["Manrope", "sans-serif"],

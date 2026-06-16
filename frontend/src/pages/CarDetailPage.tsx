@@ -256,7 +256,7 @@ function TimeWheelPicker({
         {title}
       </h4>
       <div className="relative overflow-hidden rounded-lg bg-white">
-        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-14 -translate-y-1/2 rounded-lg bg-soft" />
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-14 -translate-y-1/2 rounded-lg bg-secondarySoft/45" />
         <div className="relative z-10 max-h-44 snap-y snap-mandatory overflow-y-auto px-2 py-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {options.map((option) => {
             const isSelected = option.value === value;
@@ -272,8 +272,8 @@ function TimeWheelPicker({
                   option.disabled
                     ? "cursor-not-allowed text-slate-300 line-through"
                     : isSelected
-                      ? "bg-soft text-secondary"
-                      : "text-slate-400 hover:bg-soft/70 hover:text-primary"
+                      ? "bg-secondarySoft text-secondary"
+                      : "text-slate-400 hover:bg-secondarySoft/50 hover:text-primary"
                 }`}
               >
                 {option.label}
@@ -985,19 +985,19 @@ export default function CarDetailPage() {
         <main className="mx-auto max-w-7xl px-6 pb-20 pt-32">
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_390px]">
             <div className="space-y-6">
-              <div className="h-10 w-64 animate-pulse rounded-lg bg-slate-200" />
-              <div className="h-[420px] animate-pulse rounded-lg bg-slate-200" />
+              <div className="h-10 w-64 animate-pulse rounded-lg bg-soft" />
+              <div className="h-[420px] animate-pulse rounded-lg bg-soft" />
               <div className="grid gap-4 md:grid-cols-3">
                 {[1, 2, 3].map((item) => (
                   <div
                     key={item}
-                    className="h-28 animate-pulse rounded-lg bg-slate-200"
+                    className="h-28 animate-pulse rounded-lg bg-soft"
                   />
                 ))}
               </div>
             </div>
 
-            <div className="h-[520px] animate-pulse rounded-lg bg-slate-200" />
+            <div className="h-[520px] animate-pulse rounded-lg bg-soft" />
           </div>
         </main>
       </div>
@@ -1339,7 +1339,7 @@ export default function CarDetailPage() {
                 <button
                   type="button"
                   onClick={() => setIsRentalPickerOpen(true)}
-                  className="w-full rounded-lg border border-border bg-soft p-4 text-left transition hover:border-secondary hover:bg-white"
+                  className="w-full rounded-lg border border-border bg-white p-4 text-left shadow-sm transition hover:border-secondary hover:bg-secondarySoft/20"
                 >
                   <span className="flex items-center gap-2 text-sm font-extrabold text-primary">
                     <CalendarDays size={18} className="text-secondary" />
@@ -1382,7 +1382,7 @@ export default function CarDetailPage() {
                       className={`min-h-12 rounded-lg border px-4 text-sm font-extrabold transition ${
                         rentalMode === "DAILY"
                           ? "border-secondary bg-secondary text-primary"
-                          : "border-border bg-white text-primary hover:bg-soft"
+                          : "border-border bg-white text-primary hover:bg-secondarySoft/45"
                       }`}
                     >
                       Thuê theo ngày
@@ -1396,7 +1396,7 @@ export default function CarDetailPage() {
                       className={`min-h-12 rounded-lg border px-4 text-sm font-extrabold transition ${
                         rentalMode === "HOURLY"
                           ? "border-secondary bg-secondary text-primary"
-                          : "border-border bg-white text-primary hover:bg-soft"
+                          : "border-border bg-white text-primary hover:bg-secondarySoft/45"
                       }`}
                     >
                       Thuê theo giờ
@@ -1577,7 +1577,7 @@ export default function CarDetailPage() {
                 <button
                   onClick={handleAddToCart}
                   disabled={!canSubmitRental || isCartSubmitting}
-                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-border bg-white px-5 py-3 font-extrabold text-primary transition hover:bg-soft disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-border bg-white px-5 py-3 font-extrabold text-primary transition hover:border-secondary hover:bg-secondarySoft/45 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <ShoppingCart size={20} />
                   {isCartSubmitting ? "Đang thêm..." : "Thêm vào giỏ hàng"}
@@ -1620,14 +1620,14 @@ export default function CarDetailPage() {
               <button
                 type="button"
                 onClick={() => setIsRentalPickerOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-primary transition hover:bg-soft"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-primary transition hover:border-secondary hover:bg-secondarySoft/45"
                 aria-label="Đóng lịch"
                 title="Đóng lịch"
               >
                 <X size={20} />
               </button>
 
-              <div className="ml-4 grid flex-1 grid-cols-2 rounded-lg bg-soft p-1">
+              <div className="ml-4 grid flex-1 grid-cols-2 rounded-lg bg-secondarySoft/45 p-1">
                 {supportedRentalModes.allowDailyRental && (
                   <button
                     type="button"
@@ -1663,7 +1663,7 @@ export default function CarDetailPage() {
                 <button
                   type="button"
                   onClick={() => setPickerMonth(addMonths(pickerMonth, -1))}
-                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-primary transition hover:bg-soft"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-primary transition hover:border-secondary hover:bg-secondarySoft/45"
                   aria-label="Tháng trước"
                   title="Tháng trước"
                 >
@@ -1675,7 +1675,7 @@ export default function CarDetailPage() {
                 <button
                   type="button"
                   onClick={() => setPickerMonth(addMonths(pickerMonth, 1))}
-                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-primary transition hover:bg-soft"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-primary transition hover:border-secondary hover:bg-secondarySoft/45"
                   aria-label="Tháng sau"
                   title="Tháng sau"
                 >
@@ -1723,10 +1723,10 @@ export default function CarDetailPage() {
                                 : isInRange
                                   ? "bg-secondary/15 text-primary"
                                   : isDisabled
-                                    ? "cursor-not-allowed bg-slate-100 text-slate-300"
+                                    ? "cursor-not-allowed bg-soft text-slate-300"
                                     : isSunday
-                                      ? "text-secondary hover:bg-soft"
-                                      : "text-primary hover:bg-soft"
+                                      ? "text-secondary hover:bg-secondarySoft/45"
+                                      : "text-primary hover:bg-secondarySoft/45"
                             }`}
                             title={isDisabled ? "Xe không khả dụng ngày này" : undefined}
                           >
@@ -1782,7 +1782,7 @@ export default function CarDetailPage() {
                         Giờ trả
                       </h4>
                       <div className="relative overflow-hidden rounded-lg bg-white">
-                        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-14 -translate-y-1/2 rounded-lg bg-soft" />
+                        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-14 -translate-y-1/2 rounded-lg bg-secondarySoft/45" />
                         <div className="relative z-10 flex h-44 items-center justify-center text-lg font-extrabold text-secondary">
                           {endTime}
                         </div>

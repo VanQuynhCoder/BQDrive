@@ -383,13 +383,13 @@ export default function BookingDetailPage() {
       <div className="min-h-screen overflow-x-hidden bg-background">
         <Header />
         <main className="mx-auto max-w-7xl px-6 pb-20 pt-28">
-          <div className="mb-8 h-24 animate-pulse rounded-lg bg-slate-200" />
+          <div className="mb-8 h-24 animate-pulse rounded-lg bg-soft" />
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
             <div className="space-y-5">
-              <div className="h-72 animate-pulse rounded-lg bg-slate-200" />
-              <div className="h-56 animate-pulse rounded-lg bg-slate-200" />
+              <div className="h-72 animate-pulse rounded-lg bg-soft" />
+              <div className="h-56 animate-pulse rounded-lg bg-soft" />
             </div>
-            <div className="h-96 animate-pulse rounded-lg bg-slate-200" />
+            <div className="h-96 animate-pulse rounded-lg bg-soft" />
           </div>
         </main>
       </div>
@@ -654,7 +654,7 @@ export default function BookingDetailPage() {
                 </span>
               </div>
 
-              <div className="mt-6 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div className="mt-6 h-2 overflow-hidden rounded-full bg-secondarySoft/45">
                 <div
                   className="h-full rounded-full bg-secondary transition-all"
                   style={{ width: `${paymentProgress}%` }}
@@ -710,7 +710,7 @@ export default function BookingDetailPage() {
                 </button>
               )}
 
-              <p className="mt-4 rounded-lg bg-soft px-4 py-3 text-sm font-semibold leading-6 text-muted">
+              <p className="mt-4 rounded-lg border border-secondary/20 bg-secondarySoft/25 px-4 py-3 text-sm font-semibold leading-6 text-muted">
                 {paymentInfo.detail}
               </p>
             </div>

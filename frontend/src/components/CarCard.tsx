@@ -297,7 +297,7 @@ export default function CarCard({ car }: CarCardProps) {
           <button
             type="button"
             disabled
-            className="mt-5 flex min-h-11 w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-slate-200 px-5 py-3 font-extrabold text-slate-500"
+            className="mt-5 flex min-h-11 w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-border bg-soft px-5 py-3 font-extrabold text-muted"
           >
             Tạm thời không khả dụng
           </button>

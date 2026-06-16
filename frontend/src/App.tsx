@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 
 import HomePage from "./pages/HomePage";
+import ServicesPage from "./pages/ServicesPage";
 import CarDetailPage from "./pages/CarDetailPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -43,6 +44,8 @@ function App() {
     <Routes>
       {/* Public */}
       <Route path="/" element={<HomePage />} />
+
+      <Route path="/services" element={<ServicesPage />} />
 
       <Route path="/cars/:id" element={<CarDetailPage />} />
 

@@ -9,3 +9,46 @@ body {
   background: #f8fafc;
   color: #0f172a;
 }
+
+@keyframes step-card-spotlight {
+  0%,
+  18%,
+  100% {
+    transform: scale(1);
+    border-color: #e5e7eb;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
+  }
+  5%,
+  11% {
+    transform: scale(1.05);
+    border-color: rgb(234 179 8 / 0.7);
+    box-shadow: 0 18px 36px rgb(234 179 8 / 0.16);
+  }
+}
+
+@keyframes step-icon-spotlight {
+  0%,
+  18%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    background: #eab308;
+  }
+  5%,
+  11% {
+    transform: scale(1.1) rotate(-5deg);
+    background: #facc15;
+  }
+}
+
+.rental-step-card {
+  animation: step-card-spotlight 8.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation-delay: var(--step-delay, 0s);
+  transform-origin: center;
+  will-change: transform;
+}
+
+.rental-step-icon {
+  animation: step-icon-spotlight 8.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation-delay: var(--step-delay, 0s);
+  will-change: transform;
+}

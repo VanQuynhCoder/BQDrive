@@ -277,7 +277,7 @@ export default function BecomePrivateOwnerPage() {
                 className="rounded-lg border border-border bg-white p-5 shadow-sm md:p-7"
               >
                 <div className="mb-6 flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-soft text-secondary">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-secondarySoft text-secondary">
                     <FileCheck2 size={24} />
                   </div>
                   <div>
@@ -385,7 +385,7 @@ export default function BecomePrivateOwnerPage() {
                   "Duyệt hồ sơ và cấp quyền",
                 ].map((item, index) => (
                   <div key={item} className="flex gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-soft text-sm font-extrabold text-secondary">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondarySoft text-sm font-extrabold text-secondary">
                       {index + 1}
                     </div>
                     <p className="pt-1 text-sm font-bold text-slate-600">
@@ -446,7 +446,7 @@ function ImageField({
       <span className="mb-2 block text-sm font-extrabold text-primary">
         {label}
       </span>
-      <div className="overflow-hidden rounded-lg border border-dashed border-border bg-slate-50">
+      <div className="overflow-hidden rounded-lg border border-dashed border-secondary/40 bg-secondarySoft/25">
         {value ? (
           <div className="relative">
             <img
@@ -506,7 +506,7 @@ function MyRequestCard({
     return (
       <div className="rounded-lg border border-border bg-white p-5 shadow-sm">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-soft text-secondary">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondarySoft text-secondary">
             <AlertCircle size={21} />
           </div>
           <div>
@@ -539,7 +539,7 @@ function MyRequestCard({
         </span>
       </div>
 
-      <div className="mt-5 flex items-start gap-3 rounded-lg bg-slate-50 p-4">
+      <div className="mt-5 flex items-start gap-3 rounded-lg bg-secondarySoft/30 p-4">
         <div
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${statusView.iconClass}`}
         >

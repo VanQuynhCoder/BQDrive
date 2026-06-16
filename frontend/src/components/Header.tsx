@@ -41,7 +41,11 @@ export default function Header() {
   }
 
   const accountMenuItemClass =
-    "flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-semibold text-primary transition hover:bg-slate-50";
+    "flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-semibold text-primary transition duration-200 hover:bg-secondarySoft/45 active:scale-[0.98]";
+  const navItemBase =
+    "group relative inline-flex min-h-10 items-center px-3 font-semibold transition duration-200 before:absolute before:bottom-1.5 before:left-1/2 before:h-0.5 before:w-0 before:-translate-x-1/2 before:rounded-full before:bg-secondary before:transition-all before:duration-200 hover:-translate-y-0.5 hover:text-primary hover:before:w-6 active:translate-y-0 active:scale-95";
+  const navItemMuted = `${navItemBase} text-muted`;
+  const navItemActive = `${navItemBase} text-primary before:w-6`;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -81,25 +85,37 @@ export default function Header() {
   return (
     <header className="fixed left-0 top-0 z-50 flex h-20 w-full items-center justify-between border-b border-border bg-white/90 px-4 backdrop-blur sm:px-6 lg:px-8">
       <div className="flex min-w-0 items-center gap-5 lg:gap-8">
-        <Link to="/" className="shrink-0 text-2xl font-extrabold text-primary">
+        <Link
+          to="/"
+          className="shrink-0 rounded-lg text-2xl font-extrabold text-primary transition duration-200 hover:-translate-y-0.5 hover:text-secondary active:translate-y-0 active:scale-95"
+        >
           BQDrive
         </Link>
 
-        <nav className="hidden items-center gap-6 xl:flex">
+        <nav className="hidden items-center gap-1 xl:flex">
           <button
             type="button"
-            className="font-semibold text-primary transition hover:text-secondary"
+            className={
+              location.pathname === "/" && location.hash === "#home-cars"
+                ? navItemActive
+                : `${navItemBase} text-primary`
+            }
             onClick={handleFindCarsClick}
           >
             Tìm xe
           </button>
-          <a className="text-muted transition hover:text-secondary" href="#">
-            Dịch vụ 
-          </a>
-          <a className="text-muted transition hover:text-secondary" href="#">
+          <Link
+            className={
+              location.pathname === "/services" ? navItemActive : navItemMuted
+            }
+            to="/services"
+          >
+            Dịch vụ
+          </Link>
+          <a className={navItemMuted} href="#">
             Về chúng tôi
           </a>
-          <a className="text-muted transition hover:text-secondary" href="#">
+          <a className={navItemMuted} href="#">
             Liên hệ
           </a>
         </nav>
@@ -111,7 +127,7 @@ export default function Header() {
             {isCustomer && (
               <Link
                 to="/become-private-owner"
-                className="hidden min-h-10 items-center rounded-full bg-secondary px-4 py-2 text-sm font-extrabold text-primary transition hover:brightness-95 lg:inline-flex"
+                className="hidden min-h-10 items-center rounded-full bg-secondary px-4 py-2 text-sm font-extrabold text-primary transition duration-200 hover:-translate-y-0.5 hover:brightness-95 active:translate-y-0 active:scale-95 lg:inline-flex"
               >
               Đăng ký cho thuê xe
               </Link>
@@ -121,7 +137,7 @@ export default function Header() {
               to="/cart"
               aria-label="Giỏ hàng"
               title="Giỏ hàng"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-primary transition hover:bg-slate-50 hover:text-secondary"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-primary transition duration-200 hover:-translate-y-0.5 hover:bg-secondarySoft/60 hover:text-secondary active:translate-y-0 active:scale-95"
             >
               <ShoppingCart size={24} />
             </Link>
@@ -131,7 +147,7 @@ export default function Header() {
         {dashboardLink && (
           <Link
             to={dashboardLink.to}
-            className="hidden min-h-10 items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-extrabold text-white transition hover:bg-primaryDark lg:inline-flex"
+            className="hidden min-h-10 items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-extrabold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-primaryDark hover:shadow-lg active:translate-y-0 active:scale-95 lg:inline-flex"
           >
             <LayoutDashboard size={18} className="text-secondary" />
             <span className="hidden 2xl:inline">{dashboardLink.label}</span>
@@ -146,7 +162,11 @@ export default function Header() {
               aria-haspopup="menu"
               aria-expanded={isAccountOpen}
               onClick={() => setIsAccountOpen((current) => !current)}
-              className="inline-flex h-10 items-center gap-2 rounded-full border border-border px-2.5 text-primary transition hover:bg-slate-50 sm:px-3 lg:px-4"
+              className={`inline-flex h-10 items-center gap-2 rounded-full border px-2.5 text-primary transition duration-200 hover:-translate-y-0.5 hover:bg-secondarySoft/60 active:translate-y-0 active:scale-95 sm:px-3 lg:px-4 ${
+                isAccountOpen
+                  ? "border-secondary bg-secondarySoft/60 shadow-sm"
+                  : "border-border"
+              }`}
             >
               <UserCircle size={24} />
               <span className="hidden max-w-[150px] truncate text-sm font-bold sm:inline">
@@ -240,14 +260,14 @@ export default function Header() {
           <>
             <Link
               to="/register"
-              className="hidden rounded-full border border-border px-5 py-2 font-semibold text-text transition hover:bg-slate-50 sm:inline-flex"
+              className="hidden rounded-full border border-border px-5 py-2 font-semibold text-text transition duration-200 hover:-translate-y-0.5 hover:border-secondary hover:bg-secondarySoft/60 active:translate-y-0 active:scale-95 sm:inline-flex"
             >
               Đăng Ký
             </Link>
 
             <Link
               to="/login"
-              className="hidden rounded-full bg-primary px-5 py-2 font-semibold text-white transition hover:bg-primaryDark sm:inline-flex"
+              className="hidden rounded-full bg-primary px-5 py-2 font-semibold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-primaryDark hover:shadow-lg active:translate-y-0 active:scale-95 sm:inline-flex"
             >
               Đang Nhập
             </Link>
@@ -256,7 +276,7 @@ export default function Header() {
               to="/login"
               aria-label="Đăng Nhập"
               title="Đăng Nhập"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white transition hover:bg-primaryDark sm:hidden"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white transition duration-200 hover:-translate-y-0.5 hover:bg-primaryDark active:translate-y-0 active:scale-95 sm:hidden"
             >
               <UserCircle size={22} />
             </Link>

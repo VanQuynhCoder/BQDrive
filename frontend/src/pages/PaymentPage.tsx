@@ -525,7 +525,7 @@ export default function PaymentPage() {
                     className={`w-full rounded-lg border p-5 text-left transition ${
                       paymentType === item.value
                         ? "border-secondary bg-yellow-50"
-                        : "border-border bg-white hover:bg-slate-50"
+                        : "border-border bg-white hover:bg-secondarySoft/35"
                     }`}
                   >
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -558,7 +558,7 @@ export default function PaymentPage() {
                     className={`flex min-h-24 items-start gap-4 rounded-lg border p-5 text-left transition ${
                       method === value
                         ? "border-secondary bg-yellow-50"
-                        : "border-border hover:bg-slate-50"
+                        : "border-border hover:bg-secondarySoft/35"
                     }`}
                   >
                     <Icon className="mt-1 shrink-0 text-secondary" />
@@ -572,7 +572,7 @@ export default function PaymentPage() {
                 ))}
               </div>
 
-              <div className="mt-6 rounded-lg bg-soft p-5">
+              <div className="mt-6 rounded-lg border border-secondary/20 bg-secondarySoft/25 p-5">
                 <p className="font-bold text-yellow-700">
                   Nếu khách hàng không đến nhận xe đúng hẹn, tiền cọc sẽ không
                   được hoàn lại.

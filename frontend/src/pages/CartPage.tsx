@@ -209,11 +209,11 @@ export default function CartPage() {
               {[1, 2].map((item) => (
                 <div
                   key={item}
-                  className="h-40 animate-pulse rounded-lg bg-slate-200"
+                  className="h-40 animate-pulse rounded-lg bg-soft"
                 />
               ))}
             </div>
-            <div className="h-80 animate-pulse rounded-lg bg-slate-200" />
+            <div className="h-80 animate-pulse rounded-lg bg-soft" />
           </div>
         </main>
       </div>

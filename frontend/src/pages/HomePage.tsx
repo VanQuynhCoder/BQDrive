@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   ArrowRight,
@@ -248,11 +248,11 @@ export default function HomePage() {
   }, [appliedSchedule]);
 
   useEffect(() => {
-    if (location.hash !== "#home-cars") return;
+    if (!location.hash) return;
 
     window.setTimeout(() => {
       document
-        .getElementById("home-cars")
+        .getElementById(location.hash.slice(1))
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 0);
   }, [location.hash]);
@@ -360,7 +360,7 @@ export default function HomePage() {
                   </h2>
                 </div>
 
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-soft text-secondary">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondarySoft text-secondary">
                   <Search size={24} />
                 </div>
               </div>
@@ -478,7 +478,7 @@ export default function HomePage() {
           <div className="mx-auto grid max-w-7xl gap-4 px-6 py-8 md:grid-cols-3">
             {serviceHighlights.map(({ icon: Icon, title, text }) => (
               <div key={title} className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-soft text-secondary">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-secondarySoft text-secondary">
                   <Icon size={24} />
                 </div>
 
@@ -548,25 +548,30 @@ export default function HomePage() {
               </h2>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
               {rentalSteps.map(({ icon: Icon, title, text }, index) => (
                 <div
                   key={title}
-                  className="rounded-lg border border-border bg-white p-5"
+                  className="rental-step-card relative min-h-[250px] overflow-hidden rounded-lg border border-border bg-white p-6"
+                  style={
+                    {
+                      "--step-delay": `${index * 1.25}s`,
+                    } as CSSProperties
+                  }
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-secondary text-primary">
-                      <Icon size={22} />
+                    <div className="rental-step-icon relative flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-primary">
+                      <Icon size={23} />
                     </div>
-                    <span className="text-sm font-extrabold text-muted">
+                    <span className="relative text-base font-extrabold text-secondary">
                       0{index + 1}
                     </span>
                   </div>
 
-                  <h3 className="mt-5 text-lg font-extrabold text-primary">
+                  <h3 className="mt-6 text-xl font-extrabold text-primary">
                     {title}
                   </h3>
-                  <p className="mt-2 text-sm leading-6 text-muted">{text}</p>
+                  <p className="mt-3 text-base leading-7 text-muted">{text}</p>
                 </div>
               ))}
             </div>
