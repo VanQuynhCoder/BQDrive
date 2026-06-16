@@ -1,14 +1,15 @@
-import nodemailer from "nodemailer";
 import dns from "dns";
 import net from "net";
+import nodemailer from "nodemailer";
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
 
-const SMTP_DEFAULT_HOST = "smtp.gmail.com"; 
+const SMTP_DEFAULT_HOST = "smtp.gmail.com";
 const SMTP_DEFAULT_PORT = 587;
-const CONNECTION_TIMEOUT_MS = 15_000;
-const GREETING_TIMEOUT_MS = 10_000;
-const SOCKET_TIMEOUT_MS = 20_000;
+const CONNECTION_TIMEOUT_MS = 30_000;
+const GREETING_TIMEOUT_MS = 15_000;
+const SOCKET_TIMEOUT_MS = 30_000;
 const SMTP_ADDRESS_FAMILY = 4;
+const smtpAddressFamilyLabel = `IPv${SMTP_ADDRESS_FAMILY}`;
 
 function getNumberEnv(value: string | undefined, fallback: number) {
   if (!value) return fallback;
@@ -23,14 +24,12 @@ function getSmtpConfig() {
     process.env.SMTP_PORT || process.env.EMAIL_PORT,
     SMTP_DEFAULT_PORT,
   );
-  const secure = port === 465;
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
 
   return {
     host,
     port,
-    secure,
     user,
     pass,
   };
@@ -38,7 +37,11 @@ function getSmtpConfig() {
 
 const smtpConfig = getSmtpConfig();
 let resolvedSmtpHost: string | null = null;
-const smtpAddressFamilyLabel = `IPv${SMTP_ADDRESS_FAMILY}`;
+
+function getSmtpPortCandidates() {
+  const fallbackPort = smtpConfig.port === 465 ? 587 : 465;
+  return [smtpConfig.port, fallbackPort];
+}
 
 async function resolveSmtpHostForRender() {
   if (resolvedSmtpHost) return resolvedSmtpHost;
@@ -53,13 +56,15 @@ async function resolveSmtpHostForRender() {
   return resolvedSmtpHost;
 }
 
-async function createSmtpTransporter() {
+async function createSmtpTransporter(port: number) {
   const host = await resolveSmtpHostForRender();
+  const secure = port === 465;
+
   const transportOptions: SMTPTransport.Options = {
     host,
-    port: smtpConfig.port,
-    secure: smtpConfig.secure,
-    requireTLS: !smtpConfig.secure,
+    port,
+    secure,
+    requireTLS: !secure,
     auth: {
       user: smtpConfig.user,
       pass: smtpConfig.pass,
@@ -76,12 +81,20 @@ async function createSmtpTransporter() {
   return nodemailer.createTransport(transportOptions);
 }
 
+function isSmtpConnectionError(error: any) {
+  return (
+    error?.command === "CONN" ||
+    ["ETIMEDOUT", "ESOCKET", "ECONNECTION", "ENETUNREACH", "ECONNREFUSED"].includes(
+      error?.code,
+    )
+  );
+}
+
 function logSmtpConfig() {
   console.log("SMTP Config:", {
     host: smtpConfig.host,
     resolvedHost: resolvedSmtpHost || null,
-    port: smtpConfig.port,
-    secure: smtpConfig.secure,
+    portCandidates: getSmtpPortCandidates(),
     addressFamily: smtpAddressFamilyLabel,
     emailUser: smtpConfig.user || null,
     hasEmailPass: Boolean(smtpConfig.pass),
@@ -98,16 +111,48 @@ function assertMailEnv() {
 }
 
 export async function verifySmtpConnection() {
+  let lastError: unknown = null;
+
   try {
     assertMailEnv();
-    const transporter = await createSmtpTransporter();
     logSmtpConfig();
-    await transporter.verify();
-    console.log("SMTP Connected Successfully");
+
+    for (const port of getSmtpPortCandidates()) {
+      try {
+        const transporter = await createSmtpTransporter(port);
+        await transporter.verify();
+
+        console.log("SMTP Connected Successfully", {
+          host: smtpConfig.host,
+          resolvedHost: resolvedSmtpHost,
+          port,
+          secure: port === 465,
+          addressFamily: smtpAddressFamilyLabel,
+        });
+        return;
+      } catch (error: any) {
+        lastError = error;
+        console.error("SMTP Connection Attempt Failed", {
+          host: smtpConfig.host,
+          resolvedHost: resolvedSmtpHost,
+          port,
+          secure: port === 465,
+          addressFamily: smtpAddressFamilyLabel,
+          code: error?.code,
+          command: error?.command,
+          message: error?.message,
+        });
+
+        if (!isSmtpConnectionError(error)) break;
+      }
+    }
+
+    throw lastError;
   } catch (error) {
     console.error("SMTP Connection Failed", {
       host: smtpConfig.host,
-      port: smtpConfig.port,
+      resolvedHost: resolvedSmtpHost,
+      portCandidates: getSmtpPortCandidates(),
       addressFamily: smtpAddressFamilyLabel,
       emailUser: smtpConfig.user || null,
       error,
@@ -117,37 +162,65 @@ export async function verifySmtpConnection() {
 
 export async function sendOtpMail(email: string, otp: string) {
   assertMailEnv();
-  const transporter = await createSmtpTransporter();
 
   console.log("Sending OTP email:", {
     host: smtpConfig.host,
     resolvedHost: resolvedSmtpHost,
-    port: smtpConfig.port,
-    secure: smtpConfig.secure,
+    portCandidates: getSmtpPortCandidates(),
     addressFamily: smtpAddressFamilyLabel,
     emailUser: smtpConfig.user,
     to: email,
   });
 
-  await transporter.sendMail({
-    from: `"BQDrive" <${smtpConfig.user}>`,
-    to: email,
-    subject: "BQDrive - Mã xác thực OTP",
-    html: `
-      <div style="font-family: Arial, sans-serif;">
-        <h2>BQDrive</h2>
-        <p>Mã OTP xác thực tài khoản của bạn là:</p>
-        <h1 style="letter-spacing: 4px;">${otp}</h1>
-        <p>Mã này có hiệu lực trong 5 phút.</p>
-        <p>Nếu bạn không yêu cầu đăng ký, vui lòng bỏ qua email này.</p>
-      </div>
-    `,
-  });
+  let lastError: unknown = null;
 
-  console.log("OTP email sent successfully:", {
-    host: smtpConfig.host,
-    port: smtpConfig.port,
-    emailUser: smtpConfig.user,
-    to: email,
-  });
+  for (const port of getSmtpPortCandidates()) {
+    try {
+      const transporter = await createSmtpTransporter(port);
+
+      await transporter.sendMail({
+        from: `"BQDrive" <${smtpConfig.user}>`,
+        to: email,
+        subject: "BQDrive - Ma xac thuc OTP",
+        html: `
+          <div style="font-family: Arial, sans-serif;">
+            <h2>BQDrive</h2>
+            <p>Ma OTP xac thuc tai khoan cua ban la:</p>
+            <h1 style="letter-spacing: 4px;">${otp}</h1>
+            <p>Ma nay co hieu luc trong 5 phut.</p>
+            <p>Neu ban khong yeu cau dang ky, vui long bo qua email nay.</p>
+          </div>
+        `,
+      });
+
+      console.log("OTP email sent successfully:", {
+        host: smtpConfig.host,
+        resolvedHost: resolvedSmtpHost,
+        port,
+        secure: port === 465,
+        addressFamily: smtpAddressFamilyLabel,
+        emailUser: smtpConfig.user,
+        to: email,
+      });
+      return;
+    } catch (error: any) {
+      lastError = error;
+      console.error("OTP email send attempt failed:", {
+        host: smtpConfig.host,
+        resolvedHost: resolvedSmtpHost,
+        port,
+        secure: port === 465,
+        addressFamily: smtpAddressFamilyLabel,
+        emailUser: smtpConfig.user,
+        to: email,
+        code: error?.code,
+        command: error?.command,
+        message: error?.message,
+      });
+
+      if (!isSmtpConnectionError(error)) break;
+    }
+  }
+
+  throw lastError;
 }
