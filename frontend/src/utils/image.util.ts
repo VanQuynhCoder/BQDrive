@@ -1,4 +1,4 @@
-export const defaultCarImage =
+﻿export const defaultCarImage =
   "https://images.unsplash.com/photo-1549924231-f129b911e442?q=80&w=1200";
 
 const apiOrigin = "http://localhost:5000";

@@ -24,10 +24,9 @@ export default function Header() {
   const role = user?.role;
   const isAdmin = role === "ADMIN";
   const isBusiness = role === "BUSINESS";
-  const isCustomer = role === "CUSTOMER";
-  const isPrivateOwner = role === "PRIVATE_OWNER";
-  const canViewCustomerHistory = isCustomer || isPrivateOwner;
-  const canRentCars = isCustomer || isPrivateOwner;
+  const isUser = role === "USER";
+  const canViewCustomerHistory = isUser;
+  const canRentCars = isUser;
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
@@ -36,8 +35,6 @@ export default function Header() {
     dashboardLink = { to: "/admin", label: "Quản Trị Viên" };
   } else if (isBusiness) {
     dashboardLink = { to: "/business", label: "Quản Lý Doanh Nghiệp" };
-  } else if (isPrivateOwner) {
-    dashboardLink = { to: "/private-owner", label: "Quản Lý Xe của Bạn" };
   }
 
   const accountMenuItemClass =
@@ -112,9 +109,14 @@ export default function Header() {
           >
             Dịch vụ
           </Link>
-          <a className={navItemMuted} href="#">
+          <Link
+            className={
+              location.pathname === "/about" ? navItemActive : navItemMuted
+            }
+            to="/about"
+          >
             Về chúng tôi
-          </a>
+          </Link>
           <a className={navItemMuted} href="#">
             Liên hệ
           </a>
@@ -124,12 +126,12 @@ export default function Header() {
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         {canRentCars && (
           <>
-            {isCustomer && (
+            {isUser && (
               <Link
-                to="/become-private-owner"
+                to="/consignment/cars"
                 className="hidden min-h-10 items-center rounded-full bg-secondary px-4 py-2 text-sm font-extrabold text-primary transition duration-200 hover:-translate-y-0.5 hover:brightness-95 active:translate-y-0 active:scale-95 lg:inline-flex"
               >
-              Đăng ký cho thuê xe
+              Ký gửi xe
               </Link>
             )}
 
@@ -207,15 +209,15 @@ export default function Header() {
                     </Link>
                   )}
 
-                  {isCustomer && (
+                  {isUser && (
                     <Link
-                      to="/become-private-owner"
+                      to="/consignment/cars"
                       role="menuitem"
                       onClick={closeAccountMenu}
                       className={`${accountMenuItemClass} lg:hidden`}
                     >
                       <LayoutDashboard size={18} className="text-secondary" />
-                      Đăng ký cho thuê xe
+                      Ký gửi xe
                     </Link>
                   )}
 

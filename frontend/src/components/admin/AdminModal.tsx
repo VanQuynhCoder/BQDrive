@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+﻿import { X } from "lucide-react";
 import type { ReactNode } from "react";
 
 type AdminModalProps = {

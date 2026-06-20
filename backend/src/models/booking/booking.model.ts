@@ -2,13 +2,17 @@ import mongoose from "mongoose";
 import { BaseDocument } from "../../base/baseModel";
 import {
   BookingStatusEnum,
+  OwnerTypeEnum,
   RentalModeEnum,
   PaymentOptionEnum,
 } from "../../constants/model.const";
 
 export type IBooking = BaseDocument & {
   userId: mongoose.Types.ObjectId;
-  businessId: mongoose.Types.ObjectId;
+  ownerId: mongoose.Types.ObjectId;
+  ownerType: OwnerTypeEnum;
+  ownerModel: string;
+  businessId?: mongoose.Types.ObjectId;
   carId: mongoose.Types.ObjectId;
   cartId?: mongoose.Types.ObjectId;
   startDate: Date;
@@ -39,6 +43,20 @@ const bookingSchema = new mongoose.Schema(
     businessId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Business",
+    },
+    ownerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      refPath: "ownerModel",
+    },
+    ownerType: {
+      type: String,
+      enum: Object.values(OwnerTypeEnum),
+      required: true,
+    },
+    ownerModel: {
+      type: String,
+      enum: ["User", "Business"],
       required: true,
     },
     carId: {

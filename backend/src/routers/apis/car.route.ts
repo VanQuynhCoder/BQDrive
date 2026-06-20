@@ -1,9 +1,9 @@
-import { BaseRoute, Request, Response } from "../../base/baseRoute";
+﻿import { BaseRoute, Request, Response } from "../../base/baseRoute";
 import { ErrorHelper } from "../../base/error";
 import { CarModel } from "../../models/car/car.model";
 import { BusinessModel } from "../../models/business/business.model";
-import { UserModel } from "../../models/user/user.model";
 import { BookingModel } from "../../models/booking/booking.model";
+import { ContractModel } from "../../models/contract/contract.model";
 import { CartModel } from "../../models/cart/cart.model";
 import { syncRentedCarStatuses } from "../../helper/car-status.helper";
 import { expireOldCarts } from "../../helper/cart.helper";
@@ -11,6 +11,7 @@ import {
   getCarRentalSupport,
   normalizeRentalMode,
 } from "../../helper/rental.helper";
+import { TokenHelper } from "../../helper/token.helper";
 import {
   expireAbandonedPendingBookings,
   getCheckoutStartedBookingIdSet,
@@ -18,9 +19,10 @@ import {
 
 import {
   BookingStatusEnum,
-  BusinessTypeEnum,
   CarStatusEnum,
   CartStatusEnum,
+  ContractStatusEnum,
+  OwnerTypeEnum,
   UserRoleEnum,
   RentalModeEnum,
   RentalUnitEnum,
@@ -33,16 +35,20 @@ enum RentalAvailabilityEnum {
 }
 
 const BLOCKING_BOOKING_STATUSES = [
-  BookingStatusEnum.REQUESTED, // Khách đã gửi yêu cầu, tạm giữ slot để chủ xe duyệt
-  BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã duyệt, chờ khách thanh toán
-  BookingStatusEnum.PAYMENT_PENDING, // Khách đang thanh toán
-  BookingStatusEnum.PAID, // Đã thanh toán, lịch thuê chính thức
-  BookingStatusEnum.IN_PROGRESS, // Xe đang được thuê
-  BookingStatusEnum.PENDING, // Trạng thái cũ: REQUESTED
-  BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: PAYMENT_PENDING
-  BookingStatusEnum.CONFIRMED, // Trạng thái cũ
+  BookingStatusEnum.REQUESTED, // KhÃ¡ch Ä‘Ã£ gá»­i yÃªu cáº§u, táº¡m giá»¯ slot Ä‘á»ƒ chá»§ xe duyá»‡t
+  BookingStatusEnum.OWNER_APPROVED, // Chá»§ xe Ä‘Ã£ duyá»‡t, chá» khÃ¡ch thanh toÃ¡n
+  BookingStatusEnum.PAYMENT_PENDING, // KhÃ¡ch Ä‘ang thanh toÃ¡n
+  BookingStatusEnum.PAID, // ÄÃ£ thanh toÃ¡n, lá»‹ch thuÃª chÃ­nh thá»©c
+  BookingStatusEnum.IN_PROGRESS, // Xe Ä‘ang Ä‘Æ°á»£c thuÃª
+  BookingStatusEnum.PENDING, // Tráº¡ng thÃ¡i cÅ©: REQUESTED
+  BookingStatusEnum.WAITING_PAYMENT, // Tráº¡ng thÃ¡i cÅ©: PAYMENT_PENDING
+  BookingStatusEnum.CONFIRMED, // Tráº¡ng thÃ¡i cÅ©
 ];
 const PUBLIC_CAR_STATUSES = [CarStatusEnum.APPROVED, CarStatusEnum.RENTED];
+const DELETE_BLOCKING_CONTRACT_STATUSES = [
+  ContractStatusEnum.DRAFT,
+  ContractStatusEnum.ACTIVE,
+];
 
 class CarRoute extends BaseRoute {
   constructor() {
@@ -54,7 +60,7 @@ class CarRoute extends BaseRoute {
       "/createCar",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
+        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
       ],
       this.route(this.createCar),
     );
@@ -66,7 +72,7 @@ class CarRoute extends BaseRoute {
       "/getMyCars",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
+        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
       ],
       this.route(this.getMyCars),
     );
@@ -75,7 +81,7 @@ class CarRoute extends BaseRoute {
       "/updateCar/:id",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
+        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
       ],
       this.route(this.updateCar),
     );
@@ -84,7 +90,7 @@ class CarRoute extends BaseRoute {
       "/deleteCar/:id",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
+        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
       ],
       this.route(this.deleteCar),
     );
@@ -114,58 +120,72 @@ class CarRoute extends BaseRoute {
     );
   }
 
-  private async getOwnerBusiness(authUser: any, requireApproved = false) {
-    let business = await BusinessModel.findOne({
-      userId: authUser.userId,
-      isDeleted: false,
-    });
-
-    if (!business && authUser.role === UserRoleEnum.PRIVATE_OWNER) {
-      const user = await UserModel.findOne({
-        _id: authUser.userId,
+  private async getOwnerContext(authUser: any, requireApproved = false) {
+    if (authUser.role === UserRoleEnum.BUSINESS) {
+      const business = await BusinessModel.findOne({
+        userId: authUser.userId,
         isDeleted: false,
       });
 
-      if (!user) {
-        throw ErrorHelper.userNotExist();
+      if (!business) {
+        throw ErrorHelper.recordNotFound("Business");
       }
 
-      business = await BusinessModel.create({
-        userId: authUser.userId,
-        businessName: user.name || "Chủ xe tư nhân",
-        businessType: BusinessTypeEnum.INDIVIDUAL,
-        isApproved: true,
-        ...(user.phone ? { phone: user.phone } : {}),
-      });
-    }
-
-    if (!business) {
-      throw ErrorHelper.recordNotFound("Business");
-    }
-
-    if (authUser.role === UserRoleEnum.PRIVATE_OWNER) {
-      let shouldSave = false;
-
-      if (!business.isApproved) {
-        business.isApproved = true;
-        shouldSave = true;
+      if (requireApproved && !business.isApproved) {
+        throw ErrorHelper.permissionDeny();
       }
 
-      if (business.businessType !== BusinessTypeEnum.INDIVIDUAL) {
-        business.businessType = BusinessTypeEnum.INDIVIDUAL;
-        shouldSave = true;
-      }
-
-      if (shouldSave) {
-        await business.save();
-      }
+      return {
+        ownerId: business._id,
+        ownerType: OwnerTypeEnum.BUSINESS,
+        ownerModel: "Business",
+        business,
+      };
     }
 
-    if (requireApproved && !business.isApproved) {
-      throw ErrorHelper.permissionDeny();
+    return {
+      ownerId: authUser.userId,
+      ownerType: OwnerTypeEnum.USER,
+      ownerModel: "User",
+      business: null,
+    };
+  }
+
+  private buildOwnerFilter(owner: any) {
+    const ownerFilter = {
+      ownerId: owner.ownerId,
+      ownerType: owner.ownerType,
+    };
+
+    if (owner.ownerType === OwnerTypeEnum.BUSINESS && owner.business?._id) {
+      return {
+        $or: [
+          ownerFilter,
+          { businessId: owner.business._id, ownerId: { $exists: false } },
+        ],
+      };
     }
 
-    return business;
+    return ownerFilter;
+  }
+  private getOptionalAuthUser(req: Request) {
+    try {
+      const xToken = req.headers["x-token"];
+      const authorization = req.headers.authorization;
+      const token =
+        (Array.isArray(xToken) ? xToken[0] : xToken) ||
+        (authorization?.startsWith("Bearer ")
+          ? authorization.slice("Bearer ".length).trim()
+          : undefined);
+
+      return token ? TokenHelper.verifyToken(token) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private getAuthUserId(authUser: any) {
+    return typeof authUser?.userId === "string" ? authUser.userId : undefined;
   }
 
   private async getRentalAvailabilityMap(carIds: unknown[]) {
@@ -193,8 +213,8 @@ class CarRoute extends BaseRoute {
         carId: { $in: carIds },
         status: {
           $in: [
-            BookingStatusEnum.REQUESTED, // Booking mới đang chờ chủ xe duyệt
-            BookingStatusEnum.PENDING, // Booking cũ đang chờ chủ xe duyệt
+            BookingStatusEnum.REQUESTED, // Booking má»›i Ä‘ang chá» chá»§ xe duyá»‡t
+            BookingStatusEnum.PENDING, // Booking cÅ© Ä‘ang chá» chá»§ xe duyá»‡t
           ],
         },
         isDeleted: false,
@@ -242,6 +262,7 @@ class CarRoute extends BaseRoute {
     requestedStart?: Date,
     requestedEnd?: Date,
     rentalMode?: string,
+    currentUserId?: string,
   ) {
     const bookabilityMap = new Map<
       string,
@@ -270,6 +291,7 @@ class CarRoute extends BaseRoute {
     const [overlapBookingCarIds, overlapCartCarIds] = await Promise.all([
       BookingModel.distinct("carId", {
         carId: { $in: carIds },
+        ...(currentUserId ? { userId: { $ne: currentUserId } } : {}),
         status: {
           $in: BLOCKING_BOOKING_STATUSES,
         },
@@ -279,6 +301,7 @@ class CarRoute extends BaseRoute {
       } as any),
       CartModel.distinct("carId", {
         carId: { $in: carIds },
+        ...(currentUserId ? { userId: { $ne: currentUserId } } : {}),
         status: CartStatusEnum.ACTIVE,
         expiredAt: { $gt: now },
         startDate: { $lt: requestedEnd },
@@ -289,7 +312,7 @@ class CarRoute extends BaseRoute {
     [...overlapBookingCarIds, ...overlapCartCarIds].forEach((carId) => {
       bookabilityMap.set(String(carId), {
         isBookable: false,
-        unavailableReason: "Xe không khả dụng trong thời gian đã chọn",
+        unavailableReason: "Xe khÃ´ng kháº£ dá»¥ng trong thá»i gian Ä‘Ã£ chá»n",
       });
     });
 
@@ -322,7 +345,10 @@ class CarRoute extends BaseRoute {
     return bookabilityMap;
   }
 
-  private async getUnavailableRangeMap(carIds: unknown[]) {
+  private async getUnavailableRangeMap(
+    carIds: unknown[],
+    currentUserId?: string,
+  ) {
     const rangeMap = new Map<string, any[]>();
 
     carIds.forEach((carId) => {
@@ -335,6 +361,7 @@ class CarRoute extends BaseRoute {
 
     const bookings = await BookingModel.find({
       carId: { $in: carIds },
+      ...(currentUserId ? { userId: { $ne: currentUserId } } : {}),
       status: { $in: BLOCKING_BOOKING_STATUSES },
       isDeleted: false,
       endDate: { $gt: new Date() },
@@ -361,14 +388,14 @@ class CarRoute extends BaseRoute {
 
   private getAvailabilityLabel(availability: RentalAvailabilityEnum) {
     if (availability === RentalAvailabilityEnum.PENDING_CONFIRMATION) {
-      return "Đang chờ xác nhận";
+      return "Äang chá» xÃ¡c nháº­n";
     }
 
     if (availability === RentalAvailabilityEnum.HELD_IN_CART) {
-      return "Đang được giữ";
+      return "Äang Ä‘Æ°á»£c giá»¯";
     }
 
-    return "Sẵn sàng";
+    return "Sáºµn sÃ ng";
   }
 
   private withRentalAvailability(
@@ -385,7 +412,7 @@ class CarRoute extends BaseRoute {
       rentalAvailability: availability,
       availabilityLabel: isScheduleBookable
         ? this.getAvailabilityLabel(availability)
-        : "Không khả dụng",
+        : "KhÃ´ng kháº£ dá»¥ng",
       isBookable:
         availability === RentalAvailabilityEnum.AVAILABLE && isScheduleBookable,
       unavailableReason: bookability?.unavailableReason,
@@ -396,7 +423,7 @@ class CarRoute extends BaseRoute {
   async createCar(req: Request, res: Response) {
     const authUser = (req as any).user;
 
-    const business = await this.getOwnerBusiness(authUser, true);
+    const owner = await this.getOwnerContext(authUser, true);
 
     const {
       brandId,
@@ -416,7 +443,7 @@ class CarRoute extends BaseRoute {
     } = req.body;
 
     if (!brandId || !name || !seats) {
-      throw ErrorHelper.requestDataInvalid("Thiếu brandId, name hoặc seats");
+      throw ErrorHelper.requestDataInvalid("Thiáº¿u brandId, name hoáº·c seats");
     }
 
     const dailyEnabled =
@@ -431,25 +458,28 @@ class CarRoute extends BaseRoute {
       hourlyEnabled && !dailyEnabled ? RentalUnitEnum.HOUR : RentalUnitEnum.DAY;
 
     if (!dailyEnabled && !hourlyEnabled) {
-      throw ErrorHelper.requestDataInvalid("Đơn vị thuê xe không hợp lệ");
+      throw ErrorHelper.requestDataInvalid("ÄÆ¡n vá»‹ thuÃª xe khÃ´ng há»£p lá»‡");
     }
 
     if (
       dailyEnabled &&
       (!pricePerDay || Number(pricePerDay) <= 0)
     ) {
-      throw ErrorHelper.requestDataInvalid("Xe thuê theo ngày cần pricePerDay");
+      throw ErrorHelper.requestDataInvalid("Xe thuÃª theo ngÃ y cáº§n pricePerDay");
     }
 
     if (
       hourlyEnabled &&
       (!pricePerHour || Number(pricePerHour) <= 0)
     ) {
-      throw ErrorHelper.requestDataInvalid("Xe thuê theo giờ cần pricePerHour");
+      throw ErrorHelper.requestDataInvalid("Xe thuÃª theo giá» cáº§n pricePerHour");
     }
 
     const car = await CarModel.create({
-      businessId: business._id,
+      ...(owner.business ? { businessId: owner.business._id } : {}),
+      ownerId: owner.ownerId,
+      ownerType: owner.ownerType,
+      ownerModel: owner.ownerModel,
       brandId,
       name,
       type,
@@ -470,12 +500,14 @@ class CarRoute extends BaseRoute {
     return res.status(201).json({
       status: 201,
       code: "201",
-      message: "Đăng xe thành công, vui lòng chờ Admin duyệt",
+      message: "ÄÄƒng xe thÃ nh cÃ´ng, vui lÃ²ng chá» Admin duyá»‡t",
       data: { car },
     });
   }
 
   async getHomeCars(req: Request, res: Response) {
+    const authUser = this.getOptionalAuthUser(req);
+    const authUserId = this.getAuthUserId(authUser);
     await expireOldCarts();
 
     const {
@@ -542,8 +574,9 @@ class CarRoute extends BaseRoute {
         requestedStart,
         requestedEnd,
         typeof rentalMode === "string" ? rentalMode : undefined,
+        authUserId,
       ),
-      this.getUnavailableRangeMap(carIds),
+      this.getUnavailableRangeMap(carIds, authUserId),
     ]);
     const carsWithAvailability = cars.map((car) =>
       this.withRentalAvailability(
@@ -563,6 +596,8 @@ class CarRoute extends BaseRoute {
   }
 
   async getOneCar(req: Request, res: Response) {
+    const authUser = this.getOptionalAuthUser(req);
+    const authUserId = this.getAuthUserId(authUser);
     const id = req.params.id as string;
     await expireOldCarts();
     await expireAbandonedPendingBookings();
@@ -595,9 +630,24 @@ class CarRoute extends BaseRoute {
         typeof req.query.rentalMode === "string"
           ? req.query.rentalMode
           : undefined,
+        authUserId,
       ),
-      this.getUnavailableRangeMap([car._id]),
+      this.getUnavailableRangeMap([car._id], authUserId),
     ]);
+    const currentUserActiveBooking = authUserId
+      ? await BookingModel.findOne({
+          carId: car._id,
+          userId: authUserId,
+          status: { $in: BLOCKING_BOOKING_STATUSES },
+          isDeleted: false,
+          endDate: { $gt: new Date() },
+        } as any)
+          .select(
+            "_id status startDate endDate rentalMode totalPrice paidAmount depositAmount remainingAmount paymentOption",
+          )
+          .sort({ createdAt: -1 })
+          .lean()
+      : null;
     const carWithAvailability = this.withRentalAvailability(
       car,
       RentalAvailabilityEnum.AVAILABLE,
@@ -609,18 +659,23 @@ class CarRoute extends BaseRoute {
       status: 200,
       code: "200",
       message: "success",
-      data: { car: carWithAvailability },
+      data: {
+        car: {
+          ...carWithAvailability,
+          currentUserActiveBooking,
+        },
+      },
     });
   }
 
   async getMyCars(req: Request, res: Response) {
     const authUser = (req as any).user;
 
-    const business = await this.getOwnerBusiness(authUser);
+    const owner = await this.getOwnerContext(authUser);
     await syncRentedCarStatuses();
 
     const cars = await CarModel.find({
-      businessId: business._id,
+      ...this.buildOwnerFilter(owner),
       isDeleted: false,
     })
       .populate("brandId")
@@ -638,7 +693,7 @@ class CarRoute extends BaseRoute {
     const authUser = (req as any).user;
     const { id } = req.params;
 
-    const business = await this.getOwnerBusiness(authUser);
+    const owner = await this.getOwnerContext(authUser);
 
     const updateData = { ...req.body };
 
@@ -678,7 +733,7 @@ class CarRoute extends BaseRoute {
 
     if (updateData.rentalUnit) {
       if (!Object.values(RentalUnitEnum).includes(updateData.rentalUnit)) {
-        throw ErrorHelper.requestDataInvalid("Đơn vị thuê xe không hợp lệ");
+        throw ErrorHelper.requestDataInvalid("ÄÆ¡n vá»‹ thuÃª xe khÃ´ng há»£p lá»‡");
       }
 
       if (
@@ -686,7 +741,7 @@ class CarRoute extends BaseRoute {
         (!updateData.pricePerDay || Number(updateData.pricePerDay) <= 0)
       ) {
         throw ErrorHelper.requestDataInvalid(
-          "Xe thuê theo ngày cần pricePerDay",
+          "Xe thuÃª theo ngÃ y cáº§n pricePerDay",
         );
       }
 
@@ -695,7 +750,7 @@ class CarRoute extends BaseRoute {
         (!updateData.pricePerHour || Number(updateData.pricePerHour) <= 0)
       ) {
         throw ErrorHelper.requestDataInvalid(
-          "Xe thuê theo giờ cần pricePerHour",
+          "Xe thuÃª theo giá» cáº§n pricePerHour",
         );
       }
     }
@@ -703,7 +758,7 @@ class CarRoute extends BaseRoute {
     const car = await CarModel.findOneAndUpdate(
       {
         _id: id,
-        businessId: business._id,
+        ...this.buildOwnerFilter(owner),
         isDeleted: false,
       } as any,
       {
@@ -721,7 +776,7 @@ class CarRoute extends BaseRoute {
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Cập nhật xe thành công, vui lòng chờ Admin duyệt lại",
+      message: "Cáº­p nháº­t xe thÃ nh cÃ´ng, vui lÃ²ng chá» Admin duyá»‡t láº¡i",
       data: { car },
     });
   }
@@ -730,12 +785,43 @@ class CarRoute extends BaseRoute {
     const authUser = (req as any).user;
     const { id } = req.params;
 
-    const business = await this.getOwnerBusiness(authUser);
+    const owner = await this.getOwnerContext(authUser);
+
+    const existingCar = await CarModel.findOne({
+      _id: id,
+      ...this.buildOwnerFilter(owner),
+      isDeleted: false,
+    } as any);
+
+    if (!existingCar) {
+      throw ErrorHelper.recordNotFound("Xe");
+    }
+
+    const [activeContract, activeBooking] = await Promise.all([
+      ContractModel.findOne({
+        carId: id,
+        ...this.buildOwnerFilter(owner),
+        status: { $in: DELETE_BLOCKING_CONTRACT_STATUSES },
+        isDeleted: false,
+      } as any).select("_id"),
+      BookingModel.findOne({
+        carId: id,
+        ...this.buildOwnerFilter(owner),
+        status: { $in: BLOCKING_BOOKING_STATUSES },
+        isDeleted: false,
+      } as any).select("_id"),
+    ]);
+
+    if (activeContract || activeBooking) {
+      throw ErrorHelper.requestDataInvalid(
+        "Khong the xoa xe dang co booking hoac hop dong thue con hieu luc",
+      );
+    }
 
     const car = await CarModel.findOneAndUpdate(
       {
         _id: id,
-        businessId: business._id,
+        ...this.buildOwnerFilter(owner),
         isDeleted: false,
       } as any,
       {
@@ -751,7 +837,7 @@ class CarRoute extends BaseRoute {
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Xóa xe thành công",
+      message: "XÃ³a xe thÃ nh cÃ´ng",
       data: { car },
     });
   }
@@ -763,6 +849,7 @@ class CarRoute extends BaseRoute {
     })
       .populate("brandId")
       .populate("businessId")
+      .populate("ownerId", "-password -otpCode")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -798,17 +885,16 @@ class CarRoute extends BaseRoute {
     }
 
     if (ownerType && ownerType !== "ALL") {
-      const businessType =
-        ownerType === "PRIVATE_OWNER"
-          ? BusinessTypeEnum.INDIVIDUAL
-          : BusinessTypeEnum.COMPANY;
+      if (ownerType === OwnerTypeEnum.USER) {
+        filter.ownerType = OwnerTypeEnum.USER;
+      }
 
-      const businesses = await BusinessModel.find({
-        businessType,
-        isDeleted: false,
-      }).select("_id");
-
-      filter.businessId = { $in: businesses.map((business) => business._id) };
+      if (ownerType === OwnerTypeEnum.BUSINESS) {
+        filter.$or = [
+          { ownerType: OwnerTypeEnum.BUSINESS },
+          { businessId: { $exists: true }, ownerId: { $exists: false } },
+        ];
+      }
     }
 
     const cars = await CarModel.find(filter)
@@ -820,6 +906,7 @@ class CarRoute extends BaseRoute {
           select: "-password -otpCode",
         },
       })
+      .populate("ownerId", "-password -otpCode")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -840,8 +927,14 @@ class CarRoute extends BaseRoute {
 
     if (car.status === CarStatusEnum.RENTED) {
       throw ErrorHelper.requestDataInvalid(
-        "Xe đang được thuê, không thể thay đổi trạng thái duyệt",
+        "Xe Ä‘ang Ä‘Æ°á»£c thuÃª, khÃ´ng thá»ƒ thay Ä‘á»•i tráº¡ng thÃ¡i duyá»‡t",
       );
+    }
+
+    if (!(car as any).ownerId && car.businessId) {
+      (car as any).ownerId = car.businessId;
+      (car as any).ownerType = OwnerTypeEnum.BUSINESS;
+      (car as any).ownerModel = "Business";
     }
 
     car.status = CarStatusEnum.APPROVED;
@@ -851,7 +944,7 @@ class CarRoute extends BaseRoute {
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Duyệt xe thành công",
+      message: "Duyá»‡t xe thÃ nh cÃ´ng",
       data: { car },
     });
   }
@@ -867,8 +960,14 @@ class CarRoute extends BaseRoute {
 
     if (car.status === CarStatusEnum.RENTED) {
       throw ErrorHelper.requestDataInvalid(
-        "Xe đang được thuê, không thể từ chối xe lúc này",
+        "Xe Ä‘ang Ä‘Æ°á»£c thuÃª, khÃ´ng thá»ƒ tá»« chá»‘i xe lÃºc nÃ y",
       );
+    }
+
+    if (!(car as any).ownerId && car.businessId) {
+      (car as any).ownerId = car.businessId;
+      (car as any).ownerType = OwnerTypeEnum.BUSINESS;
+      (car as any).ownerModel = "Business";
     }
 
     car.status = CarStatusEnum.REJECTED;
@@ -878,7 +977,7 @@ class CarRoute extends BaseRoute {
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Từ chối xe thành công",
+      message: "Tá»« chá»‘i xe thÃ nh cÃ´ng",
       data: { car },
     });
   }

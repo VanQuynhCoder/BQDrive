@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -216,24 +216,31 @@ export default function PaymentPage() {
   const availablePaymentTypes = useMemo(() => {
     if (!booking) return [];
 
+    const totalPrice = booking.totalPrice || 0;
+    const paidAmount = booking.paidAmount || 0;
+    const depositAmount =
+      booking.depositAmount || Math.round(totalPrice * 0.3);
+    const remainingAmount =
+      booking.remainingAmount || Math.max(totalPrice - paidAmount, 0);
+
     if (booking.paymentOption === "FULL") {
       return [
         {
           value: "FULL" as const,
           label: "Thanh toán toàn bộ",
           description: "Hoàn tất toàn bộ chi phí booking.",
-          amount: booking.totalPrice || 0,
+          amount: totalPrice,
         },
       ];
     }
 
-    if ((booking.paidAmount || 0) > 0 && (booking.remainingAmount || 0) > 0) {
+    if (paidAmount > 0 && remainingAmount > 0) {
       return [
         {
           value: "REMAINING" as const,
           label: "Thanh toán phần còn lại",
           description: "Hoàn tất số tiền còn lại của booking.",
-          amount: booking.remainingAmount || 0,
+          amount: remainingAmount,
         },
       ];
     }
@@ -243,7 +250,7 @@ export default function PaymentPage() {
         value: "DEPOSIT" as const,
         label: "Đặt cọc trước",
         description: "Giữ xe trước và thanh toán phần còn lại khi nhận xe.",
-        amount: booking.depositAmount || 0,
+        amount: depositAmount,
       },
     ];
   }, [booking]);

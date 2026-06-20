@@ -1,7 +1,7 @@
-import api from "./api";
+﻿import api from "./api";
 
 export type ContractStatus = "DRAFT" | "ACTIVE" | "COMPLETED" | "CANCELLED";
-export type OwnerType = "BUSINESS" | "PRIVATE_OWNER";
+export type OwnerType = "BUSINESS" | "USER";
 
 export type ContractCar = {
   _id: string;

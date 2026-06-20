@@ -1,4 +1,4 @@
-import api from "./api";
+﻿import api from "./api";
 
 export const cartService = {
   addToCart: async (data: {
@@ -21,8 +21,11 @@ export const cartService = {
     return res.data.data.cart;
   },
 
-  bookingFromCart: async (cartId: string) => {
-    const res = await api.post(`/bookings/bookingFromCart/${cartId}`);
+  bookingFromCart: async (
+    cartId: string,
+    data?: { paymentOption?: "DEPOSIT" | "FULL" },
+  ) => {
+    const res = await api.post(`/bookings/bookingFromCart/${cartId}`, data || {});
     return res.data.data.booking;
   },
 };

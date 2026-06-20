@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -66,6 +66,7 @@ type CarDetail = {
   isBookable?: boolean;
   unavailableReason?: string;
   unavailableRanges?: UnavailableRange[];
+  currentUserActiveBooking?: CurrentUserActiveBooking | null;
 };
 
 type UnavailableRange = {
@@ -73,6 +74,19 @@ type UnavailableRange = {
   startDate: string;
   endDate: string;
   status?: string;
+};
+
+type CurrentUserActiveBooking = {
+  _id: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  rentalMode?: RentalMode;
+  totalPrice?: number;
+  paidAmount?: number;
+  depositAmount?: number;
+  remainingAmount?: number;
+  paymentOption?: string;
 };
 
 type RentalMode = "DAILY" | "HOURLY";
@@ -149,6 +163,25 @@ function formatDateValue(date: Date) {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function formatTimeValue(date: Date) {
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+
+  return `${hour}:${minute}`;
+}
+
+function getBookingDateTimeParts(value?: string) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return {
+    date: formatDateValue(date),
+    time: formatTimeValue(date),
+  };
 }
 
 function parseDateValue(value: string) {
@@ -550,6 +583,25 @@ export default function CarDetailPage() {
     };
   }, [id, startDate, endDate, startTime, endTime, rentalMode]);
 
+  useEffect(() => {
+    const booking = car?.currentUserActiveBooking;
+    if (!booking || startDate || endDate) return;
+
+    const bookingStart = getBookingDateTimeParts(booking.startDate);
+    const bookingEnd = getBookingDateTimeParts(booking.endDate);
+
+    if (!bookingStart || !bookingEnd) return;
+
+    setStartDate(bookingStart.date);
+    setEndDate(bookingEnd.date);
+    setStartTime(bookingStart.time);
+    setEndTime(bookingEnd.time);
+
+    if (booking.rentalMode === "DAILY" || booking.rentalMode === "HOURLY") {
+      setRentalMode(booking.rentalMode);
+    }
+  }, [car?.currentUserActiveBooking, startDate, endDate]);
+
   const openImageViewer = (index: number) => {
     setActiveImageIndex(index);
   };
@@ -668,6 +720,46 @@ export default function CarDetailPage() {
     !rentalValidationMessage &&
     !unavailableRangeValidationMessage &&
     !rentalModeValidationMessage;
+
+  const currentUserBooking = car?.currentUserActiveBooking || null;
+  const currentUserBookingOutstanding = currentUserBooking
+    ? Math.max(
+        (currentUserBooking.totalPrice || 0) -
+          (currentUserBooking.paidAmount || 0),
+        0,
+      )
+    : 0;
+  const canContinueCurrentBookingPayment =
+    Boolean(currentUserBooking) &&
+    currentUserBookingOutstanding > 0 &&
+    [
+      "OWNER_APPROVED",
+      "PAYMENT_PENDING",
+      "WAITING_PAYMENT",
+      "CONFIRMED",
+      "PAID",
+      "IN_PROGRESS",
+    ].includes(currentUserBooking?.status || "");
+  const currentUserBookingActionPath = currentUserBooking
+    ? canContinueCurrentBookingPayment
+      ? `/bookings/${currentUserBooking._id}/payment`
+      : `/bookings/${currentUserBooking._id}`
+    : "";
+  const currentUserBookingActionLabel = canContinueCurrentBookingPayment
+    ? "Tiếp tục thanh toán"
+    : "Xem booking của bạn";
+
+  const currentUserBookingRentalTime =
+    currentUserBooking?.startDate && currentUserBooking?.endDate
+      ? calculateRentalTime(
+          currentUserBooking.rentalMode || rentalMode,
+          new Date(currentUserBooking.startDate),
+          new Date(currentUserBooking.endDate),
+        )
+      : 0;
+  const displayRentalTime =
+    currentUserBookingRentalTime > 0 ? currentUserBookingRentalTime : rentalTime;
+  const displayTotalPrice = currentUserBooking?.totalPrice || totalPrice;
 
   const unavailableRanges = car?.unavailableRanges || [];
   const latestHourlyStartTime = minutesToTime(timeToMinutes("22:00") - hourlyDuration * 60);
@@ -1538,7 +1630,7 @@ export default function CarDetailPage() {
                 <div className="flex items-center justify-between gap-4">
                   <dt className="text-muted">{rentalInfo.label}</dt>
                   <dd className="font-bold text-primary">
-                    {rentalTime} {rentalInfo.unit}
+                    {displayRentalTime} {rentalInfo.unit}
                   </dd>
                 </div>
 
@@ -1559,12 +1651,22 @@ export default function CarDetailPage() {
                     </span>
                   </dt>
                   <dd className="text-2xl font-extrabold text-secondary">
-                    {formatPrice(totalPrice)}
+                    {formatPrice(displayTotalPrice)}
                   </dd>
                 </div>
               </dl>
 
               <div className="mt-6 space-y-3">
+                {currentUserBooking ? (
+                  <button
+                    onClick={() => navigate(currentUserBookingActionPath)}
+                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-3 font-extrabold text-primary transition hover:brightness-95"
+                  >
+                    <Wallet size={20} />
+                    {currentUserBookingActionLabel}
+                  </button>
+                ) : (
+                  <>
                 <button
                   onClick={handleBooking}
                   disabled={!canSubmitRental || isBookingSubmitting}
@@ -1582,6 +1684,8 @@ export default function CarDetailPage() {
                   <ShoppingCart size={20} />
                   {isCartSubmitting ? "Đang thêm..." : "Thêm vào giỏ hàng"}
                 </button>
+                  </>
+                )}
               </div>
 
               <div className="mt-6 space-y-3 border-t border-border pt-5">

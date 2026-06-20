@@ -1,6 +1,6 @@
-import api from "./api";
+﻿import api from "./api";
 
-export type UserRole = "CUSTOMER" | "BUSINESS" | "PRIVATE_OWNER" | "ADMIN";
+export type UserRole = "USER" | "BUSINESS" | "ADMIN";
 
 export type AdminUser = {
   _id: string;
@@ -56,6 +56,9 @@ export type AdminCar = {
   type?: string;
   licensePlate?: string;
   brandId?: AdminBrand;
+  ownerId?: AdminUser | AdminBusiness | string;
+  ownerType?: "USER" | "BUSINESS" | string;
+  ownerModel?: "User" | "Business" | string;
   businessId?: AdminBusiness;
   pricePerDay?: number;
   pricePerHour?: number;
@@ -195,24 +198,20 @@ export const adminService = {
   },
 
   getPrivateOwnerRequests: async (params?: PrivateOwnerParams) => {
-    const res = await api.get("/private-owner-requests/admin/getAll", {
-      params,
-    });
-    return unwrap<{ requests: PrivateOwnerRequest[] }>(res).requests;
+    void params;
+    return [] as PrivateOwnerRequest[];
   },
 
   approvePrivateOwner: async (id: string, adminNote?: string) => {
-    const res = await api.post(`/private-owner-requests/admin/approve/${id}`, {
-      adminNote,
-    });
-    return unwrap<{ request: PrivateOwnerRequest }>(res).request;
+    void id;
+    void adminNote;
+    throw new Error("Luồng yêu cầu chủ xe cũ đã bị gỡ");
   },
 
   rejectPrivateOwner: async (id: string, adminNote: string) => {
-    const res = await api.post(`/private-owner-requests/admin/reject/${id}`, {
-      adminNote,
-    });
-    return unwrap<{ request: PrivateOwnerRequest }>(res).request;
+    void id;
+    void adminNote;
+    throw new Error("Luồng yêu cầu chủ xe cũ đã bị gỡ");
   },
 
   getBrands: async () => {

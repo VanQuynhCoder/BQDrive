@@ -1,4 +1,4 @@
-import { Home, LogOut, UserCircle, WalletCards } from "lucide-react";
+﻿import { Home, LogOut, UserCircle, WalletCards } from "lucide-react";
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
@@ -11,7 +11,7 @@ export default function PrivateOwnerLayout() {
 
   const handleLogout = () => {
     authService.logout();
-    toast.success("Đã đăng xuất khỏi Dashboard chủ xe");
+    toast.success("Da dang xuat khoi dashboard ky gui xe");
     navigate("/login");
   };
 
@@ -24,10 +24,10 @@ export default function PrivateOwnerLayout() {
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-sm font-bold uppercase text-secondary">
-                BQDrive Private Owner
+                BQDrive Ky gui xe
               </p>
               <h1 className="truncate text-xl font-extrabold text-primary">
-                Dashboard chủ xe tư nhân
+                Quan ly xe ky gui
               </h1>
             </div>
 
@@ -37,7 +37,7 @@ export default function PrivateOwnerLayout() {
                 className="hidden min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 font-bold text-slate-700 transition hover:bg-slate-50 hover:text-primary sm:inline-flex"
               >
                 <Home size={18} />
-                Về trang chủ
+                Ve trang chu
               </Link>
 
               <div className="hidden items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 md:flex">
@@ -46,10 +46,10 @@ export default function PrivateOwnerLayout() {
                 </div>
                 <div className="max-w-[190px]">
                   <p className="truncate text-sm font-extrabold text-primary">
-                    {owner?.name || "Chủ xe tư nhân"}
+                    {owner?.name || "Nguoi dung"}
                   </p>
                   <p className="truncate text-xs font-semibold text-slate-500">
-                    {owner?.email || "owner@bqdrive.vn"}
+                    {owner?.email || "user@bqdrive.vn"}
                   </p>
                 </div>
               </div>
@@ -64,7 +64,7 @@ export default function PrivateOwnerLayout() {
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 font-bold text-slate-700 transition hover:bg-slate-50 hover:text-primary lg:hidden"
               >
                 <LogOut size={18} />
-                <span className="hidden sm:inline">Đăng xuất</span>
+                <span className="hidden sm:inline">Dang xuat</span>
               </button>
             </div>
           </div>

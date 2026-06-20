@@ -23,28 +23,19 @@ class BusinessRoute extends BaseRoute {
   customRouting() {
     this.router.get(
       "/dashboard",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.BUSINESS])],
       this.route(this.getDashboard),
     );
 
     this.router.get(
       "/profile",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.BUSINESS])],
       this.route(this.getProfile),
     );
 
     this.router.post(
       "/profile",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.BUSINESS])],
       this.route(this.updateProfile),
     );
 
@@ -56,7 +47,7 @@ class BusinessRoute extends BaseRoute {
 
     this.router.post(
       "/requestBusiness",
-      [this.authentication, this.roleGuard([UserRoleEnum.CUSTOMER])],
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
       this.route(this.requestBusiness),
     );
 
@@ -86,57 +77,19 @@ class BusinessRoute extends BaseRoute {
   }
 
   private async getBusinessByAuthUser(authUser: any) {
-    let business = await BusinessModel.findOne({
+    const business = await BusinessModel.findOne({
       userId: authUser.userId,
       isDeleted: false,
     });
 
-    if (!business && authUser.role === UserRoleEnum.PRIVATE_OWNER) {
-      const user = await UserModel.findOne({
-        _id: authUser.userId,
-        isDeleted: false,
-      });
-
-      if (!user) {
-        throw ErrorHelper.userNotExist();
-      }
-
-      business = await BusinessModel.create({
-        userId: authUser.userId,
-        businessName: user.name || "Chủ xe tư nhân",
-        businessType: BusinessTypeEnum.INDIVIDUAL,
-        isApproved: true,
-        ...(user.phone ? { phone: user.phone } : {}),
-      });
-    }
-
     if (!business) {
       throw ErrorHelper.recordNotFound("Business");
-    }
-
-    if (authUser.role === UserRoleEnum.PRIVATE_OWNER) {
-      let shouldSave = false;
-
-      if (!business.isApproved) {
-        business.isApproved = true;
-        shouldSave = true;
-      }
-
-      if (business.businessType !== BusinessTypeEnum.INDIVIDUAL) {
-        business.businessType = BusinessTypeEnum.INDIVIDUAL;
-        shouldSave = true;
-      }
-
-      if (shouldSave) {
-        await business.save();
-      }
     }
 
     await business.populate("userId", "-password -otpCode");
 
     return business;
   }
-
   private paidRevenuePipeline(
     businessId: unknown,
     matchDate?: Record<string, Date>,

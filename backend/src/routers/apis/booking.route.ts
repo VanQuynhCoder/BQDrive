@@ -4,7 +4,6 @@ import { BookingModel } from "../../models/booking/booking.model";
 import { CarModel } from "../../models/car/car.model";
 import { CartModel } from "../../models/cart/cart.model";
 import { BusinessModel } from "../../models/business/business.model";
-import { UserModel } from "../../models/user/user.model";
 import { PaymentModel } from "../../models/payment/payment.model";
 import { calculateRentalPrice } from "../../helper/rental.helper";
 import { releaseCarIfNoConfirmedBooking } from "../../helper/car-status.helper";
@@ -12,15 +11,15 @@ import { expireOldCarts } from "../../helper/cart.helper";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
 import {
   BookingStatusEnum,
-  BusinessTypeEnum,
   CarStatusEnum,
   CartStatusEnum,
+  OwnerTypeEnum,
   PaymentOptionEnum,
   RentalModeEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
 
-const RENTER_ROLES = [UserRoleEnum.CUSTOMER, UserRoleEnum.PRIVATE_OWNER];
+const RENTER_ROLES = [UserRoleEnum.USER];
 const OWNER_REVIEW_BOOKING_STATUSES = [
   BookingStatusEnum.REQUESTED, // Trạng thái mới: khách vừa gửi yêu cầu, chủ xe cần duyệt
   BookingStatusEnum.PENDING, // Trạng thái cũ: giữ tương thích booking đã tạo trước khi đổi flow
@@ -54,6 +53,14 @@ function calculatePaymentAmounts(totalPrice: number, paymentOption: string) {
     remainingAmount,
     paidAmount: 0,
   };
+}
+
+function hydrateLegacyBookingOwner(booking: any) {
+  if (!booking.ownerId && booking.businessId) {
+    booking.ownerId = booking.businessId;
+    booking.ownerType = OwnerTypeEnum.BUSINESS;
+    booking.ownerModel = "Business";
+  }
 }
 
 async function ensureNoOverlappedActiveBooking(booking: any) {
@@ -110,7 +117,7 @@ class BookingRoute extends BaseRoute {
       "/getBusinessBookings",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
+        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
       ],
       this.route(this.getBusinessBookings),
     );
@@ -125,7 +132,7 @@ class BookingRoute extends BaseRoute {
       "/confirmBooking/:id",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
+        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
       ],
       this.route(this.confirmBooking),
     );
@@ -134,7 +141,7 @@ class BookingRoute extends BaseRoute {
       "/rejectBooking/:id",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
+        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
       ],
       this.route(this.rejectBooking),
     );
@@ -143,7 +150,7 @@ class BookingRoute extends BaseRoute {
       "/completeBooking/:id",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
+        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
       ],
       this.route(this.completeBooking),
     );
@@ -152,62 +159,56 @@ class BookingRoute extends BaseRoute {
       "/noShowBooking/:id",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
+        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
       ],
       this.route(this.noShowBooking),
     );
   }
 
-  private async getOwnerBusiness(authUser: any) {
-    let business = await BusinessModel.findOne({
-      userId: authUser.userId,
-      isDeleted: false,
-    });
-
-    if (!business && authUser.role === UserRoleEnum.PRIVATE_OWNER) {
-      const user = await UserModel.findOne({
-        _id: authUser.userId,
+  private async getOwnerContext(authUser: any) {
+    if (authUser.role === UserRoleEnum.BUSINESS) {
+      const business = await BusinessModel.findOne({
+        userId: authUser.userId,
         isDeleted: false,
       });
 
-      if (!user) {
-        throw ErrorHelper.userNotExist();
+      if (!business) {
+        throw ErrorHelper.recordNotFound("Business");
       }
 
-      business = await BusinessModel.create({
-        userId: authUser.userId,
-        businessName: user.name || "Chủ xe tư nhân",
-        businessType: BusinessTypeEnum.INDIVIDUAL,
-        isApproved: true,
-        ...(user.phone ? { phone: user.phone } : {}),
-      });
+      return {
+        ownerId: business._id,
+        ownerType: OwnerTypeEnum.BUSINESS,
+        ownerModel: "Business",
+        business,
+      };
     }
 
-    if (!business) {
-      throw ErrorHelper.recordNotFound("Business");
-    }
-
-    if (authUser.role === UserRoleEnum.PRIVATE_OWNER) {
-      let shouldSave = false;
-
-      if (!business.isApproved) {
-        business.isApproved = true;
-        shouldSave = true;
-      }
-
-      if (business.businessType !== BusinessTypeEnum.INDIVIDUAL) {
-        business.businessType = BusinessTypeEnum.INDIVIDUAL;
-        shouldSave = true;
-      }
-
-      if (shouldSave) {
-        await business.save();
-      }
-    }
-
-    return business;
+    return {
+      ownerId: authUser.userId,
+      ownerType: OwnerTypeEnum.USER,
+      ownerModel: "User",
+      business: null,
+    };
   }
 
+  private buildOwnerFilter(owner: any) {
+    const ownerFilter = {
+      ownerId: owner.ownerId,
+      ownerType: owner.ownerType,
+    };
+
+    if (owner.ownerType === OwnerTypeEnum.BUSINESS && owner.business?._id) {
+      return {
+        $or: [
+          ownerFilter,
+          { businessId: owner.business._id, ownerId: { $exists: false } },
+        ],
+      };
+    }
+
+    return ownerFilter;
+  }
   private validateRentalDateRange(start: Date, end: Date) {
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
       throw ErrorHelper.requestDataInvalid("Thời gian thuê xe không hợp lệ");
@@ -326,7 +327,14 @@ class BookingRoute extends BaseRoute {
 
     const booking = await BookingModel.create({
       userId: authUser.userId,
-      businessId: car.businessId,
+      ...(car.businessId ? { businessId: car.businessId } : {}),
+      ownerId: (car as any).ownerId || car.businessId,
+      ownerType: (car as any).ownerType || OwnerTypeEnum.BUSINESS,
+      ownerModel:
+        ((car as any).ownerType || OwnerTypeEnum.BUSINESS) ===
+        OwnerTypeEnum.USER
+          ? "User"
+          : "Business",
       carId: car._id,
       startDate: start,
       endDate: end,
@@ -409,7 +417,14 @@ class BookingRoute extends BaseRoute {
 
     const booking = await BookingModel.create({
       userId: authUser.userId,
-      businessId: car.businessId,
+      ...(car.businessId ? { businessId: car.businessId } : {}),
+      ownerId: (car as any).ownerId || car.businessId,
+      ownerType: (car as any).ownerType || OwnerTypeEnum.BUSINESS,
+      ownerModel:
+        ((car as any).ownerType || OwnerTypeEnum.BUSINESS) ===
+        OwnerTypeEnum.USER
+          ? "User"
+          : "Business",
       carId: car._id,
       cartId: cart._id,
       startDate: cart.startDate,
@@ -485,11 +500,11 @@ class BookingRoute extends BaseRoute {
   async getBusinessBookings(req: Request, res: Response) {
     const authUser = (req as any).user;
 
-    const business = await this.getOwnerBusiness(authUser);
+    const owner = await this.getOwnerContext(authUser);
     await expireAbandonedPendingBookings();
 
     const bookings = await BookingModel.find({
-      businessId: business._id,
+      ...this.buildOwnerFilter(owner),
       isDeleted: false,
     })
       .populate("userId", "-password")
@@ -555,6 +570,7 @@ class BookingRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Booking PENDING");
     }
 
+    hydrateLegacyBookingOwner(booking);
     booking.status = BookingStatusEnum.CANCELLED;
     booking.cancelReason = cancelReason || "Customer hủy booking";
     await booking.save();
@@ -571,12 +587,12 @@ class BookingRoute extends BaseRoute {
     const authUser = (req as any).user;
     const id = String(req.params.id);
 
-    const business = await this.getOwnerBusiness(authUser);
+    const owner = await this.getOwnerContext(authUser);
     await expireAbandonedPendingBookings();
 
     const booking = await BookingModel.findOne({
       _id: id,
-      businessId: business._id,
+      ...this.buildOwnerFilter(owner),
       status: { $in: OWNER_REVIEW_BOOKING_STATUSES },
       isDeleted: false,
     } as any);
@@ -585,11 +601,12 @@ class BookingRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Booking PENDING");
     }
 
+    hydrateLegacyBookingOwner(booking);
     await ensureNoOverlappedActiveBooking(booking);
 
     const car = await CarModel.findOne({
       _id: booking.carId,
-      businessId: business._id,
+      ...this.buildOwnerFilter(owner),
       status: { $in: BOOKABLE_CAR_STATUSES },
       isDeleted: false,
     } as any);
@@ -613,12 +630,12 @@ class BookingRoute extends BaseRoute {
     const id = String(req.params.id);
     const { rejectReason } = req.body;
 
-    const business = await this.getOwnerBusiness(authUser);
+    const owner = await this.getOwnerContext(authUser);
     await expireAbandonedPendingBookings();
 
     const booking = await BookingModel.findOne({
       _id: id,
-      businessId: business._id,
+      ...this.buildOwnerFilter(owner),
       status: { $in: OWNER_REVIEW_BOOKING_STATUSES },
       isDeleted: false,
     } as any);
@@ -627,6 +644,7 @@ class BookingRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Booking PENDING");
     }
 
+    hydrateLegacyBookingOwner(booking);
     booking.status = BookingStatusEnum.REJECTED;
     booking.cancelReason = rejectReason || "Business rejected booking";
     await booking.save();
@@ -643,11 +661,11 @@ class BookingRoute extends BaseRoute {
     const authUser = (req as any).user;
     const id = String(req.params.id);
 
-    const business = await this.getOwnerBusiness(authUser);
+    const owner = await this.getOwnerContext(authUser);
 
     const booking = await BookingModel.findOne({
       _id: id,
-      businessId: business._id,
+      ...this.buildOwnerFilter(owner),
       status: BookingStatusEnum.IN_PROGRESS,
       isDeleted: false,
     } as any);
@@ -656,6 +674,7 @@ class BookingRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Booking IN_PROGRESS");
     }
 
+    hydrateLegacyBookingOwner(booking);
     booking.status = BookingStatusEnum.COMPLETED;
     await booking.save();
     await releaseCarIfNoConfirmedBooking(booking.carId);
@@ -673,11 +692,11 @@ class BookingRoute extends BaseRoute {
     const id = String(req.params.id);
     const { noShowReason } = req.body;
 
-    const business = await this.getOwnerBusiness(authUser);
+    const owner = await this.getOwnerContext(authUser);
 
     const booking = await BookingModel.findOne({
       _id: id,
-      businessId: business._id,
+      ...this.buildOwnerFilter(owner),
       status: {
         $in: [
           BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã duyệt nhưng khách không đến
@@ -692,6 +711,7 @@ class BookingRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Booking CONFIRMED");
     }
 
+    hydrateLegacyBookingOwner(booking);
     booking.status = BookingStatusEnum.NO_SHOW;
     booking.isDepositRefundable = false;
     booking.noShowReason =

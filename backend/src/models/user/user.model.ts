@@ -60,7 +60,7 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: Object.values(UserRoleEnum),
-      default: UserRoleEnum.CUSTOMER,
+      default: UserRoleEnum.USER,
     },
 
     isBlocked: {

@@ -1,4 +1,4 @@
-import api from "./api";
+﻿import api from "./api";
 
 export type PrivateOwnerStatus = "PENDING" | "APPROVED" | "REJECTED" | string;
 export type BookingStatus =
@@ -151,10 +151,37 @@ function unwrap<T>(response: { data: ApiData<T> }) {
 
 export const privateOwnerService = {
   getDashboard: async () => {
-    const res = await api.get("/business/dashboard");
-    return unwrap<PrivateOwnerDashboard>(res);
-  },
+    const [carsRes, bookingsRes, paymentsRes] = await Promise.all([
+      api.get("/cars/getMyCars"),
+      api.get("/bookings/getBusinessBookings"),
+      api.get("/payments/getBusinessPayments"),
+    ]);
 
+    const cars = unwrap<{ cars: PrivateOwnerCar[] }>(carsRes).cars;
+    const bookings = unwrap<{ bookings: PrivateOwnerBooking[] }>(bookingsRes).bookings;
+    const payments = unwrap<{ payments: PrivateOwnerPayment[] }>(paymentsRes).payments;
+    const paidPayments = payments.filter((payment) => payment.status === "PAID");
+    const today = new Date().toISOString().slice(0, 10);
+    const currentMonth = new Date().toISOString().slice(0, 7);
+
+    return {
+      totalCars: cars.length,
+      approvedCars: cars.filter((car) => car.status === "APPROVED").length,
+      pendingCars: cars.filter((car) => car.status === "PENDING").length,
+      rejectedCars: cars.filter((car) => car.status === "REJECTED").length,
+      totalBookings: bookings.length,
+      pendingBookings: bookings.filter((booking) => ["PENDING", "REQUESTED"].includes(booking.status)).length,
+      confirmedBookings: bookings.filter((booking) => ["CONFIRMED", "OWNER_APPROVED", "PAID", "IN_PROGRESS"].includes(booking.status)).length,
+      completedBookings: bookings.filter((booking) => booking.status === "COMPLETED").length,
+      revenueToday: paidPayments
+        .filter((payment) => payment.paidAt?.slice(0, 10) === today)
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0),
+      revenueThisMonth: paidPayments
+        .filter((payment) => payment.paidAt?.slice(0, 7) === currentMonth)
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0),
+      totalRevenue: paidPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0),
+    } satisfies PrivateOwnerDashboard;
+  },
   getBrands: async () => {
     const res = await api.get("/brand/getAllBrand");
     return unwrap<{ brands: PrivateOwnerBrand[] }>(res).brands;

@@ -1,11 +1,10 @@
-import {
+﻿import {
   BarChart3,
   CalendarDays,
   Car,
   CreditCard,
   Home,
   LogOut,
-  UserCog,
   WalletCards,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -15,11 +14,10 @@ type PrivateOwnerSidebarProps = {
 };
 
 const navItems = [
-  { label: "Dashboard", to: "/private-owner", icon: BarChart3, end: true },
-  { label: "Xe của tôi", to: "/private-owner/cars", icon: Car },
-  { label: "Booking", to: "/private-owner/bookings", icon: CalendarDays },
-  { label: "Thanh toán", to: "/private-owner/payments", icon: CreditCard },
-  { label: "Hồ sơ cá nhân", to: "/private-owner/profile", icon: UserCog },
+  { label: "Tong quan", to: "/consignment", icon: BarChart3, end: true },
+  { label: "Xe cua toi", to: "/consignment/cars", icon: Car },
+  { label: "Booking", to: "/consignment/bookings", icon: CalendarDays },
+  { label: "Thanh toan", to: "/consignment/payments", icon: CreditCard },
 ];
 
 export default function PrivateOwnerSidebar({
@@ -35,9 +33,7 @@ export default function PrivateOwnerSidebar({
             </div>
             <div>
               <h1 className="text-xl font-extrabold">BQDrive</h1>
-              <p className="text-sm font-semibold text-white/55">
-                Private Owner
-              </p>
+              <p className="text-sm font-semibold text-white/55">Ky gui xe</p>
             </div>
           </div>
         </div>
@@ -68,7 +64,7 @@ export default function PrivateOwnerSidebar({
             className="flex min-h-11 w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-white/72 transition hover:bg-white/10 hover:text-white"
           >
             <Home size={19} />
-            Về trang chủ
+            Ve trang chu
           </NavLink>
 
           <button
@@ -77,7 +73,7 @@ export default function PrivateOwnerSidebar({
             className="flex min-h-11 w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-white/72 transition hover:bg-white/10 hover:text-white"
           >
             <LogOut size={19} />
-            Đăng xuất
+            Dang xuat
           </button>
         </div>
       </aside>
@@ -107,7 +103,7 @@ export default function PrivateOwnerSidebar({
             className="flex min-w-[98px] flex-col items-center justify-center gap-1 rounded-lg bg-slate-100 px-3 py-2 text-xs font-extrabold text-slate-600"
           >
             <Home size={18} />
-            <span>Trang chủ</span>
+            <span>Trang chu</span>
           </NavLink>
 
           <button
@@ -116,7 +112,7 @@ export default function PrivateOwnerSidebar({
             className="flex min-w-[98px] flex-col items-center justify-center gap-1 rounded-lg bg-slate-100 px-3 py-2 text-xs font-extrabold text-slate-600"
           >
             <LogOut size={18} />
-            <span>Đăng xuất</span>
+            <span>Dang xuat</span>
           </button>
         </div>
       </nav>

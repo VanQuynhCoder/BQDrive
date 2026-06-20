@@ -14,7 +14,7 @@ import {
   UserRoleEnum,
 } from "../../constants/model.const";
 
-const RENTER_ROLES = [UserRoleEnum.CUSTOMER, UserRoleEnum.PRIVATE_OWNER];
+const RENTER_ROLES = [UserRoleEnum.USER];
 const BLOCKING_BOOKING_STATUSES = [
   BookingStatusEnum.REQUESTED, // Khách đã gửi yêu cầu, giữ slot chờ chủ xe duyệt
   BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã duyệt, giữ slot chờ khách thanh toán

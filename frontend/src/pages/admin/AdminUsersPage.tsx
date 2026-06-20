@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import toast from "react-hot-toast";
 import { Lock, Search, Trash2, Unlock } from "lucide-react";
@@ -15,9 +15,8 @@ type UserAction = "block" | "unblock" | "delete";
 
 const roleOptions: Array<{ label: string; value: "" | UserRole }> = [
   { label: "Tất cả", value: "" },
-  { label: "Khách hàng", value: "CUSTOMER" },
+  { label: "Người dùng", value: "USER" },
   { label: "Doanh nghiệp", value: "BUSINESS" },
-  { label: "Chủ xe tư nhân", value: "PRIVATE_OWNER" },
 ];
 
 function formatDate(date?: string) {
@@ -27,9 +26,9 @@ function formatDate(date?: string) {
 
 function getRoleLabel(role: string) {
   const labels: Record<string, string> = {
-    CUSTOMER: "Khách hàng",
+    USER: "Người dùng",
     BUSINESS: "Doanh nghiệp",
-    PRIVATE_OWNER: "Chủ xe tư nhân",
+    ADMIN: "Quản trị viên",
   };
 
   return labels[role] || role;

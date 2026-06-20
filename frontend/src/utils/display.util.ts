@@ -1,9 +1,8 @@
-export function getRoleLabel(role?: string) {
+﻿export function getRoleLabel(role?: string) {
   const map: Record<string, string> = {
     ADMIN: "Quản trị viên",
     BUSINESS: "Doanh nghiệp",
-    CUSTOMER: "Khách hàng",
-    PRIVATE_OWNER: "Chủ xe tư nhân",
+    USER: "Người dùng",
   };
 
   return map[role || ""] || role || "--";
@@ -90,7 +89,7 @@ export function getBusinessTypeLabel(type?: string) {
 export function getOwnerTypeLabel(type?: string) {
   const map: Record<string, string> = {
     BUSINESS: "Doanh nghiệp",
-    PRIVATE_OWNER: "Chủ xe tư nhân",
+    USER: "Người dùng ký gửi",
   };
 
   return map[type || ""] || type || "--";

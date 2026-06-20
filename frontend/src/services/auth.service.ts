@@ -1,4 +1,4 @@
-import api from "./api";
+﻿import api from "./api";
 
 export type LoginData = {
   email: string;
@@ -21,12 +21,29 @@ export type VerifyOtpData = {
   otp: string;
 };
 
+function normalizeUserRole(role?: string) {
+  const normalizedRole = role?.toUpperCase();
+
+  if (normalizedRole === "ADMIN" || normalizedRole === "BUSINESS") {
+    return normalizedRole;
+  }
+
+  return "USER";
+}
+
+function normalizeUser<T extends { role?: string }>(user: T): T & { role: string } {
+  return {
+    ...user,
+    role: normalizeUserRole(user.role),
+  };
+}
+
 export const authService = {
   login: async (data: LoginData) => {
     const res = await api.post("/auth/login", data);
 
     const token = res.data.data.token;
-    const user = res.data.data.user;
+    const user = normalizeUser(res.data.data.user);
 
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
@@ -53,13 +70,11 @@ export const authService = {
     return res.data;
   },
 
-  googleLogin: async (credential: string) => {
-    const res = await api.post("/auth/google-login", {
-      credential,
-    });
+  googleLogin: async (data: { credential?: string; accessToken?: string }) => {
+    const res = await api.post("/auth/google-login", data);
 
     const token = res.data.data.token;
-    const user = res.data.data.user;
+    const user = normalizeUser(res.data.data.user);
 
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
@@ -82,7 +97,11 @@ export const authService = {
 
     if (!user) return null;
 
-    return JSON.parse(user);
+    const parsedUser = normalizeUser(JSON.parse(user));
+    localStorage.setItem("user", JSON.stringify(parsedUser));
+    localStorage.setItem("role", parsedUser.role);
+
+    return parsedUser;
   },
 
   getToken: () => {
@@ -94,6 +113,8 @@ export const authService = {
   },
 
   getRole: () => {
-    return localStorage.getItem("role");
+    const role = normalizeUserRole(localStorage.getItem("role") || undefined);
+    localStorage.setItem("role", role);
+    return role;
   },
 };

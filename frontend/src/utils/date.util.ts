@@ -1,4 +1,4 @@
-const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
+﻿const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
 const VIETNAM_OFFSET = "+07:00";
 
 export function buildVietnamDateTime(date: string, time: string) {

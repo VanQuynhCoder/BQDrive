@@ -10,8 +10,10 @@ export type IContract = BaseDocument & {
   bookingId: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   carId: mongoose.Types.ObjectId;
-  businessId: mongoose.Types.ObjectId;
+  ownerId: mongoose.Types.ObjectId;
   ownerType: OwnerTypeEnum;
+  ownerModel: string;
+  businessId?: mongoose.Types.ObjectId;
   renterName: string;
   renterPhone: string;
   renterIdentityNumber: string;
@@ -50,11 +52,20 @@ const contractSchema = new mongoose.Schema(
     businessId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Business",
+    },
+    ownerId: {
+      type: mongoose.Schema.Types.ObjectId,
       required: true,
+      refPath: "ownerModel",
     },
     ownerType: {
       type: String,
       enum: Object.values(OwnerTypeEnum),
+      required: true,
+    },
+    ownerModel: {
+      type: String,
+      enum: ["User", "Business"],
       required: true,
     },
     renterName: {

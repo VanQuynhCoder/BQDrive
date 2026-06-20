@@ -1,4 +1,4 @@
-import api from "./api";
+﻿import api from "./api";
 
 export const bookingService = {
   createBooking: async (data: {
@@ -7,6 +7,7 @@ export const bookingService = {
     endDate: string;
     rentalMode: "DAILY" | "HOURLY";
     note?: string;
+    paymentOption?: "DEPOSIT" | "FULL";
   }) => {
     const res = await api.post("/bookings/createBooking", data);
     return res.data.data.booking;

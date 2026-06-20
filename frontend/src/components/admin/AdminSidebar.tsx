@@ -1,10 +1,9 @@
-import {
+﻿import {
   BarChart3,
   Building2,
   Car,
   Factory,
   LogOut,
-  ShieldCheck,
   Tags,
   Users,
 } from "lucide-react";
@@ -30,11 +29,6 @@ const menuItems = [
     to: "/admin/businesses",
     label: "Quản lý Doanh nghiệp",
     icon: Building2,
-  },
-  {
-    to: "/admin/private-owner-requests",
-    label: "Yêu cầu Chủ xe tư nhân",
-    icon: ShieldCheck,
   },
   {
     to: "/admin/brands",

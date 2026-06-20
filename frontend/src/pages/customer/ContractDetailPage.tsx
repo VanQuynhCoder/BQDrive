@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { ArrowLeft, FileText, Loader2, Printer } from "lucide-react";
@@ -201,7 +201,7 @@ export default function ContractDetailPage() {
             <InfoItem
               label="Loại chủ xe"
               value={
-                contract.ownerType === "PRIVATE_OWNER"
+                contract.ownerType === "USER"
                   ? "Chủ xe tư nhân"
                   : "Doanh nghiệp"
               }

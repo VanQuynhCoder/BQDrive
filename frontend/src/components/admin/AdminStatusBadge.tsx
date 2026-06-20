@@ -1,4 +1,4 @@
-type AdminStatusBadgeProps = {
+﻿type AdminStatusBadgeProps = {
   tone?: "green" | "red" | "yellow" | "blue" | "gray";
   label: string;
 };

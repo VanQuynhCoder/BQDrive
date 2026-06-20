@@ -1,4 +1,4 @@
-import { BaseRoute, Request, Response } from "../../base/baseRoute";
+﻿import { BaseRoute, Request, Response } from "../../base/baseRoute";
 import { ErrorHelper } from "../../base/error";
 import { BookingModel } from "../../models/booking/booking.model";
 import { BusinessModel } from "../../models/business/business.model";
@@ -6,13 +6,13 @@ import { ContractModel } from "../../models/contract/contract.model";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
 import {
   BookingStatusEnum,
-  BusinessTypeEnum,
   ContractStatusEnum,
   OwnerTypeEnum,
+  PaymentOptionEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
 
-const RENTER_ROLES = [UserRoleEnum.CUSTOMER, UserRoleEnum.PRIVATE_OWNER];
+const RENTER_ROLES = [UserRoleEnum.USER];
 
 class ContractRoute extends BaseRoute {
   constructor() {
@@ -30,7 +30,7 @@ class ContractRoute extends BaseRoute {
       "/my-contracts",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.CUSTOMER, UserRoleEnum.PRIVATE_OWNER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.getMyContracts),
     );
@@ -39,7 +39,7 @@ class ContractRoute extends BaseRoute {
       "/owner/my-contracts",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.PRIVATE_OWNER]),
+        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
       ],
       this.route(this.getOwnerContracts),
     );
@@ -48,7 +48,7 @@ class ContractRoute extends BaseRoute {
       "/:id",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.CUSTOMER, UserRoleEnum.PRIVATE_OWNER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.getContractDetail),
     );
@@ -73,10 +73,49 @@ class ContractRoute extends BaseRoute {
     return `HD-BQD-${datePart}-${Date.now().toString().slice(-4)}`;
   }
 
-  private getOwnerType(business: any) {
-    return business?.businessType === BusinessTypeEnum.INDIVIDUAL
-      ? OwnerTypeEnum.PRIVATE_OWNER
-      : OwnerTypeEnum.BUSINESS;
+  private async getOwnerContext(authUser: any) {
+    if (authUser.role === UserRoleEnum.BUSINESS) {
+      const business = await BusinessModel.findOne({
+        userId: authUser.userId,
+        isDeleted: false,
+      });
+
+      if (!business) {
+        return null;
+      }
+
+      return {
+        ownerId: business._id,
+        ownerType: OwnerTypeEnum.BUSINESS,
+        ownerModel: "Business",
+        business,
+      };
+    }
+
+    return {
+      ownerId: authUser.userId,
+      ownerType: OwnerTypeEnum.USER,
+      ownerModel: "User",
+      business: null,
+    };
+  }
+
+  private buildOwnerFilter(owner: any) {
+    const ownerFilter = {
+      ownerId: owner.ownerId,
+      ownerType: owner.ownerType,
+    };
+
+    if (owner.ownerType === OwnerTypeEnum.BUSINESS && owner.business?._id) {
+      return {
+        $or: [
+          ownerFilter,
+          { businessId: owner.business._id, ownerId: { $exists: false } },
+        ],
+      };
+    }
+
+    return ownerFilter;
   }
 
   async createContract(req: Request, res: Response) {
@@ -98,7 +137,7 @@ class ContractRoute extends BaseRoute {
       !renterAddress
     ) {
       throw ErrorHelper.requestDataInvalid(
-        "Thiếu bookingId hoặc thông tin người thuê",
+        "Thiáº¿u bookingId hoáº·c thÃ´ng tin ngÆ°á»i thuÃª",
       );
     }
 
@@ -116,16 +155,16 @@ class ContractRoute extends BaseRoute {
 
     if (
       ![
-        BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã duyệt, khách được tạo hợp đồng trước khi thanh toán
-        BookingStatusEnum.PAYMENT_PENDING, // Khách đang thanh toán, hợp đồng vẫn hợp lệ
-        BookingStatusEnum.PAID, // Đã thanh toán, hợp đồng có thể xem/tái dùng
-        BookingStatusEnum.IN_PROGRESS, // Đang thuê, hợp đồng vẫn còn hiệu lực
-        BookingStatusEnum.CONFIRMED, // Trạng thái cũ
-        BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ
+        BookingStatusEnum.OWNER_APPROVED, // Chá»§ xe Ä‘Ã£ duyá»‡t, khÃ¡ch Ä‘Æ°á»£c táº¡o há»£p Ä‘á»“ng trÆ°á»›c khi thanh toÃ¡n
+        BookingStatusEnum.PAYMENT_PENDING, // KhÃ¡ch Ä‘ang thanh toÃ¡n, há»£p Ä‘á»“ng váº«n há»£p lá»‡
+        BookingStatusEnum.PAID, // ÄÃ£ thanh toÃ¡n, há»£p Ä‘á»“ng cÃ³ thá»ƒ xem/tÃ¡i dÃ¹ng
+        BookingStatusEnum.IN_PROGRESS, // Äang thuÃª, há»£p Ä‘á»“ng váº«n cÃ²n hiá»‡u lá»±c
+        BookingStatusEnum.CONFIRMED, // Tráº¡ng thÃ¡i cÅ©
+        BookingStatusEnum.WAITING_PAYMENT, // Tráº¡ng thÃ¡i cÅ©
       ].includes(booking.status as BookingStatusEnum)
     ) {
       throw ErrorHelper.requestDataInvalid(
-        "Booking cần được chủ xe xác nhận trước khi tạo hợp đồng",
+        "Booking cáº§n Ä‘Æ°á»£c chá»§ xe xÃ¡c nháº­n trÆ°á»›c khi táº¡o há»£p Ä‘á»“ng",
       );
     }
 
@@ -136,7 +175,7 @@ class ContractRoute extends BaseRoute {
         BookingStatusEnum.NO_SHOW,
       ].includes(booking.status as BookingStatusEnum)
     ) {
-      throw ErrorHelper.requestDataInvalid("Booking không còn khả dụng để tạo hợp đồng");
+      throw ErrorHelper.requestDataInvalid("Booking khÃ´ng cÃ²n kháº£ dá»¥ng Ä‘á»ƒ táº¡o há»£p Ä‘á»“ng");
     }
 
     const existedContract = await ContractModel.findOne({
@@ -151,22 +190,23 @@ class ContractRoute extends BaseRoute {
       return res.status(200).json({
         status: 200,
         code: "200",
-        message: "Contract đã tồn tại",
+        message: "Contract Ä‘Ã£ tá»“n táº¡i",
         data: { contract: existedContract },
       });
     }
-
-    const business = await BusinessModel.findOne({
-      _id: booking.businessId,
-      isDeleted: false,
-    });
 
     const contract = await ContractModel.create({
       bookingId: booking._id,
       userId: booking.userId,
       carId: booking.carId,
-      businessId: booking.businessId,
-      ownerType: this.getOwnerType(business),
+      ...(booking.businessId ? { businessId: booking.businessId } : {}),
+      ownerId: (booking as any).ownerId || booking.businessId,
+      ownerType: (booking as any).ownerType || OwnerTypeEnum.BUSINESS,
+      ownerModel:
+        ((booking as any).ownerType || OwnerTypeEnum.BUSINESS) ===
+        OwnerTypeEnum.USER
+          ? "User"
+          : "Business",
       renterName,
       renterPhone,
       renterIdentityNumber,
@@ -177,7 +217,7 @@ class ContractRoute extends BaseRoute {
       totalPrice: booking.totalPrice,
       depositAmount: booking.depositAmount,
       remainingAmount: booking.remainingAmount,
-      paymentOption: booking.paymentOption,
+      paymentOption: booking.paymentOption || PaymentOptionEnum.DEPOSIT,
       status: ContractStatusEnum.ACTIVE,
       contractCode: await this.generateContractCode(),
       signedAt: new Date(),
@@ -190,7 +230,7 @@ class ContractRoute extends BaseRoute {
     return res.status(201).json({
       status: 201,
       code: "201",
-      message: "Tạo hợp đồng thuê xe thành công",
+      message: "Táº¡o há»£p Ä‘á»“ng thuÃª xe thÃ nh cÃ´ng",
       data: { contract },
     });
   }
@@ -229,7 +269,7 @@ class ContractRoute extends BaseRoute {
       .populate("bookingId");
 
     if (!contract) {
-      throw ErrorHelper.recordNotFound("Hợp đồng");
+      throw ErrorHelper.recordNotFound("Há»£p Ä‘á»“ng");
     }
 
     return res.status(200).json({
@@ -243,12 +283,9 @@ class ContractRoute extends BaseRoute {
   async getOwnerContracts(req: Request, res: Response) {
     const authUser = (req as any).user;
 
-    const business = await BusinessModel.findOne({
-      userId: authUser.userId,
-      isDeleted: false,
-    });
+    const owner = await this.getOwnerContext(authUser);
 
-    if (!business) {
+    if (!owner) {
       return res.status(200).json({
         status: 200,
         code: "200",
@@ -258,7 +295,7 @@ class ContractRoute extends BaseRoute {
     }
 
     const contracts = await ContractModel.find({
-      businessId: business._id,
+      ...this.buildOwnerFilter(owner),
       isDeleted: false,
     })
       .populate("userId", "-password -otpCode")

@@ -7,9 +7,13 @@ import {
   FuelTypeEnum,
   TransmissionEnum,
   RentalUnitEnum,
+  OwnerTypeEnum,
 } from "../../constants/model.const";
 export type ICar = BaseDocument & {
-  businessId: mongoose.Types.ObjectId;
+  ownerId: mongoose.Types.ObjectId;
+  ownerType: OwnerTypeEnum;
+  ownerModel: string;
+  businessId?: mongoose.Types.ObjectId;
   brandId: mongoose.Types.ObjectId;
   name: string;
   type: string;
@@ -34,6 +38,20 @@ const carSchema = new mongoose.Schema(
     businessId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Business",
+    },
+    ownerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      refPath: "ownerModel",
+    },
+    ownerType: {
+      type: String,
+      enum: Object.values(OwnerTypeEnum),
+      required: true,
+    },
+    ownerModel: {
+      type: String,
+      enum: ["User", "Business"],
       required: true,
     },
     brandId: {

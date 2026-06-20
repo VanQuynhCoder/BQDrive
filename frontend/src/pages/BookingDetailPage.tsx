@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -239,8 +239,9 @@ function getStatusInfo(status?: BookingStatus) {
 function getPaymentInfo(booking: Booking) {
   const totalPrice = booking.totalPrice || 0;
   const paidAmount = booking.paidAmount || 0;
+  const isFullPayment = booking.paymentOption === "FULL";
   const depositAmount =
-    booking.depositAmount || (booking.paymentOption === "DEPOSIT" ? Math.round(totalPrice * 0.3) : 0);
+    booking.depositAmount || (!isFullPayment ? Math.round(totalPrice * 0.3) : 0);
   const remainingAfterDeposit =
     booking.remainingAmount || Math.max(totalPrice - depositAmount, 0);
   const outstandingAmount = Math.max(totalPrice - paidAmount, 0);
@@ -276,11 +277,11 @@ function getPaymentInfo(booking: Booking) {
   return {
     label: "Chưa thanh toán",
     detail:
-      booking.paymentOption === "FULL"
+      isFullPayment
         ? "Booking chọn thanh toán toàn bộ."
         : "Booking chọn thanh toán cọc.",
     badgeClass: "bg-amber-50 text-amber-700",
-    nextAmount: booking.paymentOption === "FULL" ? totalPrice : depositAmount,
+    nextAmount: isFullPayment ? totalPrice : depositAmount,
     totalPrice,
     paidAmount,
     depositAmount,
@@ -584,8 +585,8 @@ export default function BookingDetailPage() {
                 <div className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-amber-50 px-5 py-3 text-center font-extrabold text-amber-700">
                   <Clock3 size={20} />
                   {"PENDING" === "PENDING"
-                    ? "Chá» chá»§ xe xÃ¡c nháº­n"
-                    : "ChÆ°a thá»ƒ thanh toÃ¡n"}
+                    ? "Chờ chủ xe xác nhận"
+                    : "Chưa thể thanh toán"}
                 </div>
               ) : (
                 <div className="mt-6 grid gap-3 md:grid-cols-3">

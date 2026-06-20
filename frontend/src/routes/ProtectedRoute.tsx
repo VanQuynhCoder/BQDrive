@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+﻿import { Navigate } from "react-router-dom";
 import { authService } from "../services/auth.service";
 
 type ProtectedRouteProps = {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -126,6 +126,7 @@ export default function CartPage() {
 
   const [carts, setCarts] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submittingCartId, setSubmittingCartId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -192,6 +193,22 @@ export default function CartPage() {
       await refreshCart();
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Xóa thất bại"));
+    }
+  };
+
+  const handleCheckout = async (cartId: string) => {
+    if (submittingCartId) return;
+
+    try {
+      setSubmittingCartId(cartId);
+      const booking = await cartService.bookingFromCart(cartId);
+      toast.success("Đã gửi yêu cầu đặt xe, vui lòng chờ chủ xe xác nhận");
+      navigate(`/bookings/${booking._id}`);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Không thể tạo booking từ giỏ hàng"));
+      await refreshCart().catch(console.log);
+    } finally {
+      setSubmittingCartId(null);
     }
   };
 
@@ -454,12 +471,12 @@ export default function CartPage() {
               </div>
 
               <button
-                onClick={() => navigate("/payments")}
-                disabled={carts.length === 0}
+                onClick={() => carts[0] && handleCheckout(carts[0]._id)}
+                disabled={carts.length === 0 || Boolean(submittingCartId)}
                 className="mt-7 flex min-h-12 w-full items-center justify-center gap-3 rounded-lg bg-secondary px-5 py-3 font-extrabold text-primary transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <CreditCard size={21} />
-                Tiến hành thanh toán
+                {submittingCartId ? "Đang tạo booking..." : "Gửi yêu cầu đặt xe"}
               </button>
             </div>
 

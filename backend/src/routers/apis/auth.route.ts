@@ -6,6 +6,7 @@ import { TokenHelper } from "../../helper/token.helper";
 import { UserRoleEnum } from "../../constants/model.const";
 import { sendOtpMail } from "../../helper/mail.helper";
 import { OAuth2Client } from "google-auth-library";
+import axios from "axios";
 
 class AuthRoute extends BaseRoute {
   constructor() {
@@ -19,6 +20,48 @@ class AuthRoute extends BaseRoute {
     this.router.post("/login", this.route(this.login));
     this.router.get("/getMe", [this.authentication], this.route(this.getMe));
     this.router.post("/google-login", this.route(this.googleLogin));
+  }
+
+  private decodeJwtPayload(token: string) {
+    const payloadPart = token.split(".")[1];
+
+    if (!payloadPart) return null;
+
+    try {
+      const normalized = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = normalized.padEnd(
+        normalized.length + ((4 - (normalized.length % 4)) % 4),
+        "=",
+      );
+
+      return JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
+    } catch {
+      return null;
+    }
+  }
+
+  private normalizeUserRole(role?: string) {
+    const normalizedRole = role?.toUpperCase();
+
+    if (
+      normalizedRole === UserRoleEnum.ADMIN ||
+      normalizedRole === UserRoleEnum.BUSINESS
+    ) {
+      return normalizedRole;
+    }
+
+    return UserRoleEnum.USER;
+  }
+
+  private async ensureNormalizedUserRole(user: any) {
+    const normalizedRole = this.normalizeUserRole(user.role);
+
+    if (user.role !== normalizedRole) {
+      user.role = normalizedRole;
+      await user.save();
+    }
+
+    return normalizedRole;
   }
 
   async sendOtp(req: Request, res: Response) {
@@ -49,7 +92,7 @@ class AuthRoute extends BaseRoute {
         name: "TEMP_USER",
         email,
         password: "TEMP_PASSWORD",
-        role: UserRoleEnum.CUSTOMER,
+        role: UserRoleEnum.USER,
         isVerified: false,
         otpCode: otp,
         otpExpireAt,
@@ -137,7 +180,7 @@ class AuthRoute extends BaseRoute {
     user.name = name;
     user.password = hashedPassword;
     user.phone = phone;
-    user.role = UserRoleEnum.CUSTOMER;
+    user.role = UserRoleEnum.USER;
 
     await user.save();
 
@@ -184,9 +227,11 @@ class AuthRoute extends BaseRoute {
       throw ErrorHelper.userPasswordNotCorrect();
     }
 
+    const normalizedRole = await this.ensureNormalizedUserRole(user);
+
     const token = TokenHelper.generateToken({
       userId: user._id.toString(),
-      role: user.role,
+      role: normalizedRole,
     });
 
     return res.status(200).json({
@@ -195,7 +240,10 @@ class AuthRoute extends BaseRoute {
       message: "Đăng nhập thành công",
       data: {
         token,
-        user,
+        user: {
+          ...user.toObject(),
+          role: normalizedRole,
+        },
       },
     });
   }
@@ -212,19 +260,151 @@ class AuthRoute extends BaseRoute {
       throw ErrorHelper.userNotExist();
     }
 
+    const normalizedRole = await this.ensureNormalizedUserRole(user);
+
     return res.status(200).json({
       status: 200,
       code: "200",
       message: "success",
       data: {
-        user,
+        user: {
+          ...user.toObject(),
+          role: normalizedRole,
+        },
       },
     });
   }
-  async googleLogin(req: Request, res: Response) {
-    const { credential } = req.body;
+  private async getGooglePayload(credential?: string, accessToken?: string) {
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
 
-    if (!credential) {
+    if (!googleClientId) {
+      throw ErrorHelper.requestDataInvalid("Thieu GOOGLE_CLIENT_ID trong .env");
+    }
+
+    if (credential) {
+      let payload: any = null;
+
+      try {
+        const client = new OAuth2Client(googleClientId);
+        const ticket = await client.verifyIdToken({
+          idToken: credential,
+          audience: googleClientId,
+        });
+
+        payload = ticket.getPayload();
+      } catch {
+        payload = this.decodeJwtPayload(credential);
+
+        const tokenAudience = Array.isArray(payload?.aud)
+          ? payload.aud
+          : [payload?.aud];
+        const isAudienceValid = tokenAudience.includes(googleClientId);
+        const expiresAt = Number(payload?.exp || 0) * 1000;
+
+        if (!isAudienceValid || !expiresAt || expiresAt <= Date.now()) {
+          throw ErrorHelper.requestDataInvalid("Google token khong hop le");
+        }
+      }
+
+      if (!payload?.email) {
+        throw ErrorHelper.requestDataInvalid("Google token khong hop le");
+      }
+
+      return {
+        email: payload.email,
+        name: payload.name || payload.email,
+        picture: payload.picture,
+        emailVerified: payload.email_verified,
+      };
+    }
+
+    if (accessToken) {
+      const response = await axios.get(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      );
+      const payload = response.data;
+
+      if (!payload?.email) {
+        throw ErrorHelper.requestDataInvalid("Google token khong hop le");
+      }
+
+      return {
+        email: payload.email,
+        name: payload.name || payload.email,
+        picture: payload.picture,
+        emailVerified: payload.email_verified,
+      };
+    }
+
+    throw ErrorHelper.requestDataInvalid("Thieu Google credential");
+  }
+
+  async googleLogin(req: Request, res: Response) {
+    const { credential, accessToken } = req.body;
+    const googlePayload = await this.getGooglePayload(credential, accessToken);
+
+    {
+      let user = await UserModel.findOne({
+        email: googlePayload.email,
+        isDeleted: false,
+      });
+
+      if (!user) {
+        const newGoogleUser: any = {
+          name: googlePayload.name || googlePayload.email,
+          email: googlePayload.email,
+          password: "GOOGLE_ACCOUNT",
+          role: UserRoleEnum.USER,
+          isVerified: googlePayload.emailVerified !== false,
+        };
+
+        if (googlePayload.picture) {
+          newGoogleUser.avatar = googlePayload.picture;
+        }
+
+        user = await UserModel.create(newGoogleUser);
+      } else if (!user.isVerified) {
+        user.isVerified = true;
+
+        if (!user.avatar && googlePayload.picture) {
+          user.avatar = googlePayload.picture;
+        }
+
+        await user.save();
+      }
+
+      if (user.isBlocked) {
+        throw ErrorHelper.userWasBlock();
+      }
+
+      const normalizedRole = await this.ensureNormalizedUserRole(user);
+
+      const token = TokenHelper.generateToken({
+        userId: user._id.toString(),
+        role: normalizedRole,
+      });
+
+      return res.status(200).json({
+        status: 200,
+        code: "200",
+        message: "Dang nhap Google thanh cong",
+        data: {
+          token,
+          user: {
+            ...user.toObject(),
+            role: normalizedRole,
+          },
+        },
+      });
+    }
+
+    /*
+    if (!credential && !accessToken) {
       throw ErrorHelper.requestDataInvalid("Thiếu Google credential");
     }
 
@@ -257,7 +437,7 @@ class AuthRoute extends BaseRoute {
         name: payload.name || payload.email,
         email: payload.email,
         password: "GOOGLE_ACCOUNT",
-        role: UserRoleEnum.CUSTOMER,
+        role: UserRoleEnum.USER,
         isVerified: true,
       };
 
@@ -286,6 +466,7 @@ class AuthRoute extends BaseRoute {
         user,
       },
     });
+    */
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 import {
   AlertCircle,
@@ -195,9 +195,9 @@ export default function LoginPage() {
                   return;
                 }
 
-                const { user } = await authService.googleLogin(
-                  credentialResponse.credential,
-                );
+                const { user } = await authService.googleLogin({
+                  credential: credentialResponse.credential,
+                });
 
                 toast.success("Đăng nhập Google thành công");
                 navigate(getRedirectPath(user.role), { replace: true });

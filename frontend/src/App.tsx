@@ -1,6 +1,7 @@
-import { Routes, Route } from "react-router-dom";
+﻿import { Routes, Route } from "react-router-dom";
 
 import HomePage from "./pages/HomePage";
+import AboutPage from "./pages/AboutPage";
 import ServicesPage from "./pages/ServicesPage";
 import CarDetailPage from "./pages/CarDetailPage";
 import LoginPage from "./pages/LoginPage";
@@ -8,7 +9,6 @@ import RegisterPage from "./pages/RegisterPage";
 import CartPage from "./pages/CartPage";
 import BookingDetailPage from "./pages/BookingDetailPage";
 import PaymentPage from "./pages/PaymentPage";
-import BecomePrivateOwnerPage from "./pages/customer/BecomePrivateOwnerPage";
 import MyContractsPage from "./pages/customer/MyContractsPage";
 import ContractDetailPage from "./pages/customer/ContractDetailPage";
 import MyPaymentsPage from "./pages/customer/MyPaymentsPage";
@@ -22,7 +22,6 @@ import PrivateOwnerLayout from "./layouts/PrivateOwnerLayout";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminBusinessesPage from "./pages/admin/AdminBusinessesPage";
-import AdminPrivateOwnerRequestsPage from "./pages/admin/AdminPrivateOwnerRequestsPage";
 import AdminBrandsPage from "./pages/admin/AdminBrandsPage";
 import AdminCarsPage from "./pages/admin/AdminCarsPage";
 import BusinessDashboardPage from "./pages/business/BusinessDashboardPage";
@@ -34,16 +33,17 @@ import PrivateOwnerDashboardPage from "./pages/private-owner/PrivateOwnerDashboa
 import PrivateOwnerCarsPage from "./pages/private-owner/PrivateOwnerCarsPage";
 import PrivateOwnerBookingsPage from "./pages/private-owner/PrivateOwnerBookingsPage";
 import PrivateOwnerPaymentsPage from "./pages/private-owner/PrivateOwnerPaymentsPage";
-import PrivateOwnerProfilePage from "./pages/private-owner/PrivateOwnerProfilePage";
 import PaymentResultPage from "./pages/PaymentResultPage";
 
 function App() {
-  const renterRoles = ["CUSTOMER", "PRIVATE_OWNER"];
+  const userRoles = ["USER"];
 
   return (
     <Routes>
       {/* Public */}
       <Route path="/" element={<HomePage />} />
+
+      <Route path="/about" element={<AboutPage />} />
 
       <Route path="/services" element={<ServicesPage />} />
 
@@ -57,7 +57,7 @@ function App() {
       <Route
         path="/cart"
         element={
-          <ProtectedRoute roles={renterRoles}>
+          <ProtectedRoute roles={userRoles}>
             <CartPage />
           </ProtectedRoute>
         }
@@ -66,7 +66,7 @@ function App() {
       <Route
         path="/bookings/:id"
         element={
-          <ProtectedRoute roles={renterRoles}>
+          <ProtectedRoute roles={userRoles}>
             <BookingDetailPage />
           </ProtectedRoute>
         }
@@ -75,7 +75,7 @@ function App() {
       <Route
         path="/bookings/:id/payment"
         element={
-          <ProtectedRoute roles={renterRoles}>
+          <ProtectedRoute roles={userRoles}>
             <PaymentPage />
           </ProtectedRoute>
         }
@@ -84,7 +84,7 @@ function App() {
       <Route
         path="/my-contracts"
         element={
-          <ProtectedRoute roles={["CUSTOMER", "PRIVATE_OWNER"]}>
+          <ProtectedRoute roles={userRoles}>
             <MyContractsPage />
           </ProtectedRoute>
         }
@@ -93,7 +93,7 @@ function App() {
       <Route
         path="/contracts/:id"
         element={
-          <ProtectedRoute roles={["CUSTOMER", "PRIVATE_OWNER"]}>
+          <ProtectedRoute roles={userRoles}>
             <ContractDetailPage />
           </ProtectedRoute>
         }
@@ -102,17 +102,8 @@ function App() {
       <Route
         path="/my-payments"
         element={
-          <ProtectedRoute roles={["CUSTOMER", "PRIVATE_OWNER"]}>
+          <ProtectedRoute roles={userRoles}>
             <MyPaymentsPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/become-private-owner"
-        element={
-          <ProtectedRoute roles={["CUSTOMER"]}>
-            <BecomePrivateOwnerPage />
           </ProtectedRoute>
         }
       />
@@ -133,11 +124,11 @@ function App() {
         <Route path="profile" element={<BusinessProfilePage />} />
       </Route>
 
-      {/* Private Owner */}
+      {/* User consignment */}
       <Route
-        path="/private-owner"
+        path="/consignment"
         element={
-          <ProtectedRoute roles={["PRIVATE_OWNER"]}>
+          <ProtectedRoute roles={["USER"]}>
             <PrivateOwnerLayout />
           </ProtectedRoute>
         }
@@ -146,7 +137,6 @@ function App() {
         <Route path="cars" element={<PrivateOwnerCarsPage />} />
         <Route path="bookings" element={<PrivateOwnerBookingsPage />} />
         <Route path="payments" element={<PrivateOwnerPaymentsPage />} />
-        <Route path="profile" element={<PrivateOwnerProfilePage />} />
       </Route>
 
       {/* Admin */}
@@ -167,11 +157,6 @@ function App() {
           element={<AdminBusinessesPage />}
         />
 
-        <Route
-          path="private-owner-requests"
-          element={<AdminPrivateOwnerRequestsPage />}
-        />
-
         <Route path="brands" element={<AdminBrandsPage />} />
 
         <Route path="cars" element={<AdminCarsPage />} />
@@ -179,7 +164,7 @@ function App() {
       <Route
   path="/payment-result"
   element={
-    <ProtectedRoute roles={["CUSTOMER", "PRIVATE_OWNER"]}>
+    <ProtectedRoute roles={userRoles}>
       <PaymentResultPage />
     </ProtectedRoute>
   }

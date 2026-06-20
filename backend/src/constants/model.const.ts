@@ -1,8 +1,7 @@
 export enum UserRoleEnum {
   ADMIN = "ADMIN",
   BUSINESS = "BUSINESS",
-  CUSTOMER = "CUSTOMER",
-  PRIVATE_OWNER = "PRIVATE_OWNER",
+  USER = "USER",
 }
 export enum BusinessTypeEnum {
   COMPANY = "COMPANY",
@@ -90,11 +89,6 @@ export enum RentalModeEnum {
   DAILY = "DAILY",
   HOURLY = "HOURLY",
 }
-export enum PrivateOwnerRequestStatusEnum {
-  PENDING = "PENDING",
-  APPROVED = "APPROVED",
-  REJECTED = "REJECTED",
-}
 export enum ContractStatusEnum {
   DRAFT = "DRAFT",
   ACTIVE = "ACTIVE",
@@ -103,5 +97,5 @@ export enum ContractStatusEnum {
 }
 export enum OwnerTypeEnum {
   BUSINESS = "BUSINESS",
-  PRIVATE_OWNER = "PRIVATE_OWNER",
+  USER = "USER",
 }

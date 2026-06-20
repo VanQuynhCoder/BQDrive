@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import {
   BarChart3,
@@ -29,7 +29,7 @@ export default function AdminDashboardPage() {
 
     Promise.all([
       adminService.getDashboardStats(),
-      adminService.getUsers({ role: "PRIVATE_OWNER" }),
+      adminService.getUsers({ role: "USER" }),
     ])
       .then(([dashboard, privateOwners]) => {
         if (!active) return;

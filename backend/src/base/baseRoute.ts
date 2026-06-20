@@ -3,6 +3,16 @@ import express, { Request, Response, NextFunction } from "express";
 import { ErrorHelper } from "./error";
 import { TokenHelper } from "../helper/token.helper";
 
+function normalizeAuthRole(role?: string) {
+  const normalizedRole = role?.toUpperCase();
+
+  if (normalizedRole === "ADMIN" || normalizedRole === "BUSINESS") {
+    return normalizedRole;
+  }
+
+  return "USER";
+}
+
 export class BaseRoute {
   router = express.Router();
 
@@ -36,7 +46,11 @@ export class BaseRoute {
         throw ErrorHelper.unauthorized();
       }
 
-      const decoded = TokenHelper.verifyToken(token);
+      const decoded = TokenHelper.verifyToken(token) as any;
+
+      if (decoded?.role) {
+        decoded.role = normalizeAuthRole(decoded.role);
+      }
 
       (req as any).user = decoded;
 
@@ -53,6 +67,8 @@ export class BaseRoute {
         if (!user) {
           throw ErrorHelper.unauthorized();
         }
+
+        user.role = normalizeAuthRole(user.role);
 
         if (!roles.includes(user.role)) {
           throw ErrorHelper.permissionDeny();

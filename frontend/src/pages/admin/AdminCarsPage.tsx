@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   Building2,
@@ -20,7 +20,7 @@ import AdminStatusBadge from "../../components/admin/AdminStatusBadge";
 import { adminService, type AdminCar } from "../../services/admin.service";
 
 type CarAction = "approve" | "reject";
-type OwnerType = "BUSINESS" | "PRIVATE_OWNER";
+type OwnerType = "BUSINESS" | "USER";
 
 const carTypeLabels: Record<string, string> = {
   SUV: "SUV",
@@ -63,24 +63,52 @@ function getCarTypeLabel(type?: string) {
 }
 
 function getOwnerType(car: AdminCar): OwnerType {
-  if (
-    car.businessId?.businessType === "INDIVIDUAL" ||
-    car.businessId?.userId?.role === "PRIVATE_OWNER"
-  ) {
-    return "PRIVATE_OWNER";
+  if (car.ownerType === "USER") {
+    return "USER";
   }
 
   return "BUSINESS";
 }
 
 function getOwnerTypeLabel(car: AdminCar) {
-  return getOwnerType(car) === "PRIVATE_OWNER"
-    ? "Chủ xe tư nhân"
-    : "Doanh nghiệp";
+  return getOwnerType(car) === "USER" ? "Người dùng ký gửi" : "Doanh nghiệp";
+}
+
+function isObject(value: unknown): value is Record<string, any> {
+  return typeof value === "object" && value !== null;
+}
+
+function getOwnerUser(car: AdminCar) {
+  if (car.ownerType === "USER" && isObject(car.ownerId)) {
+    return car.ownerId as {
+      name?: string;
+      email?: string;
+      phone?: string;
+    };
+  }
+
+  return car.businessId?.userId;
 }
 
 function getOwnerName(car: AdminCar) {
+  if (car.ownerType === "USER") {
+    const ownerUser = getOwnerUser(car);
+    return ownerUser?.name || "--";
+  }
+
   return car.businessId?.businessName || car.businessId?.userId?.name || "--";
+}
+
+function getOwnerEmail(car: AdminCar) {
+  return getOwnerUser(car)?.email || "--";
+}
+
+function getOwnerPhone(car: AdminCar) {
+  if (car.ownerType === "USER") {
+    return getOwnerUser(car)?.phone || "--";
+  }
+
+  return car.businessId?.phone || car.businessId?.userId?.phone || "--";
 }
 
 function formatPrice(value?: number) {
@@ -181,7 +209,7 @@ export default function AdminCarsPage() {
       (car) => getOwnerType(car) === "BUSINESS",
     ).length;
     const privateOwnerCars = cars.filter(
-      (car) => getOwnerType(car) === "PRIVATE_OWNER",
+      (car) => getOwnerType(car) === "USER",
     ).length;
     const pendingCars = cars.filter((car) => car.status === "PENDING").length;
 
@@ -264,7 +292,7 @@ export default function AdminCarsPage() {
       tone: "bg-blue-50 text-blue-700",
     },
     {
-      label: "Xe tư nhân",
+      label: "Xe ký gửi",
       value: stats.privateOwnerCars,
       icon: ShieldCheck,
       tone: "bg-emerald-50 text-emerald-700",
@@ -403,7 +431,7 @@ export default function AdminCarsPage() {
                             {getOwnerName(car)}
                           </p>
                           <p className="mt-1 text-xs text-slate-400">
-                            {car.businessId?.userId?.email || "--"}
+                            {getOwnerEmail(car)}
                           </p>
                         </div>
                       </td>
@@ -595,12 +623,10 @@ export default function AdminCarsPage() {
                         {getOwnerName(detailCar)}
                       </p>
                       <p className="mt-1 text-slate-500">
-                        {detailCar.businessId?.userId?.email || "--"}
+                        {getOwnerEmail(detailCar)}
                       </p>
                       <p className="mt-1 text-slate-500">
-                        {detailCar.businessId?.phone ||
-                          detailCar.businessId?.userId?.phone ||
-                          "--"}
+                        {getOwnerPhone(detailCar)}
                       </p>
                     </div>
 
