@@ -3,6 +3,7 @@ import { ErrorHelper } from "../../base/error";
 import { BookingModel } from "../../models/booking/booking.model";
 import { BusinessModel } from "../../models/business/business.model";
 import { ContractModel } from "../../models/contract/contract.model";
+import { ReviewModel } from "../../models/review/review.model";
 import { UserModel } from "../../models/user/user.model";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
 import { formatAddress } from "../../helper/address.helper";
@@ -192,10 +193,21 @@ class ContractRoute extends BaseRoute {
     const paymentSummary = await syncContractFromBooking(booking);
     const nextStatus = getContractStatusForBookingStatus(booking.status);
     const plainContract = contract.toObject ? contract.toObject() : contract;
+    const hasReview =
+      booking.status === BookingStatusEnum.COMPLETED
+        ? Boolean(
+            await ReviewModel.exists({
+              bookingId: booking._id,
+              renterId: booking.userId,
+            }),
+          )
+        : false;
 
     return {
       ...plainContract,
       status: nextStatus,
+      hasReview,
+      canReview: booking.status === BookingStatusEnum.COMPLETED && !hasReview,
       totalPrice: paymentSummary.totalPrice,
       depositAmount: paymentSummary.depositAmount,
       paidAmount: paymentSummary.paidAmount,

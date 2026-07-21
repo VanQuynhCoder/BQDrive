@@ -8,6 +8,7 @@ import { BusinessModel } from "../../models/business/business.model";
 import { ContractModel } from "../../models/contract/contract.model";
 import { PaymentModel } from "../../models/payment/payment.model";
 import { ExtraChargeModel } from "../../models/extra-charge/extraCharge.model";
+import { ReturnInspectionModel } from "../../models/return-inspection/returnInspection.model";
 import { calculateRentalPrice } from "../../helper/rental.helper";
 import { releaseCarIfNoConfirmedBooking } from "../../helper/car-status.helper";
 import { expireOldCarts } from "../../helper/cart.helper";
@@ -28,6 +29,7 @@ import {
   sendBookingRejectedMail,
   sendRemainingCashConfirmedMail,
 } from "../../helper/mail.helper";
+import { notificationCenterService } from "../../services/notification-center.service";
 import {
   BookingStatusEnum,
   CarStatusEnum,
@@ -41,6 +43,7 @@ import {
   PaymentStatusEnum,
   PaymentTypeEnum,
   RentalModeEnum,
+  ReturnInspectionStatusEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
 import {
@@ -61,6 +64,8 @@ const BLOCKING_BOOKING_STATUSES = [
   BookingStatusEnum.PAYMENT_PENDING, // Khách đã bắt đầu thanh toán, chưa có kết quả cuối
   BookingStatusEnum.PAID, // Đã thanh toán, lịch thuê được giữ chính thức
   BookingStatusEnum.IN_PROGRESS, // Xe đang được bàn giao/đang thuê thực tế
+  BookingStatusEnum.RETURN_INSPECTION,
+  BookingStatusEnum.AWAITING_EXTRA_CHARGE,
   BookingStatusEnum.PENDING, // Trạng thái cũ: tương đương REQUESTED
   BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: tương đương PAYMENT_PENDING
   BookingStatusEnum.CONFIRMED, // Trạng thái cũ: tương đương đã được xác nhận
@@ -377,6 +382,33 @@ class BookingRoute extends BaseRoute {
         this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
       ],
       this.route(this.completeBooking),
+    );
+
+    this.router.post(
+      "/:id/receive-return",
+      [
+        this.authentication,
+        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+      ],
+      this.route(this.receiveReturn),
+    );
+
+    this.router.post(
+      "/:id/inspection/clear",
+      [
+        this.authentication,
+        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+      ],
+      this.route(this.clearReturnInspection),
+    );
+
+    this.router.get(
+      "/:id/return-inspection",
+      [
+        this.authentication,
+        this.roleGuard([UserRoleEnum.ADMIN, UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+      ],
+      this.route(this.getReturnInspection),
     );
 
     this.router.post(
@@ -859,6 +891,149 @@ class BookingRoute extends BaseRoute {
     }
   }
 
+  private async hasPendingExtraCharge(booking: any) {
+    const pendingExtraCharge = await ExtraChargeModel.findOne({
+      bookingId: booking._id,
+      status: ExtraChargeStatusEnum.PENDING,
+      isDeleted: false,
+    } as any).select("_id");
+
+    return Boolean(pendingExtraCharge);
+  }
+
+  private normalizeReturnPhotos(value: unknown) {
+    if (!Array.isArray(value)) return [];
+
+    return value
+      .filter((item) => typeof item === "string" && item.trim())
+      .map((item) => item.trim())
+      .slice(0, 8);
+  }
+
+  private getLateReturnMinutes(booking: any, actualReturnAt: Date) {
+    const expectedReturnAt = new Date(booking.endDate);
+
+    if (Number.isNaN(expectedReturnAt.getTime())) return 0;
+
+    return Math.max(
+      0,
+      Math.ceil((actualReturnAt.getTime() - expectedReturnAt.getTime()) / 60000),
+    );
+  }
+
+  private async buildReturnCompletionState(booking: any, inspection?: any) {
+    const blockers: string[] = [];
+
+    await syncBookingPaymentFromPaidPayments(booking);
+
+    if (!inspection) {
+      blockers.push("RETURN_INSPECTION_NOT_FOUND");
+    } else if (inspection.inspectionStatus !== ReturnInspectionStatusEnum.CLEARED) {
+      blockers.push("INSPECTION_NOT_CLEARED");
+    }
+
+    if (this.getOutstandingAmount(booking) > 0) {
+      blockers.push("REMAINING_PAYMENT");
+    }
+
+    if (await this.hasPendingExtraCharge(booking)) {
+      blockers.push("PENDING_EXTRA_CHARGE");
+    }
+
+    if (
+      [
+        BookingStatusEnum.COMPLETED,
+        BookingStatusEnum.CANCELLED,
+        BookingStatusEnum.REJECTED,
+        BookingStatusEnum.NO_SHOW,
+      ].includes(booking.status as BookingStatusEnum)
+    ) {
+      blockers.push("BOOKING_NOT_ACTIVE");
+    }
+
+    return {
+      canComplete: blockers.length === 0,
+      blockers,
+    };
+  }
+
+  private async findReturnInspectionForBooking(bookingId: any) {
+    return ReturnInspectionModel.findOne({
+      bookingId,
+      isDeleted: false,
+    } as any);
+  }
+
+  private async findBookingForReturnInspectionRead(id: string, authUser: any) {
+    if (authUser.role === UserRoleEnum.ADMIN) {
+      return BookingModel.findOne({
+        _id: id,
+        isDeleted: false,
+      } as any)
+        .populate("userId", "-password -otpCode")
+        .populate("carId")
+        .populate("businessId")
+        .populate("ownerId", "-password -otpCode");
+    }
+
+    if (authUser.role === UserRoleEnum.BUSINESS) {
+      const owner = await this.getOwnerContext(authUser);
+
+      return BookingModel.findOne({
+        _id: id,
+        ...this.buildOwnerFilter(owner),
+        isDeleted: false,
+      } as any)
+        .populate("userId", "-password -otpCode")
+        .populate("carId")
+        .populate("businessId")
+        .populate("ownerId", "-password -otpCode");
+    }
+
+    return BookingModel.findOne({
+      _id: id,
+      isDeleted: false,
+      $or: [
+        { userId: authUser.userId },
+        {
+          ownerId: authUser.userId,
+          ownerType: OwnerTypeEnum.USER,
+        },
+      ],
+    } as any)
+      .populate("userId", "-password -otpCode")
+      .populate("carId")
+      .populate("businessId")
+      .populate("ownerId", "-password -otpCode");
+  }
+
+  private async refreshInspectionStatusFromExtraCharges(booking: any) {
+    const inspection = await this.findReturnInspectionForBooking(booking._id);
+
+    if (!inspection || inspection.inspectionStatus === ReturnInspectionStatusEnum.CLEARED) {
+      return inspection;
+    }
+
+    if (await this.hasPendingExtraCharge(booking)) {
+      inspection.inspectionStatus = ReturnInspectionStatusEnum.CHARGES_PENDING;
+      if (booking.status !== BookingStatusEnum.AWAITING_EXTRA_CHARGE) {
+        booking.status = BookingStatusEnum.AWAITING_EXTRA_CHARGE;
+        await booking.save();
+      }
+    } else if (
+      inspection.inspectionStatus === ReturnInspectionStatusEnum.CHARGES_PENDING
+    ) {
+      inspection.inspectionStatus = ReturnInspectionStatusEnum.INSPECTING;
+      if (booking.status !== BookingStatusEnum.RETURN_INSPECTION) {
+        booking.status = BookingStatusEnum.RETURN_INSPECTION;
+        await booking.save();
+      }
+    }
+
+    await inspection.save();
+    return inspection;
+  }
+
   private assertBookingCanBeNoShow(booking: any) {
     if (booking.status === BookingStatusEnum.IN_PROGRESS) {
       throw ErrorHelper.requestDataInvalid(
@@ -1037,6 +1212,7 @@ class BookingRoute extends BaseRoute {
     });
 
     void sendBookingCreatedMail(booking);
+    void notificationCenterService.notifyBookingCreated(booking, authUser.userId);
 
     return res.status(201).json({
       status: 201,
@@ -1152,6 +1328,7 @@ class BookingRoute extends BaseRoute {
     });
 
     void sendBookingCreatedMail(booking);
+    void notificationCenterService.notifyBookingCreated(booking, authUser.userId);
 
     cart.status = CartStatusEnum.BOOKED;
     await cart.save();
@@ -1355,12 +1532,19 @@ class BookingRoute extends BaseRoute {
       .populate("carId")
       .sort({ createdAt: -1 });
     const visibleBookingIds = bookings.map((booking) => booking._id);
-    const payments = await PaymentModel.find({
-      bookingId: { $in: visibleBookingIds },
-    })
-      .sort({ createdAt: -1 })
-      .lean();
+    const [payments, returnInspections] = await Promise.all([
+      PaymentModel.find({
+        bookingId: { $in: visibleBookingIds },
+      })
+        .sort({ createdAt: -1 })
+        .lean(),
+      ReturnInspectionModel.find({
+        bookingId: { $in: visibleBookingIds },
+        isDeleted: false,
+      } as any).lean(),
+    ]);
     const paymentByBookingId = new Map<string, any>();
+    const inspectionByBookingId = new Map<string, any>();
 
     for (const payment of payments) {
       const bookingId = String(payment.bookingId);
@@ -1374,9 +1558,14 @@ class BookingRoute extends BaseRoute {
       }
     }
 
+    returnInspections.forEach((inspection) => {
+      inspectionByBookingId.set(String(inspection.bookingId || ""), inspection);
+    });
+
     const bookingsWithPayment = bookings.map((booking) => ({
       ...booking.toObject(),
       payment: paymentByBookingId.get(String(booking._id)) || null,
+      returnInspection: inspectionByBookingId.get(String(booking._id)) || null,
     }));
 
     return res.status(200).json({
@@ -1717,6 +1906,7 @@ class BookingRoute extends BaseRoute {
     booking.status = BookingStatusEnum.CANCELLED;
     booking.cancelReason = cancelReason || "Customer hủy booking";
     await booking.save();
+    void notificationCenterService.notifyBookingCancelled(booking, authUser.userId);
 
     return res.status(200).json({
       status: 200,
@@ -1765,6 +1955,7 @@ class BookingRoute extends BaseRoute {
     booking.status = BookingStatusEnum.OWNER_APPROVED; // Chủ xe đồng ý: khách bắt đầu được tạo hợp đồng/thanh toán
     await booking.save();
     void sendBookingApprovedMail(booking);
+    void notificationCenterService.notifyBookingApproved(booking, authUser.userId);
 
     return res.status(200).json({
       status: 200,
@@ -1798,6 +1989,11 @@ class BookingRoute extends BaseRoute {
     booking.cancelReason = rejectReason || "Business rejected booking";
     await booking.save();
     void sendBookingRejectedMail(booking);
+    void notificationCenterService.notifyBookingRejected(
+      booking,
+      booking.cancelReason,
+      authUser.userId,
+    );
 
     return res.status(200).json({
       status: 200,
@@ -1855,6 +2051,13 @@ class BookingRoute extends BaseRoute {
       authUser,
       note,
     );
+    if (result.payment) {
+      void notificationCenterService.notifyCashPaymentConfirmed(
+        booking,
+        result.payment,
+        authUser.userId,
+      );
+    }
     const freshBooking = await BookingModel.findById(booking._id)
       .populate("userId", "-password")
       .populate("carId")
@@ -1919,12 +2122,247 @@ class BookingRoute extends BaseRoute {
     booking.status = BookingStatusEnum.IN_PROGRESS;
     await booking.save();
     void sendBookingHandoverMail(booking);
+    void notificationCenterService.notifyHandoverCompleted(booking, authUser.userId);
 
     return res.status(200).json({
       status: 200,
       code: "200",
       message: "Bàn giao xe thành công",
       data: { booking },
+    });
+  }
+
+  async receiveReturn(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const id = String(req.params.id);
+    const owner = await this.getOwnerContext(authUser);
+
+    const booking = await BookingModel.findOne({
+      _id: id,
+      ...this.buildOwnerFilter(owner),
+      status: BookingStatusEnum.IN_PROGRESS,
+      isDeleted: false,
+    } as any);
+
+    if (!booking) {
+      throw ErrorHelper.requestDataInvalid(
+        "Booking chưa ở trạng thái đang thuê hoặc bạn không có quyền tiếp nhận xe trả.",
+      );
+    }
+
+    hydrateLegacyBookingOwner(booking);
+
+    const existedInspection = await this.findReturnInspectionForBooking(booking._id);
+
+    if (existedInspection) {
+      throw ErrorHelper.requestDataInvalid(
+        "Xe đã được tiếp nhận trả trước đó.",
+      );
+    }
+
+    const actualReturnAt = new Date(req.body?.actualReturnAt || new Date());
+
+    if (Number.isNaN(actualReturnAt.getTime())) {
+      throw ErrorHelper.requestDataInvalid("Thời gian trả xe thực tế không hợp lệ.");
+    }
+
+    if (actualReturnAt.getTime() < new Date(booking.startDate).getTime()) {
+      throw ErrorHelper.requestDataInvalid(
+        "Thời gian trả xe không được trước thời gian nhận xe.",
+      );
+    }
+
+    const returnOdometerRaw = req.body?.returnOdometer;
+    const returnFuelLevelRaw = req.body?.returnFuelLevel;
+    const returnOdometer =
+      returnOdometerRaw === undefined || returnOdometerRaw === ""
+        ? undefined
+        : Number(returnOdometerRaw);
+    const returnFuelLevel =
+      returnFuelLevelRaw === undefined || returnFuelLevelRaw === ""
+        ? undefined
+        : Number(returnFuelLevelRaw);
+
+    if (
+      returnOdometer !== undefined &&
+      (!Number.isFinite(returnOdometer) || returnOdometer < 0)
+    ) {
+      throw ErrorHelper.requestDataInvalid("Số kilomet lúc trả không hợp lệ.");
+    }
+
+    if (
+      returnFuelLevel !== undefined &&
+      (!Number.isFinite(returnFuelLevel) ||
+        returnFuelLevel < 0 ||
+        returnFuelLevel > 100)
+    ) {
+      throw ErrorHelper.requestDataInvalid(
+        "Mức nhiên liệu lúc trả phải nằm trong khoảng 0 đến 100.",
+      );
+    }
+
+    const conditionNotes = String(req.body?.conditionNotes || "").trim();
+
+    if (conditionNotes.length > 1000) {
+      throw ErrorHelper.requestDataInvalid(
+        "Ghi chú tình trạng xe không được vượt quá 1000 ký tự.",
+      );
+    }
+
+    const lateMinutes = this.getLateReturnMinutes(booking, actualReturnAt);
+
+    const inspectionPayload: any = {
+      bookingId: booking._id,
+      carId: booking.carId,
+      renterId: booking.userId,
+      ownerId: booking.ownerId || booking.businessId,
+      ownerType: booking.ownerType || OwnerTypeEnum.BUSINESS,
+      ownerModel:
+        (booking.ownerType || OwnerTypeEnum.BUSINESS) === OwnerTypeEnum.USER
+          ? "User"
+          : "Business",
+      receivedAt: new Date(),
+      receivedBy: authUser.userId,
+      actualReturnAt,
+      returnPhotos: this.normalizeReturnPhotos(req.body?.returnPhotos),
+      conditionNotes,
+      isLate: lateMinutes > 0,
+      lateMinutes,
+      hasDamage: Boolean(req.body?.hasDamage),
+      hasCleaningIssue: Boolean(req.body?.hasCleaningIssue),
+      hasFuelShortage: Boolean(req.body?.hasFuelShortage),
+      inspectionStatus: ReturnInspectionStatusEnum.RECEIVED,
+    };
+
+    if (returnOdometer !== undefined) {
+      inspectionPayload.returnOdometer = returnOdometer;
+    }
+
+    if (returnFuelLevel !== undefined) {
+      inspectionPayload.returnFuelLevel = returnFuelLevel;
+    }
+
+    const inspection = await ReturnInspectionModel.create(inspectionPayload);
+
+    booking.status = BookingStatusEnum.RETURN_INSPECTION;
+    await booking.save();
+    void notificationCenterService.notifyReturnReceived(booking, authUser.userId);
+
+    const completionState = await this.buildReturnCompletionState(booking, inspection);
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "Đã tiếp nhận xe trả. Vui lòng kiểm tra tình trạng xe.",
+      data: { booking, inspection, completionState },
+    });
+  }
+
+  async getReturnInspection(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const id = String(req.params.id);
+    const booking = await this.findBookingForReturnInspectionRead(id, authUser);
+
+    if (!booking) {
+      throw ErrorHelper.recordNotFound("Booking");
+    }
+
+    hydrateLegacyBookingOwner(booking);
+    const inspection = await this.refreshInspectionStatusFromExtraCharges(booking);
+    const extraCharges = await ExtraChargeModel.find({
+      bookingId: booking._id,
+      isDeleted: false,
+    } as any).sort({ createdAt: -1 });
+    const completionState = await this.buildReturnCompletionState(
+      booking,
+      inspection,
+    );
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "success",
+      data: {
+        booking,
+        inspection,
+        extraCharges,
+        completionState,
+      },
+    });
+  }
+
+  async clearReturnInspection(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const id = String(req.params.id);
+    const owner = await this.getOwnerContext(authUser);
+
+    const booking = await BookingModel.findOne({
+      _id: id,
+      ...this.buildOwnerFilter(owner),
+      status: {
+        $in: [
+          BookingStatusEnum.RETURN_INSPECTION,
+          BookingStatusEnum.AWAITING_EXTRA_CHARGE,
+        ],
+      },
+      isDeleted: false,
+    } as any);
+
+    if (!booking) {
+      throw ErrorHelper.requestDataInvalid(
+        "Bạn không có quyền kiểm tra xe hoặc booking chưa ở bước kiểm tra.",
+      );
+    }
+
+    hydrateLegacyBookingOwner(booking);
+    const inspection = await this.findReturnInspectionForBooking(booking._id);
+
+    if (!inspection) {
+      throw ErrorHelper.requestDataInvalid(
+        "Bạn phải tiếp nhận xe trả trước khi xác nhận kiểm tra.",
+      );
+    }
+
+    if (inspection.inspectionStatus === ReturnInspectionStatusEnum.CLEARED) {
+      throw ErrorHelper.requestDataInvalid("Biên bản kiểm tra đã được hoàn tất.");
+    }
+
+    if (await this.hasPendingExtraCharge(booking)) {
+      inspection.inspectionStatus = ReturnInspectionStatusEnum.CHARGES_PENDING;
+      await inspection.save();
+      booking.status = BookingStatusEnum.AWAITING_EXTRA_CHARGE;
+      await booking.save();
+
+      throw ErrorHelper.requestDataInvalid(
+        "Booking vẫn còn phí phát sinh đang chờ xử lý.",
+      );
+    }
+
+    const conditionNotes = String(req.body?.conditionNotes || "").trim();
+
+    if (conditionNotes) {
+      inspection.conditionNotes = conditionNotes.slice(0, 1000);
+    }
+
+    inspection.inspectionStatus = ReturnInspectionStatusEnum.CLEARED;
+    inspection.inspectedAt = new Date();
+    inspection.inspectedBy = authUser.userId;
+    await inspection.save();
+
+    booking.status = BookingStatusEnum.RETURN_INSPECTION;
+    await booking.save();
+    void notificationCenterService.notifyReturnInspectionCleared(
+      booking,
+      authUser.userId,
+    );
+
+    const completionState = await this.buildReturnCompletionState(booking, inspection);
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "Đã xác nhận xe không có phát sinh.",
+      data: { booking, inspection, completionState },
     });
   }
 
@@ -1937,15 +2375,36 @@ class BookingRoute extends BaseRoute {
     const booking = await BookingModel.findOne({
       _id: id,
       ...this.buildOwnerFilter(owner),
-      status: BookingStatusEnum.IN_PROGRESS,
+      status: {
+        $in: [
+          BookingStatusEnum.RETURN_INSPECTION,
+          BookingStatusEnum.AWAITING_EXTRA_CHARGE,
+        ],
+      },
       isDeleted: false,
     } as any);
 
     if (!booking) {
-      throw ErrorHelper.recordNotFound("Booking IN_PROGRESS");
+      throw ErrorHelper.requestDataInvalid(
+        "Bạn phải tiếp nhận và kiểm tra xe trước khi hoàn tất booking.",
+      );
     }
 
     hydrateLegacyBookingOwner(booking);
+    const inspection = await this.findReturnInspectionForBooking(booking._id);
+
+    if (!inspection) {
+      throw ErrorHelper.requestDataInvalid(
+        "Bạn phải tiếp nhận và kiểm tra xe trước khi hoàn tất booking.",
+      );
+    }
+
+    if (inspection.inspectionStatus !== ReturnInspectionStatusEnum.CLEARED) {
+      throw ErrorHelper.requestDataInvalid(
+        "Việc kiểm tra tình trạng xe chưa hoàn tất.",
+      );
+    }
+
     await syncBookingPaymentFromPaidPayments(booking);
     this.assertBookingPaymentIsSettled(booking);
     await this.assertExtraChargesAreSettled(booking);
@@ -1954,6 +2413,7 @@ class BookingRoute extends BaseRoute {
     await syncContractFromBooking(booking);
     await releaseCarIfNoConfirmedBooking(booking.carId);
     void sendBookingCompletedMail(booking);
+    void notificationCenterService.notifyBookingCompleted(booking, authUser.userId);
 
     return res.status(200).json({
       status: 200,
@@ -1994,6 +2454,7 @@ class BookingRoute extends BaseRoute {
     await booking.save();
     await releaseCarIfNoConfirmedBooking(booking.carId);
     void sendBookingNoShowMail(booking);
+    void notificationCenterService.notifyNoShow(booking, authUser.userId);
 
     return res.status(200).json({
       status: 200,

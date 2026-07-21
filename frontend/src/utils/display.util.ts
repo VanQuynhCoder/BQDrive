@@ -82,6 +82,53 @@ export function getCarStatusLabel(status?: string) {
   return map[status || ""] || status || "--";
 }
 
+export type CarStatusTone = "green" | "red" | "yellow" | "blue" | "gray";
+
+export function getCarStatusMeta(status?: string): {
+  label: string;
+  tone: CarStatusTone;
+  className: string;
+} {
+  const map: Record<
+    string,
+    { label: string; tone: CarStatusTone; className: string }
+  > = {
+    PENDING: {
+      label: "Chờ duyệt",
+      tone: "yellow",
+      className: "bg-yellow-50 text-amber-700 ring-yellow-200",
+    },
+    APPROVED: {
+      label: "Đã duyệt",
+      tone: "green",
+      className: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    },
+    RENTED: {
+      label: "Đang được thuê",
+      tone: "blue",
+      className: "bg-primary text-secondary ring-primary",
+    },
+    REJECTED: {
+      label: "Từ chối",
+      tone: "red",
+      className: "bg-red-50 text-red-700 ring-red-200",
+    },
+    HIDDEN: {
+      label: "Đã ẩn",
+      tone: "gray",
+      className: "bg-slate-100 text-slate-700 ring-slate-200",
+    },
+  };
+
+  return (
+    map[status || ""] || {
+      label: status || "--",
+      tone: "gray",
+      className: "bg-slate-100 text-slate-700 ring-slate-200",
+    }
+  );
+}
+
 export function getBusinessTypeLabel(type?: string) {
   const map: Record<string, string> = {
     COMPANY: "Công ty",

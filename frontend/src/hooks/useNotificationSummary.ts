@@ -78,7 +78,11 @@ export function useNotificationSummary({
   return {
     summary,
     items: summary.items,
-    total: summary.total,
+    total: summary.actionRequiredCount ?? summary.total,
+    actionRequiredCount: summary.actionRequiredCount ?? summary.total,
+    waitingCount: summary.waitingCount ?? 0,
+    highPriorityCount: summary.highPriorityCount ?? 0,
+    topTasks: summary.topTasks || [],
     loading,
     refresh,
     getCount,

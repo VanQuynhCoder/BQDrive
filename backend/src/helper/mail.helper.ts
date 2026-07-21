@@ -210,7 +210,7 @@ function formatRentalPeriod(booking: any) {
 }
 
 function getSupportPhone() {
-  return process.env.SUPPORT_PHONE || process.env.HOTLINE || "Dang cap nhat";
+  return process.env.SUPPORT_PHONE || process.env.HOTLINE || "Đang cập nhật";
 }
 
 function getSupportEmail() {
@@ -219,7 +219,7 @@ function getSupportEmail() {
     process.env.EMAIL_FROM_ADDRESS ||
     smtpConfig.fromAddress ||
     smtpConfig.user ||
-    "Dang cap nhat"
+    "Đang cập nhật"
   );
 }
 
@@ -240,7 +240,7 @@ function renderBusinessMail(payload: MailPayload) {
       <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
         <div style="background:#0f172a;padding:22px 24px;">
           <div style="font-size:22px;font-weight:800;color:#eab308;">BQDrive</div>
-          <div style="margin-top:6px;color:#ffffffcc;font-size:14px;">ThÃ´ng bÃ¡o nghiá»‡p vá»¥</div>
+          <div style="margin-top:6px;color:#ffffffcc;font-size:14px;">Thông báo nghiệp vụ</div>
         </div>
         <div style="padding:24px;">
           <h2 style="margin:0 0 12px;font-size:20px;color:#0f172a;">${escapeHtml(payload.subject)}</h2>
@@ -392,7 +392,7 @@ async function getOwnerRecipient(ownerType: unknown, ownerId: unknown, businessI
     const user = await getUserById(ownerId);
     return {
       email: user?.email,
-      name: user?.name || "Chá»§ xe kÃ½ gá»­i",
+      name: user?.name || "Chủ xe ký gửi",
     };
   }
 
@@ -401,7 +401,7 @@ async function getOwnerRecipient(ownerType: unknown, ownerId: unknown, businessI
 
   return {
     email: businessUser?.email,
-    name: business?.businessName || businessUser?.name || "Doanh nghiá»‡p",
+    name: business?.businessName || businessUser?.name || "Doanh nghiệp",
   };
 }
 
@@ -466,7 +466,7 @@ async function getHolidayPricingRecipients() {
 
   users.forEach((user: any) => {
     if (user.email) {
-      recipients.set(user.email, user.name || "NgÆ°á»i dÃ¹ng kÃ½ gá»­i");
+      recipients.set(user.email, user.name || "Người dùng ký gửi");
     }
   });
 
@@ -476,7 +476,7 @@ async function getHolidayPricingRecipients() {
     if (businessUser?.email) {
       recipients.set(
         businessUser.email,
-        business.businessName || businessUser.name || "Doanh nghiá»‡p",
+        business.businessName || businessUser.name || "Doanh nghiệp",
       );
     }
   });
@@ -494,10 +494,10 @@ function getCarName(car: any) {
 function getBookingLines(booking: any, car: any, customer?: any) {
   return compactLines([
     `Xe: ${getCarName(car)}`,
-    customer?.name ? `KhÃ¡ch thuÃª: ${customer.name}` : undefined,
-    `Thá»i gian nháº­n xe: ${formatDateTime(booking?.startDate)}`,
-    `Thá»i gian tráº£ xe: ${formatDateTime(booking?.endDate)}`,
-    `Tá»•ng tiá»n dá»± kiáº¿n: ${formatCurrency(booking?.totalPrice)}`,
+    customer?.name ? `Khách thuê: ${customer.name}` : undefined,
+    `Thời gian nhận xe: ${formatDateTime(booking?.startDate)}`,
+    `Thời gian trả xe: ${formatDateTime(booking?.endDate)}`,
+    `Tổng tiền dự kiến: ${formatCurrency(booking?.totalPrice)}`,
   ]);
 }
 
@@ -510,9 +510,9 @@ function getCarLines(car: any, ownerName?: string) {
 
   return compactLines([
     `Xe: ${getCarName(car)}`,
-    brandName ? `HÃ£ng xe: ${brandName}` : undefined,
-    ownerName ? `Chá»§ sá»Ÿ há»¯u: ${ownerName}` : undefined,
-    `GiÃ¡ thuÃª: ${rentalPrice}`,
+    brandName ? `Hãng xe: ${brandName}` : undefined,
+    ownerName ? `Chủ sở hữu: ${ownerName}` : undefined,
+    `Giá thuê: ${rentalPrice}`,
   ]);
 }
 
@@ -588,7 +588,7 @@ export async function sendOtpMail(email: string, otp: string) {
   if (smtpConfig.mode === "console") {
     console.log("MAIL_MODE=console, skip real OTP email", {
       to: email,
-      subject: "BQDrive - MÃ£ xÃ¡c thá»±c OTP",
+      subject: "BQDrive - Mã xác thực OTP",
       otp,
     });
     return;
@@ -601,14 +601,14 @@ export async function sendOtpMail(email: string, otp: string) {
       await transporter.sendMail({
         from: getMailFrom(),
         to: email,
-        subject: "BQDrive - MÃ£ xÃ¡c thá»±c OTP",
+        subject: "BQDrive - Mã xác thực OTP",
         html: `
           <div style="font-family: Arial, sans-serif;">
             <h2>BQDrive</h2>
-            <p>MÃ£ OTP xÃ¡c thá»±c tÃ i khoáº£n cá»§a báº¡n lÃ :</p>
+            <p>Mã OTP xác thực tài khoản của bạn là:</p>
             <h1 style="letter-spacing: 4px;">${otp}</h1>
-            <p>MÃ£ nÃ y cÃ³ hiá»‡u lá»±c trong 5 phÃºt.</p>
-            <p>Náº¿u báº¡n khÃ´ng yÃªu cáº§u Ä‘Äƒng kÃ½, vui lÃ²ng bá» qua email nÃ y.</p>
+            <p>Mã này có hiệu lực trong 5 phút.</p>
+            <p>Nếu bạn không yêu cầu đăng ký, vui lòng bỏ qua email này.</p>
           </div>
         `,
       });
@@ -648,8 +648,8 @@ export async function sendOtpMail(email: string, otp: string) {
 export async function sendPasswordResetOtpMail(email: string, otp: string, name?: string) {
   assertMailEnv();
 
-  const subject = "BQDrive - MÃ£ xÃ¡c thá»±c Ä‘áº·t láº¡i máº­t kháº©u";
-  const displayName = name || "báº¡n";
+  const subject = "BQDrive - Mã xác thực đặt lại mật khẩu";
+  const displayName = name || "bạn";
 
   let lastError: unknown = null;
 
@@ -673,12 +673,12 @@ export async function sendPasswordResetOtpMail(email: string, otp: string, name?
         html: `
           <div style="font-family: Arial, sans-serif; color: #111827;">
             <h2 style="margin: 0 0 12px;">BQDrive</h2>
-            <p>ChÃ o ${displayName},</p>
-            <p>Báº¡n Ä‘ang yÃªu cáº§u Ä‘áº·t láº¡i máº­t kháº©u cho tÃ i khoáº£n BQDrive.</p>
-            <p>MÃ£ xÃ¡c thá»±c cá»§a báº¡n lÃ :</p>
+            <p>Chào ${displayName},</p>
+            <p>Bạn đang yêu cầu đặt lại mật khẩu cho tài khoản BQDrive.</p>
+            <p>Mã xác thực của bạn là:</p>
             <h1 style="letter-spacing: 6px; color: #0f172a;">${otp}</h1>
-            <p>MÃ£ cÃ³ hiá»‡u lá»±c trong 5 phÃºt.</p>
-            <p>Náº¿u báº¡n khÃ´ng yÃªu cáº§u Ä‘áº·t láº¡i máº­t kháº©u, vui lÃ²ng bá» qua email nÃ y.</p>
+            <p>Mã có hiệu lực trong 5 phút.</p>
+            <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
           </div>
         `,
       });
@@ -719,11 +719,11 @@ export async function sendPasswordChangedMail(email: string, name?: string) {
   await safeSendMail("sendPasswordChangedMail", async () => {
     await sendBusinessNotificationMail({
       to: email,
-      subject: "BQDrive - Máº­t kháº©u Ä‘Ã£ Ä‘Æ°á»£c thay Ä‘á»•i",
-      intro: `ChÃ o ${name || "báº¡n"}, máº­t kháº©u tÃ i khoáº£n BQDrive cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c thay Ä‘á»•i thÃ nh cÃ´ng.`,
+      subject: "BQDrive - Mật khẩu đã được thay đổi",
+      intro: `Chào ${name || "bạn"}, mật khẩu tài khoản BQDrive của bạn đã được thay đổi thành công.`,
       lines: [
-        "Náº¿u báº¡n thá»±c hiá»‡n thay Ä‘á»•i nÃ y, báº¡n cÃ³ thá»ƒ Ä‘Äƒng nháº­p báº±ng máº­t kháº©u má»›i.",
-        "Náº¿u báº¡n khÃ´ng thá»±c hiá»‡n thay Ä‘á»•i nÃ y, vui lÃ²ng liÃªn há»‡ bá»™ pháº­n há»— trá»£ BQDrive ngay.",
+        "Nếu bạn thực hiện thay đổi này, bạn có thể đăng nhập bằng mật khẩu mới.",
+        "Nếu bạn không thực hiện thay đổi này, vui lòng liên hệ bộ phận hỗ trợ BQDrive ngay.",
       ],
     });
   });
@@ -739,11 +739,11 @@ export async function sendBookingCreatedMail(booking: any) {
 
     await sendBusinessNotificationMail({
       to: owner.email,
-      subject: "BQDrive - CÃ³ yÃªu cáº§u thuÃª xe má»›i",
+      subject: "BQDrive - Có yêu cầu thuê xe mới",
       intro:
-        "KhÃ¡ch vá»«a gá»­i yÃªu cáº§u thuÃª xe. Vui lÃ²ng vÃ o há»‡ thá»‘ng Ä‘á»ƒ duyá»‡t hoáº·c tá»« chá»‘i yÃªu cáº§u nÃ y.",
+        "Khách vừa gửi yêu cầu thuê xe. Vui lòng vào hệ thống để duyệt hoặc từ chối yêu cầu này.",
       lines: getBookingLines(booking, car, customer),
-      actionText: "Báº¡n cáº§n xá»­ lÃ½ booking nÃ y trong trang quáº£n lÃ½ booking.",
+      actionText: "Bạn cần xử lý booking này trong trang quản lý booking.",
     });
   });
 }
@@ -757,11 +757,11 @@ export async function sendBookingApprovedMail(booking: any) {
 
     await sendBusinessNotificationMail({
       to: customer?.email,
-      subject: "BQDrive - YÃªu cáº§u thuÃª xe Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t",
+      subject: "BQDrive - Yêu cầu thuê xe đã được duyệt",
       intro:
-        "YÃªu cáº§u thuÃª xe cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c chá»§ xe duyá»‡t. Vui lÃ²ng tiáº¿p tá»¥c thanh toÃ¡n Ä‘á»ƒ hoÃ n táº¥t bÆ°á»›c Ä‘áº·t xe.",
+        "Yêu cầu thuê xe của bạn đã được chủ xe duyệt. Vui lòng tiếp tục thanh toán để hoàn tất bước đặt xe.",
       lines: getBookingLines(booking, car),
-      actionText: "Báº¡n cÃ³ thá»ƒ quay láº¡i BQDrive Ä‘á»ƒ tiáº¿p tá»¥c thanh toÃ¡n.",
+      actionText: "Bạn có thể quay lại BQDrive để tiếp tục thanh toán.",
     });
   });
 }
@@ -775,12 +775,12 @@ export async function sendBookingRejectedMail(booking: any) {
 
     await sendBusinessNotificationMail({
       to: customer?.email,
-      subject: "BQDrive - YÃªu cáº§u thuÃª xe bá»‹ tá»« chá»‘i",
+      subject: "BQDrive - Yêu cầu thuê xe bị từ chối",
       intro:
-        "YÃªu cáº§u thuÃª xe cá»§a báº¡n Ä‘Ã£ bá»‹ chá»§ xe tá»« chá»‘i. Báº¡n cÃ³ thá»ƒ chá»n xe hoáº·c khung thá»i gian khÃ¡c trÃªn BQDrive.",
+        "Yêu cầu thuê xe của bạn đã bị chủ xe từ chối. Bạn có thể chọn xe hoặc khung thời gian khác trên BQDrive.",
       lines: compactLines([
         ...getBookingLines(booking, car),
-        booking?.cancelReason ? `LÃ½ do: ${booking.cancelReason}` : undefined,
+        booking?.cancelReason ? `Lý do: ${booking.cancelReason}` : undefined,
       ]),
     });
   });
@@ -796,14 +796,14 @@ export async function sendCashPaymentSelectedMail(booking: any, payment?: any) {
 
     await sendBusinessNotificationMail({
       to: owner.email,
-      subject: "BQDrive - KhÃ¡ch chá»n thanh toÃ¡n khi nháº­n xe",
+      subject: "BQDrive - Khách chọn thanh toán khi nhận xe",
       intro:
-        "KhÃ¡ch Ä‘Ã£ chá»n thanh toÃ¡n tiá»n máº·t khi nháº­n xe. Chá»§ xe cáº§n bÃ n giao xe vÃ  xÃ¡c nháº­n Ä‘Ã£ nháº­n tiá»n Ä‘Ãºng quy trÃ¬nh.",
+        "Khách đã chọn thanh toán tiền mặt khi nhận xe. Chủ xe cần bàn giao xe và xác nhận đã nhận tiền đúng quy trình.",
       lines: compactLines([
         ...getBookingLines(booking, car, customer),
-        payment?.amount ? `Sá»‘ tiá»n cáº§n thu: ${formatCurrency(payment.amount)}` : undefined,
+        payment?.amount ? `Số tiền cần thu: ${formatCurrency(payment.amount)}` : undefined,
       ]),
-      actionText: "Vui lÃ²ng kiá»ƒm tra booking trÆ°á»›c khi bÃ n giao xe.",
+      actionText: "Vui lòng kiểm tra booking trước khi bàn giao xe.",
     });
   });
 }
@@ -822,19 +822,19 @@ export async function sendPaymentSuccessMail(booking: any, payment?: any) {
 
     const lines = compactLines([
       ...getBookingLines(booking, car, customer),
-      payment?.amount ? `Sá»‘ tiá»n Ä‘Ã£ thanh toÃ¡n: ${formatCurrency(payment.amount)}` : undefined,
-      payment?.method ? `PhÆ°Æ¡ng thá»©c: ${payment.method}` : undefined,
+      payment?.amount ? `Số tiền đã thanh toán: ${formatCurrency(payment.amount)}` : undefined,
+      payment?.method ? `Phương thức: ${payment.method}` : undefined,
     ]);
     const intro = isDepositPayment
-      ? "Thanh toÃ¡n cá»c Ä‘Ã£ Ä‘Æ°á»£c ghi nháº­n thÃ nh cÃ´ng. Booking váº«n cÃ²n pháº§n tiá»n cÃ²n láº¡i cáº§n xá»­ lÃ½."
-      : "Thanh toÃ¡n Ä‘Ã£ Ä‘Æ°á»£c ghi nháº­n thÃ nh cÃ´ng. Booking Ä‘Ã£ thanh toÃ¡n Ä‘á»§ khoáº£n cáº§n tráº£.";
+      ? "Thanh toán cọc đã được ghi nhận thành công. Booking vẫn còn phần tiền còn lại cần xử lý."
+      : "Thanh toán đã được ghi nhận thành công. Booking đã thanh toán đủ khoản cần trả.";
     const actionText = isDepositPayment
-      ? "Pháº§n cÃ²n láº¡i cÃ³ thá»ƒ thanh toÃ¡n trÃªn há»‡ thá»‘ng hoáº·c tráº£ trá»±c tiáº¿p khi nháº­n xe."
-      : "Vui lÃ²ng theo dÃµi lá»‹ch nháº­n xe trÃªn há»‡ thá»‘ng BQDrive.";
+      ? "Phần còn lại có thể thanh toán trên hệ thống hoặc trả trực tiếp khi nhận xe."
+      : "Vui lòng theo dõi lịch nhận xe trên hệ thống BQDrive.";
 
     await sendBusinessNotificationMail({
       to: [customer?.email, owner.email].filter(Boolean),
-      subject: "BQDrive - Thanh toÃ¡n thÃ nh cÃ´ng",
+      subject: "BQDrive - Thanh toán thành công",
       intro,
       lines,
       actionText,
@@ -910,22 +910,22 @@ export async function sendDepositRemainingPaymentMail(booking: any, payment?: an
 
     await sendBusinessNotificationMail({
       to: customer?.email,
-      subject: "BQDrive - Thanh toÃ¡n cá»c thÃ nh cÃ´ng, cÃ²n láº¡i cáº§n thanh toÃ¡n",
+      subject: "BQDrive - Thanh toán cọc thành công, còn lại cần thanh toán",
       intro:
-        `Xin chÃ o ${customer?.name || "báº¡n"}, BQDrive Ä‘Ã£ ghi nháº­n thanh toÃ¡n cá»c thÃ nh cÃ´ng cho booking #${bookingCode}.`,
+        `Xin chào ${customer?.name || "bạn"}, BQDrive đã ghi nhận thanh toán cọc thành công cho booking #${bookingCode}.`,
       lines: compactLines([
         ...getBookingLines(booking, car, customer),
-        `Tá»•ng tiá»n thuÃª: ${formatCurrency(booking?.totalPrice)}`,
+        `Tổng tiền thuê: ${formatCurrency(booking?.totalPrice)}`,
         payment?.amount
-          ? `Sá»‘ tiá»n cá»c Ä‘Ã£ thanh toÃ¡n: ${formatCurrency(payment.amount)}`
+          ? `Số tiền cọc đã thanh toán: ${formatCurrency(payment.amount)}`
           : undefined,
-        `Sá»‘ tiá»n cÃ²n láº¡i cáº§n thanh toÃ¡n: ${formatCurrency(remainingAmount)}`,
-        "Báº¡n cÃ³ thá»ƒ xá»­ lÃ½ pháº§n cÃ²n láº¡i báº±ng má»™t trong hai cÃ¡ch:",
-        "1. Thanh toÃ¡n pháº§n cÃ²n láº¡i trÃªn há»‡ thá»‘ng BQDrive.",
-        "2. Thanh toÃ¡n trá»±c tiáº¿p cho chá»§ xe khi nháº­n xe.",
+        `Số tiền còn lại cần thanh toán: ${formatCurrency(remainingAmount)}`,
+        "Bạn có thể xử lý phần còn lại bằng một trong hai cách:",
+        "1. Thanh toán phần còn lại trên hệ thống BQDrive.",
+        "2. Thanh toán trực tiếp cho chủ xe khi nhận xe.",
       ]),
       actionText:
-        "LÆ°u Ã½: Náº¿u thanh toÃ¡n trá»±c tiáº¿p, khoáº£n tiá»n sáº½ Ä‘Æ°á»£c ghi nháº­n trÃªn há»‡ thá»‘ng sau khi chá»§ xe xÃ¡c nháº­n Ä‘Ã£ thu.",
+        "Lưu ý: Nếu thanh toán trực tiếp, khoản tiền sẽ được ghi nhận trên hệ thống sau khi chủ xe xác nhận đã thu.",
     });
 
     console.info("Remaining payment reminder mail sent", {
@@ -945,17 +945,17 @@ export async function sendRemainingCashConfirmedMail(booking: any, payment?: any
 
     await sendBusinessNotificationMail({
       to: customer?.email,
-      subject: "BQDrive - Chá»§ xe Ä‘Ã£ xÃ¡c nháº­n thu pháº§n cÃ²n láº¡i",
+      subject: "BQDrive - Chủ xe đã xác nhận thu phần còn lại",
       intro:
-        "Chá»§ xe Ä‘Ã£ xÃ¡c nháº­n thu pháº§n tiá»n cÃ²n láº¡i trá»±c tiáº¿p. Booking hiá»‡n Ä‘Ã£ thanh toÃ¡n Ä‘á»§.",
+        "Chủ xe đã xác nhận thu phần tiền còn lại trực tiếp. Booking hiện đã thanh toán đủ.",
       lines: compactLines([
         ...getBookingLines(booking, car, customer),
         payment?.amount
-          ? `Sá»‘ tiá»n Ä‘Ã£ thu trá»±c tiáº¿p: ${formatCurrency(payment.amount)}`
+          ? `Số tiền đã thu trực tiếp: ${formatCurrency(payment.amount)}`
           : undefined,
-        "PhÆ°Æ¡ng thá»©c ghi nháº­n: Tiá»n máº·t / thanh toÃ¡n trá»±c tiáº¿p khi nháº­n xe.",
+        "Phương thức ghi nhận: Tiền mặt / thanh toán trực tiếp khi nhận xe.",
       ]),
-      actionText: "Cáº£m Æ¡n báº¡n Ä‘Ã£ sá»­ dá»¥ng BQDrive.",
+      actionText: "Cảm ơn bạn đã sử dụng BQDrive.",
     });
   });
 }
@@ -969,11 +969,11 @@ export async function sendBookingHandoverMail(booking: any) {
 
     await sendBusinessNotificationMail({
       to: customer?.email,
-      subject: "BQDrive - Chuyáº¿n thuÃª Ä‘Ã£ báº¯t Ä‘áº§u",
+      subject: "BQDrive - Chuyến thuê đã bắt đầu",
       intro:
-        "Xe Ä‘Ã£ Ä‘Æ°á»£c bÃ n giao thÃ nh cÃ´ng. Chuyáº¿n thuÃª cá»§a báº¡n hiá»‡n Ä‘ang diá»…n ra.",
+        "Xe đã được bàn giao thành công. Chuyến thuê của bạn hiện đang diễn ra.",
       lines: getBookingLines(booking, car),
-      actionText: "ChÃºc báº¡n cÃ³ má»™t chuyáº¿n Ä‘i an toÃ n cÃ¹ng BQDrive.",
+      actionText: "Chúc bạn có một chuyến đi an toàn cùng BQDrive.",
     });
   });
 }
@@ -987,18 +987,18 @@ export async function sendBookingReturnReminderMail(booking: any) {
 
     await sendBusinessNotificationMail({
       to: customer?.email || booking?.renterInfo?.email,
-      subject: "BQDrive - Sáº¯p Ä‘áº¿n háº¡n tráº£ xe",
+      subject: "BQDrive - Sắp đến hạn trả xe",
       intro:
-        "Chuyáº¿n thuÃª xe cá»§a báº¡n sáº¯p Ä‘áº¿n thá»i gian tráº£ xe. Vui lÃ²ng chuáº©n bá»‹ tráº£ xe Ä‘Ãºng giá» vÃ  kiá»ƒm tra láº¡i tÃ i sáº£n cÃ¡ nhÃ¢n trÆ°á»›c khi bÃ n giao.",
+        "Chuyến thuê xe của bạn sắp đến thời gian trả xe. Vui lòng chuẩn bị trả xe đúng giờ và kiểm tra lại tài sản cá nhân trước khi bàn giao.",
       lines: compactLines([
         ...getBookingLines(booking, car, customer),
-        `Thá»i gian tráº£ xe: ${formatDateTime(booking?.endDate)}`,
+        `Thời gian trả xe: ${formatDateTime(booking?.endDate)}`,
         booking?.returnAddressSnapshot
-          ? `Äá»‹a Ä‘iá»ƒm tráº£ xe: ${booking.returnAddressSnapshot}`
+          ? `Địa điểm trả xe: ${booking.returnAddressSnapshot}`
           : undefined,
       ]),
       actionText:
-        "BQDrive gá»­i nháº¯c trÆ°á»›c 30 phÃºt Ä‘á»ƒ báº¡n cÃ³ Ä‘á»§ thá»i gian chuáº©n bá»‹ tráº£ xe.",
+        "BQDrive gửi nhắc trước 30 phút để bạn có đủ thời gian chuẩn bị trả xe.",
     });
   });
 }
@@ -1015,17 +1015,17 @@ export async function sendHolidayPricingReminderMail(holiday: any) {
       recipients.map((recipient) =>
         sendBusinessNotificationMail({
           to: recipient.email,
-          subject: "BQDrive - Admin vá»«a cáº­p nháº­t ngÃ y lá»…",
+          subject: "BQDrive - Admin vừa cập nhật ngày lễ",
           intro:
-            `ChÃ o ${recipient.name}, admin vá»«a thiáº¿t láº­p ngÃ y lá»… trong há»‡ thá»‘ng. ` +
-            "GiÃ¡ thuÃª ngÃ y lá»… sáº½ Ä‘Æ°á»£c Ã¡p dá»¥ng khi khÃ¡ch chá»n lá»‹ch thuÃª trÃ¹ng ngÃ y nÃ y.",
+            `Chào ${recipient.name}, admin vừa thiết lập ngày lễ trong hệ thống. ` +
+            "Giá thuê ngày lễ sẽ được áp dụng khi khách chọn lịch thuê trùng ngày này.",
           lines: compactLines([
-            `NgÃ y lá»…: ${holiday.name || "NgÃ y lá»…"}`,
-            `Thá»i gian Ã¡p dá»¥ng: ${formatHolidayRange(holiday)}`,
-            holiday.note ? `Ghi chÃº: ${holiday.note}` : undefined,
+            `Ngày lễ: ${holiday.name || "Ngày lễ"}`,
+            `Thời gian áp dụng: ${formatHolidayRange(holiday)}`,
+            holiday.note ? `Ghi chú: ${holiday.note}` : undefined,
           ]),
           actionText:
-            "Vui lÃ²ng vÃ o trang quáº£n lÃ½ xe Ä‘á»ƒ kiá»ƒm tra vÃ  Ä‘iá»u chá»‰nh giÃ¡ ngÃ y lá»… náº¿u cáº§n.",
+            "Vui lòng vào trang quản lý xe để kiểm tra và điều chỉnh giá ngày lễ nếu cần.",
         }),
       ),
     );
@@ -1076,15 +1076,15 @@ export async function sendBookingNoShowMail(booking: any) {
 
     await sendBusinessNotificationMail({
       to: customer?.email,
-      subject: "BQDrive - Booking Ä‘Æ°á»£c Ä‘Ã¡nh dáº¥u khÃ´ng nháº­n xe",
+      subject: "BQDrive - Booking được đánh dấu không nhận xe",
       intro:
-        "Booking cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c chá»§ xe Ä‘Ã¡nh dáº¥u khÃ¡ch khÃ´ng nháº­n xe.",
+        "Booking của bạn đã được chủ xe đánh dấu khách không nhận xe.",
       lines: compactLines([
         ...getBookingLines(booking, car),
-        booking?.noShowReason ? `LÃ½ do: ${booking.noShowReason}` : undefined,
+        booking?.noShowReason ? `Lý do: ${booking.noShowReason}` : undefined,
       ]),
       actionText:
-        "ChÃ­nh sÃ¡ch xá»­ lÃ½ cá»c/thanh toÃ¡n sáº½ Ä‘Æ°á»£c thá»±c hiá»‡n theo quy Ä‘á»‹nh cá»§a há»‡ thá»‘ng hoáº·c chá»§ xe.",
+        "Chính sách xử lý cọc/thanh toán sẽ được thực hiện theo quy định của hệ thống hoặc chủ xe.",
     });
   });
 }
@@ -1101,13 +1101,13 @@ export async function sendCarSubmittedToAdminMail(car: any) {
     await sendBusinessNotificationMail({
       to: adminEmails,
       subject: isUserConsignment
-        ? "BQDrive - CÃ³ xe kÃ½ gá»­i má»›i chá» duyá»‡t"
-        : "BQDrive - CÃ³ xe doanh nghiá»‡p má»›i chá» duyá»‡t",
+        ? "BQDrive - Có xe ký gửi mới chờ duyệt"
+        : "BQDrive - Có xe doanh nghiệp mới chờ duyệt",
       intro: isUserConsignment
-        ? "CÃ³ xe kÃ½ gá»­i má»›i tá»« ngÆ°á»i dÃ¹ng cáº§n admin kiá»ƒm duyá»‡t."
-        : "CÃ³ xe má»›i tá»« doanh nghiá»‡p cáº§n admin kiá»ƒm duyá»‡t.",
+        ? "Có xe ký gửi mới từ người dùng cần admin kiểm duyệt."
+        : "Có xe mới từ doanh nghiệp cần admin kiểm duyệt.",
       lines: getCarLines(car, owner.name),
-      actionText: "Admin vui lÃ²ng vÃ o trang quáº£n lÃ½ xe Ä‘á»ƒ kiá»ƒm duyá»‡t.",
+      actionText: "Admin vui lòng vào trang quản lý xe để kiểm duyệt.",
     });
   });
 }
@@ -1118,11 +1118,11 @@ export async function sendCarApprovedMail(car: any) {
 
     await sendBusinessNotificationMail({
       to: owner.email,
-      subject: "BQDrive - Xe cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t",
+      subject: "BQDrive - Xe của bạn đã được duyệt",
       intro:
-        "Xe cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c admin duyá»‡t vÃ  cÃ³ thá»ƒ hiá»ƒn thá»‹ trÃªn há»‡ thá»‘ng BQDrive.",
+        "Xe của bạn đã được admin duyệt và có thể hiển thị trên hệ thống BQDrive.",
       lines: getCarLines(car, owner.name),
-      actionText: "Báº¡n cÃ³ thá»ƒ vÃ o trang quáº£n lÃ½ xe Ä‘á»ƒ theo dÃµi tráº¡ng thÃ¡i hiá»ƒn thá»‹.",
+      actionText: "Bạn có thể vào trang quản lý xe để theo dõi trạng thái hiển thị.",
     });
   });
 }
@@ -1133,12 +1133,12 @@ export async function sendCarRejectedMail(car: any) {
 
     await sendBusinessNotificationMail({
       to: owner.email,
-      subject: "BQDrive - Xe cá»§a báº¡n bá»‹ tá»« chá»‘i",
+      subject: "BQDrive - Xe của bạn bị từ chối",
       intro:
-        "Xe cá»§a báº¡n Ä‘Ã£ bá»‹ admin tá»« chá»‘i. Vui lÃ²ng kiá»ƒm tra lÃ½ do vÃ  cáº­p nháº­t láº¡i thÃ´ng tin náº¿u cáº§n.",
+        "Xe của bạn đã bị admin từ chối. Vui lòng kiểm tra lý do và cập nhật lại thông tin nếu cần.",
       lines: compactLines([
         ...getCarLines(car, owner.name),
-        car?.rejectReason ? `LÃ½ do tá»« chá»‘i: ${car.rejectReason}` : undefined,
+        car?.rejectReason ? `Lý do từ chối: ${car.rejectReason}` : undefined,
       ]),
     });
   });

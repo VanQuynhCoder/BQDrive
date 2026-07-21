@@ -1,12 +1,14 @@
-﻿type AdminStatusBadgeProps = {
-  tone?: "green" | "red" | "yellow" | "blue" | "gray";
+export type AdminStatusBadgeTone = "green" | "red" | "yellow" | "blue" | "gray";
+
+type AdminStatusBadgeProps = {
+  tone?: AdminStatusBadgeTone;
   label: string;
 };
 
-const toneClass = {
-  green: "bg-secondarySoft text-primary ring-secondary/40",
-  red: "bg-slate-100 text-slate-800 ring-slate-300",
-  yellow: "bg-secondarySoft text-primary ring-secondary/50",
+const toneClass: Record<AdminStatusBadgeTone, string> = {
+  green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  red: "bg-red-50 text-red-700 ring-red-200",
+  yellow: "bg-yellow-50 text-amber-700 ring-yellow-200",
   blue: "bg-primary text-secondary ring-primary",
   gray: "bg-slate-100 text-slate-700 ring-slate-200",
 };
@@ -23,5 +25,3 @@ export default function AdminStatusBadge({
     </span>
   );
 }
-
-

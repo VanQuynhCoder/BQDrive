@@ -8,6 +8,8 @@ export async function syncRentedCarStatuses() {
       $in: [
         BookingStatusEnum.PAID, // Đã thanh toán nên xe có lịch thuê chính thức
         BookingStatusEnum.IN_PROGRESS, // Xe đang được bàn giao/đang thuê
+        BookingStatusEnum.RETURN_INSPECTION,
+        BookingStatusEnum.AWAITING_EXTRA_CHARGE,
         BookingStatusEnum.CONFIRMED, // Trạng thái cũ: giữ tương thích dữ liệu cũ
       ],
     },
@@ -33,6 +35,8 @@ export async function releaseCarIfNoConfirmedBooking(carId: unknown) {
       $in: [
         BookingStatusEnum.PAID, // Còn booking đã thanh toán thì chưa trả xe về APPROVED
         BookingStatusEnum.IN_PROGRESS, // Còn booking đang thuê thì chưa trả xe về APPROVED
+        BookingStatusEnum.RETURN_INSPECTION,
+        BookingStatusEnum.AWAITING_EXTRA_CHARGE,
         BookingStatusEnum.CONFIRMED, // Trạng thái cũ
       ],
     },

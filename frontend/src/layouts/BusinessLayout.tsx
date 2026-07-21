@@ -4,6 +4,7 @@ import { Link, Outlet, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import BusinessSideBar from "../components/business/BusinessSideBar";
+import NotificationBell from "../components/NotificationBell";
 import { authService } from "../services/auth.service";
 import {
   businessService,
@@ -76,6 +77,8 @@ export default function BusinessLayout() {
             </div>
 
             <div className="flex items-center gap-3">
+              <NotificationBell centerPath="/business/notifications" />
+
               <Link
                 to="/"
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-bold text-slate-700 transition hover:bg-slate-50 hover:text-primary sm:px-4"

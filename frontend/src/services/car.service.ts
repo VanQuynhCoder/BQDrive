@@ -17,6 +17,10 @@ type HomeCarsParams = {
   type?: string;
   transmission?: string;
   sort?: string;
+  deliveryOnly?: boolean;
+  minRating?: number;
+  userLat?: number;
+  userLng?: number;
 };
 
 export type PublicBrand = {

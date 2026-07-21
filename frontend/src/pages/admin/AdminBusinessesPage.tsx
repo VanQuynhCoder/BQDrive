@@ -81,7 +81,7 @@ function getBusinessStatus(business: AdminBusiness) {
   }
 
   if (business.isRejected) {
-    return { tone: "red" as const, label: "B? từ chối" };
+    return { tone: "red" as const, label: "Bị từ chối" };
   }
 
   if (business.isApproved) {
@@ -883,7 +883,7 @@ export default function AdminBusinessesPage() {
                         </p>
                       </div>
                       <div>
-                        <p className="font-bold text-slate-500">Liên h?</p>
+                        <p className="font-bold text-slate-500">Liên hệ</p>
                         <p className="mt-1 font-extrabold text-primary">
                           {createForm.phone}
                         </p>

@@ -4,6 +4,8 @@ import { PaymentModel } from "../../models/payment/payment.model";
 import { BookingModel } from "../../models/booking/booking.model";
 import { BusinessModel } from "../../models/business/business.model";
 import { CarModel } from "../../models/car/car.model";
+import { ExtraChargeModel } from "../../models/extra-charge/extraCharge.model";
+import { ReturnInspectionModel } from "../../models/return-inspection/returnInspection.model";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
 import {
   createMomoPayment,
@@ -19,14 +21,17 @@ import {
   sendPaymentSuccessMail,
 } from "../../helper/mail.helper";
 import { syncBookingPaymentFromPaidPayments } from "../../helper/payment-sync.helper";
+import { notificationCenterService } from "../../services/notification-center.service";
 import {
   BookingStatusEnum,
   CarStatusEnum,
+  ExtraChargeStatusEnum,
   OwnerTypeEnum,
   PaymentMethodEnum,
   PaymentOptionEnum,
   PaymentStatusEnum,
   PaymentTypeEnum,
+  ReturnInspectionStatusEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
 
@@ -36,6 +41,8 @@ const PAYMENT_ALLOWED_BOOKING_STATUSES = [
   BookingStatusEnum.PAYMENT_PENDING, // Đã có giao dịch đang chờ, cho phép tạo lại link thanh toán
   BookingStatusEnum.PAID, // Đã thanh toán trước đó, dùng để xử lý phần còn lại nếu có
   BookingStatusEnum.IN_PROGRESS, // Đang thuê, có thể thanh toán phần còn lại/phụ phí
+  BookingStatusEnum.RETURN_INSPECTION,
+  BookingStatusEnum.AWAITING_EXTRA_CHARGE,
   BookingStatusEnum.CONFIRMED, // Trạng thái cũ: tương đương đã được chủ xe xác nhận
   BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: tương đương PAYMENT_PENDING
 ];
@@ -104,6 +111,24 @@ class PaymentRoute extends BaseRoute {
     );
 
     this.router.get(
+      "/my-extra-charges",
+      [
+        this.authentication,
+        this.roleGuard([UserRoleEnum.USER]),
+      ],
+      this.route(this.getMyExtraCharges),
+    );
+
+    this.router.get(
+      "/bookings/:bookingId/extra-charges",
+      [
+        this.authentication,
+        this.roleGuard([UserRoleEnum.USER]),
+      ],
+      this.route(this.getMyBookingExtraCharges),
+    );
+
+    this.router.get(
       "/getBusinessPayments",
       [
         this.authentication,
@@ -157,6 +182,148 @@ class PaymentRoute extends BaseRoute {
     }
 
     return depositAmount;
+  }
+
+  private async getPendingExtraChargeForRenter(extraChargeId: string, userId: string) {
+    const extraCharge = await ExtraChargeModel.findOne({
+      _id: extraChargeId,
+      renterId: userId,
+      status: ExtraChargeStatusEnum.PENDING,
+      isDeleted: false,
+    } as any);
+
+    if (!extraCharge) {
+      throw ErrorHelper.recordNotFound("Phí phát sinh");
+    }
+
+    const booking = await BookingModel.findOne({
+      _id: extraCharge.bookingId,
+      userId,
+      isDeleted: false,
+    } as any);
+
+    if (!booking) {
+      throw ErrorHelper.permissionDeny();
+    }
+
+    hydrateLegacyBookingOwner(booking);
+
+    return { extraCharge, booking };
+  }
+
+  private async getOrCreateExtraChargePayment(
+    extraCharge: any,
+    booking: any,
+    method: PaymentMethodEnum,
+    userId: string,
+  ) {
+    if (method === PaymentMethodEnum.CASH) {
+      throw ErrorHelper.requestDataInvalid(
+        "Phí phát sinh thanh toán tiền mặt cần được chủ xe xác nhận đã thu.",
+      );
+    }
+
+    const existedPaidPayment = await PaymentModel.findOne({
+      extraChargeId: extraCharge._id,
+      paymentType: PaymentTypeEnum.EXTRA_CHARGE,
+      status: PaymentStatusEnum.PAID,
+    });
+
+    if (existedPaidPayment) {
+      throw ErrorHelper.requestDataInvalid("Phí phát sinh này đã được thanh toán");
+    }
+
+    let payment = await PaymentModel.findOne({
+      extraChargeId: extraCharge._id,
+      method,
+      paymentType: PaymentTypeEnum.EXTRA_CHARGE,
+      status: PaymentStatusEnum.PENDING,
+    });
+
+    if (!payment) {
+      payment = await PaymentModel.create({
+        bookingId: booking._id,
+        extraChargeId: extraCharge._id,
+        userId,
+        amount: Math.round(Number(extraCharge.amount || 0)),
+        method,
+        paymentType: PaymentTypeEnum.EXTRA_CHARGE,
+        status: PaymentStatusEnum.PENDING,
+      });
+    }
+
+    extraCharge.paymentId = payment._id;
+    await extraCharge.save();
+
+    return payment;
+  }
+
+  private async markExtraChargePaidFromPayment(payment: any) {
+    if (payment.paymentType !== PaymentTypeEnum.EXTRA_CHARGE) return;
+
+    const extraCharge = await ExtraChargeModel.findOne({
+      _id: payment.extraChargeId,
+      isDeleted: false,
+    } as any);
+
+    if (!extraCharge) return;
+
+    extraCharge.status = ExtraChargeStatusEnum.PAID;
+    extraCharge.paymentId = payment._id;
+    extraCharge.paymentMethod = payment.method;
+    extraCharge.paidAt = payment.paidAt || new Date();
+    await extraCharge.save();
+    void notificationCenterService.notifyExtraChargePaid(
+      extraCharge,
+      payment,
+      String(payment.userId || ""),
+    );
+
+    const remainingPendingCharge = await ExtraChargeModel.findOne({
+      bookingId: extraCharge.bookingId,
+      status: ExtraChargeStatusEnum.PENDING,
+      isDeleted: false,
+    } as any).select("_id");
+
+    if (!remainingPendingCharge) {
+      await ReturnInspectionModel.updateOne(
+        {
+          bookingId: extraCharge.bookingId,
+          inspectionStatus: ReturnInspectionStatusEnum.CHARGES_PENDING,
+          isDeleted: false,
+        } as any,
+        {
+          $set: { inspectionStatus: ReturnInspectionStatusEnum.INSPECTING },
+        },
+      );
+      await BookingModel.updateOne(
+        {
+          _id: extraCharge.bookingId,
+          status: BookingStatusEnum.AWAITING_EXTRA_CHARGE,
+          isDeleted: false,
+        } as any,
+        {
+          $set: { status: BookingStatusEnum.RETURN_INSPECTION },
+        },
+      );
+    }
+  }
+
+  private async applyPaidPaymentEffects(booking: any, payment: any) {
+    if (payment.paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
+      await this.markExtraChargePaidFromPayment(payment);
+      return;
+    }
+
+    await syncBookingPaymentFromPaidPayments(booking);
+    await this.markCarRented(booking);
+    void sendPaymentSuccessMail(booking, payment);
+    void sendDepositRemainingPaymentMail(booking, payment);
+    void notificationCenterService.notifyPaymentPaid(
+      payment,
+      booking,
+      String(payment.userId || ""),
+    );
   }
 
   private assertPaymentTypeIsValidForBooking(booking: any, paymentType: string) {
@@ -361,18 +528,64 @@ class PaymentRoute extends BaseRoute {
       payment.transactionCode = String(data.transId || payment.transactionCode);
 
       await payment.save();
-      await syncBookingPaymentFromPaidPayments(booking);
-      await this.markCarRented(booking);
-      void sendPaymentSuccessMail(booking, payment);
-      void sendDepositRemainingPaymentMail(booking, payment);
+      await this.applyPaidPaymentEffects(booking, payment);
     } else {
-      await syncBookingPaymentFromPaidPayments(booking);
+      if (payment.paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
+        await this.markExtraChargePaidFromPayment(payment);
+      } else {
+        await syncBookingPaymentFromPaidPayments(booking);
+      }
     }
   }
 
   async createMomoPayment(req: Request, res: Response) {
     const authUser = (req as any).user;
-    const { bookingId, paymentType } = req.body;
+    const { bookingId, paymentType, extraChargeId } = req.body;
+
+    if (paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
+      if (!extraChargeId) {
+        throw ErrorHelper.requestDataInvalid("Thiếu extraChargeId");
+      }
+
+      const { extraCharge, booking } = await this.getPendingExtraChargeForRenter(
+        String(extraChargeId),
+        authUser.userId,
+      );
+      const payment = await this.getOrCreateExtraChargePayment(
+        extraCharge,
+        booking,
+        PaymentMethodEnum.MOMO,
+        authUser.userId,
+      );
+
+      const orderId = `MOMO-${String(payment._id)}-${Date.now()}`;
+      const requestId = orderId;
+      const orderInfo = `Thanh toán phí phát sinh BQDrive ${String(extraCharge._id)}`;
+      const extraData = String(payment._id);
+
+      const momoResponse = await createMomoPayment({
+        amount: Number(payment.amount || 0),
+        orderId,
+        requestId,
+        orderInfo,
+        extraData,
+      });
+
+      payment.transactionCode = orderId;
+      await payment.save();
+
+      return res.status(200).json({
+        status: 200,
+        code: "200",
+        message: "Tạo thanh toán phí phát sinh MoMo thành công",
+        data: {
+          payment,
+          extraCharge,
+          momo: momoResponse,
+          payUrl: momoResponse.payUrl,
+        },
+      });
+    }
 
     if (!bookingId) {
       throw ErrorHelper.requestDataInvalid("Thiếu bookingId");
@@ -518,7 +731,11 @@ class PaymentRoute extends BaseRoute {
 
     hydrateLegacyBookingOwner(booking);
     if (payment.status === PaymentStatusEnum.PAID) {
-      await syncBookingPaymentFromPaidPayments(booking);
+      if (payment.paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
+        await this.markExtraChargePaidFromPayment(payment);
+      } else {
+        await syncBookingPaymentFromPaidPayments(booking);
+      }
 
       return res.status(200).json({
         status: 200,
@@ -539,10 +756,7 @@ class PaymentRoute extends BaseRoute {
       payment.transactionCode = String(data.transId || payment.transactionCode);
 
       await payment.save();
-      await syncBookingPaymentFromPaidPayments(booking);
-      await this.markCarRented(booking);
-      void sendPaymentSuccessMail(booking, payment);
-      void sendDepositRemainingPaymentMail(booking, payment);
+      await this.applyPaidPaymentEffects(booking, payment);
 
       return res.status(200).json({
         resultCode: 0,
@@ -656,7 +870,51 @@ class PaymentRoute extends BaseRoute {
 
   async createVnpayPayment(req: Request, res: Response) {
     const authUser = (req as any).user;
-    const { bookingId, paymentType } = req.body;
+    const { bookingId, paymentType, extraChargeId } = req.body;
+
+    if (paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
+      if (!extraChargeId) {
+        throw ErrorHelper.requestDataInvalid("Thiếu extraChargeId");
+      }
+
+      const { extraCharge, booking } = await this.getPendingExtraChargeForRenter(
+        String(extraChargeId),
+        authUser.userId,
+      );
+      const payment = await this.getOrCreateExtraChargePayment(
+        extraCharge,
+        booking,
+        PaymentMethodEnum.VNPAY,
+        authUser.userId,
+      );
+      const orderId = `VNPAY-${String(payment._id)}-${Date.now()}`;
+      const forwardedFor = req.headers["x-forwarded-for"];
+      const forwardedIp = Array.isArray(forwardedFor)
+        ? forwardedFor[0]
+        : forwardedFor?.split(",")[0]?.trim();
+      const ipAddr = forwardedIp || req.socket.remoteAddress || "127.0.0.1";
+
+      payment.transactionCode = orderId;
+      await payment.save();
+
+      const payUrl = createVnpayPaymentUrl({
+        amount: Number(payment.amount || 0),
+        orderId,
+        orderInfo: `Thanh toán phí phát sinh BQDrive ${String(extraCharge._id)}`,
+        ipAddr,
+      });
+
+      return res.status(200).json({
+        status: 200,
+        code: "200",
+        message: "Tạo thanh toán phí phát sinh VNPay thành công",
+        data: {
+          payment,
+          extraCharge,
+          payUrl,
+        },
+      });
+    }
 
     if (!bookingId) {
       throw ErrorHelper.requestDataInvalid("Thiếu bookingId");
@@ -823,7 +1081,11 @@ class PaymentRoute extends BaseRoute {
       String(query.vnp_TransactionStatus) === "00";
 
     if (payment.status === PaymentStatusEnum.PAID) {
-      await syncBookingPaymentFromPaidPayments(booking);
+      if (payment.paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
+        await this.markExtraChargePaidFromPayment(payment);
+      } else {
+        await syncBookingPaymentFromPaidPayments(booking);
+      }
 
       return res.status(200).json({
         status: 200,
@@ -848,10 +1110,7 @@ class PaymentRoute extends BaseRoute {
       payment.transactionCode = String(query.vnp_TransactionNo || txnRef);
 
       await payment.save();
-      await syncBookingPaymentFromPaidPayments(booking);
-      await this.markCarRented(booking);
-      void sendPaymentSuccessMail(booking, payment);
-      void sendDepositRemainingPaymentMail(booking, payment);
+      await this.applyPaidPaymentEffects(booking, payment);
 
       return res.status(200).json({
         status: 200,
@@ -875,9 +1134,9 @@ class PaymentRoute extends BaseRoute {
 
   async createPayment(req: Request, res: Response) {
     const authUser = (req as any).user;
-    const { bookingId, method, paymentType } = req.body;
+    const { bookingId, method, paymentType, extraChargeId } = req.body;
 
-    if (!bookingId || !method) {
+    if ((!bookingId && paymentType !== PaymentTypeEnum.EXTRA_CHARGE) || !method) {
       throw ErrorHelper.requestDataInvalid("Thiếu bookingId hoặc method");
     }
 
@@ -885,6 +1144,30 @@ class PaymentRoute extends BaseRoute {
       throw ErrorHelper.requestDataInvalid(
         "Phương thức thanh toán không hợp lệ",
       );
+    }
+
+    if (paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
+      if (!extraChargeId) {
+        throw ErrorHelper.requestDataInvalid("Thiếu extraChargeId");
+      }
+
+      const { extraCharge, booking } = await this.getPendingExtraChargeForRenter(
+        String(extraChargeId),
+        authUser.userId,
+      );
+      const payment = await this.getOrCreateExtraChargePayment(
+        extraCharge,
+        booking,
+        method as PaymentMethodEnum,
+        authUser.userId,
+      );
+
+      return res.status(201).json({
+        status: 201,
+        code: "201",
+        message: "Tạo thanh toán phí phát sinh thành công",
+        data: { payment, extraCharge },
+      });
     }
 
     await expireAbandonedPendingBookings();
@@ -1098,6 +1381,51 @@ class PaymentRoute extends BaseRoute {
     };
   }
 
+  async getMyBookingExtraCharges(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const booking = await BookingModel.findOne({
+      _id: String(req.params.bookingId),
+      userId: authUser.userId,
+      isDeleted: false,
+    } as any).select("_id");
+
+    if (!booking) {
+      throw ErrorHelper.permissionDeny();
+    }
+
+    const extraCharges = await ExtraChargeModel.find({
+      bookingId: booking._id,
+      renterId: authUser.userId,
+      isDeleted: false,
+    } as any).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "success",
+      data: { extraCharges },
+    });
+  }
+
+  async getMyExtraCharges(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const extraCharges = await ExtraChargeModel.find({
+      renterId: authUser.userId,
+      isDeleted: false,
+    } as any)
+      .populate("bookingId", "_id startDate endDate status")
+      .populate("carId", "name licensePlate images")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "success",
+      data: { extraCharges },
+    });
+  }
+
   async getMyBookingPaymentHistory(req: Request, res: Response) {
     const authUser = (req as any).user;
 
@@ -1160,7 +1488,14 @@ class PaymentRoute extends BaseRoute {
         });
         const car = booking?.carId;
         const totalPrice = Number(booking?.totalPrice || 0);
-        const paidAmount = sortedPayments
+        const rentalPayments = sortedPayments.filter((payment) =>
+          [
+            PaymentTypeEnum.DEPOSIT,
+            PaymentTypeEnum.FULL,
+            PaymentTypeEnum.REMAINING,
+          ].includes(payment.paymentType as PaymentTypeEnum),
+        );
+        const paidAmount = rentalPayments
           .filter((payment) => payment.status === PaymentStatusEnum.PAID)
           .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
         const remainingAmount = Math.max(totalPrice - paidAmount, 0);
@@ -1185,7 +1520,7 @@ class PaymentRoute extends BaseRoute {
           paymentSummaryStatus: this.getPaymentSummaryStatus(
             totalPrice,
             paidAmount,
-            sortedPayments,
+            rentalPayments,
           ),
           paymentCount: sortedPayments.length,
           latestPaymentAt:
@@ -1338,12 +1673,21 @@ class PaymentRoute extends BaseRoute {
 
     await payment.save();
     if (status === PaymentStatusEnum.PAID) {
-      await syncBookingPaymentFromPaidPayments(booking);
-      void sendPaymentSuccessMail(booking, payment);
-      void sendDepositRemainingPaymentMail(booking, payment);
+      if (payment.paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
+        await this.markExtraChargePaidFromPayment(payment);
+      } else {
+        await syncBookingPaymentFromPaidPayments(booking);
+        void sendPaymentSuccessMail(booking, payment);
+        void sendDepositRemainingPaymentMail(booking, payment);
+        void notificationCenterService.notifyPaymentPaid(
+          payment,
+          booking,
+          String(payment.userId || ""),
+        );
 
-      if (!MANUAL_PAYMENT_METHODS.includes(payment.method as PaymentMethodEnum)) {
-        await this.markCarRented(booking);
+        if (!MANUAL_PAYMENT_METHODS.includes(payment.method as PaymentMethodEnum)) {
+          await this.markCarRented(booking);
+        }
       }
     }
 

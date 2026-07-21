@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useSearchParams } from "react-router-dom";
 import {
   CalendarDays,
   CheckCircle2,
@@ -18,6 +19,7 @@ import {
   BookingTimeline,
 } from "../../components/booking/BookingTimeline";
 import ExtraChargeManager from "../../components/booking/ExtraChargeManager";
+import ReturnInspectionPanel from "../../components/booking/ReturnInspectionPanel";
 import {
   businessService,
   type BusinessBooking,
@@ -31,6 +33,7 @@ type BookingAction =
   | "confirm"
   | "reject"
   | "handover"
+  | "return-inspection"
   | "confirm-remaining"
   | "complete"
   | "no-show";
@@ -67,6 +70,8 @@ function getStatusBadge(status?: string) {
     PENDING: { label: "Chờ xác nhận", tone: "yellow" },
     CONFIRMED: { label: "Đã xác nhận", tone: "blue" },
     IN_PROGRESS: { label: "Đang thuê", tone: "blue" },
+    RETURN_INSPECTION: { label: "Đang kiểm tra xe", tone: "yellow" },
+    AWAITING_EXTRA_CHARGE: { label: "Chờ xử lý phát sinh", tone: "yellow" },
     COMPLETED: { label: "Hoàn tất", tone: "green" },
     CANCELLED: { label: "Đã hủy", tone: "gray" },
     REJECTED: { label: "Từ chối", tone: "red" },
@@ -410,6 +415,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function BusinessBookingsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [bookings, setBookings] = useState<BusinessBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -460,7 +466,41 @@ export default function BusinessBookingsPage() {
     if (submitting) return;
     setNoShowReason("");
     setAction(null);
+    if (searchParams.get("bookingId") || searchParams.get("action")) {
+      setSearchParams({});
+    }
   };
+
+  useEffect(() => {
+    const bookingId = searchParams.get("bookingId");
+    const actionParam = searchParams.get("action") || "view-booking";
+    const actionMap: Record<string, BookingAction> = {
+      confirm: "confirm",
+      "approve-booking": "confirm",
+      handover: "handover",
+      "confirm-remaining": "confirm-remaining",
+      "confirm-cash": "confirm-remaining",
+      "return-inspection": "return-inspection",
+      "receive-return": "return-inspection",
+      "extra-charge": "return-inspection",
+      complete: "complete",
+      "complete-booking": "complete",
+      "view-booking": "return-inspection",
+    };
+
+    if (!bookingId || loading || action) return;
+
+    const target = bookings.find((booking) => booking._id === bookingId);
+    if (!target) {
+      toast.error("Không tìm thấy booking cần xử lý hoặc bạn không còn quyền truy cập.");
+      queueMicrotask(() => setSearchParams({}));
+      return;
+    }
+
+    queueMicrotask(() => {
+      openAction(actionMap[actionParam] || "return-inspection", target);
+    });
+  }, [action, bookings, loading, searchParams, setSearchParams]);
 
   const confirmAction = async () => {
     if (!action) return;
@@ -480,6 +520,10 @@ export default function BusinessBookingsPage() {
       if (action?.type === "handover") {
         await businessService.handoverBooking(action.booking._id);
         toast.success("Đã bàn giao xe");
+      }
+
+      if (action?.type === "return-inspection") {
+        return;
       }
 
       if (action?.type === "confirm-remaining") {
@@ -517,6 +561,10 @@ export default function BusinessBookingsPage() {
         ? "Từ chối booking"
         : action?.type === "handover"
           ? "Giao xe / Đã nhận tiền"
+        : action?.type === "return-inspection"
+          ? action.booking.status === "IN_PROGRESS"
+            ? "Tiếp nhận xe trả"
+            : "Kiểm tra xe sau thuê"
         : action?.type === "confirm-remaining"
           ? "Xác nhận đã thu phần còn lại"
       : action?.type === "complete"
@@ -574,7 +622,10 @@ export default function BusinessBookingsPage() {
                   const remainingCollectionAmount =
                     getRemainingCollectionAmount(booking);
                   const canComplete =
-                    booking.status === "IN_PROGRESS" &&
+                    ["RETURN_INSPECTION", "AWAITING_EXTRA_CHARGE"].includes(
+                      booking.status || "",
+                    ) &&
+                    booking.returnInspection?.inspectionStatus === "CLEARED" &&
                     remainingCollectionAmount <= 0;
                   const canConfirmRemaining =
                     canConfirmRemainingCash(booking);
@@ -680,6 +731,30 @@ export default function BusinessBookingsPage() {
                             </button>
                           )}
 
+                          {booking.status === "IN_PROGRESS" && (
+                            <button
+                              type="button"
+                              onClick={() => openAction("return-inspection", booking)}
+                              className="inline-flex items-center gap-2 rounded-lg bg-secondary px-3 py-2 font-extrabold text-primary transition hover:bg-secondaryLight"
+                            >
+                              <CheckCircle2 size={16} />
+                              Tiếp nhận xe trả
+                            </button>
+                          )}
+
+                          {["RETURN_INSPECTION", "AWAITING_EXTRA_CHARGE"].includes(
+                            booking.status || "",
+                          ) && (
+                            <button
+                              type="button"
+                              onClick={() => openAction("return-inspection", booking)}
+                              className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 font-extrabold text-primary transition hover:bg-slate-200"
+                            >
+                              <Eye size={16} />
+                              Kiểm tra xe
+                            </button>
+                          )}
+
                           {canComplete && (
                             <button
                               type="button"
@@ -691,12 +766,12 @@ export default function BusinessBookingsPage() {
                             </button>
                           )}
 
-                          {booking.status === "IN_PROGRESS" && !canComplete && (
+                          {booking.status === "IN_PROGRESS" && (
                             <span
                               className="max-w-48 rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold leading-5 text-slate-600"
-                              title="Booking còn số tiền chưa thanh toán, không thể hoàn tất."
+                              title="Booking phải qua bước tiếp nhận xe trả và kiểm tra sau thuê."
                             >
-                              Còn tiền chưa thanh toán
+                              Chờ tiếp nhận xe trả
                             </span>
                           )}
 
@@ -714,6 +789,9 @@ export default function BusinessBookingsPage() {
                           {!OWNER_REVIEW_STATUSES.includes(booking.status || "") &&
                             !READY_TO_HANDOVER_STATUSES.includes(booking.status || "") &&
                             booking.status !== "IN_PROGRESS" &&
+                            !["RETURN_INSPECTION", "AWAITING_EXTRA_CHARGE"].includes(
+                              booking.status || "",
+                            ) &&
                             !canConfirmRemaining && (
                               <span className="text-sm font-semibold text-slate-400">
                                 --
@@ -754,6 +832,8 @@ export default function BusinessBookingsPage() {
               ? "Từ chối"
               : action?.type === "handover"
                 ? getHandoverButtonLabel(action.booking)
+            : action?.type === "return-inspection"
+              ? "Đóng"
             : action?.type === "confirm-remaining"
               ? "Xác nhận đã thu"
             : action?.type === "complete"
@@ -763,12 +843,24 @@ export default function BusinessBookingsPage() {
         danger={action?.type === "no-show" || action?.type === "reject"}
         loading={submitting}
         onClose={closeAction}
-        onConfirm={confirmAction}
+        onConfirm={action?.type === "return-inspection" ? undefined : confirmAction}
       >
         {action && (
           <BookingSummaryCard
             booking={action.booking}
             onPreviewDocument={setPreviewDocument}
+          />
+        )}
+
+        {action && (
+          <ReturnInspectionPanel
+            bookingId={action.booking._id}
+            bookingStatus={action.booking.status}
+            plannedReturnAt={action.booking.endDate}
+            getInspection={businessService.getReturnInspection}
+            receiveReturn={businessService.receiveReturn}
+            clearInspection={businessService.clearReturnInspection}
+            onChanged={fetchBookings}
           />
         )}
 

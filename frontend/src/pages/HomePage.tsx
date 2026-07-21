@@ -15,6 +15,8 @@ import {
   CalendarDays,
   CarFront,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   Clock,
   Filter,
@@ -98,11 +100,16 @@ type HomeFilters = {
   transmission: string;
   rentalMode: "" | "DAILY" | "HOURLY";
   sort: string;
+  deliveryOnly: string;
+  minRating: string;
+  userLat: string;
+  userLng: string;
 };
 
 type HomeFilterDropdown =
   | "seats"
   | "price"
+  | "rating"
   | "fuelType"
   | "transmission"
   | "type"
@@ -115,6 +122,7 @@ const DEFAULT_START_TIME = "08:00";
 const DEFAULT_END_TIME = "18:00";
 const BOOKING_HOLD_MINUTES = 10;
 const BOOKING_HOLD_MS = BOOKING_HOLD_MINUTES * 60 * 1000;
+const HOME_CARS_PER_PAGE = 6;
 const emptyHomeFilters: HomeFilters = {
   location: "",
   type: "",
@@ -126,6 +134,10 @@ const emptyHomeFilters: HomeFilters = {
   transmission: "",
   rentalMode: "",
   sort: "",
+  deliveryOnly: "",
+  minRating: "",
+  userLat: "",
+  userLng: "",
 };
 const popularAreas = [
   "Quận 1",
@@ -160,11 +172,27 @@ const sortOptions = [
   { value: "price_desc", label: "Giá cao đến thấp" },
   { value: "newest", label: "Mới nhất" },
 ];
+const homeSortOptions = [
+  ...sortOptions.filter(() => false),
+  { value: "", label: "Phù hợp nhất" },
+  { value: "price_asc", label: "Giá thấp đến cao" },
+  { value: "price_desc", label: "Giá cao đến thấp" },
+  { value: "rating_desc", label: "Đánh giá tốt" },
+  { value: "nearest", label: "Gần nhất" },
+  { value: "newest", label: "Mới nhất" },
+];
+
 const priceRangeOptions = [
   { label: "Dưới 500.000đ", minPrice: "", maxPrice: "500000" },
   { label: "500.000đ - 1.000.000đ", minPrice: "500000", maxPrice: "1000000" },
   { label: "1.000.000đ - 2.000.000đ", minPrice: "1000000", maxPrice: "2000000" },
   { label: "Trên 2.000.000đ", minPrice: "2000000", maxPrice: "" },
+];
+
+const ratingOptions = [
+  { value: "4.5", label: "Từ 4.5 sao" },
+  { value: "4", label: "Từ 4 sao" },
+  { value: "3", label: "Từ 3 sao" },
 ];
 
 const serviceHighlights = [
@@ -220,6 +248,10 @@ function buildHomeFilterParams(filters: HomeFilters) {
     transmission: filters.transmission || undefined,
     rentalMode: filters.rentalMode || undefined,
     sort: filters.sort || undefined,
+    deliveryOnly: filters.deliveryOnly === "true" ? true : undefined,
+    minRating: filters.minRating ? Number(filters.minRating) : undefined,
+    userLat: filters.userLat ? Number(filters.userLat) : undefined,
+    userLng: filters.userLng ? Number(filters.userLng) : undefined,
   };
 }
 
@@ -260,6 +292,7 @@ export default function HomePage() {
     startDate: string;
     endDate: string;
   } | null>(null);
+  const [homeCarsPage, setHomeCarsPage] = useState(1);
 
   useEffect(() => {
     let active = true;
@@ -378,7 +411,10 @@ export default function HomePage() {
             : car;
         });
 
-        if (active) setCars(carsWithResumeAction);
+        if (active) {
+          setCars(carsWithResumeAction);
+          setHomeCarsPage(1);
+        }
       } catch (error) {
         console.log(error);
       }
@@ -438,8 +474,28 @@ export default function HomePage() {
     }));
   };
 
-  const applyHomeFilters = () => {
-    setAppliedHomeFilters(homeFilters);
+  const applyHomeFilters = (nextFilters = homeFilters) => {
+    if ((pickupDate || returnDate) && (!pickupDate || !returnDate)) {
+      toast.error("Vui lòng chọn đủ ngày nhận và ngày trả xe");
+      return;
+    }
+
+    if (pickupDate && returnDate) {
+      const startDate = buildVietnamDateTime(pickupDate, pickupTime);
+      const endDate = buildVietnamDateTime(returnDate, returnTime);
+
+      if (new Date(endDate) <= new Date(startDate)) {
+        toast.error("Thời gian trả xe phải sau thời gian nhận xe");
+        return;
+      }
+
+      setAppliedSchedule({ startDate, endDate });
+    } else {
+      setAppliedSchedule(null);
+    }
+
+    setHomeFilters(nextFilters);
+    setAppliedHomeFilters(nextFilters);
     setIsFilterPanelOpen(false);
     setOpenHomeFilterDropdown(null);
   };
@@ -447,6 +503,7 @@ export default function HomePage() {
   const resetHomeFilters = () => {
     setHomeFilters(emptyHomeFilters);
     setAppliedHomeFilters(emptyHomeFilters);
+    setAppliedSchedule(null);
     setIsFilterPanelOpen(false);
     setOpenHomeFilterDropdown(null);
   };
@@ -507,6 +564,32 @@ export default function HomePage() {
     });
   };
 
+  const useCurrentLocationForNearestSort = () => {
+    if (!navigator.geolocation) {
+      toast.error("Trình duyệt không hỗ trợ lấy vị trí hiện tại");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const nextFilters = {
+          ...homeFilters,
+          sort: "nearest",
+          userLat: String(position.coords.latitude),
+          userLng: String(position.coords.longitude),
+        };
+
+        setHomeFilters(nextFilters);
+        setAppliedHomeFilters(nextFilters);
+        toast.success("Đã dùng vị trí hiện tại để sắp xếp xe gần nhất");
+      },
+      () => {
+        toast.error("Không thể lấy vị trí hiện tại. Vui lòng cấp quyền vị trí.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
   const availableCarCount = useMemo(
     () =>
       cars.filter(
@@ -516,11 +599,40 @@ export default function HomePage() {
       ).length,
     [cars],
   );
+  const homeCarsTotalPages = Math.max(
+    1,
+    Math.ceil(cars.length / HOME_CARS_PER_PAGE),
+  );
+  const normalizedHomeCarsPage = Math.min(homeCarsPage, homeCarsTotalPages);
+  const pagedHomeCars = useMemo(() => {
+    const startIndex = (normalizedHomeCarsPage - 1) * HOME_CARS_PER_PAGE;
+
+    return cars.slice(startIndex, startIndex + HOME_CARS_PER_PAGE);
+  }, [cars, normalizedHomeCarsPage]);
+
   const activeFilterCount = useMemo(
-    () =>
-      Object.values(homeFilters).filter((value) => String(value).trim())
-        .length,
-    [homeFilters],
+    () => {
+      const visibleKeys: Array<keyof HomeFilters> = [
+        "location",
+        "type",
+        "seats",
+        "brandId",
+        "minPrice",
+        "maxPrice",
+        "fuelType",
+        "transmission",
+        "rentalMode",
+        "sort",
+        "deliveryOnly",
+        "minRating",
+      ];
+
+      return (
+        visibleKeys.filter((key) => String(homeFilters[key]).trim()).length +
+        (pickupDate && returnDate ? 1 : 0)
+      );
+    },
+    [homeFilters, pickupDate, returnDate],
   );
   const activeFilterChips = useMemo(() => {
     const selectedBrand = brands.find(
@@ -535,8 +647,11 @@ export default function HomePage() {
     const selectedTransmission = transmissionOptions.find(
       (item) => item.value === homeFilters.transmission,
     );
-    const selectedSort = sortOptions.find(
+    const selectedSort = homeSortOptions.find(
       (item) => item.value === homeFilters.sort,
+    );
+    const selectedRating = ratingOptions.find(
+      (item) => item.value === homeFilters.minRating,
     );
     const selectedRentalMode =
       homeFilters.rentalMode === "DAILY"
@@ -616,6 +731,31 @@ export default function HomePage() {
             remove: () => removeHomeFilter("rentalMode"),
           }
         : null,
+      homeFilters.deliveryOnly
+        ? {
+            key: "deliveryOnly",
+            label: "Có giao tận nơi",
+            remove: () => removeHomeFilter("deliveryOnly"),
+          }
+        : null,
+      selectedRating
+        ? {
+            key: "rating",
+            label: selectedRating.label,
+            remove: () => removeHomeFilter("minRating"),
+          }
+        : null,
+      pickupDate && returnDate
+        ? {
+            key: "schedule",
+            label: "Còn trống theo ngày đã chọn",
+            remove: () => {
+              setPickupDate("");
+              setReturnDate("");
+              setAppliedSchedule(null);
+            },
+          }
+        : null,
       selectedSort?.value
         ? {
             key: "sort",
@@ -629,7 +769,7 @@ export default function HomePage() {
       ): item is { key: string; label: string; remove: () => void } =>
         Boolean(item),
     );
-  }, [brands, homeFilters, removeHomeFilter]);
+  }, [brands, homeFilters, pickupDate, removeHomeFilter, returnDate]);
 
   const stats = useMemo(
     () => [
@@ -689,12 +829,69 @@ export default function HomePage() {
           onChange={(event) => updateHomeFilter("sort", event.target.value)}
           className="min-h-10 w-full rounded-lg border border-border bg-white px-3 text-sm font-bold text-primary outline-none transition focus:border-secondary"
         >
-          {sortOptions.map((item) => (
+          {homeSortOptions.map((item) => (
             <option key={item.value || "relevance"} value={item.value}>
               {item.label}
             </option>
           ))}
         </select>
+
+        {homeFilters.sort === "nearest" && (!homeFilters.userLat || !homeFilters.userLng) && (
+          <button
+            type="button"
+            onClick={useCurrentLocationForNearestSort}
+            className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-extrabold text-secondary transition hover:bg-primaryDark"
+          >
+            <MapPin size={16} />
+            Lấy vị trí hiện tại
+          </button>
+        )}
+
+        <div className="rounded-lg border border-border bg-soft/60 p-3">
+          <p className="mb-3 text-sm font-extrabold text-primary">
+            Xe còn trống theo ngày
+          </p>
+          <div className="grid gap-2">
+            <label className="block">
+              <span className="mb-1 block text-xs font-bold uppercase text-muted">
+                Nhận xe
+              </span>
+              <input
+                type="date"
+                value={pickupDate}
+                onChange={(event) => setPickupDate(event.target.value)}
+                className="min-h-10 w-full rounded-lg border border-border bg-white px-3 text-sm font-bold text-primary outline-none transition focus:border-secondary"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-bold uppercase text-muted">
+                Trả xe
+              </span>
+              <input
+                type="date"
+                value={returnDate}
+                onChange={(event) => setReturnDate(event.target.value)}
+                className="min-h-10 w-full rounded-lg border border-border bg-white px-3 text-sm font-bold text-primary outline-none transition focus:border-secondary"
+              />
+            </label>
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <input
+              type="time"
+              value={pickupTime}
+              onChange={(event) => setPickupTime(event.target.value)}
+              className="min-h-10 rounded-lg border border-border bg-white px-3 text-sm font-bold text-primary outline-none transition focus:border-secondary"
+              aria-label="Giờ nhận xe"
+            />
+            <input
+              type="time"
+              value={returnTime}
+              onChange={(event) => setReturnTime(event.target.value)}
+              className="min-h-10 rounded-lg border border-border bg-white px-3 text-sm font-bold text-primary outline-none transition focus:border-secondary"
+              aria-label="Giờ trả xe"
+            />
+          </div>
+        </div>
 
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -707,7 +904,7 @@ export default function HomePage() {
           </button>
           <button
             type="button"
-            onClick={applyHomeFilters}
+            onClick={() => applyHomeFilters()}
             className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-secondary px-4 text-sm font-extrabold text-primary transition hover:brightness-95"
           >
             <Search size={17} />
@@ -755,6 +952,25 @@ export default function HomePage() {
       </div>
 
       <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => toggleHomeFilter("deliveryOnly", "true")}
+          className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border px-3 text-left text-sm font-extrabold transition ${
+            homeFilters.deliveryOnly
+              ? "border-secondary bg-secondarySoft text-primary"
+              : "border-border bg-white text-primary hover:border-secondary/70"
+          }`}
+        >
+          <span>Xe có giao tận nơi</span>
+          <span
+            className={`h-5 w-5 rounded-full border ${
+              homeFilters.deliveryOnly
+                ? "border-secondary bg-secondary"
+                : "border-slate-300 bg-white"
+            }`}
+          />
+        </button>
+
         <details
           className="group"
           open={openHomeFilterDropdown === "seats"}
@@ -855,6 +1071,33 @@ export default function HomePage() {
                   </button>
                 );
               })}
+            </div>
+          </div>
+        </details>
+
+        <details
+          className="group"
+          open={openHomeFilterDropdown === "rating"}
+          onToggle={(event) =>
+            handleHomeDropdownToggle("rating", event.currentTarget.open)
+          }
+        >
+          <summary className={dropdownButtonClass}>
+            <span>Đánh giá</span>
+            <ChevronDown size={16} className="text-muted transition group-open:rotate-180" />
+          </summary>
+          <div className={dropdownPanelClass}>
+            <div className="flex flex-wrap gap-2">
+              {ratingOptions.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => toggleHomeFilter("minRating", item.value)}
+                  className={chipClass(homeFilters.minRating === item.value)}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
           </div>
         </details>
@@ -1268,7 +1511,7 @@ export default function HomePage() {
             </div>
           )}
           <div className="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
-            <aside className="hidden rounded-2xl border border-border bg-white shadow-sm lg:sticky lg:top-24 lg:block">
+            <aside className="hidden overflow-hidden rounded-2xl border border-border bg-white shadow-sm lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-6.5rem)] lg:self-start">
               <div className="border-b border-border px-5 py-4">
                 <p className="flex items-center gap-2 text-sm font-bold uppercase text-secondary">
                   <SlidersHorizontal size={17} />
@@ -1283,7 +1526,7 @@ export default function HomePage() {
                   </p>
                 )}
               </div>
-              <div className="max-h-[calc(100vh-150px)] overflow-y-auto p-5">
+              <div className="max-h-[calc(100vh-190px)] overflow-y-auto p-5">
                 {filterContent}
               </div>
             </aside>
@@ -1330,11 +1573,65 @@ export default function HomePage() {
           )}
 
           {cars.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {cars.map((car) => (
-                <CarCard key={car._id || car.id} car={car} />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {pagedHomeCars.map((car) => (
+                  <CarCard key={car._id || car.id} car={car} />
+                ))}
+              </div>
+
+              {cars.length > HOME_CARS_PER_PAGE && (
+                <div className="mt-8 flex justify-center rounded-2xl border border-border bg-white px-5 py-4 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setHomeCarsPage((page) => Math.max(1, page - 1))
+                      }
+                      disabled={normalizedHomeCarsPage === 1}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-primary transition hover:bg-soft disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label="Trang trước"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+
+                    {Array.from({ length: homeCarsTotalPages }, (_, index) => {
+                      const page = index + 1;
+                      const active = page === normalizedHomeCarsPage;
+
+                      return (
+                        <button
+                          key={page}
+                          type="button"
+                          onClick={() => setHomeCarsPage(page)}
+                          className={`h-10 min-w-10 rounded-lg px-3 text-sm font-extrabold transition ${
+                            active
+                              ? "bg-primary text-secondary"
+                              : "border border-border bg-white text-primary hover:bg-soft"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setHomeCarsPage((page) =>
+                          Math.min(homeCarsTotalPages, page + 1),
+                        )
+                      }
+                      disabled={normalizedHomeCarsPage === homeCarsTotalPages}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-primary transition hover:bg-soft disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label="Trang sau"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="rounded-lg border border-border bg-white p-10 text-center">
               <CarFront size={44} className="mx-auto text-secondary" />

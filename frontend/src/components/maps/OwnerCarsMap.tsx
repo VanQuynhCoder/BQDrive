@@ -14,6 +14,7 @@ import type { LeafletEvent } from "leaflet";
 import { DEFAULT_MAP_TILE_LAYER_KEY, MAP_TILE_LAYERS } from "../../config/mapTiles";
 import type { OwnerMapCar } from "../../services/ownerCarLocation.service";
 import { mapService } from "../../services/map.service";
+import { getCarStatusMeta } from "../../utils/display.util";
 import MapTileLayerControl from "./MapTileLayerControl";
 
 const DEFAULT_CENTER: [number, number] = [10.762622, 106.660172];
@@ -57,18 +58,6 @@ function getCarPosition(
 
   if (!hasCoordinate(car)) return null;
   return [Number(car.pickupLat), Number(car.pickupLng)];
-}
-
-function getStatusLabel(status?: string) {
-  const labels: Record<string, string> = {
-    PENDING: "Chờ duyệt",
-    APPROVED: "Đã duyệt",
-    REJECTED: "Từ chối",
-    RENTED: "Đang được thuê",
-    HIDDEN: "Đã ẩn",
-  };
-
-  return labels[status || ""] || status || "--";
 }
 
 const carMarkerIcon = L.divIcon({
@@ -168,6 +157,7 @@ function MarkerPopupContent({
   const [addressInput, setAddressInput] = useState("");
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
+  const status = getCarStatusMeta(car.status);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -211,8 +201,10 @@ function MarkerPopupContent({
             "Chưa cập nhật địa chỉ nhận xe"}
         </p>
       </div>
-      <p className="mt-2 inline-flex rounded-full bg-emerald-100 px-2 py-1 text-xs font-extrabold text-emerald-800">
-        {getStatusLabel(car.status)}
+      <p
+        className={`mt-2 inline-flex rounded-full px-2 py-1 text-xs font-extrabold ring-1 ${status.className}`}
+      >
+        {status.label}
       </p>
 
       <form className="mt-3 space-y-2" onSubmit={handleSubmit}>

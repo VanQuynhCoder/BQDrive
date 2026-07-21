@@ -2,6 +2,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
+  ClipboardList,
   CreditCard,
   FileText,
   LayoutDashboard,
@@ -17,6 +18,7 @@ import {
   type PaymentTodo,
 } from "../services/booking.service";
 import NotificationBadge from "./NotificationBadge";
+import NotificationBell from "./NotificationBell";
 import { useNotificationSummary } from "../hooks/useNotificationSummary";
 
 type DashboardLink = {
@@ -62,17 +64,25 @@ export default function Header() {
   const { getCount } = useNotificationSummary({ enabled: Boolean(user) });
   const consignmentBadgeCount = getCount([
     "consignmentPendingCars",
+    "consignmentApprovedCars",
     "consignmentRejectedCars",
     "consignmentBookingRequests",
     "consignmentPaidAwaitingHandover",
-    "consignmentInProgressNeedComplete",
+    "consignmentInProgressNeedReceiveReturn",
+    "consignmentReturnInspectionPending",
+    "consignmentCompleteBookingRequired",
+    "consignmentPendingExtraCharges",
+    "consignmentCashConfirmationRequired",
   ]);
   const contractBadgeCount = getCount([
     "bookingOwnerApproved",
-    "activeTrips",
+    "returnDueSoon",
     "rejectedBookings",
+    "renterPendingExtraCharges",
+    "completedNeedReview",
   ]);
-  const paymentBadgeCount = getCount("paymentPending");
+  const paymentBadgeCount = getCount("remainingPaymentDue");
+  const taskBadgeCount = contractBadgeCount + paymentBadgeCount;
 
   let dashboardLink: DashboardLink | null = null;
   if (isAdmin) {
@@ -375,6 +385,8 @@ export default function Header() {
           </Link>
         )}
 
+        {user && <NotificationBell enabled={Boolean(user)} />}
+
         {user ? (
           <div ref={accountMenuRef} className="relative">
             <button
@@ -452,6 +464,19 @@ export default function Header() {
 
                   {canViewCustomerHistory && (
                     <>
+                      <Link
+                        to="/tasks"
+                        role="menuitem"
+                        onClick={closeAccountMenu}
+                        className={accountMenuItemClass}
+                      >
+                        <span className="flex min-w-0 items-center gap-3">
+                          <ClipboardList size={18} className="text-secondary" />
+                          <span>Việc cần làm</span>
+                        </span>
+                        <NotificationBadge count={taskBadgeCount} />
+                      </Link>
+
                       <Link
                         to="/profile"
                         role="menuitem"

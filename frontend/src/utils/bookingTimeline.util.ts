@@ -8,6 +8,8 @@ export type BookingTimelineAction =
   | "CONFIRM"
   | "REJECT"
   | "HANDOVER"
+  | "RECEIVE_RETURN"
+  | "CLEAR_RETURN_INSPECTION"
   | "COMPLETE"
   | "NO_SHOW";
 
@@ -35,6 +37,7 @@ const renterSteps = [
   { key: "paid", label: "Đã thanh toán" },
   { key: "waiting-pickup", label: "Chờ nhận xe" },
   { key: "in-progress", label: "Đang thuê" },
+  { key: "return-inspection", label: "Kiểm tra xe sau thuê" },
   { key: "completed", label: "Hoàn tất" },
 ];
 
@@ -45,6 +48,7 @@ const ownerSteps = [
   { key: "paid", label: "Khách đã thanh toán" },
   { key: "waiting-handover", label: "Chờ bàn giao xe" },
   { key: "in-progress", label: "Đang thuê" },
+  { key: "return-inspection", label: "Kiểm tra xe sau thuê" },
   { key: "completed", label: "Hoàn tất" },
 ];
 
@@ -100,7 +104,10 @@ function getRenterCurrentIndex(status: string) {
   if (status === "PAYMENT_PENDING" || status === "WAITING_PAYMENT") return 2;
   if (status === "PAID" || status === "CONFIRMED") return 4;
   if (status === "IN_PROGRESS") return 5;
-  if (status === "COMPLETED") return 6;
+  if (status === "RETURN_INSPECTION" || status === "AWAITING_EXTRA_CHARGE") {
+    return 6;
+  }
+  if (status === "COMPLETED") return 7;
   return 0;
 }
 
@@ -110,7 +117,10 @@ function getOwnerCurrentIndex(status: string) {
   if (status === "PAYMENT_PENDING" || status === "WAITING_PAYMENT") return 2;
   if (status === "PAID" || status === "CONFIRMED") return 4;
   if (status === "IN_PROGRESS") return 5;
-  if (status === "COMPLETED") return 6;
+  if (status === "RETURN_INSPECTION" || status === "AWAITING_EXTRA_CHARGE") {
+    return 6;
+  }
+  if (status === "COMPLETED") return 7;
   return 0;
 }
 
@@ -258,10 +268,34 @@ export function getBookingTimelineView({
       return {
         displayStatus: "Xe đang được thuê",
         nextActionText:
-          "Xe đang được thuê. Khi khách trả xe, hãy kiểm tra và hoàn tất chuyến.",
+          "Xe đang được thuê. Khi khách trả xe, hãy tiếp nhận xe và kiểm tra sau thuê.",
         tone: "blue",
         steps: buildSteps(perspective, getOwnerCurrentIndex(normalizedStatus)),
-        allowedActions: ["COMPLETE"],
+        allowedActions: ["RECEIVE_RETURN"],
+        isPickupOverdue: overdue,
+      };
+    }
+
+    if (normalizedStatus === "RETURN_INSPECTION") {
+      return {
+        displayStatus: "Đang kiểm tra xe sau thuê",
+        nextActionText:
+          "Xe đã được tiếp nhận trả. Hãy kiểm tra tình trạng xe, tạo phí phát sinh nếu cần hoặc xác nhận không có phát sinh.",
+        tone: "yellow",
+        steps: buildSteps(perspective, getOwnerCurrentIndex(normalizedStatus)),
+        allowedActions: ["CLEAR_RETURN_INSPECTION", "COMPLETE"],
+        isPickupOverdue: overdue,
+      };
+    }
+
+    if (normalizedStatus === "AWAITING_EXTRA_CHARGE") {
+      return {
+        displayStatus: "Chờ xử lý phí phát sinh",
+        nextActionText:
+          "Booking đang có phí phát sinh chờ khách xử lý. Chỉ hoàn tất sau khi các khoản phí được thanh toán hoặc hủy.",
+        tone: "yellow",
+        steps: buildSteps(perspective, getOwnerCurrentIndex(normalizedStatus)),
+        allowedActions: [],
         isPickupOverdue: overdue,
       };
     }
@@ -344,6 +378,30 @@ export function getBookingTimelineView({
       nextActionText:
         "Chuyến thuê đang diễn ra. Vui lòng trả xe đúng thời gian.",
       tone: "blue",
+      steps: buildSteps(perspective, getRenterCurrentIndex(normalizedStatus)),
+      allowedActions: [],
+      isPickupOverdue: overdue,
+    };
+  }
+
+  if (normalizedStatus === "RETURN_INSPECTION") {
+    return {
+      displayStatus: "Xe đã được tiếp nhận trả",
+      nextActionText:
+        "Chủ xe đang kiểm tra tình trạng xe sau thuê. Nếu còn khoản cần xử lý, hệ thống sẽ thông báo cho bạn.",
+      tone: "yellow",
+      steps: buildSteps(perspective, getRenterCurrentIndex(normalizedStatus)),
+      allowedActions: [],
+      isPickupOverdue: overdue,
+    };
+  }
+
+  if (normalizedStatus === "AWAITING_EXTRA_CHARGE") {
+    return {
+      displayStatus: "Có phí phát sinh cần xử lý",
+      nextActionText:
+        "Vui lòng kiểm tra và xử lý phí phát sinh để booking có thể hoàn tất.",
+      tone: "yellow",
       steps: buildSteps(perspective, getRenterCurrentIndex(normalizedStatus)),
       allowedActions: [],
       isPickupOverdue: overdue,

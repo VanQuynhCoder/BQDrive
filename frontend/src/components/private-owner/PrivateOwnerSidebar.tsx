@@ -2,6 +2,7 @@
   BarChart3,
   CalendarDays,
   Car,
+  ClipboardList,
   CreditCard,
   History,
   Home,
@@ -21,10 +22,29 @@ type PrivateOwnerSidebarProps = {
 const navItems = [
   { label: "Tổng quan", to: "/consignment", icon: BarChart3, end: true },
   {
+    label: "Việc cần làm",
+    to: "/consignment/tasks",
+    icon: ClipboardList,
+    badgeKeys: [
+      "consignmentPendingCars",
+      "consignmentRejectedCars",
+      "consignmentBookingRequests",
+      "consignmentPaidAwaitingHandover",
+      "consignmentInProgressNeedReceiveReturn",
+      "consignmentReturnInspectionPending",
+      "consignmentCompleteBookingRequired",
+      "consignmentPendingExtraCharges",
+      "consignmentCashConfirmationRequired",
+    ],
+  },
+  {
     label: "Xe ký gửi của tôi",
     to: "/consignment/cars",
     icon: Car,
-    badgeKeys: ["consignmentPendingCars", "consignmentRejectedCars"],
+    badgeKeys: [
+      "consignmentPendingCars",
+      "consignmentRejectedCars",
+    ],
   },
   { label: "Bản đồ xe", to: "/consignment/map", icon: MapPinned },
   {
@@ -34,7 +54,11 @@ const navItems = [
     badgeKeys: [
       "consignmentBookingRequests",
       "consignmentPaidAwaitingHandover",
-      "consignmentInProgressNeedComplete",
+      "consignmentInProgressNeedReceiveReturn",
+      "consignmentReturnInspectionPending",
+      "consignmentCompleteBookingRequired",
+      "consignmentPendingExtraCharges",
+      "consignmentCashConfirmationRequired",
     ],
   },
   {

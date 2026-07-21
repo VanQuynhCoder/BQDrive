@@ -1,12 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type ChangeEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import toast from "react-hot-toast";
-import { Loader2, Plus, X } from "lucide-react";
+import { ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react";
 
 import {
   extraChargeService,
   type ExtraCharge,
   type ExtraChargeType,
 } from "../../services/extraCharge.service";
+import { notifyNotificationSummaryChanged } from "../../services/notification.service";
+import { normalizeImageUrl } from "../../utils/image.util";
+
+const MAX_EVIDENCE_IMAGES = 5;
 
 const chargeTypes: Array<{ value: ExtraChargeType; label: string }> = [
   { value: "CLEANING", label: "Phí vệ sinh" },
@@ -35,9 +45,25 @@ function getStatusLabel(status: string) {
 }
 
 function getStatusClass(status: string) {
-  if (status === "PAID") return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (status === "CANCELLED") return "bg-slate-100 text-slate-500 border-slate-200";
+  if (status === "PAID") {
+    return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  }
+
+  if (status === "CANCELLED") {
+    return "bg-slate-100 text-slate-500 border-slate-200";
+  }
+
   return "bg-yellow-50 text-amber-700 border-yellow-200";
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 export default function ExtraChargeManager({
@@ -54,8 +80,11 @@ export default function ExtraChargeManager({
   const [type, setType] = useState<ExtraChargeType>("CLEANING");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
+  const [evidenceImages, setEvidenceImages] = useState<string[]>([]);
 
-  const canCreate = bookingStatus === "IN_PROGRESS";
+  const canCreate = ["RETURN_INSPECTION", "AWAITING_EXTRA_CHARGE"].includes(
+    bookingStatus,
+  );
   const pendingTotal = useMemo(
     () =>
       charges
@@ -87,7 +116,40 @@ export default function ExtraChargeManager({
     setType("CLEANING");
     setAmount("");
     setDescription("");
+    setEvidenceImages([]);
     setFormOpen(false);
+  };
+
+  const handleEvidenceChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+
+    if (!files.length) return;
+
+    const availableSlots = MAX_EVIDENCE_IMAGES - evidenceImages.length;
+    if (availableSlots <= 0) {
+      toast.error(`Chỉ được thêm tối đa ${MAX_EVIDENCE_IMAGES} ảnh bằng chứng`);
+      return;
+    }
+
+    const acceptedFiles = files
+      .filter((file) => file.type.startsWith("image/"))
+      .slice(0, availableSlots);
+
+    if (acceptedFiles.length !== files.length) {
+      toast.error("Một số file không phải hình ảnh hoặc vượt quá số lượng cho phép");
+    }
+
+    try {
+      const images = await Promise.all(acceptedFiles.map(readFileAsDataUrl));
+      setEvidenceImages((current) => [...current, ...images]);
+    } catch {
+      toast.error("Không thể đọc ảnh bằng chứng");
+    }
+  };
+
+  const removeEvidenceImage = (index: number) => {
+    setEvidenceImages((current) => current.filter((_, itemIndex) => itemIndex !== index));
   };
 
   const handleCreate = async () => {
@@ -109,8 +171,10 @@ export default function ExtraChargeManager({
         type,
         amount: Math.round(parsedAmount),
         description: description.trim(),
+        evidenceImages,
       });
       toast.success("Đã thêm phí phát sinh");
+      notifyNotificationSummaryChanged();
       resetForm();
       await fetchCharges();
     } catch {
@@ -125,6 +189,7 @@ export default function ExtraChargeManager({
     try {
       await extraChargeService.confirmCash(id);
       toast.success("Đã xác nhận thu phí");
+      notifyNotificationSummaryChanged();
       await fetchCharges();
     } catch {
       toast.error("Không thể xác nhận thu phí");
@@ -138,6 +203,7 @@ export default function ExtraChargeManager({
     try {
       await extraChargeService.cancel(id, "Chủ xe hủy phí phát sinh");
       toast.success("Đã hủy phí phát sinh");
+      notifyNotificationSummaryChanged();
       await fetchCharges();
     } catch {
       toast.error("Không thể hủy phí phát sinh");
@@ -213,6 +279,54 @@ export default function ExtraChargeManager({
               placeholder="Ví dụ: Xe bị trầy cản trước bên phải..."
             />
           </label>
+
+          <div className="sm:col-span-2">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="text-sm font-extrabold text-primary">
+                Ảnh bằng chứng
+              </span>
+              <span className="text-xs font-bold text-slate-500">
+                {evidenceImages.length}/{MAX_EVIDENCE_IMAGES} ảnh
+              </span>
+            </div>
+            <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-secondary bg-white px-4 text-sm font-extrabold text-primary transition hover:bg-secondarySoft/60">
+              <ImagePlus size={18} className="text-secondary" />
+              Chọn ảnh từ máy
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleEvidenceChange}
+              />
+            </label>
+            {evidenceImages.length > 0 && (
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+                {evidenceImages.map((image, index) => (
+                  <div
+                    key={`${image.slice(0, 24)}-${index}`}
+                    className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white"
+                  >
+                    <img
+                      src={normalizeImageUrl(image)}
+                      alt={`Ảnh bằng chứng ${index + 1}`}
+                      className="h-24 w-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeEvidenceImage(index)}
+                      className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-secondary opacity-95"
+                      aria-label="Xóa ảnh bằng chứng"
+                      title="Xóa ảnh"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={handleCreate}
@@ -261,6 +375,28 @@ export default function ExtraChargeManager({
                   {formatCurrency(charge.amount)}
                 </p>
               </div>
+
+              {charge.evidenceImages?.length ? (
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {charge.evidenceImages.map((image, index) => (
+                    <a
+                      key={`${charge._id}-${index}`}
+                      href={normalizeImageUrl(image)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+                      title="Mở ảnh bằng chứng"
+                    >
+                      <img
+                        src={normalizeImageUrl(image)}
+                        alt={`Ảnh bằng chứng phí phát sinh ${index + 1}`}
+                        className="h-24 w-full object-cover transition group-hover:scale-105"
+                      />
+                    </a>
+                  ))}
+                </div>
+              ) : null}
+
               {charge.status === "PENDING" && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button

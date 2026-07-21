@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import type { ChangeEvent } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   ArrowLeft,
@@ -34,8 +35,18 @@ import {
 } from "../components/booking/BookingTimeline";
 import RouteMap from "../components/maps/RouteMap";
 import { bookingService } from "../services/booking.service";
-import { reviewService, type ReviewItem } from "../services/review.service";
-import { getFirstCarImage } from "../utils/image.util";
+import { notifyNotificationSummaryChanged } from "../services/notification.service";
+import {
+  reviewService,
+  type ReviewCriteria,
+  type ReviewItem,
+} from "../services/review.service";
+import {
+  extraChargeService,
+  type ExtraCharge,
+  type ExtraChargeType,
+} from "../services/extraCharge.service";
+import { getFirstCarImage, normalizeImageUrl } from "../utils/image.util";
 import { formatVietnamDateTime } from "../utils/date.util";
 import { formatAddressSnapshot, formatFullAddress } from "../utils/address.util";
 import { getBookingTimelineView } from "../utils/bookingTimeline.util";
@@ -49,6 +60,8 @@ type BookingStatus =
   | "WAITING_PAYMENT"
   | "CONFIRMED"
   | "IN_PROGRESS"
+  | "RETURN_INSPECTION"
+  | "AWAITING_EXTRA_CHARGE"
   | "CANCELLED"
   | "REJECTED"
   | "COMPLETED"
@@ -188,6 +201,67 @@ function getRentalInfo(car: BookingCar | undefined, rentalMode?: string) {
 }
 
 const HOUR_MS = 1000 * 60 * 60;
+const maxReviewImages = 3;
+const maxReviewImageSize = 5 * 1024 * 1024;
+
+const reviewCriteriaOptions: Array<{
+  key: keyof ReviewCriteria;
+  label: string;
+  description: string;
+}> = [
+  {
+    key: "vehicleQuality",
+    label: "Chất lượng xe cao",
+    description: "Xe vận hành ổn, phù hợp chuyến đi",
+  },
+  {
+    key: "cleanliness",
+    label: "Xe sạch sẽ",
+    description: "Nội thất và ngoại thất được chuẩn bị tốt",
+  },
+  {
+    key: "descriptionAccuracy",
+    label: "Đúng như mô tả",
+    description: "Thông tin xe trên hệ thống chính xác",
+  },
+  {
+    key: "handoverService",
+    label: "Nhận/trả xe nhanh gọn",
+    description: "Thủ tục rõ ràng, không mất nhiều thời gian",
+  },
+  {
+    key: "ownerAttitude",
+    label: "Chủ xe hỗ trợ tốt",
+    description: "Tư vấn và phản hồi thân thiện",
+  },
+  {
+    key: "punctuality",
+    label: "Giao xe đúng giờ",
+    description: "Xe được giao/nhận đúng lịch hẹn",
+  },
+];
+
+function getSelectedReviewCriteria(criteria?: ReviewCriteria) {
+  return reviewCriteriaOptions.filter((item) => criteria?.[item.key]);
+}
+
+function readReviewImage(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error("Invalid image result"));
+    };
+
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
 function calculateRentalTime(rentalMode: string | undefined, start: string, end: string) {
   const startDate = new Date(start);
@@ -206,7 +280,7 @@ function calculateRentalTime(rentalMode: string | undefined, start: string, end:
 function getSpecLabel(value?: string) {
   const labels: Record<string, string> = {
     ELECTRIC: "Điện",
-    GASOLINE: "Xang",
+    GASOLINE: "Xăng",
     DIESEL: "Diesel",
     HYBRID: "Hybrid",
     AUTOMATIC: "Tự động",
@@ -232,7 +306,7 @@ function getStatusInfo(status: BookingStatus) {
   if (value === "PAYMENT_PENDING" || value === "WAITING_PAYMENT") {
     return {
       label: "Chờ thanh toán",
-      detail: "Bạn đã bắt đầu thanh toán, hệ thống đang chỗ kết quả hoặc ghi nhận thanh toán.",
+      detail: "Bạn đã bắt đầu thanh toán, hệ thống đang chờ kết quả hoặc ghi nhận thanh toán.",
       badgeClass: "bg-amber-50 text-amber-700",
       panelClass: "border-amber-100 bg-amber-50 text-amber-700",
       icon: CreditCard,
@@ -242,7 +316,7 @@ function getStatusInfo(status: BookingStatus) {
   if (value === "PAID") {
     return {
       label: "Đã thanh toán",
-      detail: "Booking đã được thanh toán và lịch thuê đã được giờ chính thực.",
+      detail: "Booking đã được thanh toán và lịch thuê đã được ghi nhận chính thức.",
       badgeClass: "bg-secondarySoft text-primary",
       panelClass: "border-secondary/40 bg-secondarySoft text-primary",
       icon: CheckCircle2,
@@ -259,10 +333,30 @@ function getStatusInfo(status: BookingStatus) {
     };
   }
 
+  if (value === "RETURN_INSPECTION") {
+    return {
+      label: "Đang kiểm tra xe",
+      detail: "Chủ xe đã tiếp nhận xe trả và đang kiểm tra tình trạng sau thuê.",
+      badgeClass: "bg-amber-50 text-amber-700",
+      panelClass: "border-amber-100 bg-amber-50 text-amber-700",
+      icon: CircleDashed,
+    };
+  }
+
+  if (value === "AWAITING_EXTRA_CHARGE") {
+    return {
+      label: "Chờ xử lý phí phát sinh",
+      detail: "Booking có phí phát sinh cần xử lý trước khi hoàn tất.",
+      badgeClass: "bg-amber-50 text-amber-700",
+      panelClass: "border-amber-100 bg-amber-50 text-amber-700",
+      icon: CreditCard,
+    };
+  }
+
   if (value === "COMPLETED") {
     return {
       label: "Hoàn tất",
-      detail: "Chuyện thuê đã hoàn tất.",
+      detail: "Chuyến thuê đã hoàn tất.",
       badgeClass: "bg-secondarySoft text-primary",
       panelClass: "border-secondary/40 bg-secondarySoft text-primary",
       icon: CheckCircle2,
@@ -370,9 +464,11 @@ function canPayBooking(booking: Booking, nextAmount: number) {
       "OWNER_APPROVED", // Chủ xe đã duyệt nên khách được thanh toán
       "PAYMENT_PENDING", // Đang chờ thanh toán, cho phép quay lại thanh toán
       "PAID", // Đã trả cọc, có thể thanh toán phần còn lại nếu còn tiền
-      "CONFIRMED", // Trạng thái cu
-      "WAITING_PAYMENT", // Trạng thái cu
+      "CONFIRMED", // Trạng thái cũ
+      "WAITING_PAYMENT", // Trạng thái cũ
       "IN_PROGRESS",
+      "RETURN_INSPECTION",
+      "AWAITING_EXTRA_CHARGE",
     ].includes(
       booking.status || "",
     )
@@ -385,8 +481,42 @@ function canCancelBooking(booking: Booking) {
   );
 }
 
+const extraChargeTypeLabels: Record<ExtraChargeType, string> = {
+  CLEANING: "Phí vệ sinh",
+  DAMAGE: "Phí sửa chữa/hư hỏng",
+  LATE_RETURN: "Phí trễ giờ",
+  FUEL: "Phí nhiên liệu",
+  OTHER: "Phí khác",
+};
+
+function getExtraChargeTypeLabel(type: ExtraChargeType | string) {
+  return extraChargeTypeLabels[type as ExtraChargeType] || type || "Phí phát sinh";
+}
+
+function getExtraChargeStatusMeta(status?: string) {
+  if (status === "PAID") {
+    return {
+      label: "Đã thanh toán",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    };
+  }
+
+  if (status === "CANCELLED") {
+    return {
+      label: "Đã hủy",
+      className: "border-slate-200 bg-slate-100 text-slate-600",
+    };
+  }
+
+  return {
+    label: "Chờ thanh toán",
+    className: "border-yellow-200 bg-yellow-50 text-amber-700",
+  };
+}
+
 export default function BookingDetailPage() {
   const { id } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
@@ -395,7 +525,23 @@ export default function BookingDetailPage() {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
+  const [reviewCriteria, setReviewCriteria] = useState<ReviewCriteria>({});
+  const [reviewImages, setReviewImages] = useState<string[]>([]);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
+  const [extraChargeLoading, setExtraChargeLoading] = useState(false);
+  const [extraChargePayingId, setExtraChargePayingId] = useState("");
+
+  const fetchExtraCharges = useCallback(async (bookingId: string) => {
+    setExtraChargeLoading(true);
+    try {
+      setExtraCharges(await extraChargeService.getMyByBooking(bookingId));
+    } catch {
+      setExtraCharges([]);
+    } finally {
+      setExtraChargeLoading(false);
+    }
+  }, []);
 
   const fetchBooking = useCallback(async () => {
     if (!id) {
@@ -406,6 +552,9 @@ export default function BookingDetailPage() {
     try {
       const foundBooking = (await bookingService.getMyBooking(id)) as Booking;
       setBooking(foundBooking || null);
+      if (foundBooking?._id) {
+        await fetchExtraCharges(foundBooking._id);
+      }
       if (foundBooking?.status === "COMPLETED") {
         const foundReview = await reviewService.getBookingReview(foundBooking._id);
         setReview(foundReview);
@@ -429,7 +578,7 @@ export default function BookingDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [fetchExtraCharges, id]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -439,7 +588,7 @@ export default function BookingDetailPage() {
 
   const handleCancel = async () => {
     if (!booking || cancelSubmitting) return;
-    if (!window.confirm("Bạn có chỗc muốn hủy booking này?")) return;
+    if (!window.confirm("Bạn có chắc muốn hủy booking này?")) return;
 
     try {
       setCancelSubmitting(true);
@@ -465,26 +614,146 @@ export default function BookingDetailPage() {
     }
   };
 
+  const handlePayExtraCharge = async (
+    extraChargeId: string,
+    provider: "MOMO" | "VNPAY",
+  ) => {
+    if (extraChargePayingId) return;
+
+    setExtraChargePayingId(extraChargeId);
+    try {
+      const result =
+        provider === "MOMO"
+          ? await extraChargeService.createMomoPayment(extraChargeId)
+          : await extraChargeService.createVnpayPayment(extraChargeId);
+      const momoResult = result as { momo?: { payUrl?: string } };
+      const payUrl =
+        result.payUrl ||
+        momoResult.momo?.payUrl;
+
+      if (!payUrl) {
+        throw new Error("Missing payment URL");
+      }
+
+      window.location.assign(payUrl);
+    } catch {
+      toast.error("Không thể tạo thanh toán phí phát sinh");
+      setExtraChargePayingId("");
+    }
+  };
+
+  const openReviewModal = useCallback(() => {
+    if (review) {
+      setReviewRating(review.rating || 0);
+      setReviewComment(review.comment || "");
+      setReviewCriteria(review.criteria || {});
+      setReviewImages(review.images || []);
+    } else {
+      setReviewRating(0);
+      setReviewComment("");
+      setReviewCriteria({});
+      setReviewImages([]);
+    }
+
+    setReviewModalOpen(true);
+  }, [review]);
+
+  useEffect(() => {
+    if (loading || !booking) return;
+
+    const actionParam = searchParams.get("action");
+    const sectionParam = searchParams.get("section");
+    const scrollToSection = (sectionId: string) => {
+      window.setTimeout(() => {
+        document.getElementById(sectionId)?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 80);
+    };
+
+    if (actionParam === "review" && booking.status === "COMPLETED" && !review) {
+      queueMicrotask(() => {
+        openReviewModal();
+        setSearchParams({});
+      });
+      return;
+    }
+
+    if (actionParam === "payment") {
+      scrollToSection("booking-payment-summary");
+      return;
+    }
+
+    if (sectionParam === "extra-charge") {
+      scrollToSection("booking-extra-charges");
+      return;
+    }
+
+    if (sectionParam === "return") {
+      scrollToSection("booking-timeline");
+    }
+  }, [booking, loading, openReviewModal, review, searchParams, setSearchParams]);
+
+  const handleReviewImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length) return;
+
+    const availableSlots = maxReviewImages - reviewImages.length;
+    if (availableSlots <= 0) {
+      toast.error(`Chỉ được tải tối đa ${maxReviewImages} ảnh đánh giá.`);
+      return;
+    }
+
+    const validFiles = files.slice(0, availableSlots).filter((file) => {
+      if (!file.type.startsWith("image/")) {
+        toast.error(`${file.name} không phải là ảnh hợp lệ.`);
+        return false;
+      }
+
+      if (file.size > maxReviewImageSize) {
+        toast.error(`${file.name} vượt quá 5MB.`);
+        return false;
+      }
+
+      return true;
+    });
+
+    const images = await Promise.all(validFiles.map(readReviewImage));
+    setReviewImages((current) => [...current, ...images].slice(0, maxReviewImages));
+  };
+
   const handleSubmitReview = async () => {
     if (!booking || reviewSubmitting) return;
 
     if (!reviewRating) {
-      toast.error("Vui lòng chọn số sao đánh giá");
+      toast.error("Vui lòng chọn điểm tổng thể từ 1 đến 5 sao");
       return;
     }
 
     try {
       setReviewSubmitting(true);
-      const createdReview = await reviewService.createReview({
-        bookingId: booking._id,
+      const payload = {
         rating: reviewRating,
+        criteria: reviewCriteria,
         comment: reviewComment,
-      });
-      setReview(createdReview);
+        images: reviewImages,
+      };
+      const savedReview = review
+        ? await reviewService.updateReview(review.id || review._id || "", payload)
+        : await reviewService.createReview({
+            bookingId: booking._id,
+            ...payload,
+          });
+      setReview(savedReview);
       setReviewModalOpen(false);
       setReviewRating(0);
       setReviewComment("");
-      toast.success("Cảm ơn bạn đã đánh giá chuyến thuê.");
+      setReviewCriteria({});
+      setReviewImages([]);
+      notifyNotificationSummaryChanged();
+      toast.success(review ? "Đã cập nhật đánh giá." : "Cảm ơn bạn đã đánh giá chuyến thuê.");
     } catch (error) {
       const message =
         typeof error === "object" &&
@@ -560,7 +829,7 @@ export default function BookingDetailPage() {
   const ownerAddress =
     booking.ownerType === "USER"
       ? formatFullAddress(ownerUser, "Địa chỉ liên hệ sẽ theo hợp đồng.")
-      : formatFullAddress(booking.businessId, "Thông tin đểa chỗ đang được cập nhật.");
+      : formatFullAddress(booking.businessId, "Thông tin địa chỉ đang được cập nhật.");
   const ownerPhone =
     booking.ownerType === "USER" ? ownerUser?.phone : booking.businessId.phone;
   const pickupAddress = formatAddressSnapshot(
@@ -592,10 +861,13 @@ export default function BookingDetailPage() {
     remainingAmount: booking.remainingAmount,
   });
   const StatusIcon = statusInfo.icon;
+  const paymentNextAmount = Number(paymentInfo.nextAmount || 0);
+  const paymentPaidAmount = Number(paymentInfo.paidAmount || 0);
+  const paymentTotalPrice = Number(paymentInfo.totalPrice || 0);
   const paymentProgress = paymentInfo.totalPrice
-    ? Math.min(100, Math.round((paymentInfo.paidAmount / paymentInfo.totalPrice) * 100))
+    ? Math.min(100, Math.round((paymentPaidAmount / paymentTotalPrice) * 100))
     : 0;
-  const showPaymentAction = canPayBooking(booking, paymentInfo.nextAmount);
+  const showPaymentAction = canPayBooking(booking, paymentNextAmount);
   const showCancelAction = canCancelBooking(booking);
   const pickupLat = car?.pickupLat ?? car?.latitude;
   const pickupLng = car?.pickupLng ?? car?.longitude;
@@ -606,10 +878,15 @@ export default function BookingDetailPage() {
     "CONFIRMED",
     "WAITING_PAYMENT",
     "IN_PROGRESS",
+    "RETURN_INSPECTION",
+    "AWAITING_EXTRA_CHARGE",
     "COMPLETED",
   ];
   const canShowRouteMap = routeVisibleStatuses.includes(booking.status || "");
   const canReviewBooking = booking.status === "COMPLETED";
+  const pendingExtraChargeTotal = extraCharges
+    .filter((charge) => charge.status === "PENDING")
+    .reduce((sum, charge) => sum + Number(charge.amount || 0), 0);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background">
@@ -762,7 +1039,7 @@ export default function BookingDetailPage() {
                       booking.noShowReason ||
                       bookingTimeline.nextActionText}
                   </p>
-                  {booking.status === "NO_SHOW" && paymentInfo.paidAmount > 0 && (
+                  {booking.status === "NO_SHOW" && paymentPaidAmount > 0 && (
                     <p className="mt-3">
                       Booking đã được đánh dấu không nhận xe. Chính sách xử lý
                       cọc/thanh toán sẽ được thực hiện theo quy định của hệ
@@ -772,6 +1049,129 @@ export default function BookingDetailPage() {
                 </div>
               )}
             </section>
+
+            {(extraChargeLoading || extraCharges.length > 0) && (
+              <section id="booking-extra-charges" className="rounded-lg border border-border bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-sm font-bold uppercase text-secondary">
+                      Phí phát sinh
+                    </p>
+                    <h2 className="mt-1 text-2xl font-extrabold text-primary">
+                      Chi phí sau chuyến thuê
+                    </h2>
+                    <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-muted">
+                      Đây là khoản phí riêng do chủ xe tạo sau khi kiểm tra xe.
+                      Khoản này không cộng vào tiền thuê ban đầu của booking.
+                    </p>
+                  </div>
+                  {pendingExtraChargeTotal > 0 && (
+                    <div className="rounded-lg bg-yellow-50 px-4 py-3 text-right">
+                      <p className="text-xs font-bold uppercase text-amber-700">
+                        Cần thanh toán
+                      </p>
+                      <p className="mt-1 text-xl font-extrabold text-primary">
+                        {formatPrice(pendingExtraChargeTotal)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {extraChargeLoading ? (
+                  <div className="mt-5 flex items-center gap-2 rounded-lg border border-dashed border-border bg-slate-50 px-4 py-3 text-sm font-bold text-muted">
+                    <Loader2 size={16} className="animate-spin text-secondary" />
+                    Đang tải phí phát sinh...
+                  </div>
+                ) : (
+                  <div className="mt-5 space-y-3">
+                    {extraCharges.map((charge) => {
+                      const status = getExtraChargeStatusMeta(charge.status);
+                      const isPending = charge.status === "PENDING";
+
+                      return (
+                        <div
+                          key={charge._id}
+                          className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                        >
+                          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="text-lg font-extrabold text-primary">
+                                  {getExtraChargeTypeLabel(charge.type)}
+                                </h3>
+                                <span
+                                  className={`rounded-full border px-3 py-1 text-xs font-extrabold ${status.className}`}
+                                >
+                                  {status.label}
+                                </span>
+                              </div>
+                              <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+                                {charge.description}
+                              </p>
+                            </div>
+                            <p className="shrink-0 text-xl font-extrabold text-secondary">
+                              {formatPrice(charge.amount)}
+                            </p>
+                          </div>
+
+                          {charge.evidenceImages?.length ? (
+                            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+                              {charge.evidenceImages.map((image, index) => (
+                                <a
+                                  key={`${charge._id}-${index}`}
+                                  href={normalizeImageUrl(image)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+                                  title="Xem ảnh bằng chứng"
+                                >
+                                  <img
+                                    src={normalizeImageUrl(image)}
+                                    alt={`Ảnh bằng chứng phí phát sinh ${index + 1}`}
+                                    className="h-24 w-full object-cover transition hover:scale-105"
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          ) : null}
+
+                          {isPending && (
+                            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                              <button
+                                type="button"
+                                onClick={() => handlePayExtraCharge(charge._id, "VNPAY")}
+                                disabled={Boolean(extraChargePayingId)}
+                                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2 font-extrabold text-primary transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {extraChargePayingId === charge._id ? (
+                                  <Loader2 size={18} className="animate-spin" />
+                                ) : (
+                                  <CreditCard size={18} />
+                                )}
+                                Thanh toán VNPay
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handlePayExtraCharge(charge._id, "MOMO")}
+                                disabled={Boolean(extraChargePayingId)}
+                                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-extrabold text-secondary transition hover:bg-primaryDark disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {extraChargePayingId === charge._id ? (
+                                  <Loader2 size={18} className="animate-spin" />
+                                ) : (
+                                  <Wallet size={18} />
+                                )}
+                                Thanh toán MoMo
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
 
             {canReviewBooking && (
               <section className="rounded-lg border border-border bg-white p-6 shadow-sm">
@@ -790,14 +1190,25 @@ export default function BookingDetailPage() {
                   </div>
 
                   {review ? (
-                    <span className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondarySoft px-5 py-3 font-extrabold text-primary">
-                      <CheckCircle2 size={19} />
-                      Đã đánh giá
-                    </span>
+                    <div className="flex flex-col gap-2 sm:items-end">
+                      <span className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondarySoft px-5 py-3 font-extrabold text-primary">
+                        <CheckCircle2 size={19} />
+                        Đã đánh giá
+                      </span>
+                      {review.canEdit && (
+                        <button
+                          type="button"
+                          onClick={openReviewModal}
+                          className="text-sm font-extrabold text-primary underline decoration-secondary decoration-2 underline-offset-4"
+                        >
+                          Chỉnh sửa trong 24 giờ
+                        </button>
+                      )}
+                    </div>
                   ) : (
                     <button
                       type="button"
-                      onClick={() => setReviewModalOpen(true)}
+                      onClick={openReviewModal}
                       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-3 font-extrabold text-primary transition hover:brightness-95"
                     >
                       <Star size={19} />
@@ -808,19 +1219,49 @@ export default function BookingDetailPage() {
 
                 {review && (
                   <div className="mt-5 rounded-lg border border-secondary/30 bg-secondarySoft/30 p-4">
-                    <div className="flex items-center gap-1 text-secondary">
-                      {Array.from({ length: 5 }).map((_, index) => (
-                        <Star
-                          key={index}
-                          size={18}
-                          fill={index < review.rating ? "currentColor" : "none"}
-                        />
-                      ))}
-                    </div>
+                    <span className="inline-flex items-center gap-2 rounded-full bg-primary px-3 py-1 text-xs font-extrabold text-secondary">
+                      <CheckCircle2 size={14} />
+                      Đã ghi nhận trải nghiệm
+                    </span>
                     {review.comment && (
                       <p className="mt-3 text-sm font-semibold leading-6 text-primary">
                         {review.comment}
                       </p>
+                    )}
+                    {review.criteria && Object.keys(review.criteria).length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {getSelectedReviewCriteria(review.criteria).map((item) => (
+                          <span
+                            key={item.key}
+                            className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-extrabold text-primary"
+                          >
+                            <CheckCircle2 size={15} className="text-emerald-600" />
+                            {item.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {review.images?.length ? (
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        {review.images.map((image, index) => (
+                          <img
+                            key={`${image}-${index}`}
+                            src={image}
+                            alt={`Ảnh đánh giá ${index + 1}`}
+                            className="h-20 w-28 rounded-lg border border-border object-cover"
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                    {review.ownerReply?.content && (
+                      <div className="mt-4 rounded-xl border border-primary/10 bg-white p-4">
+                        <p className="text-xs font-bold uppercase text-secondary">
+                          Phản hồi từ chủ xe
+                        </p>
+                        <p className="mt-2 text-sm font-semibold leading-6 text-primary">
+                          {review.ownerReply.content}
+                        </p>
+                      </div>
                     )}
                   </div>
                 )}
@@ -846,7 +1287,7 @@ export default function BookingDetailPage() {
               </section>
             )}
 
-            <section className="rounded-lg border border-border bg-white p-6 shadow-sm">
+            <section id="booking-timeline" className="rounded-lg border border-border bg-white p-6 shadow-sm">
               <p className="text-sm font-bold uppercase text-secondary">
                 Đơn vị cho thuê
               </p>
@@ -871,7 +1312,7 @@ export default function BookingDetailPage() {
             </section>
           </section>
 
-          <aside className="lg:sticky lg:top-28 lg:self-start">
+          <aside id="booking-payment-summary" className="lg:sticky lg:top-28 lg:self-start">
             <div className="rounded-lg border border-border bg-white p-6 shadow-xl shadow-slate-900/10">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -921,9 +1362,9 @@ export default function BookingDetailPage() {
                   className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-3 font-extrabold text-primary transition hover:brightness-95"
                 >
                   <CreditCard size={20} />
-                  Thanh toán {formatPrice(paymentInfo.nextAmount)}
+                  Thanh toán {formatPrice(paymentNextAmount)}
                 </Link>
-              ) : paymentInfo.nextAmount > 0 ? (
+              ) : paymentNextAmount > 0 ? (
                 <div className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-amber-50 px-5 py-3 text-center font-extrabold text-amber-700">
                   <Clock3 size={20} />
                   {booking.status === "PENDING"
@@ -965,7 +1406,7 @@ export default function BookingDetailPage() {
 
       {reviewModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 px-4">
-          <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="bg-primary px-6 py-5 text-white">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -987,12 +1428,12 @@ export default function BookingDetailPage() {
               </div>
             </div>
 
-            <div className="space-y-5 p-6">
+            <div className="space-y-5 overflow-y-auto p-6">
               <div>
-                <p className="mb-3 text-sm font-bold uppercase text-muted">
-                  Số sao
+                <p className="mb-3 text-sm font-bold uppercase text-secondary">
+                  Điểm tổng thể
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {Array.from({ length: 5 }).map((_, index) => {
                     const value = index + 1;
                     const active = value <= reviewRating;
@@ -1010,6 +1451,69 @@ export default function BookingDetailPage() {
                         aria-label={`${value} sao`}
                       >
                         <Star size={24} fill={active ? "currentColor" : "none"} />
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-sm font-semibold text-muted">
+                  Chọn mức hài lòng chung của bạn về chuyến thuê này.
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm font-bold uppercase text-secondary">
+                  Chọn điểm nổi bật của chuyến thuê
+                </p>
+                <p className="mt-1 text-sm font-semibold leading-6 text-muted">
+                  Chọn nhanh những điều bạn hài lòng để BQDrive và chủ xe hiểu rõ
+                  trải nghiệm thực tế hơn.
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {reviewCriteriaOptions.map((item) => {
+                    const selected = Boolean(reviewCriteria[item.key]);
+
+                    return (
+                      <button
+                      key={item.key}
+                        type="button"
+                        onClick={() =>
+                          setReviewCriteria((current) => {
+                            const next = { ...current };
+
+                            if (next[item.key]) {
+                              delete next[item.key];
+                            } else {
+                              next[item.key] = 5;
+                            }
+
+                            return next;
+                          })
+                        }
+                        className={`rounded-2xl border px-4 py-4 text-left transition ${
+                          selected
+                            ? "border-secondary bg-secondarySoft text-primary shadow-sm"
+                            : "border-border bg-white text-primary hover:border-secondary hover:bg-secondarySoft/40"
+                        }`}
+                    >
+                        <span className="flex items-start gap-3">
+                          <span
+                            className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${
+                              selected
+                                ? "border-primary bg-primary text-secondary"
+                                : "border-slate-300 bg-white text-transparent"
+                            }`}
+                          >
+                            <CheckCircle2 size={16} />
+                          </span>
+                          <span>
+                            <span className="block text-base font-extrabold">
+                              {item.label}
+                            </span>
+                            <span className="mt-1 block text-sm font-semibold leading-5 text-muted">
+                              {item.description}
+                            </span>
+                          </span>
+                        </span>
                       </button>
                     );
                   })}
@@ -1033,6 +1537,55 @@ export default function BookingDetailPage() {
                   {reviewComment.length}/1000
                 </span>
               </label>
+
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-bold uppercase text-muted">
+                    Ảnh thực tế sau chuyến thuê
+                  </p>
+                  <span className="text-xs font-bold text-muted">
+                    {reviewImages.length}/{maxReviewImages}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm font-semibold leading-6 text-muted">
+                  Không tải ảnh giấy tờ cá nhân, bằng lái, CCCD hoặc thông tin thanh toán.
+                </p>
+                <label className="mt-3 flex min-h-12 cursor-pointer items-center justify-center rounded-xl border border-dashed border-secondary/50 bg-secondarySoft/30 px-4 py-3 text-sm font-extrabold text-primary transition hover:bg-secondarySoft">
+                  Chọn ảnh đánh giá
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    multiple
+                    className="hidden"
+                    onChange={handleReviewImageChange}
+                  />
+                </label>
+                {reviewImages.length > 0 && (
+                  <div className="mt-3 grid grid-cols-3 gap-3">
+                    {reviewImages.map((image, index) => (
+                      <div key={`${image}-${index}`} className="relative">
+                        <img
+                          src={image}
+                          alt={`Ảnh đánh giá ${index + 1}`}
+                          className="h-24 w-full rounded-xl border border-border object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setReviewImages((current) =>
+                              current.filter((_, imageIndex) => imageIndex !== index),
+                            )
+                          }
+                          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-secondary shadow"
+                          aria-label="Xóa ảnh"
+                        >
+                          <XCircle size={15} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 border-t border-border bg-slate-50 px-6 py-4">

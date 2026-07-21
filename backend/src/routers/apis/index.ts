@@ -13,6 +13,7 @@ import holidayRoute from "./holiday.route";
 import mapsRoute from "./maps.route";
 import ownerRoute from "./owner.route";
 import reviewRoute from "./review.route";
+import taskRoute from "./task.route";
 const router = express.Router();
 
 function dashboardAlias(targetUrl: string) {
@@ -40,6 +41,7 @@ router.use("/dashboard", dashboardRoute);
 router.use("/consignment/dashboard/stats", dashboardAlias("/consignment/stats"));
 router.use("/contracts", contractRoute);
 router.use("/notifications", notificationRoute);
+router.use("/tasks", taskRoute);
 router.use("/holidays", holidayRoute);
 router.use("/maps", mapsRoute);
 router.use("/owner", ownerRoute);

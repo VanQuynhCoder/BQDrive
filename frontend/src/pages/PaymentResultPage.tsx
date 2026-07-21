@@ -5,6 +5,7 @@ import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { notifyPaymentTodosChanged } from "../services/booking.service";
+import { notifyNotificationSummaryChanged } from "../services/notification.service";
 import { paymentService } from "../services/payment.service";
 
 type VerifyState = {
@@ -52,7 +53,7 @@ export default function PaymentResultPage() {
         setState({
           loading: false,
           success: false,
-          message: "Không tìm thủy dữ liệu trả về từ cổng thanh toán.",
+          message: "Không tìm thấy dữ liệu trả về từ cổng thanh toán.",
         });
       });
       return;
@@ -78,6 +79,7 @@ export default function PaymentResultPage() {
           bookingId: data?.booking?._id,
         });
         notifyPaymentTodosChanged();
+        notifyNotificationSummaryChanged();
       })
       .catch(() => {
         if (!active) return;

@@ -19,6 +19,7 @@ export type IExtraCharge = BaseDocument & {
   description: string;
   evidenceImages?: string[];
   status: ExtraChargeStatusEnum;
+  paymentId?: mongoose.Types.ObjectId;
   paymentMethod?: PaymentMethodEnum;
   paidAt?: Date;
   confirmedBy?: mongoose.Types.ObjectId;
@@ -90,6 +91,10 @@ const extraChargeSchema = new mongoose.Schema(
       enum: Object.values(ExtraChargeStatusEnum),
       default: ExtraChargeStatusEnum.PENDING,
       index: true,
+    },
+    paymentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Payment",
     },
     paymentMethod: {
       type: String,

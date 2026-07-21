@@ -41,6 +41,8 @@ import PrivateOwnerPaymentsPage from "./pages/private-owner/PrivateOwnerPayments
 import OwnerBookingHistoryPage from "./pages/owner/OwnerBookingHistoryPage";
 import OwnerCarLocationPage from "./pages/owner/OwnerCarLocationPage";
 import OwnerReviewsPage from "./pages/owner/OwnerReviewsPage";
+import TaskCenterPage from "./pages/tasks/TaskCenterPage";
+import NotificationCenterPage from "./pages/notifications/NotificationCenterPage";
 import PaymentResultPage from "./pages/PaymentResultPage";
 
 function App() {
@@ -103,6 +105,28 @@ function App() {
       />
 
       <Route
+        path="/tasks"
+        element={
+          <ProtectedRoute roles={userRoles}>
+            <TaskCenterPage
+              context="customer"
+              title="Việc cần làm"
+              subtitle="Theo dõi các booking cần thanh toán, chuyến thuê sắp trả xe, phí phát sinh và đánh giá sau chuyến thuê."
+            />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute roles={["USER", "BUSINESS", "ADMIN"]}>
+            <NotificationCenterPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/profile"
         element={
           <ProtectedRoute roles={userRoles}>
@@ -148,6 +172,27 @@ function App() {
         }
       >
         <Route index element={<BusinessDashboardPage />} />
+        <Route
+          path="tasks"
+          element={
+            <TaskCenterPage
+              context="business"
+              title="Việc cần làm"
+              subtitle="Tập trung các booking, xe và phí phát sinh cần doanh nghiệp xử lý."
+              embedded
+            />
+          }
+        />
+        <Route
+          path="notifications"
+          element={
+            <NotificationCenterPage
+              title="Thông báo doanh nghiệp"
+              subtitle="Lưu lại các sự kiện booking, thanh toán, xe, phí phát sinh và đánh giá của doanh nghiệp."
+              embedded
+            />
+          }
+        />
         <Route path="cars" element={<BusinessCarsPage />} />
         <Route
           path="map"
@@ -193,6 +238,27 @@ function App() {
         }
       >
         <Route index element={<PrivateOwnerDashboardPage />} />
+        <Route
+          path="tasks"
+          element={
+            <TaskCenterPage
+              context="consignment"
+              title="Việc cần làm"
+              subtitle="Tập trung các xe ký gửi, booking và phí phát sinh cần bạn xử lý."
+              embedded
+            />
+          }
+        />
+        <Route
+          path="notifications"
+          element={
+            <NotificationCenterPage
+              title="Thông báo xe ký gửi"
+              subtitle="Theo dõi các thông báo liên quan tới xe ký gửi, booking, thanh toán, phí phát sinh và đánh giá."
+              embedded
+            />
+          }
+        />
         <Route path="cars" element={<PrivateOwnerCarsPage />} />
         <Route
           path="map"
@@ -237,6 +303,27 @@ function App() {
         }
       >
         <Route index element={<AdminDashboardPage />} />
+        <Route
+          path="tasks"
+          element={
+            <TaskCenterPage
+              context="admin"
+              title="Việc cần làm"
+              subtitle="Tập trung các hồ sơ cần admin kiểm duyệt, chỉ gồm các thao tác đúng quyền quản trị."
+              embedded
+            />
+          }
+        />
+        <Route
+          path="notifications"
+          element={
+            <NotificationCenterPage
+              title="Thông báo quản trị"
+              subtitle="Theo dõi các thông báo hệ thống dành cho tài khoản quản trị."
+              embedded
+            />
+          }
+        />
 
         <Route path="users" element={<AdminUsersPage />} />
 

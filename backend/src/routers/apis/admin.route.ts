@@ -7,6 +7,7 @@ import { CarModel } from "../../models/car/car.model";
 import { BookingModel } from "../../models/booking/booking.model";
 import { ContractModel } from "../../models/contract/contract.model";
 import { PaymentModel } from "../../models/payment/payment.model";
+import { ReviewModel, ReviewStatusEnum } from "../../models/review/review.model";
 import { sendOtpMail } from "../../helper/mail.helper";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
 import { cleanAddressText } from "../../helper/address.helper";
@@ -104,6 +105,24 @@ class AdminRoute extends BaseRoute {
       [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
       this.route(this.deleteBusiness),
     );
+
+    this.router.get(
+      "/reviews",
+      [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
+      this.route(this.getReviews),
+    );
+
+    this.router.patch(
+      "/reviews/:id/hide",
+      [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
+      this.route(this.hideReview),
+    );
+
+    this.router.patch(
+      "/reviews/:id/show",
+      [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
+      this.route(this.showReview),
+    );
   }
 
   private normalizeEmail(email: unknown) {
@@ -115,6 +134,102 @@ class AdminRoute extends BaseRoute {
       user.name === TEMP_BUSINESS_NAME &&
       String(user.role).toUpperCase() === UserRoleEnum.BUSINESS
     );
+  }
+
+  private assertObjectId(id: string, message: string) {
+    if (!/^[a-f\d]{24}$/i.test(id)) {
+      throw ErrorHelper.requestDataInvalid(message);
+    }
+  }
+
+  private toAdminReviewItem(review: any) {
+    return {
+      id: review._id,
+      bookingId: review.bookingId?._id || review.bookingId,
+      bookingCode: String(review.bookingId?._id || review.bookingId || "")
+        .slice(-8)
+        .toUpperCase(),
+      carName: review.carNameSnapshot || review.carId?.name || "Xe",
+      licensePlate: review.carId?.licensePlate || "",
+      renterName: review.reviewerNameSnapshot || review.renterId?.name || "Khách thuê",
+      renterEmail: review.renterId?.email || "",
+      rating: review.rating,
+      comment: review.comment || "",
+      images: review.images || [],
+      ownerReply: review.ownerReply || null,
+      status: review.status,
+      report: review.report || null,
+      hiddenReason: review.hiddenReason || "",
+      hiddenAt: review.hiddenAt,
+      createdAt: review.createdAt,
+    };
+  }
+
+  async getReviews(req: Request, res: Response) {
+    const status = String(req.query.status || "");
+    const filter: any = {};
+
+    if (status && Object.values(ReviewStatusEnum).includes(status as ReviewStatusEnum)) {
+      filter.status = status;
+    }
+
+    const reviews = await ReviewModel.find(filter)
+      .populate("bookingId", "_id")
+      .populate("carId", "name licensePlate")
+      .populate("renterId", "name email")
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "success",
+      data: { reviews: reviews.map((review) => this.toAdminReviewItem(review)) },
+    });
+  }
+
+  async hideReview(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const reviewId = String(req.params.id || "");
+    this.assertObjectId(reviewId, "Đánh giá không hợp lệ");
+
+    const review = await ReviewModel.findById(reviewId);
+    if (!review) throw ErrorHelper.recordNotFound("Review");
+
+    review.status = ReviewStatusEnum.HIDDEN;
+    review.hiddenReason = String(req.body.reason || "Nội dung vi phạm quy định").trim();
+    review.hiddenBy = authUser.userId;
+    review.hiddenAt = new Date();
+    await review.save();
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "Đã ẩn đánh giá",
+      data: { review },
+    });
+  }
+
+  async showReview(req: Request, res: Response) {
+    const reviewId = String(req.params.id || "");
+    this.assertObjectId(reviewId, "Đánh giá không hợp lệ");
+
+    const review = await ReviewModel.findById(reviewId);
+    if (!review) throw ErrorHelper.recordNotFound("Review");
+
+    review.status = ReviewStatusEnum.VISIBLE;
+    review.hiddenReason = "";
+    review.hiddenBy = undefined as any;
+    (review as any).hiddenAt = undefined;
+    await review.save();
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "Đã hiển thị lại đánh giá",
+      data: { review },
+    });
   }
 
   async getBusinesses(req: Request, res: Response) {

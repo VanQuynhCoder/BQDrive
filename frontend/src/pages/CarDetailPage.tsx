@@ -49,17 +49,55 @@ import { authService } from "../services/auth.service";
 import {
   reviewService,
   type CarReviewSummary,
+  type ReviewCriteria,
 } from "../services/review.service";
 import {
   buildVietnamDateTime,
   getVietnamTodayDate,
 } from "../utils/date.util";
 import { formatAddressArea, formatPickupAddress } from "../utils/address.util";
+import { normalizeImageUrl } from "../utils/image.util";
 
 type RentalAvailability =
   | "AVAILABLE"
   | "HELD_IN_CART"
   | "PENDING_CONFIRMATION";
+
+function ReviewAvatar({
+  name,
+  avatar,
+}: {
+  name: string;
+  avatar?: string;
+}) {
+  const imageUrl = normalizeImageUrl(avatar);
+  const initial = name.trim().charAt(0).toUpperCase() || "K";
+
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt={name}
+        className="h-12 w-12 shrink-0 rounded-full border border-border object-cover"
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-secondary/30 bg-secondarySoft text-base font-extrabold text-primary">
+      {initial}
+    </div>
+  );
+}
+
+const reviewCriteriaLabels: Array<{ key: keyof ReviewCriteria; label: string }> = [
+  { key: "vehicleQuality", label: "Chất lượng xe cao" },
+  { key: "cleanliness", label: "Xe sạch sẽ" },
+  { key: "descriptionAccuracy", label: "Đúng như mô tả" },
+  { key: "handoverService", label: "Nhận/trả xe nhanh gọn" },
+  { key: "ownerAttitude", label: "Chủ xe hỗ trợ tốt" },
+  { key: "punctuality", label: "Giao xe đúng giờ" },
+];
 
 type CarDetail = {
   _id: string;
@@ -743,6 +781,11 @@ export default function CarDetailPage() {
   const [isBookingSubmitting, setIsBookingSubmitting] = useState(false);
   const [isCartSubmitting, setIsCartSubmitting] = useState(false);
   const [reviewSummary, setReviewSummary] = useState<CarReviewSummary | null>(null);
+  const [reviewSort, setReviewSort] =
+    useState<"newest" | "oldest" | "highest" | "lowest">("newest");
+  const [reviewRatingFilter, setReviewRatingFilter] = useState(0);
+  const [reviewFilterMode, setReviewFilterMode] =
+    useState<"all" | "images" | "comment" | "reply">("all");
 
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -799,7 +842,14 @@ export default function CarDetailPage() {
       if (active) setReviewSummary(null);
     });
     reviewService
-      .getCarReviews(id, { limit: 6 })
+      .getCarReviews(id, {
+        limit: 6,
+        sort: reviewSort,
+        rating: reviewRatingFilter || undefined,
+        hasImages: reviewFilterMode === "images" || undefined,
+        hasComment: reviewFilterMode === "comment" || undefined,
+        hasReply: reviewFilterMode === "reply" || undefined,
+      })
       .then((summary) => {
         if (active) setReviewSummary(summary);
       })
@@ -811,7 +861,7 @@ export default function CarDetailPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, reviewFilterMode, reviewRatingFilter, reviewSort]);
 
   const galleryImages = useMemo(() => getCarImages(car || undefined), [car]);
 
@@ -2305,6 +2355,55 @@ export default function CarDetailPage() {
             </div>
           </div>
 
+          <div className="mt-6 flex flex-col gap-3 rounded-xl border border-border bg-slate-50 p-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {[0, 5, 4, 3, 2, 1].map((rating) => (
+                <button
+                  key={rating}
+                  type="button"
+                  onClick={() => setReviewRatingFilter(rating)}
+                  className={`rounded-full px-3 py-2 text-sm font-extrabold transition ${
+                    reviewRatingFilter === rating
+                      ? "bg-primary text-secondary"
+                      : "bg-white text-primary ring-1 ring-border hover:bg-secondarySoft"
+                  }`}
+                >
+                  {rating ? `${rating} sao` : "Tất cả"}
+                </button>
+              ))}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:w-[420px]">
+              <select
+                value={reviewFilterMode}
+                onChange={(event) =>
+                  setReviewFilterMode(
+                    event.target.value as "all" | "images" | "comment" | "reply",
+                  )
+                }
+                className="h-11 rounded-lg border border-border bg-white px-3 font-bold text-primary outline-none focus:border-secondary"
+              >
+                <option value="all">Tất cả đánh giá</option>
+                <option value="images">Có hình ảnh</option>
+                <option value="comment">Có nhận xét</option>
+                <option value="reply">Đã được chủ xe phản hồi</option>
+              </select>
+              <select
+                value={reviewSort}
+                onChange={(event) =>
+                  setReviewSort(
+                    event.target.value as "newest" | "oldest" | "highest" | "lowest",
+                  )
+                }
+                className="h-11 rounded-lg border border-border bg-white px-3 font-bold text-primary outline-none focus:border-secondary"
+              >
+                <option value="newest">Mới nhất</option>
+                <option value="oldest">Cũ nhất</option>
+                <option value="highest">Điểm cao nhất</option>
+                <option value="lowest">Điểm thấp nhất</option>
+              </select>
+            </div>
+          </div>
+
           {reviewSummary?.reviews?.length ? (
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {reviewSummary.reviews.map((review) => (
@@ -2313,17 +2412,24 @@ export default function CarDetailPage() {
                   className="rounded-xl border border-border bg-slate-50 p-4"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-extrabold text-primary">
-                        {review.reviewerName || "Khách thuê"}
-                      </p>
-                      <p className="mt-1 text-xs font-semibold text-muted">
-                        {review.createdAt
-                          ? new Date(review.createdAt).toLocaleDateString("vi-VN")
-                          : "--"}
-                      </p>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <ReviewAvatar
+                        name={review.reviewerName || "Khách thuê"}
+                        avatar={review.reviewerAvatar}
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate font-extrabold text-primary">
+                          {review.reviewerName || "Khách thuê"}
+                        </p>
+                        <p className="mt-1 text-xs font-semibold text-muted">
+                          {review.createdAt
+                            ? new Date(review.createdAt).toLocaleDateString("vi-VN")
+                            : "--"}
+                          {review.isEdited ? " · Đã chỉnh sửa" : ""}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 text-secondary">
+                    <div className="flex shrink-0 items-center gap-1 text-secondary">
                       {Array.from({ length: 5 }).map((_, index) => (
                         <Star
                           key={index}
@@ -2336,6 +2442,46 @@ export default function CarDetailPage() {
                   <p className="mt-4 text-sm font-semibold leading-6 text-slate-700">
                     {review.comment || "Khách thuê không để lại nhận xét."}
                   </p>
+                  <div className="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-700">
+                    Đã thuê xe trên BQDrive
+                  </div>
+                  {review.criteria && Object.keys(review.criteria).length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {reviewCriteriaLabels
+                        .filter((item) => review.criteria?.[item.key])
+                        .map((item) => (
+                          <span
+                            key={item.key}
+                            className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-extrabold text-primary"
+                          >
+                            <CheckCircle2 size={14} className="text-emerald-600" />
+                            {item.label}
+                          </span>
+                        ))}
+                    </div>
+                  )}
+                  {review.images?.length ? (
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      {review.images.slice(0, 3).map((image, index) => (
+                        <img
+                          key={`${image}-${index}`}
+                          src={image}
+                          alt={`Ảnh đánh giá ${index + 1}`}
+                          className="h-20 w-full rounded-lg border border-border object-cover"
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                  {review.ownerReply?.content && (
+                    <div className="mt-4 rounded-xl border border-secondary/30 bg-white p-3">
+                      <p className="text-xs font-bold uppercase text-secondary">
+                        Phản hồi từ chủ xe
+                      </p>
+                      <p className="mt-2 text-sm font-semibold leading-6 text-primary">
+                        {review.ownerReply.content}
+                      </p>
+                    </div>
+                  )}
                 </article>
               ))}
             </div>

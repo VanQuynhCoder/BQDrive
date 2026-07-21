@@ -396,7 +396,7 @@ export default function AdminBrandsPage() {
         title="Xóa hãng xe"
         description={
           deleteBrand
-            ? `Bạn chỗc chọn muốn xóa hãng ${deleteBrand.name}?`
+            ? `Bạn chắc chắn muốn xóa hãng ${deleteBrand.name}?`
             : undefined
         }
         confirmText="Xóa hãng"

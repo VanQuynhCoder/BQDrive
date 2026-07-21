@@ -26,6 +26,7 @@ import {
   sendCarRejectedMail,
   sendCarSubmittedToAdminMail,
 } from "../../helper/mail.helper";
+import { notificationCenterService } from "../../services/notification-center.service";
 
 import {
   BookingStatusEnum,
@@ -55,6 +56,8 @@ const BLOCKING_BOOKING_STATUSES = [
   BookingStatusEnum.PAYMENT_PENDING, // Khách đang thanh toán
   BookingStatusEnum.PAID, // Đã thanh toán, lịch thuê chính thức
   BookingStatusEnum.IN_PROGRESS, // Xe đang được thuê
+  BookingStatusEnum.RETURN_INSPECTION,
+  BookingStatusEnum.AWAITING_EXTRA_CHARGE,
   BookingStatusEnum.PENDING, // Trạng thái cũ: REQUESTED
   BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: PAYMENT_PENDING
   BookingStatusEnum.CONFIRMED, // Trạng thái cũ
@@ -69,6 +72,8 @@ const DETAILED_PICKUP_BOOKING_STATUSES = [
   BookingStatusEnum.PAYMENT_PENDING,
   BookingStatusEnum.PAID,
   BookingStatusEnum.IN_PROGRESS,
+  BookingStatusEnum.RETURN_INSPECTION,
+  BookingStatusEnum.AWAITING_EXTRA_CHARGE,
   BookingStatusEnum.COMPLETED,
   BookingStatusEnum.WAITING_PAYMENT,
   BookingStatusEnum.CONFIRMED,
@@ -242,6 +247,55 @@ function hasImportantCarChange(existingCar: any, nextData: Record<string, unknow
 
 function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function toOptionalPositiveNumber(value: unknown) {
+  if (value === undefined || value === null || value === "") return undefined;
+
+  const nextValue = Number(value);
+  return Number.isFinite(nextValue) && nextValue > 0 ? nextValue : undefined;
+}
+
+function getComparablePrice(car: any, rentalMode?: string) {
+  if (rentalMode === RentalModeEnum.HOURLY) {
+    return (
+      Number(car.pricePerHour || car.pricing?.pricePerHour || car.pricing?.weekendPricePerHour || 0) ||
+      Number(car.pricePerDay || car.pricing?.weekdayPricePerDay || 0)
+    );
+  }
+
+  return (
+    Number(car.pricePerDay || car.pricing?.weekdayPricePerDay || car.pricing?.weekendPricePerDay || 0) ||
+    Number(car.pricePerHour || car.pricing?.pricePerHour || 0)
+  );
+}
+
+function getDistanceKm(originLat?: number, originLng?: number, destLat?: number, destLng?: number) {
+  if (
+    originLat === undefined ||
+    originLng === undefined ||
+    destLat === undefined ||
+    destLng === undefined ||
+    !Number.isFinite(originLat) ||
+    !Number.isFinite(originLng) ||
+    !Number.isFinite(destLat) ||
+    !Number.isFinite(destLng)
+  ) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const toRad = (degree: number) => (degree * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const dLat = toRad(destLat - originLat);
+  const dLng = toRad(destLng - originLng);
+  const lat1 = toRad(originLat);
+  const lat2 = toRad(destLat);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return earthRadiusKm * c;
 }
 
 class CarRoute extends BaseRoute {
@@ -617,6 +671,44 @@ class CarRoute extends BaseRoute {
     return "Sẵn sàng";
   }
 
+  private async getReviewSummaryMap(carIds: unknown[]) {
+    const summaryMap = new Map<
+      string,
+      { averageRating: number; reviewCount: number }
+    >();
+
+    carIds.forEach((carId) => {
+      summaryMap.set(String(carId), { averageRating: 0, reviewCount: 0 });
+    });
+
+    if (carIds.length === 0) return summaryMap;
+
+    const rows = await ReviewModel.aggregate([
+      {
+        $match: {
+          carId: { $in: carIds },
+          status: ReviewStatusEnum.VISIBLE,
+        },
+      },
+      {
+        $group: {
+          _id: "$carId",
+          averageRating: { $avg: "$rating" },
+          reviewCount: { $sum: 1 },
+        },
+      },
+    ]);
+
+    rows.forEach((row: any) => {
+      summaryMap.set(String(row._id), {
+        averageRating: Number(Number(row.averageRating || 0).toFixed(1)),
+        reviewCount: Number(row.reviewCount || 0),
+      });
+    });
+
+    return summaryMap;
+  }
+
   private validatePickupAddress(addressFields: ReturnType<typeof normalizeCarAddressFields>) {
     if (
       !addressFields.pickupAddress ||
@@ -879,6 +971,10 @@ class CarRoute extends BaseRoute {
       startDate,
       endDate,
       sort,
+      deliveryOnly,
+      minRating,
+      userLat,
+      userLng,
     } =
       req.query;
     const isSearchRequest = req.path === "/search";
@@ -900,6 +996,9 @@ class CarRoute extends BaseRoute {
     if (fuelType) filter.fuelType = String(fuelType);
     if (transmission) filter.transmission = String(transmission);
     if (type || categoryId) filter.type = String(type || categoryId);
+    if (String(deliveryOnly || "") === "true") {
+      filter.deliveryEnabled = true;
+    }
     if (authUserId && (authUser as any)?.role === UserRoleEnum.USER) {
       andFilters.push({
         $or: [
@@ -1007,12 +1106,7 @@ class CarRoute extends BaseRoute {
       filter.$and = andFilters;
     }
 
-    const sortOption =
-      sort === "price_asc"
-        ? { pricePerDay: 1, pricePerHour: 1 }
-        : sort === "price_desc"
-          ? { pricePerDay: -1, pricePerHour: -1 }
-          : { createdAt: -1 };
+    const sortOption = { createdAt: -1 };
 
     const cars = await CarModel.find(filter)
       .populate("brandId")
@@ -1025,7 +1119,7 @@ class CarRoute extends BaseRoute {
     const requestedEnd =
       typeof endDate === "string" ? new Date(endDate) : undefined;
     const carIds = cars.map((car) => car._id);
-    const [bookabilityMap, unavailableRangeMap] = await Promise.all([
+    const [bookabilityMap, unavailableRangeMap, reviewSummaryMap] = await Promise.all([
       this.getScheduleBookabilityMap(
         carIds,
         requestedStart,
@@ -1037,6 +1131,7 @@ class CarRoute extends BaseRoute {
         !isSearchRequest,
       ),
       this.getUnavailableRangeMap(carIds, authUserId),
+      this.getReviewSummaryMap(carIds),
     ]);
     const shouldOnlyReturnBookable =
       isSearchRequest ||
@@ -1048,6 +1143,9 @@ class CarRoute extends BaseRoute {
           startDate ||
           endDate,
       );
+    const requestedMinRating = toOptionalPositiveNumber(minRating);
+    const sortUserLat = toOptionalPositiveNumber(userLat);
+    const sortUserLng = toOptionalPositiveNumber(userLng);
     const carsWithAvailability = cars
       .map((car) =>
         this.withRentalAvailability(
@@ -1057,7 +1155,45 @@ class CarRoute extends BaseRoute {
         unavailableRangeMap.get(String(car._id)) || [],
       ),
       )
-      .filter((car) => !shouldOnlyReturnBookable || car.isBookable !== false);
+      .map((car) => ({
+        ...car,
+        reviewSummary: reviewSummaryMap.get(String(car._id)) || {
+          averageRating: 0,
+          reviewCount: 0,
+        },
+      }))
+      .filter((car) => !shouldOnlyReturnBookable || car.isBookable !== false)
+      .filter((car) => {
+        if (!requestedMinRating) return true;
+        return Number(car.reviewSummary?.averageRating || 0) >= requestedMinRating;
+      })
+      .sort((a, b) => {
+        if (sort === "price_asc") {
+          return getComparablePrice(a, selectedRentalMode) - getComparablePrice(b, selectedRentalMode);
+        }
+
+        if (sort === "price_desc") {
+          return getComparablePrice(b, selectedRentalMode) - getComparablePrice(a, selectedRentalMode);
+        }
+
+        if (sort === "rating_desc") {
+          return (
+            Number(b.reviewSummary?.averageRating || 0) -
+              Number(a.reviewSummary?.averageRating || 0) ||
+            Number(b.reviewSummary?.reviewCount || 0) -
+              Number(a.reviewSummary?.reviewCount || 0)
+          );
+        }
+
+        if (sort === "nearest" && sortUserLat !== undefined && sortUserLng !== undefined) {
+          return (
+            getDistanceKm(sortUserLat, sortUserLng, Number(a.pickupLat ?? a.latitude), Number(a.pickupLng ?? a.longitude)) -
+            getDistanceKm(sortUserLat, sortUserLng, Number(b.pickupLat ?? b.latitude), Number(b.pickupLng ?? b.longitude))
+          );
+        }
+
+        return 0;
+      });
 
     return res.status(200).json({
       status: 200,
@@ -1460,15 +1596,41 @@ class CarRoute extends BaseRoute {
     const carId = String(req.params.carId || "");
     const page = Math.max(1, Number(req.query.page || 1));
     const limit = Math.min(20, Math.max(1, Number(req.query.limit || 6)));
+    const rating = Number(req.query.rating || 0);
+    const sort = String(req.query.sort || "newest");
+    const hasImages = String(req.query.hasImages || "") === "true";
+    const hasComment = String(req.query.hasComment || "") === "true";
+    const hasReply = String(req.query.hasReply || "") === "true";
 
     if (!/^[a-f\d]{24}$/i.test(carId)) {
       throw ErrorHelper.requestDataInvalid("Xe không hợp lệ");
     }
 
-    const filter = {
+    const filter: any = {
       carId,
       status: ReviewStatusEnum.VISIBLE,
     };
+
+    if (Number.isInteger(rating) && rating >= 1 && rating <= 5) {
+      filter.rating = rating;
+    }
+    if (hasImages) {
+      filter.images = { $exists: true, $ne: [] };
+    }
+    if (hasComment) {
+      filter.comment = { $exists: true, $nin: ["", null] };
+    }
+    if (hasReply) {
+      filter["ownerReply.content"] = { $exists: true, $nin: ["", null] };
+    }
+
+    const sortMap: Record<string, Record<string, 1 | -1>> = {
+      newest: { createdAt: -1 },
+      oldest: { createdAt: 1 },
+      highest: { rating: -1, createdAt: -1 },
+      lowest: { rating: 1, createdAt: -1 },
+    };
+    const sortOption = sortMap[sort] || sortMap.newest;
 
     const ratingRows = await ReviewModel.find(filter).select("rating").lean();
     const reviewCount = ratingRows.length;
@@ -1482,11 +1644,27 @@ class CarRoute extends BaseRoute {
       : 0;
 
     const reviews = await ReviewModel.find(filter)
-      .populate("renterId", "name")
-      .sort({ createdAt: -1 })
+      .populate("renterId", "name avatar")
+      .sort(sortOption)
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
+
+    const distributionRows = await ReviewModel.find({
+      carId,
+      status: ReviewStatusEnum.VISIBLE,
+    })
+      .select("rating")
+      .lean();
+    const distribution = [5, 4, 3, 2, 1].reduce<Record<string, number>>(
+      (result, currentRating) => {
+        result[String(currentRating)] = distributionRows.filter(
+          (review) => Number(review.rating) === currentRating,
+        ).length;
+        return result;
+      },
+      {},
+    );
 
     return res.status(200).json({
       status: 200,
@@ -1496,13 +1674,29 @@ class CarRoute extends BaseRoute {
       data: {
         averageRating,
         reviewCount,
+        page,
+        limit,
+        distribution,
         reviews: reviews.map((review: any) => ({
           id: review._id,
           rating: review.rating,
+          criteria: review.criteria || {},
           comment: review.comment || "",
+          images: review.images || [],
+          ownerReply: review.ownerReply || null,
+          helpfulCount: review.helpfulCount || 0,
+          verifiedRental: true,
+          isEdited:
+            review.updatedAt &&
+            review.createdAt &&
+            new Date(review.updatedAt).getTime() -
+              new Date(review.createdAt).getTime() >
+              1000,
           reviewerName:
             review.reviewerNameSnapshot || review.renterId?.name || "Khách thuê",
+          reviewerAvatar: review.renterId?.avatar || "",
           createdAt: review.createdAt,
+          updatedAt: review.updatedAt,
         })),
       },
     });
@@ -1532,6 +1726,10 @@ class CarRoute extends BaseRoute {
     car.rejectReason = "";
     await car.save();
     void sendCarApprovedMail(car);
+    void notificationCenterService.notifyCarApproved(
+      car,
+      (req as any).user?.userId,
+    );
 
     return res.status(200).json({
       status: 200,
@@ -1566,6 +1764,11 @@ class CarRoute extends BaseRoute {
     car.rejectReason = rejectReason;
     await car.save();
     void sendCarRejectedMail(car);
+    void notificationCenterService.notifyCarRejected(
+      car,
+      rejectReason,
+      (req as any).user?.userId,
+    );
 
     return res.status(200).json({
       status: 200,

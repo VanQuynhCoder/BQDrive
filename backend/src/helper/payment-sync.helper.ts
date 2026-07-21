@@ -1,4 +1,4 @@
-import { BookingStatusEnum, ContractStatusEnum, PaymentStatusEnum } from "../constants/model.const";
+import { BookingStatusEnum, ContractStatusEnum, PaymentStatusEnum, PaymentTypeEnum } from "../constants/model.const";
 import { BookingModel } from "../models/booking/booking.model";
 import { ContractModel } from "../models/contract/contract.model";
 import { PaymentModel } from "../models/payment/payment.model";
@@ -34,6 +34,13 @@ export async function buildPaymentSummaryForBooking(booking: any): Promise<Booki
   const paidPayments = await PaymentModel.find({
     bookingId: booking._id,
     status: PaymentStatusEnum.PAID,
+    paymentType: {
+      $in: [
+        PaymentTypeEnum.DEPOSIT,
+        PaymentTypeEnum.FULL,
+        PaymentTypeEnum.REMAINING,
+      ],
+    },
   }).select("amount paymentType method status paidAt transactionCode createdAt");
 
   const paidAmount = Math.min(
@@ -51,6 +58,13 @@ export async function buildPaymentSummaryForBooking(booking: any): Promise<Booki
     const hasPendingPayment = await PaymentModel.exists({
       bookingId: booking._id,
       status: PaymentStatusEnum.PENDING,
+      paymentType: {
+        $in: [
+          PaymentTypeEnum.DEPOSIT,
+          PaymentTypeEnum.FULL,
+          PaymentTypeEnum.REMAINING,
+        ],
+      },
     });
     paymentStatus = hasPendingPayment ? "PENDING" : "UNPAID";
   }
@@ -72,9 +86,12 @@ export async function syncBookingPaymentFromPaidPayments(booking: any) {
 
   if (
     summary.paidAmount > 0 &&
-    ![BookingStatusEnum.IN_PROGRESS, BookingStatusEnum.COMPLETED].includes(
-      booking.status as BookingStatusEnum,
-    )
+    ![
+      BookingStatusEnum.IN_PROGRESS,
+      BookingStatusEnum.RETURN_INSPECTION,
+      BookingStatusEnum.AWAITING_EXTRA_CHARGE,
+      BookingStatusEnum.COMPLETED,
+    ].includes(booking.status as BookingStatusEnum)
   ) {
     booking.status = BookingStatusEnum.PAID;
   }

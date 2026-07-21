@@ -121,6 +121,9 @@ export type BusinessBooking = {
   note?: string;
   noShowReason?: string;
   noShowAt?: string;
+  returnInspection?: {
+    inspectionStatus?: string;
+  } | null;
   renterInfo?: {
     fullName?: string;
     phone?: string;
@@ -134,6 +137,40 @@ export type BusinessBooking = {
   };
   createdAt?: string;
   payment?: BusinessPayment | null;
+};
+
+export type ReturnInspection = {
+  _id: string;
+  bookingId: string;
+  actualReturnAt: string;
+  receivedAt?: string;
+  returnOdometer?: number;
+  returnFuelLevel?: number;
+  returnPhotos?: string[];
+  conditionNotes?: string;
+  isLate?: boolean;
+  lateMinutes?: number;
+  hasDamage?: boolean;
+  hasCleaningIssue?: boolean;
+  hasFuelShortage?: boolean;
+  inspectionStatus: "RECEIVED" | "INSPECTING" | "CHARGES_PENDING" | "CLEARED" | string;
+  inspectedAt?: string;
+};
+
+export type ReturnCompletionState = {
+  canComplete: boolean;
+  blockers: string[];
+};
+
+export type ReceiveReturnPayload = {
+  actualReturnAt: string;
+  returnOdometer?: number;
+  returnFuelLevel?: number;
+  returnPhotos?: string[];
+  conditionNotes?: string;
+  hasDamage?: boolean;
+  hasCleaningIssue?: boolean;
+  hasFuelShortage?: boolean;
 };
 
 export type BusinessPayment = {
@@ -334,6 +371,35 @@ export const businessService = {
   handoverBooking: async (id: string) => {
     const res = await api.post(`/bookings/handoverBooking/${id}`);
     return unwrap<{ booking: BusinessBooking }>(res).booking;
+  },
+
+  receiveReturn: async (id: string, data: ReceiveReturnPayload) => {
+    const res = await api.post(`/bookings/${id}/receive-return`, data);
+    return unwrap<{
+      booking: BusinessBooking;
+      inspection: ReturnInspection;
+      completionState: ReturnCompletionState;
+    }>(res);
+  },
+
+  getReturnInspection: async (id: string) => {
+    const res = await api.get(`/bookings/${id}/return-inspection`);
+    return unwrap<{
+      booking: BusinessBooking;
+      inspection: ReturnInspection | null;
+      completionState: ReturnCompletionState;
+    }>(res);
+  },
+
+  clearReturnInspection: async (id: string, conditionNotes?: string) => {
+    const res = await api.post(`/bookings/${id}/inspection/clear`, {
+      conditionNotes,
+    });
+    return unwrap<{
+      booking: BusinessBooking;
+      inspection: ReturnInspection;
+      completionState: ReturnCompletionState;
+    }>(res);
   },
 
   confirmRemainingCash: async (id: string, note?: string) => {

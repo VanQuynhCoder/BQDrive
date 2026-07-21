@@ -22,6 +22,8 @@ const BLOCKING_BOOKING_STATUSES = [
   BookingStatusEnum.PAYMENT_PENDING, // Khách đang thanh toán
   BookingStatusEnum.PAID, // Đã thanh toán, lịch thuê chính thức
   BookingStatusEnum.IN_PROGRESS, // Xe đang được thuê
+  BookingStatusEnum.RETURN_INSPECTION,
+  BookingStatusEnum.AWAITING_EXTRA_CHARGE,
   BookingStatusEnum.PENDING, // Trạng thái cũ: REQUESTED
   BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: PAYMENT_PENDING
   BookingStatusEnum.CONFIRMED, // Trạng thái cũ

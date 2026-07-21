@@ -16,6 +16,7 @@ import {
   type OwnerMapCar,
   type UpdateCarLocationPayload,
 } from "../../services/ownerCarLocation.service";
+import { getCarStatusMeta } from "../../utils/display.util";
 
 type OwnerCarLocationPageProps = {
   title: string;
@@ -43,18 +44,6 @@ function hasCoordinate(car: OwnerMapCar) {
 
 function getAddress(car: OwnerMapCar) {
   return car.pickupFormattedAddress || car.pickupAddress || "";
-}
-
-function getStatusLabel(status?: string) {
-  const labels: Record<string, string> = {
-    PENDING: "Chờ duyệt",
-    APPROVED: "Đã duyệt",
-    REJECTED: "Từ chối",
-    RENTED: "Đang được thuê",
-    HIDDEN: "Đã ẩn",
-  };
-
-  return labels[status || ""] || status || "--";
 }
 
 function formatCoordinate(lat?: number, lng?: number) {
@@ -257,6 +246,7 @@ export default function OwnerCarLocationPage({
             {cars.map((car) => {
               const active = selectedCarId === car._id;
               const address = getAddress(car);
+              const status = getCarStatusMeta(car.status);
 
               return (
                 <button
@@ -292,8 +282,10 @@ export default function OwnerCarLocationPage({
                             {car.licensePlate || "Chưa có biển số"}
                           </p>
                         </div>
-                        <span className="shrink-0 rounded-full bg-secondarySoft px-2 py-1 text-xs font-extrabold text-primary">
-                          {getStatusLabel(car.status)}
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-1 text-xs font-extrabold ring-1 ${status.className}`}
+                        >
+                          {status.label}
                         </span>
                       </div>
 

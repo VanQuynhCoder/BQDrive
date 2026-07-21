@@ -25,6 +25,7 @@ import {
   formatFullAddress,
   formatPickupAddress,
 } from "../../utils/address.util";
+import { getCarStatusMeta } from "../../utils/display.util";
 
 type CarAction = "approve" | "reject";
 type OwnerType = "BUSINESS" | "USER";
@@ -45,23 +46,7 @@ function getRentalLabel(unit?: string) {
 }
 
 function getStatus(status: string) {
-  if (status === "APPROVED") {
-    return { tone: "green" as const, label: "Đã duyệt" };
-  }
-
-  if (status === "RENTED") {
-    return { tone: "yellow" as const, label: "Đang được thuê" };
-  }
-
-  if (status === "REJECTED") {
-    return { tone: "red" as const, label: "Từ chối" };
-  }
-
-  if (status === "HIDDEN") {
-    return { tone: "gray" as const, label: "Đã ẩn" };
-  }
-
-  return { tone: "yellow" as const, label: "Chờ duyệt" };
+  return getCarStatusMeta(status);
 }
 
 function isPendingCar(car: AdminCar) {

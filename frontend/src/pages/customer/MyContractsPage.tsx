@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { CalendarDays, Eye, FileText, Loader2 } from "lucide-react";
+import { CalendarDays, Eye, FileText, Loader2, Star } from "lucide-react";
 
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
@@ -48,9 +48,31 @@ function getCar(contract: RentalContract) {
     : undefined;
 }
 
+function getBookingId(contract: RentalContract) {
+  return typeof contract.bookingId === "object"
+    ? contract.bookingId._id
+    : contract.bookingId;
+}
+
 export default function MyContractsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [contracts, setContracts] = useState<RentalContract[]>([]);
   const [loading, setLoading] = useState(true);
+  const activeFilter = searchParams.get("filter") || "all";
+  const needReviewCount = contracts.filter((contract) => contract.canReview).length;
+  const visibleContracts =
+    activeFilter === "need-review"
+      ? contracts.filter((contract) => contract.canReview)
+      : contracts;
+
+  const setFilter = (filter: "all" | "need-review") => {
+    if (filter === "all") {
+      setSearchParams({});
+      return;
+    }
+
+    setSearchParams({ filter });
+  };
 
   useEffect(() => {
     let active = true;
@@ -97,6 +119,48 @@ export default function MyContractsPage() {
         </section>
 
         <section className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
+          <div className="flex flex-col gap-3 border-b border-border p-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-2xl font-extrabold text-primary">
+                Danh sách hợp đồng
+              </h2>
+              <p className="mt-1 text-sm font-semibold text-muted">
+                {activeFilter === "need-review"
+                  ? "Đang hiển thị các chuyến thuê hoàn tất nhưng chưa đánh giá."
+                  : "Theo dõi hợp đồng và đánh giá các chuyến thuê đã hoàn tất."}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setFilter("all")}
+                className={`rounded-lg px-4 py-2 text-sm font-extrabold transition ${
+                  activeFilter === "all"
+                    ? "bg-primary text-secondary"
+                    : "bg-slate-100 text-primary hover:bg-secondarySoft"
+                }`}
+              >
+                Tất cả
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter("need-review")}
+                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-extrabold transition ${
+                  activeFilter === "need-review"
+                    ? "bg-secondary text-primary"
+                    : "bg-slate-100 text-primary hover:bg-secondarySoft"
+                }`}
+              >
+                <Star size={16} />
+                Cần đánh giá
+                {needReviewCount > 0 && (
+                  <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs text-white">
+                    {needReviewCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-[920px] w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs font-extrabold uppercase text-slate-500">
@@ -123,8 +187,9 @@ export default function MyContractsPage() {
                 )}
 
                 {!loading &&
-                  contracts.map((contract) => {
+                  visibleContracts.map((contract) => {
                     const car = getCar(contract);
+                    const bookingId = getBookingId(contract);
 
                     return (
                       <tr key={contract._id} className="hover:bg-slate-50">
@@ -147,13 +212,30 @@ export default function MyContractsPage() {
                           {formatCurrency(contract.totalPrice)}
                         </td>
                         <td className="px-5 py-4">
-                          <AdminStatusBadge
-                            tone={getStatusTone(contract.status)}
-                            label={getContractStatusLabel(contract.status)}
-                          />
+                          <div className="flex flex-col items-start gap-2">
+                            <AdminStatusBadge
+                              tone={getStatusTone(contract.status)}
+                              label={getContractStatusLabel(contract.status)}
+                            />
+                            {contract.canReview && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-secondarySoft px-2 py-1 text-xs font-extrabold text-primary">
+                                <Star size={13} fill="currentColor" />
+                                Cần đánh giá
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-5 py-4">
-                          <div className="flex justify-end">
+                          <div className="flex justify-end gap-2">
+                            {contract.canReview && bookingId && (
+                              <Link
+                                to={`/bookings/${bookingId}`}
+                                className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 font-bold text-primary transition hover:brightness-95"
+                              >
+                                <Star size={16} />
+                                Đánh giá
+                              </Link>
+                            )}
                             <Link
                               to={`/contracts/${contract._id}`}
                               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-bold text-white transition hover:bg-primaryDark"
@@ -167,10 +249,12 @@ export default function MyContractsPage() {
                     );
                   })}
 
-                {!loading && contracts.length === 0 && (
+                {!loading && visibleContracts.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-5 py-10 text-center text-muted">
-                      Bạn chưa có hợp đồng thuê xe nào.
+                      {activeFilter === "need-review"
+                        ? "Bạn không còn chuyến thuê nào cần đánh giá."
+                        : "Bạn chưa có hợp đồng thuê xe nào."}
                     </td>
                   </tr>
                 )}

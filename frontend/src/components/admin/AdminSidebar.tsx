@@ -3,6 +3,7 @@
   Building2,
   CalendarDays,
   Car,
+  ClipboardList,
   Factory,
   LogOut,
   Tags,
@@ -22,6 +23,12 @@ const menuItems = [
     label: "Dashboard",
     icon: BarChart3,
     end: true,
+  },
+  {
+    to: "/admin/tasks",
+    label: "Việc cần làm",
+    icon: ClipboardList,
+    badgeKeys: ["pendingCars", "pendingBusiness", "reportedReviews"],
   },
   {
     to: "/admin/users",

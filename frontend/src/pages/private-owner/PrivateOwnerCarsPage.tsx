@@ -29,6 +29,7 @@ import {
 } from "../../services/privateOwner.service";
 import { mapService } from "../../services/map.service";
 import { formatAddressArea, formatPickupAddress } from "../../utils/address.util";
+import { getCarStatusMeta } from "../../utils/display.util";
 import {
   isValidPlateNumber,
   normalizePlateNumber,
@@ -238,17 +239,7 @@ function getTransmissionLabel(value?: string) {
 }
 
 function getStatusBadge(status?: string) {
-  const map: Record<
-    string,
-    { label: string; tone: "green" | "red" | "yellow" | "gray" }
-  > = {
-    APPROVED: { label: "Đã duyệt", tone: "green" },
-    RENTED: { label: "Đang được thuê", tone: "yellow" },
-    PENDING: { label: "Chờ duyệt", tone: "yellow" },
-    REJECTED: { label: "Từ chối", tone: "red" },
-  };
-
-  return map[status || ""] || { label: status || "--", tone: "gray" };
+  return getCarStatusMeta(status);
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -1853,7 +1844,7 @@ export default function PrivateOwnerCarsPage() {
         title="Xóa xe"
         description={
           deleteCar
-            ? `Bạn chỗc chọn muốn xóa xe ${deleteCar.name}?`
+            ? `Bạn chắc chắn muốn xóa xe ${deleteCar.name}?`
             : undefined
         }
         confirmText="Xóa xe"

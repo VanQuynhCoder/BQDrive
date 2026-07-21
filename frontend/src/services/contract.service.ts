@@ -101,6 +101,8 @@ export type RentalContract = {
   returnAddressSnapshot: string;
   ownerAddressSnapshot: string;
   status: ContractStatus;
+  hasReview?: boolean;
+  canReview?: boolean;
   contractCode: string;
   signedAt: string;
   createdAt?: string;

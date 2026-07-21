@@ -3,6 +3,7 @@ import { Link, Outlet, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import AdminSidebar from "../components/admin/AdminSidebar";
+import NotificationBell from "../components/NotificationBell";
 import { authService } from "../services/auth.service";
 
 export default function AdminLayout() {
@@ -32,6 +33,8 @@ export default function AdminLayout() {
             </div>
 
             <div className="flex items-center gap-3">
+              <NotificationBell centerPath="/admin/notifications" />
+
               <Link
                 to="/"
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-bold text-slate-700 transition hover:bg-slate-50 hover:text-primary sm:px-4"
