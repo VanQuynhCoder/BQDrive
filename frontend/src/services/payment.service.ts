@@ -7,21 +7,71 @@ export type CustomerPaymentBooking = {
 
 export type CustomerPayment = {
   _id: string;
-  bookingId?: CustomerPaymentBooking | string;
-  userId?: string;
+  bookingId: CustomerPaymentBooking | string;
+  userId: string;
   amount: number;
   method?: string;
-  status: string;
+  status?: string;
   paymentType?: string;
   transactionCode?: string;
   paidAt?: string;
   createdAt?: string;
 };
 
+export type PaymentHistoryItem = {
+  _id: string;
+  paymentCode: string;
+  amount: number;
+  method?: string;
+  status?: string;
+  paymentType?: string;
+  transactionCode?: string;
+  paidAt?: string;
+  createdAt?: string;
+  note?: string;
+};
+
+export type BookingPaymentHistory = {
+  bookingId: string;
+  bookingCode: string;
+  bookingStatus?: string;
+  rentalMode?: "DAILY" | "HOURLY" | string;
+  startDate?: string | null;
+  endDate?: string | null;
+  car: {
+    _id?: string;
+    name?: string;
+    brand?: string;
+    plateNumber?: string;
+    image?: string;
+  };
+  owner: {
+    _id?: string;
+    type?: "BUSINESS" | "USER" | string;
+    name?: string;
+    phone?: string;
+  };
+  totalPrice: number;
+  depositAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  paymentSummaryStatus:
+    | "PAID_FULL"
+    | "DEPOSIT_PAID"
+    | "UNPAID"
+    | "PARTIAL"
+    | "PENDING"
+    | "REFUNDED"
+    | string;
+  paymentCount: number;
+  latestPaymentAt?: string | null;
+  payments: PaymentHistoryItem[];
+};
+
 export const paymentService = {
   createPayment: async (data: {
-    bookingId: string;
-    method: string;
+    bookingId?: string;
+    method?: string;
     paymentType?: string;
   }) => {
     const res = await api.post("/payments/createPayment", data);
@@ -31,7 +81,7 @@ export const paymentService = {
   updatePaymentStatus: async (
     paymentId: string,
     data: {
-      status: string;
+      status?: string;
       transactionCode?: string;
     },
   ) => {
@@ -43,7 +93,7 @@ export const paymentService = {
     return res.data.data;
   },
   createMomoPayment: async (data: {
-    bookingId: string;
+    bookingId?: string;
     paymentType: string;
   }) => {
     const res = await api.post("/payments/momo/create", data);
@@ -52,7 +102,7 @@ export const paymentService = {
   },
 
   createVnpayPayment: async (data: {
-    bookingId: string;
+    bookingId?: string;
     paymentType: string;
   }) => {
     const res = await api.post("/payments/vnpay/create", data);
@@ -61,11 +111,27 @@ export const paymentService = {
 
   verifyVnpayReturn: async (queryString: string) => {
     const res = await api.get(`/payments/vnpay/return${queryString}`);
-    return res.data.data;
+    return { ...res.data.data, message: res.data.message };
+  },
+
+  verifyMomoReturn: async (queryString: string) => {
+    const res = await api.get(`/payments/momo/return${queryString}`);
+    return { ...res.data.data, message: res.data.message };
   },
 
   getMyPayments: async () => {
     const res = await api.get("/payments/getMyPayments");
     return res.data.data.payments as CustomerPayment[];
   },
+
+  getMyBookingPaymentHistory: async () => {
+    const res = await api.get("/payments/my-booking-history");
+    return res.data.data.histories as BookingPaymentHistory[];
+  },
 };
+
+
+
+
+
+

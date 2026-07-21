@@ -4,6 +4,7 @@ import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { notifyPaymentTodosChanged } from "../services/booking.service";
 import { paymentService } from "../services/payment.service";
 
 type VerifyState = {
@@ -13,39 +14,70 @@ type VerifyState = {
   bookingId?: string;
 };
 
+function detectPaymentProvider(search: string) {
+  const params = new URLSearchParams(search);
+  const keys = Array.from(params.keys());
+
+  if (keys.some((key) => key.startsWith("vnp_"))) {
+    return "VNPAY";
+  }
+
+  if (
+    params.has("partnerCode") ||
+    params.has("orderId") ||
+    params.has("requestId") ||
+    params.has("resultCode")
+  ) {
+    return "MOMO";
+  }
+
+  return "";
+}
+
 export default function PaymentResultPage() {
   const location = useLocation();
   const [state, setState] = useState<VerifyState>({
     loading: true,
     success: false,
-    message: "Dang kiem tra ket qua thanh toan...",
+    message: "Đang kiểm tra kết quả thanh toán...",
   });
 
   useEffect(() => {
     let active = true;
 
-    if (!location.search) {
-      setState({
-        loading: false,
-        success: false,
-        message: "Khong tim thay du lieu tra ve tu cong thanh toan.",
+    const provider = detectPaymentProvider(location.search);
+
+    if (!location.search || !provider) {
+      queueMicrotask(() => {
+        setState({
+          loading: false,
+          success: false,
+          message: "Không tìm thủy dữ liệu trả về từ cổng thanh toán.",
+        });
       });
       return;
     }
 
-    paymentService
-      .verifyVnpayReturn(location.search)
+    const verifyPayment =
+      provider === "VNPAY"
+        ? paymentService.verifyVnpayReturn(location.search)
+        : paymentService.verifyMomoReturn(location.search);
+
+    verifyPayment
       .then((data) => {
         if (!active) return;
 
         setState({
           loading: false,
           success: Boolean(data?.success),
-          message: data?.success
-            ? "Thanh toan VNPAY thanh cong."
-            : "Thanh toan VNPAY khong thanh cong.",
+          message:
+            data?.message ||
+            (data?.success
+              ? `Thanh toán ${provider} thành công.`
+              : `Thanh toán ${provider} không thành công.`),
           bookingId: data?.booking?._id,
         });
+        notifyPaymentTodosChanged();
       })
       .catch(() => {
         if (!active) return;
@@ -53,7 +85,7 @@ export default function PaymentResultPage() {
         setState({
           loading: false,
           success: false,
-          message: "Khong the xac minh ket qua thanh toan VNPAY.",
+          message: `Không thể xác minh kết quả thanh toán ${provider}.`,
         });
       });
 
@@ -75,15 +107,15 @@ export default function PaymentResultPage() {
               state.loading
                 ? "bg-yellow-50 text-secondary"
                 : state.success
-                  ? "bg-emerald-50 text-emerald-600"
-                  : "bg-red-50 text-red-600"
+                  ? "bg-secondarySoft text-secondary"
+                  : "bg-slate-100 text-slate-800"
             }`}
           >
             <Icon size={36} className={state.loading ? "animate-spin" : ""} />
           </div>
 
           <h1 className="mt-6 text-3xl font-extrabold text-primary">
-            Ket qua thanh toan
+            Kết quả thanh toán
           </h1>
           <p className="mt-3 text-slate-600">{state.message}</p>
 
@@ -101,7 +133,7 @@ export default function PaymentResultPage() {
                 to="/"
                 className="rounded-lg border border-border px-5 py-3 font-extrabold text-primary transition hover:bg-slate-50"
               >
-                Ve trang chu
+                Về trang chủ
               </Link>
             </div>
           )}
@@ -112,3 +144,11 @@ export default function PaymentResultPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+

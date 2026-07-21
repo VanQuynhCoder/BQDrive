@@ -3,7 +3,7 @@ import { authService } from "../services/auth.service";
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
-  roles?: string[];
+  roles: string[];
 };
 
 export default function ProtectedRoute({
@@ -22,3 +22,6 @@ export default function ProtectedRoute({
 
   return children;
 }
+
+
+

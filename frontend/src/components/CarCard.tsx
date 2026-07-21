@@ -6,9 +6,11 @@ import {
   CreditCard,
   Fuel,
   Gauge,
+  MapPin,
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { formatAddressArea } from "../utils/address.util";
 
 type RentalAvailability =
   | "AVAILABLE"
@@ -17,25 +19,34 @@ type RentalAvailability =
 
 type CarCardProps = {
   car: {
-    _id?: string;
-    id?: number;
+    _id: string;
+    id: number;
     name: string;
     pricePerDay?: number;
     pricePerHour?: number;
     allowDailyRental?: boolean;
     allowHourlyRental?: boolean;
     rentalUnit?: string;
-    seats: number;
+    seats?: number;
     fuelType?: string;
     transmission?: string;
     images?: string[];
     image?: string;
+    ownerType?: "BUSINESS" | "USER" | string;
+    pickupProvince?: string;
+    pickupDistrict?: string;
+    pickupWard?: string;
+    pickupNote?: string;
+    province?: string;
+    city?: string;
+    district?: string;
+    ward?: string;
     brandId?: {
       name?: string;
-    };
+    } | null;
     businessId?: {
       businessName?: string;
-    };
+    } | null;
     rentalAvailability?: RentalAvailability;
     availabilityLabel?: string;
     isBookable?: boolean;
@@ -45,13 +56,14 @@ type CarCardProps = {
     resumeBookingId?: string;
     resumeExpiresAt?: string;
   };
+  detailSearchParams?: string;
 };
 
 const fallbackImage =
   "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?q=80&w=1200";
 
 function formatPrice(price: number) {
-  return `${new Intl.NumberFormat("vi-VN").format(price || 0)}đ`;
+  return `${new Intl.NumberFormat("vi-VN").format(price || 0)}d`;
 }
 
 function getRentalPrice(car: CarCardProps["car"]) {
@@ -153,7 +165,7 @@ function getAvailabilityInfo(car: CarCardProps["car"], now: number) {
     return {
       icon: Clock,
       label: car.availabilityLabel || "Không khả dụng",
-      badgeClass: "bg-red-50 text-red-700",
+      badgeClass: "bg-slate-100 text-slate-800",
       isBookable: false,
     };
   }
@@ -161,12 +173,12 @@ function getAvailabilityInfo(car: CarCardProps["car"], now: number) {
   return {
     icon: ShieldCheck,
     label: car.availabilityLabel || "Sẵn sàng",
-    badgeClass: "bg-emerald-50 text-emerald-700",
+    badgeClass: "bg-secondarySoft text-primary",
     isBookable: true,
   };
 }
 
-export default function CarCard({ car }: CarCardProps) {
+export default function CarCard({ car, detailSearchParams = "" }: CarCardProps) {
   const [now, setNow] = useState(() => Date.now());
   const rental = getRentalPrice(car);
   const carId = car._id || car.id;
@@ -189,6 +201,11 @@ export default function CarCard({ car }: CarCardProps) {
     availability.isBookable &&
     Boolean(carId);
   const canInteract = canOpenCart || canResumePayment || canOpenDetail;
+  const detailUrl = `/cars/${carId}${detailSearchParams}`;
+  const ownerName =
+    car.ownerType === "USER"
+      ? "Người dùng ký gửi"
+      : car.businessId?.businessName || "Đối tác BQDrive";
 
   useEffect(() => {
     if (!car.holdExpiredAt && !car.resumeExpiresAt) return;
@@ -228,7 +245,7 @@ export default function CarCard({ car }: CarCardProps) {
 
           {car.brandId?.name && (
             <span className="rounded-full bg-white/90 px-3 py-1 text-sm font-bold text-primary backdrop-blur">
-              {car.brandId.name}
+              {car.brandId?.name}
             </span>
           )}
         </div>
@@ -241,7 +258,11 @@ export default function CarCard({ car }: CarCardProps) {
               {car.name}
             </h3>
             <p className="mt-1 truncate text-sm text-muted">
-              {car.businessId?.businessName || "Đối tác BQDrive"}
+              {ownerName}
+            </p>
+            <p className="mt-2 flex items-center gap-1 text-sm font-semibold text-muted">
+              <MapPin size={15} className="shrink-0 text-secondary" />
+              <span className="truncate">{formatAddressArea(car)}</span>
             </p>
           </div>
 
@@ -287,7 +308,7 @@ export default function CarCard({ car }: CarCardProps) {
           </Link>
         ) : canOpenDetail ? (
           <Link
-            to={`/cars/${carId}`}
+            to={detailUrl}
             className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 font-extrabold text-white transition hover:bg-primaryDark"
           >
             Xem chi tiết
@@ -306,3 +327,11 @@ export default function CarCard({ car }: CarCardProps) {
     </article>
   );
 }
+
+
+
+
+
+
+
+

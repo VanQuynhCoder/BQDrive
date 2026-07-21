@@ -1,5 +1,12 @@
-﻿import { type CSSProperties, useEffect, useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   ArrowRight,
   BadgeDollarSign,
@@ -7,13 +14,18 @@ import {
   CalendarCheck2,
   CalendarDays,
   CarFront,
+  ChevronDown,
   CheckCircle2,
   Clock,
+  Filter,
   Headphones,
   MapPin,
+  RotateCcw,
   Search,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
+  X,
 } from "lucide-react";
 
 import Header from "../components/Header";
@@ -22,7 +34,7 @@ import CarCard from "../components/CarCard";
 import { authService } from "../services/auth.service";
 import { bookingService } from "../services/booking.service";
 import { cartService } from "../services/cart.service";
-import { carService } from "../services/car.service";
+import { carService, type PublicBrand } from "../services/car.service";
 import { buildVietnamDateTime } from "../utils/date.util";
 
 type RentalAvailability =
@@ -31,23 +43,23 @@ type RentalAvailability =
   | "PENDING_CONFIRMATION";
 
 type HomeCar = {
-  _id?: string;
-  id?: number;
+  _id: string;
+  id: number;
   name: string;
   pricePerDay?: number;
   pricePerHour?: number;
   allowDailyRental?: boolean;
   allowHourlyRental?: boolean;
   rentalUnit?: string;
-  seats: number;
+  seats?: number;
   fuelType?: string;
   transmission?: string;
   images?: string[];
   image?: string;
-  brandId?: {
+  brandId: {
     name?: string;
   };
-  businessId?: {
+  businessId: {
     businessName?: string;
   };
   rentalAvailability?: RentalAvailability;
@@ -62,18 +74,39 @@ type HomeCar = {
 
 type HomeBooking = {
   _id: string;
-  carId?: string | { _id?: string };
-  status?: string;
-  paidAmount?: number;
-  createdAt?: string;
+  carId: string | { _id: string };
+  status: string;
+  paidAmount: number;
+  createdAt: string;
 };
 
 type HomeCart = {
   _id: string;
-  carId?: string | { _id?: string };
-  status?: string;
-  expiredAt?: string;
+  carId: string | { _id: string };
+  status: string;
+  expiredAt: string;
 };
+
+type HomeFilters = {
+  location: string;
+  type: string;
+  seats: string;
+  brandId: string;
+  minPrice: string;
+  maxPrice: string;
+  fuelType: string;
+  transmission: string;
+  rentalMode: "" | "DAILY" | "HOURLY";
+  sort: string;
+};
+
+type HomeFilterDropdown =
+  | "seats"
+  | "price"
+  | "fuelType"
+  | "transmission"
+  | "type"
+  | "rentalMode";
 
 const heroImage =
   "https://images.unsplash.com/photo-1503376780353-7e6692767b70?q=80&w=1800";
@@ -82,6 +115,57 @@ const DEFAULT_START_TIME = "08:00";
 const DEFAULT_END_TIME = "18:00";
 const BOOKING_HOLD_MINUTES = 10;
 const BOOKING_HOLD_MS = BOOKING_HOLD_MINUTES * 60 * 1000;
+const emptyHomeFilters: HomeFilters = {
+  location: "",
+  type: "",
+  seats: "",
+  brandId: "",
+  minPrice: "",
+  maxPrice: "",
+  fuelType: "",
+  transmission: "",
+  rentalMode: "",
+  sort: "",
+};
+const popularAreas = [
+  "Quận 1",
+  "Bình Thạnh",
+  "Gò Vấp",
+  "Tân Bình",
+  "Thủ Đức",
+  "Quận 7",
+  "TP.HCM",
+];
+const carTypeOptions = [
+  { value: "SEDAN", label: "Sedan" },
+  { value: "SUV", label: "SUV" },
+  { value: "HATCHBACK", label: "Hatchback" },
+  { value: "PICKUP", label: "Bán tải" },
+  { value: "MPV", label: "MPV" },
+];
+const seatOptions = ["4", "5", "7", "9", "16"];
+const fuelTypeOptions = [
+  { value: "GASOLINE", label: "Xăng" },
+  { value: "DIESEL", label: "Dầu" },
+  { value: "ELECTRIC", label: "Điện" },
+  { value: "HYBRID", label: "Hybrid" },
+];
+const transmissionOptions = [
+  { value: "AUTOMATIC", label: "Số tự động" },
+  { value: "MANUAL", label: "Số sàn" },
+];
+const sortOptions = [
+  { value: "", label: "Phù hợp nhất" },
+  { value: "price_asc", label: "Giá thấp đến cao" },
+  { value: "price_desc", label: "Giá cao đến thấp" },
+  { value: "newest", label: "Mới nhất" },
+];
+const priceRangeOptions = [
+  { label: "Dưới 500.000đ", minPrice: "", maxPrice: "500000" },
+  { label: "500.000đ - 1.000.000đ", minPrice: "500000", maxPrice: "1000000" },
+  { label: "1.000.000đ - 2.000.000đ", minPrice: "1000000", maxPrice: "2000000" },
+  { label: "Trên 2.000.000đ", minPrice: "2000000", maxPrice: "" },
+];
 
 const serviceHighlights = [
   {
@@ -124,9 +208,50 @@ const rentalSteps = [
   },
 ];
 
+function buildHomeFilterParams(filters: HomeFilters) {
+  return {
+    location: filters.location.trim() || undefined,
+    type: filters.type || undefined,
+    seats: filters.seats ? Number(filters.seats) : undefined,
+    brandId: filters.brandId || undefined,
+    minPrice: filters.minPrice ? Number(filters.minPrice) : undefined,
+    maxPrice: filters.maxPrice ? Number(filters.maxPrice) : undefined,
+    fuelType: filters.fuelType || undefined,
+    transmission: filters.transmission || undefined,
+    rentalMode: filters.rentalMode || undefined,
+    sort: filters.sort || undefined,
+  };
+}
+
+function formatVnd(value: string) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) return "";
+
+  return `${new Intl.NumberFormat("vi-VN").format(amount)}đ`;
+}
+
+function getBrandInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+}
+
 export default function HomePage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [cars, setCars] = useState<HomeCar[]>([]);
+  const [brands, setBrands] = useState<PublicBrand[]>([]);
+  const [searchLocation, setSearchLocation] = useState("");
+  const [homeFilters, setHomeFilters] = useState<HomeFilters>(emptyHomeFilters);
+  const [appliedHomeFilters, setAppliedHomeFilters] =
+    useState<HomeFilters>(emptyHomeFilters);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [openHomeFilterDropdown, setOpenHomeFilterDropdown] =
+    useState<HomeFilterDropdown | null>(null);
   const [pickupDate, setPickupDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [pickupTime, setPickupTime] = useState(DEFAULT_START_TIME);
@@ -139,15 +264,34 @@ export default function HomePage() {
   useEffect(() => {
     let active = true;
 
+    carService
+      .getBrands()
+      .then((nextBrands) => {
+        if (active) setBrands(nextBrands);
+      })
+      .catch(console.log);
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
     async function loadHomeCars() {
       try {
+        const filterParams = buildHomeFilterParams(appliedHomeFilters);
         const homeCars = (await carService.getHomeCars(
-          appliedSchedule || undefined,
+          {
+            ...(appliedSchedule || {}),
+            ...filterParams,
+          },
         )) as HomeCar[];
         let myBookings: HomeBooking[] = [];
         let myCarts: HomeCart[] = [];
 
-        if (authService.isLoggedIn()) {
+        if (authService.isLoggedIn() && authService.getRole() === "USER") {
           try {
             [myBookings, myCarts] = await Promise.all([
               bookingService.getMyBookings() as Promise<HomeBooking[]>,
@@ -160,7 +304,7 @@ export default function HomePage() {
 
         const resumableBookingByCarId = new Map<
           string,
-          { bookingId: string; expiresAt: string }
+          { bookingId?: string; expiresAt: string }
         >();
         const activeCartByCarId = new Map<
           string,
@@ -175,7 +319,7 @@ export default function HomePage() {
           }
 
           const carId =
-            typeof cart.carId === "string" ? cart.carId : cart.carId?._id;
+            typeof cart.carId === "string" ? cart.carId : cart.carId._id;
 
           if (carId && !activeCartByCarId.has(carId)) {
             activeCartByCarId.set(carId, {
@@ -199,7 +343,7 @@ export default function HomePage() {
           const carId =
             typeof booking.carId === "string"
               ? booking.carId
-              : booking.carId?._id;
+              : booking.carId._id;
 
           if (carId && !resumableBookingByCarId.has(carId)) {
             resumableBookingByCarId.set(carId, {
@@ -245,7 +389,7 @@ export default function HomePage() {
     return () => {
       active = false;
     };
-  }, [appliedSchedule]);
+  }, [appliedHomeFilters, appliedSchedule]);
 
   useEffect(() => {
     if (!location.hash) return;
@@ -258,14 +402,108 @@ export default function HomePage() {
   }, [location.hash]);
 
   const handleSearchCars = () => {
+    const trimmedLocation = searchLocation.trim();
+
     if (!pickupDate || !returnDate) {
-      setAppliedSchedule(null);
+      toast.error("Vui lòng chọn ngày nhận và ngày trả xe");
       return;
     }
 
-    setAppliedSchedule({
-      startDate: buildVietnamDateTime(pickupDate, pickupTime),
-      endDate: buildVietnamDateTime(returnDate, returnTime),
+    const startDate = buildVietnamDateTime(pickupDate, pickupTime);
+    const endDate = buildVietnamDateTime(returnDate, returnTime);
+
+    if (new Date(endDate) <= new Date(startDate)) {
+      toast.error("Thời gian trả xe phải sau thời gian nhận xe");
+      return;
+    }
+
+    const params = new URLSearchParams({
+      startDate,
+      endDate,
+      rentalMode: "DAILY",
+    });
+
+    if (trimmedLocation) {
+      params.set("location", trimmedLocation);
+    }
+
+    setAppliedSchedule({ startDate, endDate });
+    navigate(`/cars/search?${params.toString()}`);
+  };
+
+  const updateHomeFilter = (key: keyof HomeFilters, value: string) => {
+    setHomeFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const applyHomeFilters = () => {
+    setAppliedHomeFilters(homeFilters);
+    setIsFilterPanelOpen(false);
+    setOpenHomeFilterDropdown(null);
+  };
+
+  const resetHomeFilters = () => {
+    setHomeFilters(emptyHomeFilters);
+    setAppliedHomeFilters(emptyHomeFilters);
+    setIsFilterPanelOpen(false);
+    setOpenHomeFilterDropdown(null);
+  };
+
+  const applyNextHomeFilters = useCallback((nextFilters: HomeFilters) => {
+    setHomeFilters(nextFilters);
+    setAppliedHomeFilters(nextFilters);
+  }, []);
+
+  const toggleHomeFilter = (key: keyof HomeFilters, value: string) => {
+    setHomeFilters((prev) => ({
+      ...prev,
+      [key]: prev[key] === value ? "" : value,
+    }));
+  };
+
+  const selectPriceRange = (minPrice: string, maxPrice: string) => {
+    setHomeFilters((prev) => {
+      const isActive =
+        prev.minPrice === minPrice && prev.maxPrice === maxPrice;
+
+      return {
+        ...prev,
+        minPrice: isActive ? "" : minPrice,
+        maxPrice: isActive ? "" : maxPrice,
+      };
+    });
+  };
+
+  const removeHomeFilter = useCallback((...keys: Array<keyof HomeFilters>) => {
+    const nextFilters = {
+      ...homeFilters,
+    };
+
+    keys.forEach((key) => {
+      nextFilters[key] = "" as never;
+    });
+
+    applyNextHomeFilters(nextFilters);
+  }, [applyNextHomeFilters, homeFilters]);
+
+  const applyPopularArea = (area: string) => {
+    const nextFilters = {
+      ...homeFilters,
+      location: area,
+    };
+
+    applyNextHomeFilters(nextFilters);
+  };
+
+  const handleHomeDropdownToggle = (
+    dropdown: HomeFilterDropdown,
+    isOpen: boolean,
+  ) => {
+    setOpenHomeFilterDropdown((currentDropdown) => {
+      if (isOpen) return dropdown;
+      return currentDropdown === dropdown ? null : currentDropdown;
     });
   };
 
@@ -278,6 +516,120 @@ export default function HomePage() {
       ).length,
     [cars],
   );
+  const activeFilterCount = useMemo(
+    () =>
+      Object.values(homeFilters).filter((value) => String(value).trim())
+        .length,
+    [homeFilters],
+  );
+  const activeFilterChips = useMemo(() => {
+    const selectedBrand = brands.find(
+      (brand) => brand._id === homeFilters.brandId,
+    );
+    const selectedType = carTypeOptions.find(
+      (item) => item.value === homeFilters.type,
+    );
+    const selectedFuel = fuelTypeOptions.find(
+      (item) => item.value === homeFilters.fuelType,
+    );
+    const selectedTransmission = transmissionOptions.find(
+      (item) => item.value === homeFilters.transmission,
+    );
+    const selectedSort = sortOptions.find(
+      (item) => item.value === homeFilters.sort,
+    );
+    const selectedRentalMode =
+      homeFilters.rentalMode === "DAILY"
+        ? "Thuê theo ngày"
+        : homeFilters.rentalMode === "HOURLY"
+          ? "Thuê theo giờ"
+          : "";
+    const selectedPriceRange = priceRangeOptions.find(
+      (item) =>
+        item.minPrice === homeFilters.minPrice &&
+        item.maxPrice === homeFilters.maxPrice,
+    );
+    const customPriceLabel =
+      !selectedPriceRange && (homeFilters.minPrice || homeFilters.maxPrice)
+        ? [
+            homeFilters.minPrice ? `Từ ${formatVnd(homeFilters.minPrice)}` : "",
+            homeFilters.maxPrice ? `Đến ${formatVnd(homeFilters.maxPrice)}` : "",
+          ]
+            .filter(Boolean)
+            .join(" ")
+        : "";
+
+    return [
+      homeFilters.location
+        ? {
+            key: "location",
+            label: homeFilters.location,
+            remove: () => removeHomeFilter("location"),
+          }
+        : null,
+      selectedBrand
+        ? {
+            key: "brand",
+            label: selectedBrand.name,
+            remove: () => removeHomeFilter("brandId"),
+          }
+        : null,
+      selectedType
+        ? {
+            key: "type",
+            label: selectedType.label,
+            remove: () => removeHomeFilter("type"),
+          }
+        : null,
+      homeFilters.seats
+        ? {
+            key: "seats",
+            label: `${homeFilters.seats} chỗ`,
+            remove: () => removeHomeFilter("seats"),
+          }
+        : null,
+      selectedPriceRange || customPriceLabel
+        ? {
+            key: "price",
+            label: selectedPriceRange?.label || customPriceLabel,
+            remove: () => removeHomeFilter("minPrice", "maxPrice"),
+          }
+        : null,
+      selectedFuel
+        ? {
+            key: "fuelType",
+            label: selectedFuel.label,
+            remove: () => removeHomeFilter("fuelType"),
+          }
+        : null,
+      selectedTransmission
+        ? {
+            key: "transmission",
+            label: selectedTransmission.label,
+            remove: () => removeHomeFilter("transmission"),
+          }
+        : null,
+      selectedRentalMode
+        ? {
+            key: "rentalMode",
+            label: selectedRentalMode,
+            remove: () => removeHomeFilter("rentalMode"),
+          }
+        : null,
+      selectedSort?.value
+        ? {
+            key: "sort",
+            label: selectedSort.label,
+            remove: () => removeHomeFilter("sort"),
+          }
+        : null,
+    ].filter(
+      (
+        item,
+      ): item is { key: string; label: string; remove: () => void } =>
+        Boolean(item),
+    );
+  }, [brands, homeFilters, removeHomeFilter]);
 
   const stats = useMemo(
     () => [
@@ -295,6 +647,350 @@ export default function HomePage() {
       },
     ],
     [availableCarCount],
+  );
+  const dropdownButtonClass =
+    "flex min-h-10 cursor-pointer list-none items-center justify-between gap-2 rounded-lg border border-border bg-white px-3 text-sm font-extrabold text-primary transition hover:border-secondary/70 [&::-webkit-details-marker]:hidden";
+  const dropdownPanelClass =
+    "mt-2 rounded-lg border border-border bg-white p-3 shadow-sm";
+  const chipClass = (active: boolean) =>
+    `rounded-full border px-3 py-1.5 text-sm font-bold transition ${
+      active
+        ? "border-secondary bg-secondarySoft text-primary"
+        : "border-border bg-white text-muted hover:border-secondary/70 hover:text-primary"
+    }`;
+  const minPriceValue = Math.min(Number(homeFilters.minPrice || 0), 3000000);
+  const maxPriceValue = Math.min(Number(homeFilters.maxPrice || 3000000), 3000000);
+  const safeMinPrice = Math.min(minPriceValue, maxPriceValue - 100000);
+  const safeMaxPrice = Math.max(maxPriceValue, safeMinPrice + 100000);
+  const priceMinPercent = (safeMinPrice / 3000000) * 100;
+  const priceMaxPercent = (safeMaxPrice / 3000000) * 100;
+  const setPriceRange = (minPrice: number, maxPrice: number) => {
+    setHomeFilters((prev) => ({
+      ...prev,
+      minPrice: String(Math.max(0, Math.min(minPrice, 3000000))),
+      maxPrice: String(Math.max(0, Math.min(maxPrice, 3000000))),
+    }));
+  };
+  const filterContent = (
+    <div className="space-y-5">
+      <div className="space-y-3">
+        <label className="flex min-h-10 items-center gap-2 rounded-lg border border-border bg-white px-3 transition focus-within:border-secondary">
+          <MapPin size={17} className="shrink-0 text-secondary" />
+          <input
+            value={homeFilters.location}
+            onChange={(event) => updateHomeFilter("location", event.target.value)}
+            className="min-w-0 flex-1 bg-transparent text-sm font-bold outline-none"
+            placeholder="Nhập khu vực nhận xe"
+          />
+        </label>
+
+        <select
+          value={homeFilters.sort}
+          onChange={(event) => updateHomeFilter("sort", event.target.value)}
+          className="min-h-10 w-full rounded-lg border border-border bg-white px-3 text-sm font-bold text-primary outline-none transition focus:border-secondary"
+        >
+          {sortOptions.map((item) => (
+            <option key={item.value || "relevance"} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={resetHomeFilters}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border px-3 text-sm font-extrabold text-primary transition hover:bg-soft"
+          >
+            <RotateCcw size={16} />
+            Xóa lọc
+          </button>
+          <button
+            type="button"
+            onClick={applyHomeFilters}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-secondary px-4 text-sm font-extrabold text-primary transition hover:brightness-95"
+          >
+            <Search size={17} />
+            Áp dụng
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-extrabold text-primary">Hãng xe</p>
+          <span className="text-xs font-bold text-muted">{brands.length} hãng</span>
+        </div>
+        <div className="grid gap-2">
+          {brands.map((brand) => {
+            const active = homeFilters.brandId === brand._id;
+
+            return (
+              <button
+                key={brand._id}
+                type="button"
+                onClick={() => toggleHomeFilter("brandId", brand._id)}
+                className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition ${
+                  active
+                    ? "border-secondary bg-secondarySoft text-primary shadow-sm"
+                    : "border-border bg-white text-primary hover:border-secondary/60"
+                }`}
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-soft text-xs font-extrabold text-primary">
+                  {brand.logo ? (
+                    <img
+                      src={brand.logo}
+                      alt={brand.name}
+                      className="h-full w-full object-contain p-1"
+                    />
+                  ) : (
+                    getBrandInitials(brand.name)
+                  )}
+                </span>
+                <span className="truncate text-sm font-extrabold">{brand.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <details
+          className="group"
+          open={openHomeFilterDropdown === "seats"}
+          onToggle={(event) =>
+            handleHomeDropdownToggle("seats", event.currentTarget.open)
+          }
+        >
+          <summary className={dropdownButtonClass}>
+            <span>Số chỗ</span>
+            <ChevronDown size={16} className="text-muted transition group-open:rotate-180" />
+          </summary>
+          <div className={dropdownPanelClass}>
+            <div className="flex flex-wrap gap-2">
+              {seatOptions.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => toggleHomeFilter("seats", item)}
+                  className={chipClass(homeFilters.seats === item)}
+                >
+                  {item} chỗ
+                </button>
+              ))}
+            </div>
+          </div>
+        </details>
+
+        <details
+          className="group"
+          open={openHomeFilterDropdown === "price"}
+          onToggle={(event) =>
+            handleHomeDropdownToggle("price", event.currentTarget.open)
+          }
+        >
+          <summary className={dropdownButtonClass}>
+            <span>Mức giá</span>
+            <ChevronDown size={16} className="text-muted transition group-open:rotate-180" />
+          </summary>
+          <div className={dropdownPanelClass}>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <input
+                value={formatVnd(String(safeMinPrice))}
+                readOnly
+                className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-white px-3 text-right text-sm font-bold text-primary"
+              />
+              <span className="text-muted">~</span>
+              <input
+                value={formatVnd(String(safeMaxPrice))}
+                readOnly
+                className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-white px-3 text-right text-sm font-bold text-primary"
+              />
+            </div>
+            <div className="relative h-8">
+              <div className="absolute left-1 right-1 top-1/2 h-1 -translate-y-1/2 rounded-full bg-slate-200" />
+              <div
+                className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-primary"
+                style={{ left: `${priceMinPercent}%`, right: `${100 - priceMaxPercent}%` }}
+              />
+              <input
+                type="range"
+                min="0"
+                max="3000000"
+                step="100000"
+                value={safeMinPrice}
+                onChange={(event) => {
+                  const nextMin = Math.min(Number(event.target.value), safeMaxPrice - 100000);
+                  setPriceRange(nextMin, safeMaxPrice);
+                }}
+                className="pointer-events-none absolute inset-x-0 top-1/2 h-1 w-full -translate-y-1/2 appearance-none bg-transparent accent-primary [&::-webkit-slider-thumb]:pointer-events-auto"
+              />
+              <input
+                type="range"
+                min="0"
+                max="3000000"
+                step="100000"
+                value={safeMaxPrice}
+                onChange={(event) => {
+                  const nextMax = Math.max(Number(event.target.value), safeMinPrice + 100000);
+                  setPriceRange(safeMinPrice, nextMax);
+                }}
+                className="pointer-events-none absolute inset-x-0 top-1/2 h-1 w-full -translate-y-1/2 appearance-none bg-transparent accent-primary [&::-webkit-slider-thumb]:pointer-events-auto"
+              />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {priceRangeOptions.map((item) => {
+                const active =
+                  homeFilters.minPrice === item.minPrice &&
+                  homeFilters.maxPrice === item.maxPrice;
+
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => selectPriceRange(item.minPrice, item.maxPrice)}
+                    className={chipClass(active)}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </details>
+
+        <details
+          className="group"
+          open={openHomeFilterDropdown === "fuelType"}
+          onToggle={(event) =>
+            handleHomeDropdownToggle("fuelType", event.currentTarget.open)
+          }
+        >
+          <summary className={dropdownButtonClass}>
+            <span>Nhiên liệu</span>
+            <ChevronDown size={16} className="text-muted transition group-open:rotate-180" />
+          </summary>
+          <div className={dropdownPanelClass}>
+            <div className="flex flex-wrap gap-2">
+              {fuelTypeOptions.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => toggleHomeFilter("fuelType", item.value)}
+                  className={chipClass(homeFilters.fuelType === item.value)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </details>
+
+        <details
+          className="group"
+          open={openHomeFilterDropdown === "transmission"}
+          onToggle={(event) =>
+            handleHomeDropdownToggle("transmission", event.currentTarget.open)
+          }
+        >
+          <summary className={dropdownButtonClass}>
+            <span>Hộp số</span>
+            <ChevronDown size={16} className="text-muted transition group-open:rotate-180" />
+          </summary>
+          <div className={dropdownPanelClass}>
+            <div className="flex flex-wrap gap-2">
+              {transmissionOptions.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => toggleHomeFilter("transmission", item.value)}
+                  className={chipClass(homeFilters.transmission === item.value)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </details>
+
+        <details
+          className="group"
+          open={openHomeFilterDropdown === "type"}
+          onToggle={(event) =>
+            handleHomeDropdownToggle("type", event.currentTarget.open)
+          }
+        >
+          <summary className={dropdownButtonClass}>
+            <span>Loại xe</span>
+            <ChevronDown size={16} className="text-muted transition group-open:rotate-180" />
+          </summary>
+          <div className={dropdownPanelClass}>
+            <div className="flex flex-wrap gap-2">
+              {carTypeOptions.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => toggleHomeFilter("type", item.value)}
+                  className={chipClass(homeFilters.type === item.value)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </details>
+
+        <details
+          className="group"
+          open={openHomeFilterDropdown === "rentalMode"}
+          onToggle={(event) =>
+            handleHomeDropdownToggle("rentalMode", event.currentTarget.open)
+          }
+        >
+          <summary className={dropdownButtonClass}>
+            <span>Hình thức thuê</span>
+            <ChevronDown size={16} className="text-muted transition group-open:rotate-180" />
+          </summary>
+          <div className={dropdownPanelClass}>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "DAILY", label: "Thuê theo ngày" },
+                { value: "HOURLY", label: "Thuê theo giờ" },
+              ].map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => toggleHomeFilter("rentalMode", item.value)}
+                  className={chipClass(homeFilters.rentalMode === item.value)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div className="border-t border-border pt-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-sm font-extrabold text-primary">Khu vực phổ biến</span>
+          {popularAreas.map((area) => (
+            <button
+              key={area}
+              type="button"
+              onClick={() => applyPopularArea(area)}
+              className={`rounded-full border px-3 py-1.5 text-sm font-bold transition ${
+                homeFilters.location === area
+                  ? "border-secondary bg-secondarySoft text-primary"
+                  : "border-border bg-white text-muted hover:border-secondary/70 hover:text-primary"
+              }`}
+            >
+              {area}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 
   return (
@@ -372,7 +1068,9 @@ export default function HomePage() {
                     <MapPin size={19} className="shrink-0 text-secondary" />
                     <input
                       className="min-w-0 flex-1 bg-transparent outline-none"
-                      placeholder="Bạn muốn đi đâu?"
+                      placeholder="Bạn muốn nhận xe ở đâu?"
+                      value={searchLocation}
+                      onChange={(event) => setSearchLocation(event.target.value)}
                     />
                   </span>
                 </label>
@@ -495,6 +1193,102 @@ export default function HomePage() {
           id="home-cars"
           className="scroll-mt-24 mx-auto max-w-7xl px-6 py-16 md:py-20"
         >
+          <div className="mb-6 rounded-lg border border-border bg-white p-4 shadow-sm lg:hidden">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="flex items-center gap-2 text-sm font-bold uppercase text-secondary">
+                  <SlidersHorizontal size={17} />
+                  Bộ lọc xe
+                </p>
+                <h3 className="mt-1 text-lg font-extrabold text-primary">
+                  Lọc nhanh danh sách xe nổi bật
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {activeFilterCount > 0 && (
+                  <span className="rounded-full bg-secondarySoft px-3 py-1 text-xs font-extrabold text-primary">
+                    {activeFilterCount} bộ lọc
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsFilterPanelOpen(true)}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-extrabold text-white"
+                >
+                  <Filter size={17} />
+                  Bộ lọc
+                </button>
+              </div>
+            </div>
+
+            {activeFilterChips.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {activeFilterChips.map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={chip.remove}
+                    className="inline-flex items-center gap-2 rounded-full bg-secondarySoft px-3 py-1.5 text-sm font-extrabold text-primary transition hover:bg-secondary/30"
+                  >
+                    {chip.label}
+                    <X size={14} />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 hidden md:block">{filterContent}</div>
+          </div>
+
+          {isFilterPanelOpen && (
+            <div className="fixed inset-0 z-50 bg-primary/50 lg:hidden">
+              <div className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-2xl bg-white p-4 shadow-2xl">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold uppercase text-secondary">
+                      Bộ lọc xe
+                    </p>
+                    <h3 className="text-lg font-extrabold text-primary">
+                      Tìm xe phù hợp
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterPanelOpen(false)}
+                    className="flex h-10 w-10 items-center justify-center rounded-lg bg-soft text-primary"
+                    aria-label="Đóng bộ lọc"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {filterContent}
+              </div>
+            </div>
+          )}
+          <div className="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
+            <aside className="hidden rounded-2xl border border-border bg-white shadow-sm lg:sticky lg:top-24 lg:block">
+              <div className="border-b border-border px-5 py-4">
+                <p className="flex items-center gap-2 text-sm font-bold uppercase text-secondary">
+                  <SlidersHorizontal size={17} />
+                  Bộ lọc xe
+                </p>
+                <h3 className="mt-1 text-xl font-extrabold text-primary">
+                  Bộ lọc tìm kiếm
+                </h3>
+                {activeFilterCount > 0 && (
+                  <p className="mt-2 text-sm font-bold text-muted">
+                    Đang áp dụng {activeFilterCount} bộ lọc
+                  </p>
+                )}
+              </div>
+              <div className="max-h-[calc(100vh-150px)] overflow-y-auto p-5">
+                {filterContent}
+              </div>
+            </aside>
+
+            <div className="min-w-0">
           <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-sm font-bold uppercase text-secondary">
@@ -509,17 +1303,34 @@ export default function HomePage() {
               </p>
             </div>
 
-            <Link
-              to="/"
+            <button
+              type="button"
+              onClick={resetHomeFilters}
               className="inline-flex items-center gap-2 font-extrabold text-primary transition hover:text-secondary"
             >
               Xem tất cả
               <ArrowRight size={18} />
-            </Link>
+            </button>
           </div>
 
+          {activeFilterChips.length > 0 && (
+            <div className="mb-5 hidden flex-wrap gap-2 lg:flex">
+              {activeFilterChips.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={chip.remove}
+                  className="inline-flex items-center gap-2 rounded-full bg-secondarySoft px-3 py-1.5 text-sm font-extrabold text-primary transition hover:bg-secondary/30"
+                >
+                  {chip.label}
+                  <X size={14} />
+                </button>
+              ))}
+            </div>
+          )}
+
           {cars.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {cars.map((car) => (
                 <CarCard key={car._id || car.id} car={car} />
               ))}
@@ -535,6 +1346,8 @@ export default function HomePage() {
               </p>
             </div>
           )}
+            </div>
+          </div>
         </section>
 
         <section className="bg-white py-16 md:py-20">
@@ -614,3 +1427,14 @@ export default function HomePage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import {
   CalendarCheck,
@@ -8,9 +8,11 @@ import {
   CreditCard,
   Loader2,
   ShieldCheck,
+  Star,
   WalletCards,
 } from "lucide-react";
 
+import DashboardReviewSections from "../../components/dashboard/DashboardReviewSections";
 import {
   privateOwnerService,
   type PrivateOwnerDashboard,
@@ -22,6 +24,10 @@ function formatCurrency(value?: number) {
     currency: "VND",
     maximumFractionDigits: 0,
   }).format(value || 0);
+}
+
+function formatNumber(value?: number) {
+  return (value || 0).toLocaleString("vi-VN");
 }
 
 export default function PrivateOwnerDashboardPage() {
@@ -50,39 +56,62 @@ export default function PrivateOwnerDashboardPage() {
     };
   }, []);
 
+  const overview = dashboard?.overview || dashboard;
+  const totalCars =
+    overview?.totalConsignmentCars ??
+    dashboard?.totalConsignmentCars ??
+    overview?.totalCars ??
+    0;
+  const paidRevenue =
+    overview?.totalPaidRevenue ??
+    dashboard?.totalPaidRevenue ??
+    dashboard?.totalRevenue ??
+    0;
   const processingBookings =
-    (dashboard?.pendingBookings || 0) + (dashboard?.confirmedBookings || 0);
+    (overview?.pendingBookings || 0) + (overview?.confirmedBookings || 0);
 
   const statCards = [
     {
-      label: "Tổng xe",
-      value: dashboard?.totalCars || 0,
-      detail: `${dashboard?.rejectedCars || 0} xe bị từ chối`,
+      label: "Tổng xe ký gửi",
+      value: formatNumber(totalCars),
+      detail: `${formatNumber(overview?.approvedCars)} xe đã duyệt`,
       icon: Car,
     },
     {
       label: "Xe chờ duyệt",
-      value: dashboard?.pendingCars || 0,
-      detail: "Xe mới hoặc vừa cập nhật",
+      value: formatNumber(overview?.pendingCars),
+      detail: `${formatNumber(overview?.rejectedCars)} xe bị từ chối`,
       icon: Clock3,
     },
     {
-      label: "Xe đang hoạt động",
-      value: dashboard?.approvedCars || 0,
-      detail: "Đang hiển thị cho khách hàng",
-      icon: CheckCircle2,
+      label: "Xe đang thuê",
+      value: formatNumber(overview?.rentedCars),
+      detail: "Xe ký gửi đang phát sinh chuyến thuê",
+      icon: ShieldCheck,
     },
     {
-      label: "Booking đang xử lý",
-      value: processingBookings,
-      detail: `${dashboard?.pendingBookings || 0} chờ xác nhận`,
+      label: "Booking từ xe của bạn",
+      value: formatNumber(overview?.totalBookings),
+      detail: `${formatNumber(processingBookings)} booking đang xử lý`,
       icon: CalendarCheck,
     },
     {
-      label: "Doanh thu tháng",
-      value: formatCurrency(dashboard?.revenueThisMonth),
-      detail: "Tính trên thanh toán đã thanh toán",
+      label: "Đang thuê",
+      value: formatNumber(overview?.inProgressBookings),
+      detail: `${formatNumber(overview?.completedBookings)} booking hoàn tất`,
+      icon: CheckCircle2,
+    },
+    {
+      label: "Doanh thu đã thanh toán",
+      value: formatCurrency(paidRevenue),
+      detail: "Chỉ tính payment PAID",
       icon: CreditCard,
+    },
+    {
+      label: "Lượt đánh giá",
+      value: formatNumber(overview?.totalReviews),
+      detail: `Điểm trung bình ${(overview?.averageRating || 0).toFixed(1)}/5`,
+      icon: Star,
     },
   ];
 
@@ -91,20 +120,20 @@ export default function PrivateOwnerDashboardPage() {
       <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm font-bold uppercase text-secondary">
-            Chủ xe tư nhân
+            Ký gửi xe
           </p>
           <h2 className="mt-2 text-3xl font-extrabold text-primary">
             Tổng quan vận hành
           </h2>
           <p className="mt-2 max-w-2xl text-slate-500">
-            Theo dõi xe, booking và doanh thu phát sinh từ đội xe cá nhân của
-            bạn trên BQDrive.
+            Theo dõi xe ký gửi, booking, doanh thu và đánh giá phát sinh từ xe
+            bạn sở hữu trên BQDrive.
           </p>
         </div>
 
-        <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-extrabold text-emerald-700">
+        <div className="inline-flex items-center gap-2 rounded-lg border border-secondary/40 bg-secondarySoft px-4 py-3 text-sm font-extrabold text-primary">
           <ShieldCheck size={18} />
-          {dashboard?.profile?.isApproved ? "Đã được duyệt" : "Đang khởi tạo"}
+          Tài khoản USER ký gửi
         </div>
       </section>
 
@@ -114,7 +143,7 @@ export default function PrivateOwnerDashboardPage() {
         </section>
       ) : (
         <>
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {statCards.map((card) => {
               const Icon = card.icon;
 
@@ -132,7 +161,7 @@ export default function PrivateOwnerDashboardPage() {
                         {card.value}
                       </p>
                     </div>
-                    <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary text-secondary">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-secondary">
                       <Icon size={22} />
                     </div>
                   </div>
@@ -152,33 +181,41 @@ export default function PrivateOwnerDashboardPage() {
                     Dòng tiền
                   </h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    Tổng hợp thanh toán đã ghi nhận thành công.
+                    Tổng hợp thanh toán thành công từ booking của xe ký gửi.
                   </p>
                 </div>
                 <WalletCards size={24} className="text-secondary" />
               </div>
 
-              <div className="mt-5 grid gap-4 md:grid-cols-3">
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <div className="rounded-lg bg-slate-50 p-4">
-                  <p className="text-sm font-bold text-slate-500">Hôm nay</p>
+                  <p className="text-sm font-bold text-slate-500">
+                    Đã thanh toán
+                  </p>
                   <p className="mt-2 text-lg font-extrabold text-primary">
-                    {formatCurrency(dashboard?.revenueToday)}
+                    {formatCurrency(dashboard?.paymentStats?.paidAmount)}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-4">
+                  <p className="text-sm font-bold text-slate-500">Đang chờ</p>
+                  <p className="mt-2 text-lg font-extrabold text-primary">
+                    {formatCurrency(dashboard?.paymentStats?.pendingAmount)}
                   </p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-4">
                   <p className="text-sm font-bold text-slate-500">
-                    Tháng này
+                    Đã hoàn tiền
                   </p>
                   <p className="mt-2 text-lg font-extrabold text-primary">
-                    {formatCurrency(dashboard?.revenueThisMonth)}
+                    {formatCurrency(dashboard?.paymentStats?.refundedAmount)}
                   </p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-4">
                   <p className="text-sm font-bold text-slate-500">
-                    Tổng doanh thu
+                    Giao dịch lỗi
                   </p>
                   <p className="mt-2 text-lg font-extrabold text-primary">
-                    {formatCurrency(dashboard?.totalRevenue)}
+                    {formatNumber(dashboard?.paymentStats?.failedCount)}
                   </p>
                 </div>
               </div>
@@ -189,7 +226,7 @@ export default function PrivateOwnerDashboardPage() {
                 Booking cần chú ý
               </h3>
               <p className="mt-1 text-sm text-slate-500">
-                Booking chờ xác nhận cần duyệt, booking đã xác nhận cần theo dõi bàn giao xe.
+                Chỉ bao gồm booking phát sinh từ xe ký gửi mà bạn sở hữu.
               </p>
 
               <div className="mt-5 space-y-3">
@@ -201,23 +238,44 @@ export default function PrivateOwnerDashboardPage() {
                     </span>
                   </div>
                   <span className="text-xl font-extrabold text-primary">
-                    {dashboard?.pendingBookings || 0}
+                    {formatNumber(overview?.pendingBookings)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-slate-50 p-4">
                   <div className="flex items-center gap-3">
-                    <CheckCircle2 size={20} className="text-emerald-600" />
-                    <span className="font-bold text-slate-600">
-                      Đã xác nhận
-                    </span>
+                    <CheckCircle2 size={20} className="text-secondary" />
+                    <span className="font-bold text-slate-600">Đang thuê</span>
                   </div>
                   <span className="text-xl font-extrabold text-primary">
-                    {dashboard?.confirmedBookings || 0}
+                    {formatNumber(overview?.inProgressBookings)}
                   </span>
                 </div>
               </div>
             </div>
           </section>
+
+          <DashboardReviewSections
+            topRatedCars={dashboard?.topRatedCars}
+            lowRatedCars={dashboard?.lowRatedCars}
+            mostReviewedCars={dashboard?.mostReviewedCars}
+            labels={{
+              top: {
+                title: "Xe ký gửi được đánh giá cao",
+                subtitle: "Xe của bạn có phản hồi tốt nhất từ khách thuê.",
+                emptyText: "Chưa có xe ký gửi nào có đánh giá.",
+              },
+              low: {
+                title: "Xe ký gửi cần cải thiện",
+                subtitle: "Các xe cần theo dõi thêm về trải nghiệm thuê.",
+                emptyText: "Chưa có dữ liệu cần cải thiện.",
+              },
+              most: {
+                title: "Xe ký gửi được đánh giá nhiều",
+                subtitle: "Các xe nhận nhiều phản hồi nhất.",
+                emptyText: "Chưa có lượt đánh giá nào.",
+              },
+            }}
+          />
         </>
       )}
     </div>

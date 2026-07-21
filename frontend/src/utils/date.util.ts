@@ -16,7 +16,7 @@ export function getVietnamTodayDate() {
 
 export function formatVietnamDateTime(
   value?: string,
-  options?: Intl.DateTimeFormatOptions,
+  options: Intl.DateTimeFormatOptions = {},
 ) {
   if (!value) return "--";
 

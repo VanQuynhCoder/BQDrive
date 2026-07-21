@@ -1,5 +1,12 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+﻿import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -20,6 +27,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Sparkles,
+  Star,
   Users,
   Wallet,
   X,
@@ -28,14 +36,25 @@ import toast from "react-hot-toast";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import RouteMap from "../components/maps/RouteMap";
+import RelatedCars from "../components/cars/RelatedCars";
 import { carService } from "../services/car.service";
 import { cartService } from "../services/cart.service";
-import { bookingService } from "../services/booking.service";
+import {
+  bookingService,
+  type BookingPriceQuote,
+} from "../services/booking.service";
+import { holidayService, type PublicHoliday } from "../services/holiday.service";
 import { authService } from "../services/auth.service";
+import {
+  reviewService,
+  type CarReviewSummary,
+} from "../services/review.service";
 import {
   buildVietnamDateTime,
   getVietnamTodayDate,
 } from "../utils/date.util";
+import { formatAddressArea, formatPickupAddress } from "../utils/address.util";
 
 type RentalAvailability =
   | "AVAILABLE"
@@ -43,11 +62,20 @@ type RentalAvailability =
   | "PENDING_CONFIRMATION";
 
 type CarDetail = {
-  _id?: string;
+  _id: string;
   name: string;
-  description?: string;
+  licensePlate?: string;
+  description: string;
   pricePerDay?: number;
   pricePerHour?: number;
+  pricing?: {
+    weekdayPricePerDay?: number;
+    weekendPricePerDay?: number;
+    holidayPricePerDay?: number;
+    pricePerHour?: number;
+    weekendPricePerHour?: number;
+    holidayPricePerHour?: number;
+  };
   allowDailyRental?: boolean;
   allowHourlyRental?: boolean;
   rentalUnit?: string;
@@ -55,17 +83,55 @@ type CarDetail = {
   fuelType?: string;
   transmission?: string;
   images?: string[];
+  pickupAddress: string;
+  pickupFormattedAddress?: string;
+  pickupPlaceId?: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  pickupProvince?: string;
+  pickupDistrict?: string;
+  pickupWard?: string;
+  address: string;
+  latitude?: number;
+  longitude?: number;
+  deliveryEnabled?: boolean;
+  deliveryBaseFee?: number;
+  deliveryFeePerKm?: number;
+  deliveryMaxDistanceKm?: number;
+  deliveryNote?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
+  locationNote?: string;
   brandId?: {
+    _id?: string;
     name?: string;
-  };
+  } | null;
   businessId?: {
     businessName?: string;
-  };
+    address?: string;
+    province?: string;
+    city?: string;
+    district?: string;
+    ward?: string;
+  } | null;
+  ownerId?: {
+    name?: string;
+    businessName?: string;
+    address?: string;
+    province?: string;
+    city?: string;
+    district?: string;
+    ward?: string;
+  } | null;
+  ownerType?: "USER" | "BUSINESS" | string;
+  status?: string;
   rentalAvailability?: RentalAvailability;
   availabilityLabel?: string;
   isBookable?: boolean;
   unavailableReason?: string;
-  unavailableRanges?: UnavailableRange[];
+  unavailableRanges: UnavailableRange[];
   currentUserActiveBooking?: CurrentUserActiveBooking | null;
 };
 
@@ -73,35 +139,42 @@ type UnavailableRange = {
   bookingId?: string;
   startDate: string;
   endDate: string;
-  status?: string;
+  status: string;
 };
 
 type CurrentUserActiveBooking = {
   _id: string;
-  status?: string;
+  status: string;
   startDate?: string;
   endDate?: string;
   rentalMode?: RentalMode;
   totalPrice?: number;
-  paidAmount?: number;
-  depositAmount?: number;
-  remainingAmount?: number;
-  paymentOption?: string;
+  paidAmount: number;
+  depositAmount: number;
+  remainingAmount: number;
+  paymentOption: string;
 };
 
 type RentalMode = "DAILY" | "HOURLY";
 
+type HolidayDateInfo = {
+  name: string;
+  note?: string;
+  type: string;
+};
+
 type WheelOption = {
   label: string;
   value: string | number;
-  disabled?: boolean;
+  disabled: boolean;
 };
 
 type ApiError = {
   response?: {
-    status?: number;
+    status: number;
     data?: {
       message?: string;
+      data?: string;
     };
   };
 };
@@ -120,6 +193,15 @@ const HOUR_MS = 1000 * 60 * 60;
 const TIME_OPTIONS = buildTimeOptions("08:00", "22:00", 30); // Dropdown giờ mỗi 30 phút, từ 08:00 đến 22:00.
 const HOURLY_DURATION_OPTIONS = [4, 5, 6, 7, 8]; // Thuê theo giờ chỉ cho 4-8 giờ.
 const WEEKDAY_LABELS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"]; // Header lịch bắt đầu từ thứ hai.
+const DETAILED_PICKUP_STATUSES = [
+  "OWNER_APPROVED",
+  "PAYMENT_PENDING",
+  "PAID",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "WAITING_PAYMENT",
+  "CONFIRMED",
+];
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat("vi-VN").format(price || 0) + "đ";
@@ -197,6 +279,14 @@ function addMonths(date: Date, amount: number) {
   return new Date(date.getFullYear(), date.getMonth() + amount, 1);
 }
 
+function addDays(date: Date, amount: number) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
+}
+
+function getMonthEnd(monthDate: Date) {
+  return new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+}
+
 function getMonthDays(monthDate: Date) {
   const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
   const daysInMonth = new Date(
@@ -255,6 +345,51 @@ function formatRentalPickerSummary(
 
 function isSameDateValue(left: string, right: string) {
   return Boolean(left && right && left === right);
+}
+
+function getHolidayDisplayText(holiday?: HolidayDateInfo) {
+  if (!holiday) return "";
+
+  return `Ngày lễ: ${holiday.name}${holiday.note ? ` - ${holiday.note}` : ""}`;
+}
+
+function getApiDateValue(value?: string) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (!Number.isNaN(date.getTime())) {
+    return formatDateValue(date);
+  }
+
+  return parseDateValue(value) ? value : "";
+}
+
+function expandHolidayDateMap(holidays: PublicHoliday[]) {
+  const map: Record<string, HolidayDateInfo> = {};
+
+  holidays.forEach((holiday) => {
+    const startValue = getApiDateValue(holiday.startDate || holiday.date);
+    const endValue = getApiDateValue(holiday.endDate || holiday.startDate || holiday.date);
+    const start = parseDateValue(startValue);
+    const end = parseDateValue(endValue);
+
+    if (!start || !end) return;
+
+    for (
+      let cursor = start;
+      cursor.getTime() <= end.getTime();
+      cursor = addDays(cursor, 1)
+    ) {
+      map[formatDateValue(cursor)] = {
+        name: holiday.name,
+        note: holiday.note,
+        type: holiday.type || "HOLIDAY",
+      };
+    }
+  });
+
+  return map;
 }
 
 function getCurrentMinuteOfDay() {
@@ -367,7 +502,7 @@ function getRentalModes(car?: CarDetail | null) {
 function getRentalInfo(car: CarDetail | null | undefined, rentalMode: RentalMode) {
   if (rentalMode === "HOURLY") {
     return {
-      price: Number(car?.pricePerHour || 0),
+      price: Number(car?.pricing?.pricePerHour || car?.pricePerHour || 0),
       unit: "giờ",
       label: "Số giờ thuê",
       priceLabel: "Giá thuê theo giờ",
@@ -376,12 +511,75 @@ function getRentalInfo(car: CarDetail | null | undefined, rentalMode: RentalMode
   }
 
   return {
-    price: Number(car?.pricePerDay || 0),
+    price: Number(car?.pricing?.weekdayPricePerDay || car?.pricePerDay || 0),
     unit: "ngày",
     label: "Số ngày thuê",
     priceLabel: "Giá thuê theo ngày",
     modeLabel: "Thuê theo ngày",
   };
+}
+
+function getFuelTypeLabel(value?: string) {
+  const labels: Record<string, string> = {
+    GASOLINE: "Xăng",
+    DIESEL: "Dầu",
+    ELECTRIC: "Điện",
+    HYBRID: "Hybrid",
+  };
+
+  return value ? labels[value] || value : "--";
+}
+
+function getTransmissionLabel(value?: string) {
+  const labels: Record<string, string> = {
+    AUTOMATIC: "Số tự động",
+    MANUAL: "Số sàn",
+  };
+
+  return value ? labels[value] || value : "--";
+}
+
+function getQuoteUnitLabel(quote?: BookingPriceQuote | null) {
+  return quote?.rentalMode === "HOURLY" ? "giờ" : "ngày";
+}
+
+function groupQuoteBreakdown(quote?: BookingPriceQuote | null) {
+  if (!quote) return [];
+
+  const groupMap = new Map<
+    string,
+    {
+      label: string;
+      type: string;
+      holidayNames: string[];
+      unitCount: number;
+      unitPrice: number;
+      price: number;
+    }
+  >();
+
+  quote.breakdown.forEach((item) => {
+    const key = `${item.type}-${item.unitPrice}`;
+    const current = groupMap.get(key) || {
+      label: item.label,
+      type: item.type,
+      holidayNames: [],
+      unitCount: 0,
+      unitPrice: item.unitPrice,
+      price: 0,
+    };
+
+    current.unitCount += Number(item.unitCount || 1);
+    current.price += Number(item.price || 0);
+
+    if (item.holidayName && !current.holidayNames.includes(item.holidayName)) {
+      current.holidayNames.push(item.holidayName);
+    }
+
+    groupMap.set(key, current);
+  });
+
+  return Array.from(groupMap.values());
 }
 
 function calculateRentalTime(rentalMode: RentalMode, start: Date, end: Date) {
@@ -463,6 +661,10 @@ function getCarImages(car?: CarDetail) {
 function getErrorMessage(error: unknown) {
   const apiError = error as ApiError;
 
+  if (typeof apiError.response?.data?.data === "string") {
+    return apiError.response.data.data;
+  }
+
   if (typeof apiError.response?.data?.message === "string") {
     return apiError.response.data.message;
   }
@@ -507,8 +709,8 @@ function getAvailabilityInfo(car?: CarDetail | null) {
     label: car?.availabilityLabel || "Sẵn sàng",
     badgeClass:
       car?.isBookable === false
-        ? "bg-red-50 text-red-700"
-        : "bg-emerald-50 text-emerald-700",
+        ? "bg-white text-primary ring-1 ring-border"
+        : "bg-secondarySoft text-primary",
     isBookable: car?.isBookable !== false,
     message: car?.unavailableReason || "",
   };
@@ -517,8 +719,11 @@ function getAvailabilityInfo(car?: CarDetail | null) {
 export default function CarDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [car, setCar] = useState<CarDetail | null>(null);
+  const [priceQuote, setPriceQuote] = useState<BookingPriceQuote | null>(null);
+  const [isQuoteLoading, setIsQuoteLoading] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
   const [rentalMode, setRentalMode] = useState<RentalMode>("DAILY");
 
@@ -531,13 +736,46 @@ export default function CarDetailPage() {
   const [pickerMonth, setPickerMonth] = useState(
     () => parseDateValue(getVietnamTodayDate()) || new Date(),
   ); // Tháng đang hiển thị trong lịch.
+  const [holidayDateMap, setHolidayDateMap] = useState<Record<string, HolidayDateInfo>>({});
+  const [activeHolidayDate, setActiveHolidayDate] = useState("");
   const [hourlyDuration, setHourlyDuration] = useState(4); // Mặc định thuê theo giờ tối thiểu 4 giờ.
   const [currentMinuteOfDay, setCurrentMinuteOfDay] = useState(getCurrentMinuteOfDay); // Dùng để khóa giờ đã qua trong ngày hiện tại.
   const [isBookingSubmitting, setIsBookingSubmitting] = useState(false);
   const [isCartSubmitting, setIsCartSubmitting] = useState(false);
+  const [reviewSummary, setReviewSummary] = useState<CarReviewSummary | null>(null);
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [id]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const queryStart = getBookingDateTimeParts(params.get("startDate") || "");
+    const queryEnd = getBookingDateTimeParts(params.get("endDate") || "");
+    const queryRentalMode = params.get("rentalMode");
+
+    if (!queryStart || !queryEnd) return;
+
+    queueMicrotask(() => {
+      setStartDate(queryStart.date);
+      setStartTime(queryStart.time);
+      setEndDate(queryEnd.date);
+      setEndTime(queryEnd.time);
+
+      if (queryRentalMode === "DAILY" || queryRentalMode === "HOURLY") {
+        setRentalMode(queryRentalMode);
+      }
+    });
+  }, [location.search]);
 
   useEffect(() => {
     if (!id) return;
+
+    queueMicrotask(() => {
+      setCar(null);
+      setPriceQuote(null);
+      setIsQuoteLoading(false);
+    });
 
     carService
       .getOneCar(id)
@@ -551,6 +789,28 @@ export default function CarDetailPage() {
         );
       })
       .catch(console.log);
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    let active = true;
+    queueMicrotask(() => {
+      if (active) setReviewSummary(null);
+    });
+    reviewService
+      .getCarReviews(id, { limit: 6 })
+      .then((summary) => {
+        if (active) setReviewSummary(summary);
+      })
+      .catch((error) => {
+        console.warn("Không thể tải đánh giá xe", error);
+        if (active) setReviewSummary(null);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   const galleryImages = useMemo(() => getCarImages(car || undefined), [car]);
@@ -592,14 +852,16 @@ export default function CarDetailPage() {
 
     if (!bookingStart || !bookingEnd) return;
 
-    setStartDate(bookingStart.date);
-    setEndDate(bookingEnd.date);
-    setStartTime(bookingStart.time);
-    setEndTime(bookingEnd.time);
+    queueMicrotask(() => {
+      setStartDate(bookingStart.date);
+      setEndDate(bookingEnd.date);
+      setStartTime(bookingStart.time);
+      setEndTime(bookingEnd.time);
 
-    if (booking.rentalMode === "DAILY" || booking.rentalMode === "HOURLY") {
-      setRentalMode(booking.rentalMode);
-    }
+      if (booking.rentalMode === "DAILY" || booking.rentalMode === "HOURLY") {
+        setRentalMode(booking.rentalMode);
+      }
+    });
   }, [car?.currentUserActiveBooking, startDate, endDate]);
 
   const openImageViewer = (index: number) => {
@@ -650,6 +912,41 @@ export default function CarDetailPage() {
     return () => window.clearInterval(intervalId);
   }, []);
 
+  useEffect(() => {
+    if (!isRentalPickerOpen) {
+      queueMicrotask(() => {
+        setActiveHolidayDate("");
+      });
+      return;
+    }
+
+    let active = true;
+    const visibleStart = new Date(pickerMonth.getFullYear(), pickerMonth.getMonth(), 1);
+    const visibleEnd = getMonthEnd(addMonths(pickerMonth, 1));
+
+    holidayService
+      .getPublicHolidays({
+        startDate: formatDateValue(visibleStart),
+        endDate: formatDateValue(visibleEnd),
+      })
+      .then((holidays) => {
+        if (active) {
+          setHolidayDateMap(expandHolidayDateMap(holidays));
+        }
+      })
+      .catch((error) => {
+        console.warn("Không thể tải danh sách ngày lễ", error);
+        if (active) {
+          setHolidayDateMap({});
+          setActiveHolidayDate("");
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isRentalPickerOpen, pickerMonth]);
+
   const supportedRentalModes = getRentalModes(car);
   const rentalInfo = car
     ? getRentalInfo(car, rentalMode)
@@ -660,7 +957,12 @@ export default function CarDetailPage() {
         priceLabel: "Giá thuê theo ngày",
         modeLabel: "Thuê theo ngày",
       };
-
+  const startingDailyPrice = Number(
+    car?.pricing?.weekdayPricePerDay || car?.pricePerDay || 0,
+  );
+  const startingHourlyPrice = Number(
+    car?.pricing?.pricePerHour || car?.pricePerHour || 0,
+  );
   const availabilityInfo = getAvailabilityInfo(car);
 
   const rentalTime = useMemo(() => {
@@ -672,7 +974,7 @@ export default function CarDetailPage() {
     return calculateRentalTime(rentalMode, start, end);
   }, [car, rentalMode, startDate, endDate, startTime, endTime]);
 
-  const totalPrice = rentalTime * rentalInfo.price;
+  const totalPrice = priceQuote?.totalPrice ?? rentalTime * rentalInfo.price;
 
   const rentalValidationMessage = useMemo(
     () => getRentalValidationMessage(startDate, endDate, startTime, endTime),
@@ -709,6 +1011,65 @@ export default function CarDetailPage() {
 
     return "";
   }, [rentalMode, rentalTime, supportedRentalModes.allowDailyRental, supportedRentalModes.allowHourlyRental]);
+
+  useEffect(() => {
+    if (
+      !id ||
+      !car ||
+      !startDate ||
+      !endDate ||
+      !startTime ||
+      !endTime ||
+      rentalValidationMessage ||
+      unavailableRangeValidationMessage ||
+      rentalModeValidationMessage
+    ) {
+      queueMicrotask(() => {
+        setPriceQuote(null);
+        setIsQuoteLoading(false);
+      });
+      return;
+    }
+
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      setIsQuoteLoading(true);
+      setPriceQuote(null);
+    });
+
+    bookingService
+      .quoteBooking({
+        carId: id,
+        startDate: buildVietnamDateTime(startDate, startTime),
+        endDate: buildVietnamDateTime(endDate, endTime),
+        rentalMode,
+      })
+      .then((quote) => {
+        if (active) setPriceQuote(quote);
+      })
+      .catch(() => {
+        if (active) setPriceQuote(null);
+      })
+      .finally(() => {
+        if (active) setIsQuoteLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    car,
+    endDate,
+    endTime,
+    id,
+    rentalMode,
+    rentalModeValidationMessage,
+    rentalValidationMessage,
+    startDate,
+    startTime,
+    unavailableRangeValidationMessage,
+  ]);
 
   const shouldShowRentalValidation =
     Boolean(startDate || endDate) && Boolean(rentalValidationMessage);
@@ -760,8 +1121,14 @@ export default function CarDetailPage() {
   const displayRentalTime =
     currentUserBookingRentalTime > 0 ? currentUserBookingRentalTime : rentalTime;
   const displayTotalPrice = currentUserBooking?.totalPrice || totalPrice;
+  const quoteBreakdownGroups = groupQuoteBreakdown(priceQuote);
+  const quoteUnitLabel = getQuoteUnitLabel(priceQuote);
+  const hasRentalSelection = Boolean(startDate && endDate);
 
   const unavailableRanges = car?.unavailableRanges || [];
+  const activeHolidayInfo = activeHolidayDate
+    ? holidayDateMap[activeHolidayDate]
+    : undefined;
   const latestHourlyStartTime = minutesToTime(timeToMinutes("22:00") - hourlyDuration * 60);
   const hourlyStartTimeOptions = useMemo(
     () =>
@@ -809,6 +1176,7 @@ export default function CarDetailPage() {
   const hourlyDurationWheelOptions: WheelOption[] = HOURLY_DURATION_OPTIONS.map((duration) => ({
     label: `${duration} giờ`,
     value: duration,
+    disabled: false,
   }));
   const firstEnabledDailyStartTime = dailyStartTimeOptions.find(
     (option) => !option.disabled,
@@ -830,19 +1198,19 @@ export default function CarDetailPage() {
         : firstEnabledHourlyStartTime;
 
     if (nextStartTime && nextStartTime !== startTime) {
-      setStartTime(nextStartTime);
+      queueMicrotask(() => setStartTime(nextStartTime));
       return;
     }
 
     if (startDate && endDate !== startDate) {
-      setEndDate(startDate);
+      queueMicrotask(() => setEndDate(startDate));
       return;
     }
 
     if (nextStartTime) {
       const nextEndTime = addHoursToTime(nextStartTime, hourlyDuration);
       if (endTime !== nextEndTime) {
-        setEndTime(nextEndTime);
+        queueMicrotask(() => setEndTime(nextEndTime));
       }
     }
   }, [
@@ -861,12 +1229,16 @@ export default function CarDetailPage() {
     if (rentalMode !== "DAILY") return;
 
     if (startDate && dailyStartTimeOptions.some((option) => option.value === startTime && option.disabled)) {
-      if (firstEnabledDailyStartTime) setStartTime(firstEnabledDailyStartTime);
+      if (firstEnabledDailyStartTime) {
+        queueMicrotask(() => setStartTime(firstEnabledDailyStartTime));
+      }
       return;
     }
 
     if (endDate && dailyEndTimeOptions.some((option) => option.value === endTime && option.disabled)) {
-      if (firstEnabledDailyEndTime) setEndTime(firstEnabledDailyEndTime);
+      if (firstEnabledDailyEndTime) {
+        queueMicrotask(() => setEndTime(firstEnabledDailyEndTime));
+      }
     }
   }, [
     dailyEndTimeOptions,
@@ -881,7 +1253,7 @@ export default function CarDetailPage() {
   ]);
 
   const isCalendarDateDisabled = (dateValue: string) =>
-    dateValue < today || isDateInsideUnavailableRange(unavailableRanges, dateValue); // Khóa ngày quá khứ và ngày xe đã được thuê.
+    dateValue < today || isDateInsideUnavailableRange(unavailableRanges, dateValue); // Khóa ngày quá khả và ngày xe đã được thuê.
 
   const isCalendarDateSelected = (dateValue: string) =>
     dateValue === startDate || dateValue === endDate;
@@ -902,6 +1274,14 @@ export default function CarDetailPage() {
   };
 
   const handleCalendarDateClick = (dateValue: string) => {
+    const holidayInfo = holidayDateMap[dateValue];
+
+    if (holidayInfo) {
+      setActiveHolidayDate(dateValue);
+    } else {
+      setActiveHolidayDate("");
+    }
+
     if (isCalendarDateDisabled(dateValue)) {
       toast.error("Xe không khả dụng trong ngày này");
       return;
@@ -1048,15 +1428,32 @@ export default function CarDetailPage() {
       if (!id || !car || !validateBeforeSubmit() || !validateAuthentication()) return;
 
       setIsBookingSubmitting(true);
-      const booking = await bookingService.createBooking({
-        carId: id,
-        startDate: buildVietnamDateTime(startDate, startTime),
-        endDate: buildVietnamDateTime(endDate, endTime),
-        rentalMode,
+      navigate("/booking-request", {
+        state: {
+          source: "direct",
+          car: {
+            _id: car._id,
+            name: car.name,
+            images: car.images,
+            licensePlate: car.licensePlate,
+            pickupLat: car.pickupLat ?? car.latitude,
+            pickupLng: car.pickupLng ?? car.longitude,
+            deliveryEnabled: car.deliveryEnabled,
+            deliveryBaseFee: car.deliveryBaseFee,
+            deliveryFeePerKm: car.deliveryFeePerKm,
+            deliveryMaxDistanceKm: car.deliveryMaxDistanceKm,
+            deliveryNote: car.deliveryNote,
+          },
+          bookingData: {
+            carId: id,
+            startDate: buildVietnamDateTime(startDate, startTime),
+            endDate: buildVietnamDateTime(endDate, endTime),
+            rentalMode,
+            paymentOption: "DEPOSIT",
+          },
+          totalPrice,
+        },
       });
-
-      toast.success("Đã gửi yêu cầu đặt xe, vui lòng chờ chủ xe xác nhận");
-      navigate(`/bookings/${booking._id}`);
     } catch (error: unknown) {
       if (isAuthenticationError(error)) {
         redirectToLogin();
@@ -1097,12 +1494,31 @@ export default function CarDetailPage() {
   }
 
   const brandName = car.brandId?.name || "BQDrive Select";
-  const businessName = car.businessId?.businessName || "Đối tác BQDrive";
+  const ownerName =
+    car.ownerType === "USER"
+      ? car.ownerId?.name || "Người dùng ký gửi"
+      : car.businessId?.businessName ||
+        car.ownerId?.businessName ||
+        "Đối tác BQDrive";
+  const ownerLabel =
+    car.ownerType === "USER" ? "Chủ xe ký gửi" : "Đơn vị cho thuê";
+  const canShowDetailedPickupAddress =
+    car.ownerType !== "USER" ||
+    DETAILED_PICKUP_STATUSES.includes(
+      car.currentUserActiveBooking?.status || "",
+    );
+  const pickupArea = formatAddressArea(car);
+  const pickupAddress = formatPickupAddress(car, {
+    includeDetail: canShowDetailedPickupAddress,
+    includeNote: canShowDetailedPickupAddress,
+  });
+  const pickupLat = car.pickupLat ?? car.latitude;
+  const pickupLng = car.pickupLng ?? car.longitude;
   const description =
     car.description ||
     "Dòng xe được kiểm duyệt trên hệ thống BQDrive, phù hợp cho lịch trình cá nhân, công tác và di chuyển gia đình.";
-  const fuelType = car.fuelType || "Xăng";
-  const transmission = car.transmission || "Tự động";
+  const fuelType = getFuelTypeLabel(car.fuelType);
+  const transmission = getTransmissionLabel(car.transmission);
 
   const previewImages = galleryImages.slice(1, 5);
   const hiddenImageCount = Math.max(galleryImages.length - 5, 0);
@@ -1282,18 +1698,18 @@ export default function CarDetailPage() {
               </div>
             </section>
 
-            <section>
-              <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <section className="rounded-lg border border-border bg-white p-5 shadow-sm">
+              <div className="mb-5">
                 <div>
                   <p className="text-sm font-bold uppercase text-secondary">
                     Thông tin xe
                   </p>
-                  <h2 className="mt-1 text-2xl font-extrabold text-primary">
+                  <h2 className="mt-2 whitespace-nowrap text-2xl font-extrabold leading-tight text-primary md:text-3xl">
                     Thông số phục vụ chuyến đi
                   </h2>
                 </div>
 
-                <p className="max-w-xl text-sm leading-6 text-muted">
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">
                   Các thông tin cơ bản giúp bạn chọn đúng dòng xe cho lịch trình
                   và ngân sách.
                 </p>
@@ -1303,11 +1719,15 @@ export default function CarDetailPage() {
                 {vehicleSpecs.map(({ icon: Icon, label, value }) => (
                   <div
                     key={label}
-                    className="rounded-lg border border-border bg-white p-5"
+                    className="rounded-lg border border-border bg-white p-4 transition hover:border-secondary/60"
                   >
-                    <Icon className="text-secondary" size={24} />
-                    <p className="mt-4 text-sm text-muted">{label}</p>
-                    <p className="mt-1 text-lg font-extrabold text-primary">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-secondarySoft text-secondary">
+                      <Icon size={22} />
+                    </div>
+                    <p className="mt-4 text-sm font-semibold text-muted">
+                      {label}
+                    </p>
+                    <p className="mt-1 break-words text-lg font-extrabold leading-snug text-primary">
                       {value}
                     </p>
                   </div>
@@ -1343,7 +1763,7 @@ export default function CarDetailPage() {
                       className="flex items-start gap-3 rounded-lg border border-border bg-white p-4"
                     >
                       <CheckCircle2
-                        className="mt-0.5 shrink-0 text-emerald-600"
+                        className="mt-0.5 shrink-0 text-secondary"
                         size={20}
                       />
                       <p className="text-sm font-semibold leading-6 text-primary">
@@ -1356,14 +1776,28 @@ export default function CarDetailPage() {
 
               <div className="rounded-lg bg-primary p-6 text-white">
                 <Building2 className="text-secondary" size={32} />
-                <p className="mt-5 text-sm text-white/65">Đơn vị cho thuê</p>
+                <p className="mt-5 text-sm text-white/65">{ownerLabel}</p>
                 <h3 className="mt-1 text-2xl font-extrabold">
-                  {businessName}
+                  {ownerName}
                 </h3>
                 <p className="mt-3 text-sm leading-6 text-white/70">
-                  Đối tác đã được BQDrive kiểm duyệt trước khi nhận đặt xe từ
+                  Chủ xe đã được BQDrive kiểm duyệt trước khi nhận đặt xe từ
                   khách hàng.
                 </p>
+                <div className="mt-5 border-t border-white/10 pt-4">
+                  <p className="flex items-center gap-2 text-sm font-bold text-secondary">
+                    <MapPin size={17} />
+                    Khu vực nhận xe
+                  </p>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-white/80">
+                    {pickupAddress}
+                  </p>
+                  {car.ownerType === "USER" && !canShowDetailedPickupAddress && (
+                    <p className="mt-2 text-xs leading-5 text-white/55">
+                      Địa chỉ chi tiết sẽ hiển thị sau khi booking được chủ xe duyệt.
+                    </p>
+                  )}
+                </div>
               </div>
             </section>
 
@@ -1406,18 +1840,111 @@ export default function CarDetailPage() {
           <aside className="lg:sticky lg:top-28 lg:self-start">
             <div className="rounded-lg border border-border bg-white p-6 shadow-xl shadow-slate-900/10">
               <div className="flex items-start justify-between gap-5">
-                <div>
-                  <p className="text-sm font-semibold text-muted">
-                    Giá thuê từ
-                  </p>
-                  <div className="mt-1 flex items-end gap-2">
-                    <span className="text-3xl font-extrabold text-primary">
-                      {formatPrice(rentalInfo.price)}
-                    </span>
-                    <span className="pb-1 text-sm font-semibold text-muted">
-                      / {rentalInfo.unit}
-                    </span>
-                  </div>
+                <div className="min-w-0 flex-1">
+                  {!hasRentalSelection && (
+                    <>
+                      <p className="text-sm font-semibold text-muted">
+                        Giá thuê từ
+                      </p>
+                      <div className="mt-1 flex items-end gap-2">
+                        <span className="text-3xl font-extrabold text-primary">
+                          {formatPrice(startingDailyPrice || rentalInfo.price)}
+                        </span>
+                        <span className="pb-1 text-sm font-semibold text-muted">
+                          / {startingDailyPrice ? "ngày" : rentalInfo.unit}
+                        </span>
+                      </div>
+                      {supportedRentalModes.allowHourlyRental && startingHourlyPrice > 0 && (
+                        <p className="mt-2 text-sm font-semibold text-muted">
+                          Hoặc từ {formatPrice(startingHourlyPrice)} / giờ
+                        </p>
+                      )}
+                      <p className="mt-3 rounded-lg bg-secondarySoft/60 px-3 py-2 text-sm font-semibold text-primary">
+                        Chọn ngày thuê để xem giá chính xác.
+                      </p>
+                    </>
+                  )}
+
+                  {hasRentalSelection && isQuoteLoading && (
+                    <div className="rounded-lg border border-border bg-white p-4 text-sm font-bold text-muted">
+                      Đang tính giá áp dụng...
+                    </div>
+                  )}
+
+                  {hasRentalSelection &&
+                    !isQuoteLoading &&
+                    priceQuote &&
+                    priceQuote.appliedPriceType !== "MIXED" && (
+                      <>
+                        <p className="text-sm font-semibold text-muted">
+                          Giá áp dụng cho ngày bạn chọn
+                        </p>
+                        <p className="mt-2 text-lg font-extrabold text-primary">
+                          {priceQuote.appliedLabel}
+                        </p>
+                        <div className="mt-1 flex items-end gap-2">
+                          <span className="text-3xl font-extrabold text-primary">
+                            {formatPrice(priceQuote.unitPrice || rentalInfo.price)}
+                          </span>
+                          <span className="pb-1 text-sm font-semibold text-muted">
+                            / {quoteUnitLabel}
+                          </span>
+                        </div>
+                        {quoteBreakdownGroups[0]?.holidayNames.length > 0 && (
+                          <p className="mt-2 text-sm font-semibold leading-6 text-muted">
+                            Áp dụng cho: {quoteBreakdownGroups[0].holidayNames.join(", ")}
+                          </p>
+                        )}
+                      </>
+                    )}
+
+                  {hasRentalSelection &&
+                    !isQuoteLoading &&
+                    priceQuote &&
+                    priceQuote.appliedPriceType === "MIXED" && (
+                      <div>
+                        <p className="text-sm font-semibold text-muted">
+                          Tạm tính chuyến thuê
+                        </p>
+                        <div className="mt-3 space-y-2">
+                          {quoteBreakdownGroups.map((group) => (
+                            <div
+                              key={`${group.type}-${group.unitPrice}`}
+                              className="rounded-lg border border-secondary/50 bg-secondarySoft px-3 py-2"
+                            >
+                              <div className="flex items-center justify-between gap-3 text-sm">
+                                <span className="font-bold text-primary">
+                                  {group.label}
+                                </span>
+                                <span className="font-extrabold text-primary">
+                                  {formatPrice(group.price)}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-xs font-semibold text-muted">
+                                {group.unitCount} {quoteUnitLabel} x {formatPrice(group.unitPrice)}
+                              </p>
+                              {group.holidayNames.length > 0 && (
+                                <p className="mt-1 text-xs font-semibold leading-5 text-muted">
+                                  Áp dụng cho: {group.holidayNames.join(", ")}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3 flex items-end justify-between border-t border-border pt-3">
+                          <span className="font-extrabold text-primary">Tổng</span>
+                          <span className="text-2xl font-extrabold text-secondary">
+                            {formatPrice(priceQuote.totalPrice)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                  {hasRentalSelection && !isQuoteLoading && !priceQuote && (
+                    <p className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold text-primary">
+                      Chọn lịch hợp lệ để xem giá áp dụng.
+                    </p>
+                  )}
                 </div>
 
                 <span
@@ -1428,6 +1955,29 @@ export default function CarDetailPage() {
               </div>
 
               <div className="mt-6 space-y-4 border-y border-border py-5">
+                <div className="flex items-start gap-3">
+                  <MapPin className="mt-0.5 shrink-0 text-secondary" size={20} />
+                  <div>
+                    <p className="font-bold text-primary">Địa điểm nhận xe</p>
+                    <p className="mt-1 text-sm font-semibold leading-6 text-muted">
+                      {pickupAddress}
+                    </p>
+                    {car.ownerType === "USER" && !canShowDetailedPickupAddress && (
+                      <p className="mt-1 text-xs font-semibold leading-5 text-muted">
+                        Khu vực công khai: {pickupArea}. Địa chỉ chi tiết chỉ mở khi booking hợp lệ.
+                      </p>
+                    )}
+                    <div className="mt-4">
+                      <RouteMap
+                        destLat={pickupLat}
+                        destLng={pickupLng}
+                        height={280}
+                        showAddress={false}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => setIsRentalPickerOpen(true)}
@@ -1581,30 +2131,30 @@ export default function CarDetailPage() {
                 )}
 
                 {shouldShowRentalValidation && (
-                  <p className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold leading-6 text-red-600">
+                  <p className="flex items-start gap-2 rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold leading-6 text-primary">
                     <X size={17} className="mt-0.5 shrink-0" />
                     {rentalValidationMessage}
                   </p>
                 )}
 
                 {unavailableRangeValidationMessage && (
-                  <p className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold leading-6 text-red-600">
-                    <X size={17} className="mt-0.5 shrink-0" />
+                  <p className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold leading-6 text-red-700">
+                    <X size={17} className="mt-0.5 shrink-0 text-red-600" />
                     {unavailableRangeValidationMessage}
                   </p>
                 )}
 
                 {rentalModeValidationMessage && (
-                  <p className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold leading-6 text-red-600">
+                  <p className="flex items-start gap-2 rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold leading-6 text-primary">
                     <X size={17} className="mt-0.5 shrink-0" />
                     {rentalModeValidationMessage}
                   </p>
                 )}
 
                 {unavailableRanges.length > 0 && (
-                  <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold leading-6 text-red-600">
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold leading-6 text-red-700">
                     <div className="flex items-start gap-2">
-                      <X size={17} className="mt-0.5 shrink-0" />
+                      <X size={17} className="mt-0.5 shrink-0 text-red-600" />
                       <div>
                         <p className="font-extrabold">Xe đã được thuê:</p>
                         <ul className="mt-1 space-y-1">
@@ -1635,9 +2185,19 @@ export default function CarDetailPage() {
                 </div>
 
                 <div className="flex items-center justify-between gap-4">
-                  <dt className="text-muted">{rentalInfo.priceLabel}</dt>
+                  <dt className="text-muted">
+                    {priceQuote
+                      ? priceQuote.appliedPriceType === "MIXED"
+                        ? "Cách tính"
+                        : "Giá áp dụng"
+                      : rentalInfo.priceLabel}
+                  </dt>
                   <dd className="font-bold text-primary">
-                    {formatPrice(rentalInfo.price)}
+                    {priceQuote
+                      ? priceQuote.appliedPriceType === "MIXED"
+                        ? "Theo từng loại ngày"
+                        : formatPrice(priceQuote.unitPrice || rentalInfo.price)
+                      : formatPrice(rentalInfo.price)}
                   </dd>
                 </div>
 
@@ -1715,6 +2275,84 @@ export default function CarDetailPage() {
             </div>
           </aside>
         </div>
+
+        <section className="mt-12 rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-bold uppercase text-secondary">
+                Đánh giá từ khách thuê
+              </p>
+              <h2 className="mt-2 text-3xl font-extrabold text-primary">
+                Trải nghiệm thực tế với xe
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-muted">
+                Các nhận xét chỉ được tạo sau khi chuyến thuê đã hoàn tất.
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-primary px-5 py-4 text-white">
+              <div className="flex items-center gap-2 text-secondary">
+                <Star size={22} fill="currentColor" />
+                <span className="text-2xl font-extrabold">
+                  {reviewSummary?.averageRating
+                    ? `${reviewSummary.averageRating}/5`
+                    : "--"}
+                </span>
+              </div>
+              <p className="mt-1 text-sm font-semibold text-white/70">
+                {reviewSummary?.reviewCount || 0} đánh giá
+              </p>
+            </div>
+          </div>
+
+          {reviewSummary?.reviews?.length ? (
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {reviewSummary.reviews.map((review) => (
+                <article
+                  key={review.id}
+                  className="rounded-xl border border-border bg-slate-50 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-extrabold text-primary">
+                        {review.reviewerName || "Khách thuê"}
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-muted">
+                        {review.createdAt
+                          ? new Date(review.createdAt).toLocaleDateString("vi-VN")
+                          : "--"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 text-secondary">
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <Star
+                          key={index}
+                          size={16}
+                          fill={index < review.rating ? "currentColor" : "none"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm font-semibold leading-6 text-slate-700">
+                    {review.comment || "Khách thuê không để lại nhận xét."}
+                  </p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-6 rounded-xl border border-dashed border-border bg-slate-50 p-8 text-center">
+              <Star size={34} className="mx-auto text-secondary" />
+              <p className="mt-3 text-lg font-extrabold text-primary">
+                Xe chưa có đánh giá nào.
+              </p>
+              <p className="mt-1 text-sm font-semibold text-muted">
+                Đánh giá sẽ xuất hiện sau khi khách thuê hoàn tất chuyến đi.
+              </p>
+            </div>
+          )}
+        </section>
+
+        <RelatedCars currentCar={car} />
       </main>
 
       {isRentalPickerOpen && (
@@ -1814,27 +2452,51 @@ export default function CarDetailPage() {
                         const isSelected = isCalendarDateSelected(dateValue);
                         const isInRange = isCalendarDateInRange(dateValue);
                         const isSunday = date.getDay() === 0;
+                        const holidayInfo = holidayDateMap[dateValue];
+                        const isHoliday = Boolean(holidayInfo);
+                        const holidayTitle = getHolidayDisplayText(holidayInfo);
 
                         return (
                           <button
                             key={dateValue}
                             type="button"
-                            disabled={isDisabled}
+                            aria-disabled={isDisabled}
+                            aria-label={holidayTitle || formatRentalDate(dateValue)}
                             onClick={() => handleCalendarDateClick(dateValue)}
-                            className={`mx-auto flex h-11 w-11 items-center justify-center rounded-lg text-sm font-extrabold transition ${
+                            className={`group relative mx-auto flex h-11 w-11 items-center justify-center rounded-lg text-sm font-extrabold transition ${
                               isSelected
                                 ? "bg-secondary text-primary shadow-sm"
                                 : isInRange
                                   ? "bg-secondary/15 text-primary"
-                                  : isDisabled
-                                    ? "cursor-not-allowed bg-soft text-slate-300"
-                                    : isSunday
-                                      ? "text-secondary hover:bg-secondarySoft/45"
-                                      : "text-primary hover:bg-secondarySoft/45"
+                                  : isDisabled && isHoliday
+                                    ? "cursor-not-allowed border border-secondary/50 bg-white text-slate-400"
+                                    : isDisabled
+                                      ? "cursor-not-allowed bg-soft text-slate-300"
+                                      : isHoliday
+                                        ? "border border-secondary/60 bg-white text-primary hover:bg-secondarySoft/45"
+                                        : isSunday
+                                          ? "text-secondary hover:bg-secondarySoft/45"
+                                          : "text-primary hover:bg-secondarySoft/45"
                             }`}
-                            title={isDisabled ? "Xe không khả dụng ngày này" : undefined}
+                            title={
+                              !holidayTitle && isDisabled
+                                ? "Xe không khả dụng ngày này"
+                                : undefined
+                            }
                           >
-                            {date.getDate()}
+                            <span>{date.getDate()}</span>
+                            {isHoliday && (
+                              <>
+                                <span
+                                  className={`absolute bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${
+                                    isSelected ? "bg-primary" : "bg-secondary"
+                                  }`}
+                                />
+                                <span className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max max-w-56 -translate-x-1/2 rounded-lg border border-border bg-white px-3 py-2 text-xs font-bold leading-5 text-primary shadow-xl group-hover:block">
+                                  {holidayTitle}
+                                </span>
+                              </>
+                            )}
                           </button>
                         );
                       })}
@@ -1842,6 +2504,32 @@ export default function CarDetailPage() {
                   </section>
                 ))}
               </div>
+
+              <div className="mt-5 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-white px-3 py-3 text-xs font-bold text-muted">
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-4 w-4 rounded border border-border bg-soft" />
+                  Ngày đã thuê
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-4 w-4 rounded border border-secondary/60 bg-secondarySoft" />
+                  Ngày lễ
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-4 w-4 rounded bg-secondary" />
+                  Ngày đang chọn
+                </span>
+              </div>
+
+              {activeHolidayInfo && (
+                <div className="mt-3 rounded-lg border border-secondary/60 bg-secondarySoft px-4 py-3 text-sm font-semibold text-primary">
+                  <p className="font-extrabold">
+                    {getHolidayDisplayText(activeHolidayInfo)}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-muted">
+                    Ngày lễ được ưu tiên cao hơn cuối tuần và ngày thường khi tính giá.
+                  </p>
+                </div>
+              )}
 
               <div className="mt-6 rounded-lg border border-border bg-white p-4">
                 {rentalMode === "DAILY" ? (
@@ -2026,7 +2714,7 @@ export default function CarDetailPage() {
                   </p>
                   <p className="mt-1 text-xs font-semibold text-muted">
                     {rentalMode === "HOURLY"
-                      ? "Chỉ chọn 1 ngày, thời lượng từ 4 đến 8 giờ."
+                      ? "Chọn 1 ngày, thời lượng từ 4 đến 8 giờ."
                       : "Chọn ngày nhận và ngày trả, sau đó chọn giờ bằng dropdown."}
                   </p>
                 </div>
@@ -2133,3 +2821,18 @@ export default function CarDetailPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

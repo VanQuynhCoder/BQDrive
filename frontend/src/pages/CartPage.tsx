@@ -24,7 +24,7 @@ import { getFirstCarImage } from "../utils/image.util";
 import { formatVietnamDateTime } from "../utils/date.util";
 
 type CartCar = {
-  _id?: string;
+  _id: string;
   name?: string;
   pricePerDay?: number;
   pricePerHour?: number;
@@ -37,28 +37,29 @@ type CartCar = {
 
 type CartItem = {
   _id: string;
-  carId?: CartCar;
+  carId: CartCar;
   startDate: string;
   endDate: string;
   rentalMode?: string;
   totalPrice?: number;
-  expiredAt?: string;
-  status?: string;
+  expiredAt: string;
+  status: string;
 };
 
 type ApiError = {
   response?: {
     data?: {
       message?: string;
+      data?: string;
     };
   };
 };
 
 function formatPrice(price: number) {
-  return new Intl.NumberFormat("vi-VN").format(price || 0) + "đ";
+  return new Intl.NumberFormat("vi-VN").format(price || 0) + "d";
 }
 
-function formatDateTime(date: string) {
+function formatDateTime(date?: string) {
   return formatVietnamDateTime(date, {
     dateStyle: "short",
     timeStyle: "short",
@@ -67,6 +68,10 @@ function formatDateTime(date: string) {
 
 function getErrorMessage(error: unknown, fallback: string) {
   const apiError = error as ApiError;
+
+  if (typeof apiError.response?.data?.data === "string") {
+    return apiError.response.data.data;
+  }
 
   if (typeof apiError.response?.data?.message === "string") {
     return apiError.response.data.message;
@@ -112,7 +117,7 @@ function calculateRentalTime(rentalMode: string | undefined, start: string, end:
 function getSpecLabel(value?: string) {
   const labels: Record<string, string> = {
     ELECTRIC: "Điện",
-    GASOLINE: "Xăng",
+    GASOLINE: "Xang",
     DIESEL: "Diesel",
     AUTOMATIC: "Tự động",
     MANUAL: "Số sàn",
@@ -201,9 +206,20 @@ export default function CartPage() {
 
     try {
       setSubmittingCartId(cartId);
-      const booking = await cartService.bookingFromCart(cartId);
-      toast.success("Đã gửi yêu cầu đặt xe, vui lòng chờ chủ xe xác nhận");
-      navigate(`/bookings/${booking._id}`);
+      const cart = carts.find((item) => item._id === cartId);
+
+      if (!cart) {
+        toast.error("Không tìm thấy xe trong giỏ hàng");
+        return;
+      }
+
+      navigate("/booking-request", {
+        state: {
+          source: "cart",
+          cart,
+          paymentOption: "DEPOSIT",
+        },
+      });
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Không thể tạo booking từ giỏ hàng"));
       await refreshCart().catch(console.log);
@@ -213,8 +229,7 @@ export default function CartPage() {
   };
 
   const subtotal = carts.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-  const vat = subtotal * 0.1;
-  const total = subtotal + vat;
+  const total = subtotal;
 
   if (loading) {
     return (
@@ -252,7 +267,7 @@ export default function CartPage() {
                 Kiểm tra xe trước khi thanh toán
               </h1>
               <p className="mt-4 max-w-2xl leading-7 text-white/70">
-                Xem lại lịch nhận trả, đơn giá và tổng chi phí của các xe đã
+                Xem lại lịch nhận trả, đơn giá và từng chi phí của các xe đã
                 chọn trong hệ thống BQDrive.
               </p>
             </div>
@@ -264,7 +279,7 @@ export default function CartPage() {
                   <p className="font-extrabold">Giữ xe tạm 10 phút</p>
                   <p className="mt-1 text-sm leading-6 text-white/65">
                     Xe có thể tự hết hạn nếu chưa hoàn tất booking trong thời
-                    gian giữ chỗ.
+                    gian giờ chỗ.
                   </p>
                 </div>
               </div>
@@ -323,7 +338,7 @@ export default function CartPage() {
                       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                         <div className="min-w-0">
                           <div className="mb-3 flex flex-wrap gap-2">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-sm font-extrabold text-emerald-700">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-secondarySoft px-3 py-1 text-sm font-extrabold text-primary">
                               <ShieldCheck size={15} />
                               Đã kiểm duyệt
                             </span>
@@ -406,10 +421,10 @@ export default function CartPage() {
 
                         <button
                           onClick={() => handleRemove(item._id)}
-                          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-extrabold text-red-600 transition hover:bg-red-100"
+                          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-extrabold text-slate-800 transition hover:bg-slate-200"
                         >
                           <Trash2 size={17} />
-                          Xóa khỏi giỏ
+                          Xóa Khỏi Giỏ
                         </button>
                       </div>
                     </div>
@@ -451,17 +466,13 @@ export default function CartPage() {
                   <span className="font-bold">{formatPrice(subtotal)}</span>
                 </div>
 
-                <div className="flex justify-between gap-4">
-                  <span className="text-white/70">Thuế VAT 10%</span>
-                  <span className="font-bold">{formatPrice(vat)}</span>
-                </div>
               </div>
 
               <div className="flex items-end justify-between gap-4">
                 <div>
                   <p className="text-xl font-extrabold">Tổng thanh toán</p>
                   <p className="mt-1 text-sm text-white/60">
-                    Đã bao gồm các chi phí hiển thị
+                    Bằng tổng tiền thuê của các xe trong giỏ
                   </p>
                 </div>
 
@@ -485,7 +496,7 @@ export default function CartPage() {
                 <ShieldCheck className="mt-0.5 text-secondary" size={21} />
                 <div>
                   <h4 className="font-extrabold text-primary">
-                    Thanh toán bảo mật
+                    Thanh toán bảo một
                   </h4>
                   <p className="mt-1 text-sm leading-6 text-muted">
                     Booking được xử lý trong hệ thống BQDrive.
@@ -512,7 +523,7 @@ export default function CartPage() {
                     Xe đã chọn rõ lịch
                   </h4>
                   <p className="mt-1 text-sm leading-6 text-muted">
-                    Mỗi xe hiển thị đủ thời gian thuê và thành tiền.
+                    Mỗi xe hiển thị để thời gian thuê và thành tiền.
                   </p>
                 </div>
               </div>
@@ -525,3 +536,12 @@ export default function CartPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+

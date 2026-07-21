@@ -28,6 +28,7 @@ import {
   type CreateBusinessData,
 } from "../../services/admin.service";
 import { getBusinessTypeLabel } from "../../utils/display.util";
+import { isValidVietnamPhone, normalizePhone } from "../../utils/validators";
 
 type BusinessAction = "block" | "unblock" | "delete";
 type CreateBusinessStep = 1 | 2 | 3;
@@ -71,12 +72,16 @@ const primaryButtonClass =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-2 font-extrabold text-primary shadow-sm shadow-yellow-500/20 transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60";
 
 function getBusinessStatus(business: AdminBusiness) {
-  if (business.userId?.isBlocked) {
+  if (!business.userId) {
+    return { tone: "gray" as const, label: "Thiếu tài khoản" };
+  }
+
+  if (business.userId.isBlocked) {
     return { tone: "red" as const, label: "Đã khóa" };
   }
 
   if (business.isRejected) {
-    return { tone: "red" as const, label: "Bị từ chối" };
+    return { tone: "red" as const, label: "B? từ chối" };
   }
 
   if (business.isApproved) {
@@ -185,7 +190,11 @@ export default function AdminBusinessesPage() {
   const updateCreateForm = (field: keyof BusinessCreateForm, value: string) => {
     setCreateForm((prev) => {
       const nextValue =
-        field === "otp" ? value.replace(/\D/g, "").slice(0, 6) : value;
+        field === "otp"
+          ? value.replace(/\D/g, "").slice(0, 6)
+          : field === "phone"
+            ? normalizePhone(value)
+            : value;
 
       return {
         ...prev,
@@ -197,11 +206,11 @@ export default function AdminBusinessesPage() {
   const validateBusinessInfo = () => {
     const businessName = createForm.businessName.trim();
     const email = createForm.email.trim().toLowerCase();
-    const phone = createForm.phone.trim();
+    const phone = normalizePhone(createForm.phone);
     const address = createForm.address.trim();
 
     if (!businessName || !email || !phone || !address) {
-      toast.error("Vui lòng nhập đầy đủ thông tin bắt buộc");
+      toast.error("Vui lòng nhập đầy để thông tin bắt bước");
       return false;
     }
 
@@ -210,8 +219,8 @@ export default function AdminBusinessesPage() {
       return false;
     }
 
-    if (!/^[0-9+\-\s()]{8,20}$/.test(phone)) {
-      toast.error("Số điện thoại không hợp lệ");
+    if (!isValidVietnamPhone(phone)) {
+      toast.error("Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.");
       return false;
     }
 
@@ -248,7 +257,7 @@ export default function AdminBusinessesPage() {
   };
 
   const handleVerifyBusinessOtp = async (event: FormEvent) => {
-    event.preventDefault();
+    event?.preventDefault();
 
     const otp = createForm.otp.trim();
 
@@ -273,12 +282,12 @@ export default function AdminBusinessesPage() {
   };
 
   const handleCreateBusiness = async (event: FormEvent) => {
-    event.preventDefault();
+    event?.preventDefault();
 
     if (!validateBusinessInfo()) return;
 
     if (createForm.password.length < 6) {
-      toast.error("Mật khẩu phải có ít nhất 6 ký tự");
+      toast.error("Một khẩu phải có ít nhất 6 ký từ");
       return;
     }
 
@@ -323,32 +332,32 @@ export default function AdminBusinessesPage() {
   const confirmAction = async () => {
     if (!action) return;
 
-    if ((action.type === "block" || action.type === "delete") && !reason.trim()) {
+    if ((action?.type === "block" || action?.type === "delete") && !reason.trim()) {
       toast.error("Vui lòng nhập lý do");
       return;
     }
 
     setSubmitting(true);
     try {
-      if (action.type === "block") {
-        await adminService.blockBusiness(action.business._id, reason.trim());
-        toast.success("Đã khóa doanh nghiệp và ẩn xe liên quan");
+      if (action?.type === "block") {
+        await adminService.blockBusiness(action?.business._id, reason.trim());
+        toast.success("Đã khóa doanh nghiệp và Ẩn xe liên quan");
       }
 
-      if (action.type === "unblock") {
-        await adminService.unblockBusiness(action.business._id);
+      if (action?.type === "unblock") {
+        await adminService.unblockBusiness(action?.business._id);
         toast.success("Đã mở khóa doanh nghiệp");
       }
 
-      if (action.type === "delete") {
-        await adminService.deleteBusiness(action.business._id, reason.trim());
+      if (action?.type === "delete") {
+        await adminService.deleteBusiness(action?.business._id, reason.trim());
         toast.success("Đã xóa doanh nghiệp");
       }
 
       closeAction();
       await fetchBusinesses();
-    } catch {
-      toast.error("Thao tác thất bại");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Thao tác thất bại"));
     } finally {
       setSubmitting(false);
     }
@@ -359,14 +368,14 @@ export default function AdminBusinessesPage() {
       <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm font-bold uppercase text-secondary">
-            Quản trị đối tác
+            Quận trả đối tác
           </p>
           <h2 className="mt-2 text-3xl font-extrabold text-primary">
             Quản lý Doanh nghiệp
           </h2>
           <p className="mt-2 max-w-2xl text-slate-500">
             Khóa doanh nghiệp sẽ ẩn toàn bộ xe của doanh nghiệp khỏi hệ thống.
-            Tạo mới doanh nghiệp cần xác thực email bằng OTP trước khi cấp tài khoản.
+            Tạo mới doanh nghiệp cần xác thực email bằng OTP trước khi cập tài khoản.
           </p>
         </div>
 
@@ -425,7 +434,7 @@ export default function AdminBusinessesPage() {
                         </div>
                       </td>
                       <td className="px-5 py-4 text-slate-600">
-                        {business.userId?.email || "--"}
+                        {business.userId?.email || "Tài khoản đã bị xóa"}
                       </td>
                       <td className="px-5 py-4">
                         <AdminStatusBadge
@@ -438,30 +447,32 @@ export default function AdminBusinessesPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex justify-end gap-2">
-                          {business.userId?.isBlocked ? (
-                            <button
-                              type="button"
-                              onClick={() => openAction("unblock", business)}
-                              className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 font-bold text-emerald-700 hover:bg-emerald-100"
-                            >
-                              <Unlock size={16} />
-                              Mở khóa
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => openAction("block", business)}
-                              className="inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 font-bold text-amber-700 hover:bg-amber-100"
-                            >
-                              <Lock size={16} />
-                              Khóa
-                            </button>
+                          {business.userId && (
+                            business.userId.isBlocked ? (
+                              <button
+                                type="button"
+                                onClick={() => openAction("unblock", business)}
+                                className="inline-flex items-center gap-2 rounded-lg bg-secondary px-3 py-2 font-extrabold text-primary hover:bg-secondaryLight"
+                              >
+                                <Unlock size={16} />
+                                Mở khóa
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => openAction("block", business)}
+                                className="inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 font-bold text-amber-700 hover:bg-amber-100"
+                              >
+                                <Lock size={16} />
+                                Khóa
+                              </button>
+                            )
                           )}
 
                           <button
                             type="button"
                             onClick={() => openAction("delete", business)}
-                            className="inline-flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 font-bold text-red-700 hover:bg-red-100"
+                            className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 font-extrabold text-slate-800 hover:bg-slate-200"
                           >
                             <Trash2 size={16} />
                             Xóa
@@ -612,6 +623,8 @@ export default function AdminBusinessesPage() {
                           placeholder="0901234567"
                           autoComplete="tel"
                           inputMode="tel"
+                          type="tel"
+                          maxLength={10}
                         />
                       </span>
                     </label>
@@ -762,9 +775,9 @@ export default function AdminBusinessesPage() {
 
               {createStep === 3 && (
                 <form onSubmit={handleCreateBusiness} className="space-y-5">
-                  <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
-                    <div className="flex items-center gap-3 text-emerald-700">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                  <div className="rounded-lg border border-secondary/40 bg-secondarySoft p-4">
+                    <div className="flex items-center gap-3 text-primary">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
                         <Check size={20} />
                       </div>
                       <div className="min-w-0">
@@ -781,7 +794,7 @@ export default function AdminBusinessesPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="block">
                       <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                        Mật khẩu *
+                        Một khẩu *
                       </span>
                       <span className="relative block">
                         <KeyRound
@@ -795,7 +808,7 @@ export default function AdminBusinessesPage() {
                             updateCreateForm("password", event.target.value)
                           }
                           className={`${iconInputClass} pr-12`}
-                          placeholder="Nhập mật khẩu"
+                          placeholder="Nhợp mật khẩu"
                           autoComplete="new-password"
                         />
                         <button
@@ -803,9 +816,9 @@ export default function AdminBusinessesPage() {
                           onClick={() => setShowPassword((value) => !value)}
                           className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-primary"
                           aria-label={
-                            showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"
+                            showPassword ? "Ẩn mật khẩu" : "HiẨn mật khẩu"
                           }
-                          title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                          title={showPassword ? "Ẩn mật khẩu" : "HiẨn mật khẩu"}
                         >
                           {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                         </button>
@@ -831,7 +844,7 @@ export default function AdminBusinessesPage() {
                             )
                           }
                           className={`${iconInputClass} pr-12`}
-                          placeholder="Nhập lại mật khẩu"
+                          placeholder="Nhợp lệi mật khẩu"
                           autoComplete="new-password"
                         />
                         <button
@@ -843,12 +856,12 @@ export default function AdminBusinessesPage() {
                           aria-label={
                             showConfirmPassword
                               ? "Ẩn mật khẩu"
-                              : "Hiện mật khẩu"
+                              : "HiẨn mật khẩu"
                           }
                           title={
                             showConfirmPassword
                               ? "Ẩn mật khẩu"
-                              : "Hiện mật khẩu"
+                              : "HiẨn mật khẩu"
                           }
                         >
                           {showConfirmPassword ? (
@@ -870,7 +883,7 @@ export default function AdminBusinessesPage() {
                         </p>
                       </div>
                       <div>
-                        <p className="font-bold text-slate-500">Liên hệ</p>
+                        <p className="font-bold text-slate-500">Liên h?</p>
                         <p className="mt-1 font-extrabold text-primary">
                           {createForm.phone}
                         </p>
@@ -924,11 +937,11 @@ export default function AdminBusinessesPage() {
         }
         description={
           action
-            ? `${action.business.businessName}${
-                action.type === "block"
+            ? `${action?.business.businessName}${
+                action?.type === "block"
                   ? " - toàn bộ xe của doanh nghiệp sẽ bị ẩn khỏi hệ thống."
-                  : action.type === "delete"
-                    ? " - chỉ xóa khi không còn booking chờ xác nhận hoặc đã xác nhận."
+                  : action?.type === "delete"
+                    ? " - chỗ xóa khi không còn booking chờ xác nhận hoặc đã xác nhận."
                     : ""
               }`
             : undefined
@@ -955,7 +968,7 @@ export default function AdminBusinessesPage() {
               onChange={(event) => setReason(event.target.value)}
               rows={4}
               className="w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-secondary"
-              placeholder="Nhập lý do thao tác..."
+              placeholder="Nhợp lý do thao tác..."
             />
           </label>
         )}
@@ -963,3 +976,14 @@ export default function AdminBusinessesPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+

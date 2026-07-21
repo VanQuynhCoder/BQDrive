@@ -14,6 +14,12 @@ import {
   verifyVnpayReturn,
 } from "../../helper/vnpay.helper";
 import {
+  sendCashPaymentSelectedMail,
+  sendDepositRemainingPaymentMail,
+  sendPaymentSuccessMail,
+} from "../../helper/mail.helper";
+import { syncBookingPaymentFromPaidPayments } from "../../helper/payment-sync.helper";
+import {
   BookingStatusEnum,
   CarStatusEnum,
   OwnerTypeEnum,
@@ -26,12 +32,22 @@ import {
 
 const RENTER_ROLES = [UserRoleEnum.USER];
 const PAYMENT_ALLOWED_BOOKING_STATUSES = [
-  BookingStatusEnum.OWNER_APPROVED, // Chá»§ xe Ä‘Ã£ duyá»‡t nÃªn khÃ¡ch Ä‘Æ°á»£c phÃ©p báº¯t Ä‘áº§u thanh toÃ¡n
-  BookingStatusEnum.PAYMENT_PENDING, // ÄÃ£ cÃ³ giao dá»‹ch Ä‘ang chá», cho phÃ©p táº¡o láº¡i link thanh toÃ¡n
-  BookingStatusEnum.PAID, // ÄÃ£ thanh toÃ¡n trÆ°á»›c Ä‘Ã³, dÃ¹ng Ä‘á»ƒ xá»­ lÃ½ pháº§n cÃ²n láº¡i náº¿u cÃ³
-  BookingStatusEnum.IN_PROGRESS, // Äang thuÃª, cÃ³ thá»ƒ thanh toÃ¡n pháº§n cÃ²n láº¡i/phá»¥ phÃ­
-  BookingStatusEnum.CONFIRMED, // Tráº¡ng thÃ¡i cÅ©: tÆ°Æ¡ng Ä‘Æ°Æ¡ng Ä‘Ã£ Ä‘Æ°á»£c chá»§ xe xÃ¡c nháº­n
-  BookingStatusEnum.WAITING_PAYMENT, // Tráº¡ng thÃ¡i cÅ©: tÆ°Æ¡ng Ä‘Æ°Æ¡ng PAYMENT_PENDING
+  BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã duyệt nên khách được phép bắt đầu thanh toán
+  BookingStatusEnum.PAYMENT_PENDING, // Đã có giao dịch đang chờ, cho phép tạo lại link thanh toán
+  BookingStatusEnum.PAID, // Đã thanh toán trước đó, dùng để xử lý phần còn lại nếu có
+  BookingStatusEnum.IN_PROGRESS, // Đang thuê, có thể thanh toán phần còn lại/phụ phí
+  BookingStatusEnum.CONFIRMED, // Trạng thái cũ: tương đương đã được chủ xe xác nhận
+  BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: tương đương PAYMENT_PENDING
+];
+const RENTER_INFO_REQUIRED_FOR_PAYMENT_MESSAGE =
+  "Booking thiếu thông tin người thuê, không thể thanh toán.";
+const MANUAL_PAYMENT_METHODS = [
+  PaymentMethodEnum.CASH,
+];
+const ACTIVE_PAYMENT_METHODS = [
+  PaymentMethodEnum.CASH,
+  PaymentMethodEnum.MOMO,
+  PaymentMethodEnum.VNPAY,
 ];
 
 function hydrateLegacyBookingOwner(booking: any) {
@@ -40,6 +56,21 @@ function hydrateLegacyBookingOwner(booking: any) {
     booking.ownerType = OwnerTypeEnum.BUSINESS;
     booking.ownerModel = "Business";
   }
+}
+
+function hasCompleteRenterInfo(rawInfo: any) {
+  const renterInfo = rawInfo || {};
+
+  return Boolean(
+    String(renterInfo.fullName || "").trim() &&
+      String(renterInfo.phone || "").trim() &&
+      String(renterInfo.email || "").trim() &&
+      String(renterInfo.cccdNumber || "").trim() &&
+      String(renterInfo.cccdFrontImage || "").trim() &&
+      String(renterInfo.cccdBackImage || "").trim() &&
+      String(renterInfo.driverLicenseNumber || "").trim() &&
+      String(renterInfo.driverLicenseImage || "").trim(),
+  );
 }
 
 class PaymentRoute extends BaseRoute {
@@ -61,6 +92,15 @@ class PaymentRoute extends BaseRoute {
         this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.getMyPayments),
+    );
+
+    this.router.get(
+      "/my-booking-history",
+      [
+        this.authentication,
+        this.roleGuard([UserRoleEnum.USER]),
+      ],
+      this.route(this.getMyBookingPaymentHistory),
     );
 
     this.router.get(
@@ -88,6 +128,8 @@ class PaymentRoute extends BaseRoute {
 
     this.router.post("/momo/ipn", this.route(this.momoIpn));
 
+    this.router.get("/momo/return", this.route(this.momoReturn));
+
     this.router.post(
       "/vnpay/create",
       [this.authentication, this.roleGuard(RENTER_ROLES)],
@@ -107,7 +149,7 @@ class PaymentRoute extends BaseRoute {
     );
 
     if (paymentType === PaymentTypeEnum.FULL) {
-      return totalPrice;
+      return Math.max(totalPrice - paidAmount, 0) || totalPrice;
     }
 
     if (paymentType === PaymentTypeEnum.REMAINING) {
@@ -117,6 +159,61 @@ class PaymentRoute extends BaseRoute {
     return depositAmount;
   }
 
+  private assertPaymentTypeIsValidForBooking(booking: any, paymentType: string) {
+    const paidAmount = Number(booking.paidAmount || 0);
+    const outstandingAmount = this.getOutstandingAmount(booking);
+
+    if (paymentType === PaymentTypeEnum.FULL && paidAmount > 0) {
+      throw ErrorHelper.requestDataInvalid(
+        "Booking đã thanh toán một phần, vui lòng thanh toán phần còn lại",
+      );
+    }
+
+    if (paymentType === PaymentTypeEnum.DEPOSIT && paidAmount > 0) {
+      throw ErrorHelper.requestDataInvalid(
+        "Booking đã thanh toán cọc, vui lòng thanh toán phần còn lại",
+      );
+    }
+
+    if (paymentType === PaymentTypeEnum.REMAINING) {
+      if (paidAmount <= 0) {
+        throw ErrorHelper.requestDataInvalid(
+          "Booking cần thanh toán cọc trước khi thanh toán phần còn lại",
+        );
+      }
+
+      if (outstandingAmount <= 0) {
+        throw ErrorHelper.requestDataInvalid(
+          "Booking không còn số tiền cần thanh toán",
+        );
+      }
+    }
+  }
+
+  private syncBookingPaymentPlan(booking: any, paymentType: string) {
+    const paidAmount = Number(booking.paidAmount || 0);
+
+    if (paidAmount > 0) return;
+
+    const totalPrice = Number(booking.totalPrice || 0);
+
+    if (paymentType === PaymentTypeEnum.FULL) {
+      booking.paymentOption = PaymentOptionEnum.FULL;
+      booking.depositAmount = 0;
+      booking.remainingAmount = totalPrice;
+      return;
+    }
+
+    if (paymentType === PaymentTypeEnum.DEPOSIT) {
+      const depositAmount =
+        Number(booking.depositAmount || 0) || Math.round(totalPrice * 0.3);
+
+      booking.paymentOption = PaymentOptionEnum.DEPOSIT;
+      booking.depositAmount = depositAmount;
+      booking.remainingAmount = Math.max(totalPrice - depositAmount, 0);
+    }
+  }
+
   private assertBookingCanCreatePayment(booking: any) {
     if (
       !PAYMENT_ALLOWED_BOOKING_STATUSES.includes(
@@ -124,7 +221,7 @@ class PaymentRoute extends BaseRoute {
       )
     ) {
       throw ErrorHelper.requestDataInvalid(
-        "Booking cáº§n Ä‘Æ°á»£c chá»§ xe xÃ¡c nháº­n trÆ°á»›c khi thanh toÃ¡n",
+        "Booking cần được chủ xe xác nhận trước khi thanh toán",
       );
     }
   }
@@ -133,13 +230,58 @@ class PaymentRoute extends BaseRoute {
     await CarModel.findOneAndUpdate(
       {
         _id: booking.carId,
-        ownerId: (booking as any).ownerId || booking.businessId,
-        ownerType: (booking as any).ownerType || OwnerTypeEnum.BUSINESS,
+        ...this.buildBookingCarOwnerFilter(booking),
         status: { $in: [CarStatusEnum.APPROVED, CarStatusEnum.RENTED] },
         isDeleted: false,
       } as any,
       { status: CarStatusEnum.RENTED },
     );
+  }
+
+  private buildBookingCarOwnerFilter(booking: any) {
+    const ownerId = (booking as any).ownerId || booking.businessId;
+    const ownerType = (booking as any).ownerType || OwnerTypeEnum.BUSINESS;
+    const ownerFilters = [];
+
+    if (ownerId && ownerType) {
+      ownerFilters.push({
+        ownerId,
+        ownerType,
+      });
+    }
+
+    if (booking.businessId) {
+      ownerFilters.push({
+        businessId: booking.businessId,
+      });
+    }
+
+    return ownerFilters.length > 0 ? { $or: ownerFilters } : {};
+  }
+
+  private async assertNoOtherActiveBookingForHandover(booking: any) {
+    const overlappedBooking = await BookingModel.findOne({
+      _id: { $ne: booking._id },
+      carId: booking.carId,
+      status: {
+        $in: [
+          BookingStatusEnum.PAID,
+          BookingStatusEnum.IN_PROGRESS,
+          BookingStatusEnum.CONFIRMED,
+        ],
+      },
+      isDeleted: false,
+      startDate: { $lt: booking.endDate },
+      endDate: { $gt: booking.startDate },
+    } as any).select("_id");
+
+    if (overlappedBooking) {
+      throw ErrorHelper.requestDataInvalid("Xe đang thuộc booking khác");
+    }
+
+    if (!hasCompleteRenterInfo((booking as any).renterInfo)) {
+      throw ErrorHelper.requestDataInvalid(RENTER_INFO_REQUIRED_FOR_PAYMENT_MESSAGE);
+    }
   }
 
   private async getOwnerContext(authUser: any) {
@@ -186,12 +328,54 @@ class PaymentRoute extends BaseRoute {
 
     return ownerFilter;
   }
+
+  private getMomoPaymentId(data: Record<string, any>) {
+    const extraData = String(data.extraData || "");
+
+    if (extraData) {
+      return extraData;
+    }
+
+    const orderId = String(data.orderId || "");
+    const match = orderId.match(/^MOMO-([a-f\d]{24})-/i);
+
+    return match?.[1] || "";
+  }
+
+  private getOutstandingAmount(booking: any) {
+    const totalPrice = Number(booking.totalPrice || 0);
+    const paidAmount = Number(booking.paidAmount || 0);
+    const storedRemainingAmount = Number(booking.remainingAmount || 0);
+
+    return Math.max(storedRemainingAmount || totalPrice - paidAmount, 0);
+  }
+
+  private async markMomoPaymentPaid(data: Record<string, any>, payment: any, booking: any) {
+    if (Number(data.amount) !== Number(payment.amount)) {
+      throw ErrorHelper.requestDataInvalid("Payment amount mismatch");
+    }
+
+    if (payment.status !== PaymentStatusEnum.PAID) {
+      payment.status = PaymentStatusEnum.PAID;
+      payment.paidAt = new Date();
+      payment.transactionCode = String(data.transId || payment.transactionCode);
+
+      await payment.save();
+      await syncBookingPaymentFromPaidPayments(booking);
+      await this.markCarRented(booking);
+      void sendPaymentSuccessMail(booking, payment);
+      void sendDepositRemainingPaymentMail(booking, payment);
+    } else {
+      await syncBookingPaymentFromPaidPayments(booking);
+    }
+  }
+
   async createMomoPayment(req: Request, res: Response) {
     const authUser = (req as any).user;
     const { bookingId, paymentType } = req.body;
 
     if (!bookingId) {
-      throw ErrorHelper.requestDataInvalid("Thiáº¿u bookingId");
+      throw ErrorHelper.requestDataInvalid("Thiếu bookingId");
     }
 
     const booking = await BookingModel.findOne({
@@ -214,8 +398,11 @@ class PaymentRoute extends BaseRoute {
         : PaymentTypeEnum.DEPOSIT);
 
     if (!Object.values(PaymentTypeEnum).includes(selectedPaymentType)) {
-      throw ErrorHelper.requestDataInvalid("Loáº¡i thanh toÃ¡n khÃ´ng há»£p lá»‡");
+      throw ErrorHelper.requestDataInvalid("Loại thanh toán không hợp lệ");
     }
+
+    this.assertPaymentTypeIsValidForBooking(booking, selectedPaymentType);
+    this.syncBookingPaymentPlan(booking, selectedPaymentType);
 
     const existedPaidPayment = await PaymentModel.findOne({
       bookingId: booking._id,
@@ -225,7 +412,7 @@ class PaymentRoute extends BaseRoute {
 
     if (existedPaidPayment) {
       throw ErrorHelper.requestDataInvalid(
-        "Khoáº£n thanh toÃ¡n nÃ y Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n",
+        "Khoản thanh toán này đã được thanh toán",
       );
     }
 
@@ -240,7 +427,7 @@ class PaymentRoute extends BaseRoute {
 
     if (amount <= 0) {
       throw ErrorHelper.requestDataInvalid(
-        "Sá»‘ tiá»n cáº§n thanh toÃ¡n khÃ´ng há»£p lá»‡",
+        "Số tiền cần thanh toán không hợp lệ",
       );
     }
 
@@ -260,13 +447,15 @@ class PaymentRoute extends BaseRoute {
         booking.status as BookingStatusEnum,
       )
     ) {
-      booking.status = BookingStatusEnum.PAYMENT_PENDING; // KhÃ¡ch Ä‘Ã£ má»Ÿ cá»•ng thanh toÃ¡n, chá» káº¿t quáº£ tráº£ vá»
+      booking.status = BookingStatusEnum.PAYMENT_PENDING; // Khách đã mở cổng thanh toán, chờ kết quả trả về
+      await booking.save();
+    } else {
       await booking.save();
     }
 
     const orderId = `MOMO-${String(payment._id)}-${Date.now()}`;
     const requestId = orderId;
-    const orderInfo = `Thanh toÃ¡n BQDrive ${String(booking._id)}`;
+    const orderInfo = `Thanh toán BQDrive ${String(booking._id)}`;
     const extraData = String(payment._id);
 
     const momoResponse = await createMomoPayment({
@@ -283,7 +472,7 @@ class PaymentRoute extends BaseRoute {
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Táº¡o thanh toÃ¡n MoMo thÃ nh cÃ´ng",
+      message: "Tạo thanh toán MoMo thành công",
       data: {
         payment,
         momo: momoResponse,
@@ -329,6 +518,8 @@ class PaymentRoute extends BaseRoute {
 
     hydrateLegacyBookingOwner(booking);
     if (payment.status === PaymentStatusEnum.PAID) {
+      await syncBookingPaymentFromPaidPayments(booking);
+
       return res.status(200).json({
         status: 200,
         message: "Payment already paid",
@@ -347,29 +538,11 @@ class PaymentRoute extends BaseRoute {
       payment.paidAt = new Date();
       payment.transactionCode = String(data.transId || payment.transactionCode);
 
-      booking.paidAmount = booking.paidAmount + payment.amount;
-
-      if (payment.paymentType === PaymentTypeEnum.FULL) {
-        booking.remainingAmount = 0;
-      }
-
-      if (payment.paymentType === PaymentTypeEnum.DEPOSIT) {
-        booking.remainingAmount = booking.totalPrice - booking.paidAmount;
-      }
-
-      if (payment.paymentType === PaymentTypeEnum.REMAINING) {
-        booking.remainingAmount = 0;
-      }
-
-      if (booking.remainingAmount < 0) {
-        booking.remainingAmount = 0;
-      }
-
-      booking.status = BookingStatusEnum.PAID; // Thanh toÃ¡n online thÃ nh cÃ´ng, lá»‹ch thuÃª Ä‘Æ°á»£c giá»¯ chÃ­nh thá»©c
-
-      await booking.save();
-      await this.markCarRented(booking);
       await payment.save();
+      await syncBookingPaymentFromPaidPayments(booking);
+      await this.markCarRented(booking);
+      void sendPaymentSuccessMail(booking, payment);
+      void sendDepositRemainingPaymentMail(booking, payment);
 
       return res.status(200).json({
         resultCode: 0,
@@ -387,12 +560,106 @@ class PaymentRoute extends BaseRoute {
     });
   }
 
+  async momoReturn(req: Request, res: Response) {
+    const data = req.query as Record<string, any>;
+    const paymentId = this.getMomoPaymentId(data);
+    const hasSignature = typeof data.signature === "string" && data.signature;
+
+    if (!paymentId) {
+      return res.status(400).json({
+        status: 400,
+        code: "-3",
+        message: "Mã giao dịch MoMo không hợp lệ",
+        data: null,
+      });
+    }
+
+    const payment = await PaymentModel.findById(paymentId);
+
+    if (!payment) {
+      return res.status(404).json({
+        status: 404,
+        code: "-4",
+        message: "Không tìm thấy thanh toán",
+        data: null,
+      });
+    }
+
+    const booking = await BookingModel.findOne({
+      _id: payment.bookingId,
+      isDeleted: false,
+    } as any);
+
+    if (!booking) {
+      return res.status(404).json({
+        status: 404,
+        code: "-4",
+        message: "Không tìm thấy booking",
+        data: null,
+      });
+    }
+
+    hydrateLegacyBookingOwner(booking);
+
+    if (hasSignature && !verifyMomoSignature(data)) {
+      return res.status(400).json({
+        status: 400,
+        code: "-3",
+        message: "Chữ ký MoMo không hợp lệ",
+        data: { payment, booking, success: false },
+      });
+    }
+
+    const resultCode = Number(data.resultCode);
+
+    if (resultCode === 0) {
+      if (!hasSignature) {
+        return res.status(202).json({
+          status: 202,
+          code: "202",
+          message: "Đang chờ MoMo xác minh thanh toán",
+          data: {
+            payment,
+            booking,
+            success: false,
+            pendingVerification: true,
+            provider: "MOMO",
+          },
+        });
+      }
+
+      await this.markMomoPaymentPaid(data, payment, booking);
+    } else if (
+      !Number.isNaN(resultCode) &&
+      payment.status === PaymentStatusEnum.PENDING
+    ) {
+      payment.status = PaymentStatusEnum.FAILED;
+      payment.transactionCode = String(data.transId || payment.transactionCode);
+      await payment.save();
+    }
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message:
+        payment.status === PaymentStatusEnum.PAID
+          ? "Thanh toán MoMo thành công"
+          : "Thanh toán MoMo không thành công",
+      data: {
+        payment,
+        booking,
+        success: payment.status === PaymentStatusEnum.PAID,
+        provider: "MOMO",
+      },
+    });
+  }
+
   async createVnpayPayment(req: Request, res: Response) {
     const authUser = (req as any).user;
     const { bookingId, paymentType } = req.body;
 
     if (!bookingId) {
-      throw ErrorHelper.requestDataInvalid("Thiáº¿u bookingId");
+      throw ErrorHelper.requestDataInvalid("Thiếu bookingId");
     }
 
     const booking = await BookingModel.findOne({
@@ -415,8 +682,11 @@ class PaymentRoute extends BaseRoute {
         : PaymentTypeEnum.DEPOSIT);
 
     if (!Object.values(PaymentTypeEnum).includes(selectedPaymentType)) {
-      throw ErrorHelper.requestDataInvalid("Loáº¡i thanh toÃ¡n khÃ´ng há»£p lá»‡");
+      throw ErrorHelper.requestDataInvalid("Loại thanh toán không hợp lệ");
     }
+
+    this.assertPaymentTypeIsValidForBooking(booking, selectedPaymentType);
+    this.syncBookingPaymentPlan(booking, selectedPaymentType);
 
     const existedPaidPayment = await PaymentModel.findOne({
       bookingId: booking._id,
@@ -426,7 +696,7 @@ class PaymentRoute extends BaseRoute {
 
     if (existedPaidPayment) {
       throw ErrorHelper.requestDataInvalid(
-        "Khoáº£n thanh toÃ¡n nÃ y Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n",
+        "Khoản thanh toán này đã được thanh toán",
       );
     }
 
@@ -441,7 +711,7 @@ class PaymentRoute extends BaseRoute {
 
     if (amount <= 0) {
       throw ErrorHelper.requestDataInvalid(
-        "Sá»‘ tiá»n cáº§n thanh toÃ¡n khÃ´ng há»£p lá»‡",
+        "Số tiền cần thanh toán không hợp lệ",
       );
     }
 
@@ -461,7 +731,9 @@ class PaymentRoute extends BaseRoute {
         booking.status as BookingStatusEnum,
       )
     ) {
-      booking.status = BookingStatusEnum.PAYMENT_PENDING; // KhÃ¡ch Ä‘Ã£ má»Ÿ cá»•ng thanh toÃ¡n VNPay
+      booking.status = BookingStatusEnum.PAYMENT_PENDING; // Khách đã mở cổng thanh toán VNPay
+      await booking.save();
+    } else {
       await booking.save();
     }
 
@@ -478,14 +750,14 @@ class PaymentRoute extends BaseRoute {
     const payUrl = createVnpayPaymentUrl({
       amount,
       orderId,
-      orderInfo: `Thanh toÃ¡n BQDrive ${String(booking._id)}`,
+      orderInfo: `Thanh toán BQDrive ${String(booking._id)}`,
       ipAddr,
     });
 
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Táº¡o thanh toÃ¡n VNPay thÃ nh cÃ´ng",
+      message: "Tạo thanh toán VNPay thành công",
       data: {
         payment,
         payUrl,
@@ -551,6 +823,8 @@ class PaymentRoute extends BaseRoute {
       String(query.vnp_TransactionStatus) === "00";
 
     if (payment.status === PaymentStatusEnum.PAID) {
+      await syncBookingPaymentFromPaidPayments(booking);
+
       return res.status(200).json({
         status: 200,
         code: "200",
@@ -573,29 +847,11 @@ class PaymentRoute extends BaseRoute {
       payment.paidAt = new Date();
       payment.transactionCode = String(query.vnp_TransactionNo || txnRef);
 
-      booking.paidAmount = booking.paidAmount + payment.amount;
-
-      if (payment.paymentType === PaymentTypeEnum.FULL) {
-        booking.remainingAmount = 0;
-      }
-
-      if (payment.paymentType === PaymentTypeEnum.DEPOSIT) {
-        booking.remainingAmount = booking.totalPrice - booking.paidAmount;
-      }
-
-      if (payment.paymentType === PaymentTypeEnum.REMAINING) {
-        booking.remainingAmount = 0;
-      }
-
-      if (booking.remainingAmount < 0) {
-        booking.remainingAmount = 0;
-      }
-
-      booking.status = BookingStatusEnum.PAID; // VNPay tráº£ thÃ nh cÃ´ng, booking chuyá»ƒn sang Ä‘Ã£ thanh toÃ¡n
-
-      await booking.save();
-      await this.markCarRented(booking);
       await payment.save();
+      await syncBookingPaymentFromPaidPayments(booking);
+      await this.markCarRented(booking);
+      void sendPaymentSuccessMail(booking, payment);
+      void sendDepositRemainingPaymentMail(booking, payment);
 
       return res.status(200).json({
         status: 200,
@@ -622,12 +878,12 @@ class PaymentRoute extends BaseRoute {
     const { bookingId, method, paymentType } = req.body;
 
     if (!bookingId || !method) {
-      throw ErrorHelper.requestDataInvalid("Thiáº¿u bookingId hoáº·c method");
+      throw ErrorHelper.requestDataInvalid("Thiếu bookingId hoặc method");
     }
 
-    if (!Object.values(PaymentMethodEnum).includes(method)) {
+    if (!ACTIVE_PAYMENT_METHODS.includes(method)) {
       throw ErrorHelper.requestDataInvalid(
-        "PhÆ°Æ¡ng thá»©c thanh toÃ¡n khÃ´ng há»£p lá»‡",
+        "Phương thức thanh toán không hợp lệ",
       );
     }
 
@@ -654,7 +910,7 @@ class PaymentRoute extends BaseRoute {
       ].includes(booking.status as BookingStatusEnum)
     ) {
       throw ErrorHelper.requestDataInvalid(
-        "Booking khÃ´ng cÃ²n kháº£ dá»¥ng Ä‘á»ƒ thanh toÃ¡n",
+        "Booking không còn khả dụng để thanh toán",
       );
     }
 
@@ -665,26 +921,11 @@ class PaymentRoute extends BaseRoute {
         : PaymentTypeEnum.DEPOSIT);
 
     if (!Object.values(PaymentTypeEnum).includes(selectedPaymentType)) {
-      throw ErrorHelper.requestDataInvalid("Loáº¡i thanh toÃ¡n khÃ´ng há»£p lá»‡");
+      throw ErrorHelper.requestDataInvalid("Loại thanh toán không hợp lệ");
     }
 
-    if (
-      booking.paymentOption === PaymentOptionEnum.FULL &&
-      selectedPaymentType !== PaymentTypeEnum.FULL
-    ) {
-      throw ErrorHelper.requestDataInvalid(
-        "Booking chá»n thanh toÃ¡n toÃ n bá»™, chá»‰ Ä‘Æ°á»£c táº¡o payment FULL",
-      );
-    }
-
-    if (
-      booking.paymentOption === PaymentOptionEnum.DEPOSIT &&
-      selectedPaymentType === PaymentTypeEnum.FULL
-    ) {
-      throw ErrorHelper.requestDataInvalid(
-        "Booking chá»n thanh toÃ¡n cá»c, khÃ´ng Ä‘Æ°á»£c táº¡o payment FULL",
-      );
-    }
+    this.assertPaymentTypeIsValidForBooking(booking, selectedPaymentType);
+    this.syncBookingPaymentPlan(booking, selectedPaymentType);
 
     const existedPendingPayment = await PaymentModel.findOne({
       bookingId: booking._id,
@@ -695,20 +936,20 @@ class PaymentRoute extends BaseRoute {
 
     if (existedPendingPayment) {
       if (
-        method === PaymentMethodEnum.CASH &&
+        MANUAL_PAYMENT_METHODS.includes(method as PaymentMethodEnum) &&
         [
           BookingStatusEnum.PAYMENT_PENDING,
           BookingStatusEnum.WAITING_PAYMENT,
         ].includes(booking.status as BookingStatusEnum)
       ) {
-        booking.status = BookingStatusEnum.OWNER_APPROVED; // Tiá»n máº·t chÆ°a thu thÃ¬ quay vá» tráº¡ng thÃ¡i chá»§ xe Ä‘Ã£ duyá»‡t
+        booking.status = BookingStatusEnum.OWNER_APPROVED; // Tiền mặt chưa thu thì quay về trạng thái chủ xe đã duyệt
         await booking.save();
       }
 
       return res.status(200).json({
         status: 200,
         code: "200",
-        message: "Payment chá» thanh toÃ¡n Ä‘Ã£ tá»“n táº¡i",
+        message: "Payment chờ thanh toán đã tồn tại",
         data: { payment: existedPendingPayment },
       });
     }
@@ -721,7 +962,7 @@ class PaymentRoute extends BaseRoute {
 
     if (existedPaidPayment) {
       throw ErrorHelper.requestDataInvalid(
-        "Khoáº£n thanh toÃ¡n nÃ y Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n",
+        "Khoản thanh toán này đã được thanh toán",
       );
     }
 
@@ -729,7 +970,7 @@ class PaymentRoute extends BaseRoute {
 
     if (amount <= 0) {
       throw ErrorHelper.requestDataInvalid(
-        "Sá»‘ tiá»n cáº§n thanh toÃ¡n khÃ´ng há»£p lá»‡",
+        "Số tiền cần thanh toán không hợp lệ",
       );
     }
 
@@ -741,23 +982,230 @@ class PaymentRoute extends BaseRoute {
       paymentType: selectedPaymentType,
       status: PaymentStatusEnum.PENDING,
     });
+    if (MANUAL_PAYMENT_METHODS.includes(method as PaymentMethodEnum)) {
+      void sendCashPaymentSelectedMail(booking, payment);
+    }
 
     if (
-      method === PaymentMethodEnum.CASH &&
+      MANUAL_PAYMENT_METHODS.includes(method as PaymentMethodEnum) &&
       [
         BookingStatusEnum.PAYMENT_PENDING,
         BookingStatusEnum.WAITING_PAYMENT,
       ].includes(booking.status as BookingStatusEnum)
     ) {
-      booking.status = BookingStatusEnum.OWNER_APPROVED; // Chá»n tiá»n máº·t: chá» chá»§ xe thu khi bÃ n giao
+      booking.status = BookingStatusEnum.OWNER_APPROVED; // Chọn tiền mặt: chờ chủ xe thu khi bàn giao
       await booking.save();
     }
+
+    await booking.save();
 
     return res.status(201).json({
       status: 201,
       code: "201",
-      message: "Táº¡o thanh toÃ¡n thÃ nh cÃ´ng",
+      message: "Tạo thanh toán thành công",
       data: { payment },
+    });
+  }
+
+  private getPaymentSummaryStatus(totalPrice: number, paidAmount: number, payments: any[]) {
+    const hasPaidPayment = payments.some(
+      (payment) => payment.status === PaymentStatusEnum.PAID,
+    );
+    const hasPendingPayment = payments.some(
+      (payment) => payment.status === PaymentStatusEnum.PENDING,
+    );
+    const hasRefundedPayment = payments.some(
+      (payment) => payment.status === PaymentStatusEnum.REFUNDED,
+    );
+
+    if (hasRefundedPayment && paidAmount <= 0) return "REFUNDED";
+    if (totalPrice > 0 && paidAmount >= totalPrice) return "PAID_FULL";
+    if (paidAmount > 0) {
+      const hasDepositPayment = payments.some(
+        (payment) =>
+          payment.status === PaymentStatusEnum.PAID &&
+          payment.paymentType === PaymentTypeEnum.DEPOSIT,
+      );
+
+      return hasDepositPayment ? "DEPOSIT_PAID" : "PARTIAL";
+    }
+    if (hasPendingPayment) return "PENDING";
+    if (!hasPaidPayment) return "UNPAID";
+
+    return "PARTIAL";
+  }
+
+  private buildHistoryCarPayload(car: any) {
+    if (!car) {
+      return {
+        _id: "",
+        name: "Xe đã bị xóa hoặc không còn tồn tại",
+        brand: "",
+        plateNumber: "",
+        image: "",
+      };
+    }
+
+    return {
+      _id: String(car._id || ""),
+      name: car.name || "Xe đã bị xóa hoặc không còn tồn tại",
+      brand: car.brandId?.name || "",
+      plateNumber: car.licensePlate || car.plateNumberNormalized || "",
+      image: Array.isArray(car.images) ? car.images[0] || "" : "",
+    };
+  }
+
+  private buildHistoryOwnerPayload(booking: any, car: any) {
+    const ownerType = booking?.ownerType || car?.ownerType || OwnerTypeEnum.BUSINESS;
+    const owner = booking?.ownerId || car?.ownerId;
+    const business = booking?.businessId || car?.businessId;
+
+    if (ownerType === OwnerTypeEnum.USER) {
+      return {
+        _id: String(owner?._id || car?.ownerId || booking?.ownerId || ""),
+        type: OwnerTypeEnum.USER,
+        name: owner?.name || car?.ownerId?.name || "Người dùng ký gửi",
+        phone: owner?.phone || car?.ownerId?.phone || "",
+      };
+    }
+
+    const businessUser = business?.userId;
+
+    return {
+      _id: String(business?._id || owner?._id || car?.businessId || ""),
+      type: OwnerTypeEnum.BUSINESS,
+      name:
+        business?.businessName ||
+        owner?.businessName ||
+        businessUser?.name ||
+        "Doanh nghiệp",
+      phone: business?.phone || owner?.phone || businessUser?.phone || "",
+    };
+  }
+
+  private buildHistoryPaymentPayload(payment: any) {
+    return {
+      _id: String(payment._id || ""),
+      paymentCode: String(payment._id || "").slice(-8).toUpperCase(),
+      amount: Number(payment.amount || 0),
+      method: payment.method || "",
+      paymentType: payment.paymentType || "",
+      status: payment.status || "",
+      paidAt: payment.paidAt || payment.createdAt,
+      transactionCode: payment.transactionCode || "",
+      note: payment.note || "",
+      createdAt: payment.createdAt,
+    };
+  }
+
+  async getMyBookingPaymentHistory(req: Request, res: Response) {
+    const authUser = (req as any).user;
+
+    const payments = await PaymentModel.find({
+      userId: authUser.userId,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+    const bookingIds = Array.from(
+      new Set(payments.map((payment) => String(payment.bookingId)).filter(Boolean)),
+    );
+
+    const bookings = await BookingModel.find({
+      _id: { $in: bookingIds },
+      userId: authUser.userId,
+      isDeleted: false,
+    } as any)
+      .populate({
+        path: "carId",
+        populate: [
+          { path: "brandId", select: "name" },
+          { path: "ownerId", select: "name email phone businessName userId" },
+          {
+            path: "businessId",
+            select: "businessName phone userId",
+            populate: { path: "userId", select: "name email phone" },
+          },
+        ],
+      })
+      .populate({
+        path: "ownerId",
+        select: "name email phone businessName userId",
+        populate: { path: "userId", select: "name email phone" },
+      })
+      .populate({
+        path: "businessId",
+        select: "businessName phone userId",
+        populate: { path: "userId", select: "name email phone" },
+      })
+      .lean();
+    const bookingMap = new Map(
+      bookings.map((booking: any) => [String(booking._id), booking]),
+    );
+    const paymentGroups = new Map<string, any[]>();
+
+    payments.forEach((payment) => {
+      const bookingId = String(payment.bookingId || "");
+      const currentPayments = paymentGroups.get(bookingId) || [];
+      currentPayments.push(payment);
+      paymentGroups.set(bookingId, currentPayments);
+    });
+
+    const histories = Array.from(paymentGroups.entries())
+      .map(([bookingId, bookingPayments]) => {
+        const booking = bookingMap.get(bookingId);
+        const sortedPayments = [...bookingPayments].sort((left, right) => {
+          const leftTime = new Date(left.paidAt || left.createdAt || 0).getTime();
+          const rightTime = new Date(right.paidAt || right.createdAt || 0).getTime();
+          return leftTime - rightTime;
+        });
+        const car = booking?.carId;
+        const totalPrice = Number(booking?.totalPrice || 0);
+        const paidAmount = sortedPayments
+          .filter((payment) => payment.status === PaymentStatusEnum.PAID)
+          .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+        const remainingAmount = Math.max(totalPrice - paidAmount, 0);
+        const latestPaymentTime = sortedPayments.reduce((latest, payment) => {
+          const currentTime = new Date(payment.paidAt || payment.createdAt || 0).getTime();
+          return Math.max(latest, Number.isFinite(currentTime) ? currentTime : 0);
+        }, 0);
+
+        return {
+          bookingId,
+          bookingCode: bookingId.slice(-8).toUpperCase(),
+          bookingStatus: booking?.status || "",
+          rentalMode: booking?.rentalMode || "",
+          startDate: booking?.startDate || null,
+          endDate: booking?.endDate || null,
+          car: this.buildHistoryCarPayload(car),
+          owner: this.buildHistoryOwnerPayload(booking, car),
+          totalPrice,
+          depositAmount: Number(booking?.depositAmount || 0),
+          paidAmount,
+          remainingAmount,
+          paymentSummaryStatus: this.getPaymentSummaryStatus(
+            totalPrice,
+            paidAmount,
+            sortedPayments,
+          ),
+          paymentCount: sortedPayments.length,
+          latestPaymentAt:
+            latestPaymentTime > 0 ? new Date(latestPaymentTime) : null,
+          payments: sortedPayments.map((payment) =>
+            this.buildHistoryPaymentPayload(payment),
+          ),
+        };
+      })
+      .sort((left, right) => {
+        const leftTime = new Date(left.latestPaymentAt || 0).getTime();
+        const rightTime = new Date(right.latestPaymentAt || 0).getTime();
+        return rightTime - leftTime;
+      });
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "success",
+      data: { histories },
     });
   }
 
@@ -811,12 +1259,12 @@ class PaymentRoute extends BaseRoute {
     const { status, transactionCode } = req.body;
 
     if (!status) {
-      throw ErrorHelper.requestDataInvalid("Thiáº¿u status");
+      throw ErrorHelper.requestDataInvalid("Thiếu status");
     }
 
     if (!Object.values(PaymentStatusEnum).includes(status)) {
       throw ErrorHelper.requestDataInvalid(
-        "Tráº¡ng thÃ¡i thanh toÃ¡n khÃ´ng há»£p lá»‡",
+        "Trạng thái thanh toán không hợp lệ",
       );
     }
 
@@ -847,7 +1295,7 @@ class PaymentRoute extends BaseRoute {
       ].includes(booking.status as BookingStatusEnum)
     ) {
       throw ErrorHelper.requestDataInvalid(
-        "Booking khÃ´ng cÃ²n kháº£ dá»¥ng Ä‘á»ƒ ghi nháº­n thanh toÃ¡n",
+        "Booking không còn khả dụng để ghi nhận thanh toán",
       );
     }
 
@@ -863,7 +1311,7 @@ class PaymentRoute extends BaseRoute {
     }
 
     if (payment.status === PaymentStatusEnum.PAID) {
-      throw ErrorHelper.requestDataInvalid("Payment nÃ y Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n");
+      throw ErrorHelper.requestDataInvalid("Payment này đã được thanh toán");
     }
 
     payment.status = status;
@@ -871,70 +1319,38 @@ class PaymentRoute extends BaseRoute {
 
     if (status === PaymentStatusEnum.PAID) {
       payment.paidAt = new Date();
-      booking.paidAmount = booking.paidAmount + payment.amount;
 
-      if (payment.paymentType === PaymentTypeEnum.FULL) {
-        booking.remainingAmount = 0;
-      }
-
-      if (payment.paymentType === PaymentTypeEnum.DEPOSIT) {
-        booking.remainingAmount = booking.totalPrice - booking.paidAmount;
-      }
-
-      if (payment.paymentType === PaymentTypeEnum.REMAINING) {
-        booking.remainingAmount = 0;
-      }
-
-      if (booking.remainingAmount < 0) {
-        booking.remainingAmount = 0;
-      }
-
-      if (payment.method === PaymentMethodEnum.CASH) {
+      if (MANUAL_PAYMENT_METHODS.includes(payment.method as PaymentMethodEnum)) {
         if (
           ![
             BookingStatusEnum.OWNER_APPROVED,
             BookingStatusEnum.PAID,
             BookingStatusEnum.CONFIRMED,
+            BookingStatusEnum.IN_PROGRESS,
           ].includes(booking.status as BookingStatusEnum)
         ) {
           throw ErrorHelper.requestDataInvalid(
-            "Booking can duoc xac nhan truoc khi ghi nhan thanh toan tien mat",
+            "Booking cần được xác nhận trước khi ghi nhận thanh toán tiền mặt",
           );
         }
-
-        const car = await CarModel.findOneAndUpdate(
-          {
-            _id: booking.carId,
-            ownerId: (booking as any).ownerId || booking.businessId,
-            ownerType: (booking as any).ownerType || OwnerTypeEnum.BUSINESS,
-            status: { $in: [CarStatusEnum.APPROVED, CarStatusEnum.RENTED] },
-            isDeleted: false,
-          } as any,
-          { status: CarStatusEnum.RENTED },
-          { new: true },
-        );
-
-        if (!car) {
-          throw ErrorHelper.requestDataInvalid(
-            "Xe hien khong kha dung de ban giao",
-          );
-        }
-
-        booking.status = BookingStatusEnum.IN_PROGRESS; // Thu tiá»n máº·t vÃ  bÃ n giao xe xong, chuyáº¿n thuÃª báº¯t Ä‘áº§u
-      } else {
-        booking.status = BookingStatusEnum.PAID; // Chá»§ xe ghi nháº­n thanh toÃ¡n khÃ´ng tiá»n máº·t thÃ nh cÃ´ng
-        await this.markCarRented(booking);
       }
-
-      await booking.save();
     }
 
     await payment.save();
+    if (status === PaymentStatusEnum.PAID) {
+      await syncBookingPaymentFromPaidPayments(booking);
+      void sendPaymentSuccessMail(booking, payment);
+      void sendDepositRemainingPaymentMail(booking, payment);
+
+      if (!MANUAL_PAYMENT_METHODS.includes(payment.method as PaymentMethodEnum)) {
+        await this.markCarRented(booking);
+      }
+    }
 
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Cáº­p nháº­t tráº¡ng thÃ¡i thanh toÃ¡n thÃ nh cÃ´ng",
+      message: "Cập nhật trạng thái thanh toán thành công",
       data: { payment, booking },
     });
   }

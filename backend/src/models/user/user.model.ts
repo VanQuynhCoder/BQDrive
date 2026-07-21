@@ -8,7 +8,13 @@ export type IUser = BaseDocument & {
   password: string;
 
   phone?: string;
+  address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
   avatar?: string;
+  bio?: string;
 
   role: string;
 
@@ -25,6 +31,13 @@ export type IUser = BaseDocument & {
   isVerified: boolean;
   otpCode?: string;
   otpExpireAt?: Date;
+  resetPasswordOtpHash?: string;
+  resetPasswordOtpExpiresAt?: Date;
+  resetPasswordOtpVerified?: boolean;
+  resetPasswordOtpVerifiedAt?: Date;
+  resetPasswordOtpAttempts?: number;
+  resetPasswordTokenHash?: string;
+  resetPasswordTokenExpiresAt?: Date;
 };
 
 const userSchema = new mongoose.Schema(
@@ -53,8 +66,38 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    address: {
+      type: String,
+      trim: true,
+    },
+
+    province: {
+      type: String,
+      trim: true,
+    },
+
+    city: {
+      type: String,
+      trim: true,
+    },
+
+    district: {
+      type: String,
+      trim: true,
+    },
+
+    ward: {
+      type: String,
+      trim: true,
+    },
+
     avatar: {
       type: String,
+    },
+
+    bio: {
+      type: String,
+      trim: true,
     },
 
     role: {
@@ -109,6 +152,36 @@ const userSchema = new mongoose.Schema(
     },
 
     otpExpireAt: {
+      type: Date,
+    },
+
+    resetPasswordOtpHash: {
+      type: String,
+    },
+
+    resetPasswordOtpExpiresAt: {
+      type: Date,
+    },
+
+    resetPasswordOtpVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    resetPasswordOtpVerifiedAt: {
+      type: Date,
+    },
+
+    resetPasswordOtpAttempts: {
+      type: Number,
+      default: 0,
+    },
+
+    resetPasswordTokenHash: {
+      type: String,
+    },
+
+    resetPasswordTokenExpiresAt: {
       type: Date,
     },
   },

@@ -15,6 +15,10 @@ export type IPayment = BaseDocument & {
   paymentType: string;
   paidAt?: Date;
   transactionCode?: string;
+  confirmedBy?: mongoose.Types.ObjectId;
+  confirmedByRole?: string;
+  note?: string;
+  remainingPaymentReminderSentAt?: Date;
 };
 
 const paymentSchema = new mongoose.Schema(
@@ -55,6 +59,21 @@ const paymentSchema = new mongoose.Schema(
     transactionCode: {
       type: String,
       trim: true,
+    },
+    confirmedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    confirmedByRole: {
+      type: String,
+      trim: true,
+    },
+    note: {
+      type: String,
+      trim: true,
+    },
+    remainingPaymentReminderSentAt: {
+      type: Date,
     },
   },
   { timestamps: true },

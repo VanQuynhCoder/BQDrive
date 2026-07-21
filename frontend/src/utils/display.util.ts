@@ -10,6 +10,10 @@
 
 export function getBookingStatusLabel(status?: string) {
   const map: Record<string, string> = {
+    REQUESTED: "Đã gửi yêu cầu thuê",
+    OWNER_APPROVED: "Chủ xe đã duyệt",
+    PAYMENT_PENDING: "Chờ thanh toán",
+    PAID: "Đã thanh toán",
     PENDING: "Chờ xác nhận",
     WAITING_PAYMENT: "Chờ thanh toán",
     CONFIRMED: "Đã xác nhận",
@@ -37,7 +41,6 @@ export function getPaymentStatusLabel(status?: string) {
 export function getPaymentMethodLabel(method?: string) {
   const map: Record<string, string> = {
     CASH: "Tiền mặt",
-    BANKING: "Chuyển khoản",
     MOMO: "Ví MoMo",
     VNPAY: "VNPay",
   };
@@ -50,6 +53,8 @@ export function getPaymentTypeLabel(paymentType?: string) {
     DEPOSIT: "Thanh toán cọc",
     FULL: "Thanh toán toàn bộ",
     REMAINING: "Thanh toán phần còn lại",
+    EXTRA_CHARGE: "Phí phát sinh",
+    REFUND: "Hoàn tiền",
   };
 
   return map[paymentType || ""] || paymentType || "--";
@@ -105,3 +110,7 @@ export function getContractStatusLabel(status?: string) {
 
   return map[status || ""] || status || "--";
 }
+
+
+
+

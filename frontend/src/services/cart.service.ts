@@ -1,4 +1,5 @@
 ﻿import api from "./api";
+import type { BookingDeliveryPayload, RenterInfo } from "./booking.service";
 
 export const cartService = {
   addToCart: async (data: {
@@ -23,7 +24,11 @@ export const cartService = {
 
   bookingFromCart: async (
     cartId: string,
-    data?: { paymentOption?: "DEPOSIT" | "FULL" },
+    data?: {
+      paymentOption: "DEPOSIT" | "FULL";
+      renterInfo: RenterInfo;
+      delivery?: BookingDeliveryPayload;
+    },
   ) => {
     const res = await api.post(`/bookings/bookingFromCart/${cartId}`, data || {});
     return res.data.data.booking;

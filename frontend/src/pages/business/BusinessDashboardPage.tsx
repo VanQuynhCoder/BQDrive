@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import {
   BarChart3,
@@ -9,9 +9,11 @@ import {
   CreditCard,
   Loader2,
   ShieldCheck,
+  Star,
   WalletCards,
 } from "lucide-react";
 
+import DashboardReviewSections from "../../components/dashboard/DashboardReviewSections";
 import {
   businessService,
   type BusinessDashboard,
@@ -23,6 +25,10 @@ function formatCurrency(value?: number) {
     currency: "VND",
     maximumFractionDigits: 0,
   }).format(value || 0);
+}
+
+function formatNumber(value?: number) {
+  return (value || 0).toLocaleString("vi-VN");
 }
 
 export default function BusinessDashboardPage() {
@@ -49,30 +55,55 @@ export default function BusinessDashboardPage() {
     };
   }, []);
 
+  const overview = dashboard?.overview || dashboard;
+  const paidRevenue =
+    overview?.totalPaidRevenue ??
+    dashboard?.totalPaidRevenue ??
+    dashboard?.totalRevenue ??
+    0;
+
   const statCards = [
     {
       label: "Tổng xe",
-      value: dashboard?.totalCars || 0,
-      detail: `${dashboard?.approvedCars || 0} xe đang hoạt động`,
+      value: formatNumber(overview?.totalCars),
+      detail: `${formatNumber(overview?.approvedCars)} xe đã duyệt`,
       icon: Car,
     },
     {
       label: "Xe chờ duyệt",
-      value: dashboard?.pendingCars || 0,
-      detail: `${dashboard?.rejectedCars || 0} xe bị từ chối`,
+      value: formatNumber(overview?.pendingCars),
+      detail: `${formatNumber(overview?.rejectedCars)} xe bị từ chối`,
       icon: Clock3,
     },
     {
+      label: "Xe đang thuê",
+      value: formatNumber(overview?.rentedCars),
+      detail: "Xe đang phát sinh chuyến thuê",
+      icon: ShieldCheck,
+    },
+    {
       label: "Booking",
-      value: dashboard?.totalBookings || 0,
-      detail: `${dashboard?.pendingBookings || 0} booking đang chờ`,
+      value: formatNumber(overview?.totalBookings),
+      detail: `${formatNumber(overview?.pendingBookings)} booking chờ xác nhận`,
       icon: CalendarCheck,
     },
     {
-      label: "Doanh thu tháng",
-      value: formatCurrency(dashboard?.revenueThisMonth),
-      detail: "Tính trên thanh toán đã thanh toán",
+      label: "Đang thuê",
+      value: formatNumber(overview?.inProgressBookings),
+      detail: `${formatNumber(overview?.completedBookings)} booking hoàn tất`,
+      icon: CheckCircle2,
+    },
+    {
+      label: "Doanh thu đã thanh toán",
+      value: formatCurrency(paidRevenue),
+      detail: "Chỉ tính payment PAID",
       icon: CreditCard,
+    },
+    {
+      label: "Lượt đánh giá",
+      value: formatNumber(overview?.totalReviews),
+      detail: `Điểm trung bình ${(overview?.averageRating || 0).toFixed(1)}/5`,
+      icon: Star,
     },
   ];
 
@@ -87,11 +118,12 @@ export default function BusinessDashboardPage() {
             Tổng quan vận hành
           </h2>
           <p className="mt-2 max-w-2xl text-slate-500">
-            Theo dõi xe, booking và doanh thu của doanh nghiệp trên BQDrive.
+            Theo dõi xe, booking, doanh thu và đánh giá của doanh nghiệp trên
+            BQDrive.
           </p>
         </div>
 
-        <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-extrabold text-emerald-700">
+        <div className="inline-flex items-center gap-2 rounded-lg border border-secondary/40 bg-secondarySoft px-4 py-3 text-sm font-extrabold text-primary">
           <ShieldCheck size={18} />
           {dashboard?.profile?.isApproved ? "Đã được duyệt" : "Đang chờ duyệt"}
         </div>
@@ -121,7 +153,7 @@ export default function BusinessDashboardPage() {
                         {card.value}
                       </p>
                     </div>
-                    <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary text-secondary">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-secondary">
                       <Icon size={22} />
                     </div>
                   </div>
@@ -147,29 +179,35 @@ export default function BusinessDashboardPage() {
                 <WalletCards size={24} className="text-secondary" />
               </div>
 
-              <div className="mt-5 grid gap-4 md:grid-cols-3">
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <div className="rounded-lg bg-slate-50 p-4">
                   <p className="text-sm font-bold text-slate-500">
-                    Hôm nay
+                    Đã thanh toán
                   </p>
                   <p className="mt-2 text-lg font-extrabold text-primary">
-                    {formatCurrency(dashboard?.revenueToday)}
+                    {formatCurrency(dashboard?.paymentStats?.paidAmount)}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-4">
+                  <p className="text-sm font-bold text-slate-500">Đang chờ</p>
+                  <p className="mt-2 text-lg font-extrabold text-primary">
+                    {formatCurrency(dashboard?.paymentStats?.pendingAmount)}
                   </p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-4">
                   <p className="text-sm font-bold text-slate-500">
-                    Tháng này
+                    Đã hoàn tiền
                   </p>
                   <p className="mt-2 text-lg font-extrabold text-primary">
-                    {formatCurrency(dashboard?.revenueThisMonth)}
+                    {formatCurrency(dashboard?.paymentStats?.refundedAmount)}
                   </p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-4">
                   <p className="text-sm font-bold text-slate-500">
-                    Tổng doanh thu
+                    Giao dịch lỗi
                   </p>
                   <p className="mt-2 text-lg font-extrabold text-primary">
-                    {formatCurrency(dashboard?.totalRevenue)}
+                    {formatNumber(dashboard?.paymentStats?.failedCount)}
                   </p>
                 </div>
               </div>
@@ -182,7 +220,8 @@ export default function BusinessDashboardPage() {
                     Booking đang xử lý
                   </h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    Booking chờ xác nhận cần duyệt, booking đã xác nhận cần bàn giao.
+                    Booking chờ xác nhận cần duyệt, booking đang thuê cần theo
+                    dõi bàn giao và hoàn tất.
                   </p>
                 </div>
                 <BarChart3 size={24} className="text-secondary" />
@@ -195,21 +234,27 @@ export default function BusinessDashboardPage() {
                     <span className="font-bold text-slate-600">Chờ xác nhận</span>
                   </div>
                   <span className="text-xl font-extrabold text-primary">
-                    {dashboard?.pendingBookings || 0}
+                    {formatNumber(overview?.pendingBookings)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-slate-50 p-4">
                   <div className="flex items-center gap-3">
-                    <CheckCircle2 size={20} className="text-emerald-600" />
-                    <span className="font-bold text-slate-600">Đã xác nhận</span>
+                    <CheckCircle2 size={20} className="text-secondary" />
+                    <span className="font-bold text-slate-600">Đang thuê</span>
                   </div>
                   <span className="text-xl font-extrabold text-primary">
-                    {dashboard?.confirmedBookings || 0}
+                    {formatNumber(overview?.inProgressBookings)}
                   </span>
                 </div>
               </div>
             </div>
           </section>
+
+          <DashboardReviewSections
+            topRatedCars={dashboard?.topRatedCars}
+            lowRatedCars={dashboard?.lowRatedCars}
+            mostReviewedCars={dashboard?.mostReviewedCars}
+          />
         </>
       )}
     </div>

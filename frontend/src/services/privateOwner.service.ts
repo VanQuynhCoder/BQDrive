@@ -1,4 +1,5 @@
 ﻿import api from "./api";
+import type { DashboardPaymentStats, RatedCar } from "./admin.service";
 
 export type PrivateOwnerStatus = "PENDING" | "APPROVED" | "REJECTED" | string;
 export type BookingStatus =
@@ -24,7 +25,7 @@ export type PrivateOwnerUser = {
   email: string;
   phone?: string;
   role?: string;
-  isBlocked?: boolean;
+  isBlocked: boolean;
 };
 
 export type PrivateOwnerBrand = {
@@ -40,10 +41,14 @@ export type PrivateOwnerProfile = {
   businessType?: string;
   phone?: string;
   address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
   description?: string;
-  isApproved?: boolean;
-  isRejected?: boolean;
-  userId?: PrivateOwnerUser;
+  isApproved: boolean;
+  isRejected: boolean;
+  userId: PrivateOwnerUser;
 };
 
 export type PrivateOwnerCar = {
@@ -51,10 +56,18 @@ export type PrivateOwnerCar = {
   name: string;
   type?: string;
   licensePlate?: string;
-  brandId?: PrivateOwnerBrand;
+  brandId: PrivateOwnerBrand;
   businessId?: PrivateOwnerProfile;
   pricePerDay?: number;
   pricePerHour?: number;
+  pricing?: {
+    weekdayPricePerDay?: number;
+    weekendPricePerDay?: number;
+    holidayPricePerDay?: number;
+    pricePerHour?: number;
+    weekendPricePerHour?: number;
+    holidayPricePerHour?: number;
+  };
   allowDailyRental?: boolean;
   allowHourlyRental?: boolean;
   rentalUnit?: RentalUnit | string;
@@ -63,15 +76,38 @@ export type PrivateOwnerCar = {
   transmission?: string;
   images?: string[];
   description?: string;
+  pickupAddress?: string;
+  pickupFormattedAddress?: string;
+  pickupPlaceId?: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  pickupProvince?: string;
+  pickupDistrict?: string;
+  pickupWard?: string;
+  pickupNote?: string;
+  address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
+  locationNote?: string;
+  latitude?: number;
+  longitude?: number;
+  deliveryEnabled?: boolean;
+  deliveryBaseFee?: number;
+  deliveryFeePerKm?: number;
+  deliveryMaxDistanceKm?: number;
+  deliveryNote?: string;
   status?: PrivateOwnerStatus;
   rejectReason?: string;
+  isHidden?: boolean;
   createdAt?: string;
 };
 
 export type PrivateOwnerBooking = {
   _id: string;
-  userId?: PrivateOwnerUser;
-  carId?: PrivateOwnerCar;
+  userId: PrivateOwnerUser;
+  carId: PrivateOwnerCar;
   startDate: string;
   endDate: string;
   totalPrice?: number;
@@ -83,14 +119,26 @@ export type PrivateOwnerBooking = {
   status: BookingStatus;
   note?: string;
   noShowReason?: string;
+  noShowAt?: string;
+  renterInfo?: {
+    fullName?: string;
+    phone?: string;
+    email?: string;
+    cccdNumber?: string;
+    cccdFrontImage?: string;
+    cccdBackImage?: string;
+    driverLicenseNumber?: string;
+    driverLicenseImage?: string;
+    note?: string;
+  };
   createdAt?: string;
   payment?: PrivateOwnerPayment | null;
 };
 
 export type PrivateOwnerPayment = {
   _id: string;
-  bookingId?: PrivateOwnerBooking;
-  userId?: PrivateOwnerUser;
+  bookingId: PrivateOwnerBooking;
+  userId: PrivateOwnerUser;
   amount: number;
   method?: string;
   status: PaymentStatus;
@@ -102,44 +150,104 @@ export type PrivateOwnerPayment = {
 
 export type PrivateOwnerDashboard = {
   totalCars: number;
+  totalConsignmentCars?: number;
   approvedCars: number;
   pendingCars: number;
   rejectedCars: number;
-  totalBookings: number;
+  rentedCars?: number;
+  hiddenCars?: number;
+  totalBookings?: number;
   pendingBookings: number;
   confirmedBookings: number;
   completedBookings: number;
+  inProgressBookings?: number;
   revenueToday: number;
   revenueThisMonth: number;
   totalRevenue: number;
+  totalPaidRevenue?: number;
+  totalReviews?: number;
+  averageRating?: number;
+  overview?: {
+    totalCars?: number;
+    totalConsignmentCars?: number;
+    pendingCars?: number;
+    approvedCars?: number;
+    rentedCars?: number;
+    rejectedCars?: number;
+    hiddenCars?: number;
+    totalBookings?: number;
+    pendingBookings?: number;
+    confirmedBookings?: number;
+    inProgressBookings?: number;
+    completedBookings?: number;
+    totalPaidRevenue?: number;
+    totalReviews?: number;
+    averageRating?: number;
+  };
+  paymentStats?: DashboardPaymentStats;
+  recentBookings?: Array<{
+    bookingId: string;
+    bookingCode: string;
+    carName: string;
+    renterName: string;
+    status: string;
+    totalPrice: number;
+    createdAt?: string;
+  }>;
+  topRatedCars?: RatedCar[];
+  lowRatedCars?: RatedCar[];
+  mostReviewedCars?: RatedCar[];
   profile?: PrivateOwnerProfile;
 };
 
 export type CreatePrivateOwnerCarData = {
-  brandId: string;
+  brandId?: string;
   name: string;
   type: string;
   licensePlate?: string;
   pricePerDay?: number;
   pricePerHour?: number;
+  pricing?: {
+    weekdayPricePerDay?: number;
+    weekendPricePerDay?: number;
+    holidayPricePerDay?: number;
+    pricePerHour?: number;
+    weekendPricePerHour?: number;
+    holidayPricePerHour?: number;
+  };
   allowDailyRental: boolean;
   allowHourlyRental: boolean;
   rentalUnit?: RentalUnit;
-  seats: number;
+  seats?: number;
   fuelType: FuelType;
   transmission?: string;
   images?: string[];
   description?: string;
+  pickupAddress?: string;
+  pickupFormattedAddress?: string;
+  pickupPlaceId?: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  pickupProvince?: string;
+  pickupDistrict?: string;
+  pickupWard?: string;
+  pickupNote?: string;
+  address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
+  locationNote?: string;
+  latitude?: number;
+  longitude?: number;
+  deliveryEnabled?: boolean;
+  deliveryBaseFee?: number;
+  deliveryFeePerKm?: number;
+  deliveryMaxDistanceKm?: number;
+  deliveryNote?: string;
 };
 
 export type UpdatePrivateOwnerCarData = Partial<CreatePrivateOwnerCarData>;
-
-export type UpdatePrivateOwnerProfileData = {
-  businessName: string;
-  phone?: string;
-  address?: string;
-  description?: string;
-};
 
 type ApiData<T> = {
   data: T;
@@ -151,36 +259,8 @@ function unwrap<T>(response: { data: ApiData<T> }) {
 
 export const privateOwnerService = {
   getDashboard: async () => {
-    const [carsRes, bookingsRes, paymentsRes] = await Promise.all([
-      api.get("/cars/getMyCars"),
-      api.get("/bookings/getBusinessBookings"),
-      api.get("/payments/getBusinessPayments"),
-    ]);
-
-    const cars = unwrap<{ cars: PrivateOwnerCar[] }>(carsRes).cars;
-    const bookings = unwrap<{ bookings: PrivateOwnerBooking[] }>(bookingsRes).bookings;
-    const payments = unwrap<{ payments: PrivateOwnerPayment[] }>(paymentsRes).payments;
-    const paidPayments = payments.filter((payment) => payment.status === "PAID");
-    const today = new Date().toISOString().slice(0, 10);
-    const currentMonth = new Date().toISOString().slice(0, 7);
-
-    return {
-      totalCars: cars.length,
-      approvedCars: cars.filter((car) => car.status === "APPROVED").length,
-      pendingCars: cars.filter((car) => car.status === "PENDING").length,
-      rejectedCars: cars.filter((car) => car.status === "REJECTED").length,
-      totalBookings: bookings.length,
-      pendingBookings: bookings.filter((booking) => ["PENDING", "REQUESTED"].includes(booking.status)).length,
-      confirmedBookings: bookings.filter((booking) => ["CONFIRMED", "OWNER_APPROVED", "PAID", "IN_PROGRESS"].includes(booking.status)).length,
-      completedBookings: bookings.filter((booking) => booking.status === "COMPLETED").length,
-      revenueToday: paidPayments
-        .filter((payment) => payment.paidAt?.slice(0, 10) === today)
-        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0),
-      revenueThisMonth: paidPayments
-        .filter((payment) => payment.paidAt?.slice(0, 7) === currentMonth)
-        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0),
-      totalRevenue: paidPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0),
-    } satisfies PrivateOwnerDashboard;
+    const res = await api.get("/dashboard/consignment/stats");
+    return unwrap<PrivateOwnerDashboard>(res);
   },
   getBrands: async () => {
     const res = await api.get("/brand/getAllBrand");
@@ -207,6 +287,16 @@ export const privateOwnerService = {
     return unwrap<{ car: PrivateOwnerCar }>(res).car;
   },
 
+  hideCar: async (id: string) => {
+    const res = await api.post(`/cars/hideCar/${id}`);
+    return unwrap<{ car: PrivateOwnerCar }>(res).car;
+  },
+
+  unhideCar: async (id: string) => {
+    const res = await api.post(`/cars/unhideCar/${id}`);
+    return unwrap<{ car: PrivateOwnerCar }>(res).car;
+  },
+
   getMyBookings: async () => {
     const res = await api.get("/bookings/getBusinessBookings");
     return unwrap<{ bookings: PrivateOwnerBooking[] }>(res).bookings;
@@ -229,6 +319,18 @@ export const privateOwnerService = {
     return unwrap<{ booking: PrivateOwnerBooking }>(res).booking;
   },
 
+  handoverBooking: async (id: string) => {
+    const res = await api.post(`/bookings/handoverBooking/${id}`);
+    return unwrap<{ booking: PrivateOwnerBooking }>(res).booking;
+  },
+
+  confirmRemainingCash: async (id: string, note?: string) => {
+    const res = await api.post(`/bookings/${id}/confirm-remaining-cash`, {
+      note,
+    });
+    return unwrap<{ booking: PrivateOwnerBooking }>(res).booking;
+  },
+
   noShowBooking: async (id: string, noShowReason?: string) => {
     const res = await api.post(`/bookings/noShowBooking/${id}`, {
       noShowReason,
@@ -240,14 +342,11 @@ export const privateOwnerService = {
     const res = await api.get("/payments/getBusinessPayments");
     return unwrap<{ payments: PrivateOwnerPayment[] }>(res).payments;
   },
-
-  getProfile: async () => {
-    const res = await api.get("/business/profile");
-    return unwrap<{ business: PrivateOwnerProfile }>(res).business;
-  },
-
-  updateProfile: async (data: UpdatePrivateOwnerProfileData) => {
-    const res = await api.post("/business/profile", data);
-    return unwrap<{ business: PrivateOwnerProfile }>(res).business;
-  },
 };
+
+
+
+
+
+
+

@@ -93,7 +93,7 @@ export default function AuthLayout({
               </div>
 
               <h1 className="text-4xl font-extrabold leading-tight">
-                Thuê xe linh hoạt cho mọi lịch trình.
+                Thuê xe linh hoạt cho mới lịch trình.
               </h1>
 
               <div className="mt-6 grid gap-4 text-sm leading-6 text-white/[0.85]">
@@ -163,3 +163,8 @@ export default function AuthLayout({
     </div>
   );
 }
+
+
+
+
+

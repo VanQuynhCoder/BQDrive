@@ -21,6 +21,48 @@ export type VerifyOtpData = {
   otp: string;
 };
 
+export type ResetPasswordData = {
+  email: string;
+  resetToken: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+export type CurrentUserProfile = {
+  _id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  avatar?: string;
+  address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
+  bio?: string;
+  role: string;
+  hasLocalPassword?: boolean;
+  createdAt?: string;
+};
+
+export type UpdateUserProfileData = {
+  name: string;
+  phone?: string;
+  avatar?: string;
+  address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
+  bio?: string;
+};
+
+export type ChangePasswordData = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
 function normalizeUserRole(role?: string) {
   const normalizedRole = role?.toUpperCase();
 
@@ -38,6 +80,19 @@ function normalizeUser<T extends { role?: string }>(user: T): T & { role: string
   };
 }
 
+function persistUser<T extends { role?: string }>(
+  user: T,
+  emitUpdate = true,
+): T & { role: string } {
+  const normalizedUser = normalizeUser(user);
+  localStorage.setItem("user", JSON.stringify(normalizedUser));
+  localStorage.setItem("role", normalizedUser.role);
+  if (emitUpdate) {
+    window.dispatchEvent(new Event("bqdrive:user-updated"));
+  }
+  return normalizedUser;
+}
+
 export const authService = {
   login: async (data: LoginData) => {
     const res = await api.post("/auth/login", data);
@@ -46,8 +101,7 @@ export const authService = {
     const user = normalizeUser(res.data.data.user);
 
     localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
-    localStorage.setItem("role", user.role);
+    persistUser(user);
 
     return {
       token,
@@ -70,6 +124,39 @@ export const authService = {
     return res.data;
   },
 
+  forgotPassword: async (email: string) => {
+    const res = await api.post("/auth/forgot-password", { email });
+    return res.data;
+  },
+
+  verifyResetOtp: async (email: string, otp: string) => {
+    const res = await api.post("/auth/verify-reset-otp", { email, otp });
+    return res.data;
+  },
+
+  resetPassword: async (data: ResetPasswordData) => {
+    const res = await api.post("/auth/reset-password", data);
+    return res.data;
+  },
+
+  getProfile: async () => {
+    const res = await api.get("/auth/profile");
+    return {
+      user: normalizeUser(res.data.data.user) as CurrentUserProfile,
+      business: res.data.data.business,
+    };
+  },
+
+  updateUserProfile: async (data: UpdateUserProfileData) => {
+    const res = await api.patch("/auth/profile", data);
+    return persistUser(res.data.data.user) as CurrentUserProfile;
+  },
+
+  changePassword: async (data: ChangePasswordData) => {
+    const res = await api.patch("/auth/change-password", data);
+    return res.data;
+  },
+
   googleLogin: async (data: { credential?: string; accessToken?: string }) => {
     const res = await api.post("/auth/google-login", data);
 
@@ -77,8 +164,7 @@ export const authService = {
     const user = normalizeUser(res.data.data.user);
 
     localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
-    localStorage.setItem("role", user.role);
+    persistUser(user);
 
     return {
       token,
@@ -97,11 +183,7 @@ export const authService = {
 
     if (!user) return null;
 
-    const parsedUser = normalizeUser(JSON.parse(user));
-    localStorage.setItem("user", JSON.stringify(parsedUser));
-    localStorage.setItem("role", parsedUser.role);
-
-    return parsedUser;
+    return persistUser(JSON.parse(user), false);
   },
 
   getToken: () => {
@@ -118,3 +200,7 @@ export const authService = {
     return role;
   },
 };
+
+
+
+

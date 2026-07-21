@@ -7,6 +7,7 @@ import { CarModel } from "../../models/car/car.model";
 import { PaymentModel } from "../../models/payment/payment.model";
 import { syncRentedCarStatuses } from "../../helper/car-status.helper";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
+import { cleanAddressText } from "../../helper/address.helper";
 import {
   BookingStatusEnum,
   BusinessTypeEnum,
@@ -14,6 +15,7 @@ import {
   PaymentStatusEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
+import { validatePhone } from "../../utils/validators";
 
 class BusinessRoute extends BaseRoute {
   constructor() {
@@ -34,6 +36,12 @@ class BusinessRoute extends BaseRoute {
     );
 
     this.router.post(
+      "/profile",
+      [this.authentication, this.roleGuard([UserRoleEnum.BUSINESS])],
+      this.route(this.updateProfile),
+    );
+
+    this.router.patch(
       "/profile",
       [this.authentication, this.roleGuard([UserRoleEnum.BUSINESS])],
       this.route(this.updateProfile),
@@ -242,57 +250,90 @@ class BusinessRoute extends BaseRoute {
 
   async updateProfile(req: Request, res: Response) {
     const authUser = (req as any).user;
-    const { businessName, phone, address, description } = req.body;
+    const businessName =
+      typeof req.body.businessName === "string"
+        ? req.body.businessName.trim()
+        : "";
+    const phone = validatePhone(req.body.phone);
+    const address =
+      typeof req.body.address === "string" ? req.body.address.trim() : "";
+    const description =
+      typeof req.body.description === "string"
+        ? req.body.description.trim()
+        : "";
+    const logo = cleanAddressText(req.body.logo);
+    const city = cleanAddressText(req.body.city);
+    const province = cleanAddressText(req.body.province) || city;
+    const district = cleanAddressText(req.body.district);
+    const ward = cleanAddressText(req.body.ward);
 
     if (!businessName || !phone || !address) {
       throw ErrorHelper.requestDataInvalid(
-        "Thieu businessName, phone hoac address",
+        "Thiếu businessName, phone hoặc address",
       );
     }
 
-    const business = await BusinessModel.findOneAndUpdate(
-      {
-        userId: authUser.userId,
-        isDeleted: false,
-      },
-      {
-        businessName,
-        phone,
-        address,
-        description,
-      },
-      { new: true },
-    ).populate("userId", "-password -otpCode");
+    const business = await BusinessModel.findOne({
+      userId: authUser.userId,
+      isDeleted: false,
+    });
 
     if (!business) {
       throw ErrorHelper.recordNotFound("Business");
     }
+
+    business.businessName = businessName;
+    business.phone = phone;
+    business.address = address;
+    business.city = city;
+    business.province = province;
+    business.district = district;
+    business.ward = ward;
+    business.description = description;
+    business.logo = logo;
+    await business.save();
 
     await UserModel.findByIdAndUpdate(authUser.userId, {
       name: businessName,
       phone,
     });
 
+    const updatedBusiness = await BusinessModel.findOne(
+      {
+        userId: authUser.userId,
+        isDeleted: false,
+      },
+    ).populate("userId", "-password -otpCode");
+
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Cap nhat thong tin thanh cong",
-      data: { business },
+      message: "Cập nhật thông tin thành công",
+      data: { business: updatedBusiness },
     });
   }
 
   async createBusinessAccount(req: Request, res: Response) {
     throw ErrorHelper.requestDataInvalid(
-      "Vui long tao doanh nghiep bang luong OTP tai /admin/business/create",
+      "Vui lòng tạo doanh nghiệp bằng luồng OTP tại /admin/business/create",
     );
   }
 
   async requestBusiness(req: Request, res: Response) {
     const authUser = (req as any).user;
-    const { businessName, phone, address, description } = req.body;
+    const {
+      businessName,
+      address,
+      description,
+      city,
+      province,
+      district,
+      ward,
+    } = req.body;
+    const phone = validatePhone(req.body.phone);
 
     if (!businessName) {
-      throw ErrorHelper.requestDataInvalid("Thieu businessName");
+      throw ErrorHelper.requestDataInvalid("Thiếu businessName");
     }
 
     const existedRequest = await BusinessModel.findOne({
@@ -302,7 +343,7 @@ class BusinessRoute extends BaseRoute {
 
     if (existedRequest) {
       throw ErrorHelper.requestDataInvalid(
-        "Ban da gui yeu cau hoac da la Business",
+        "Bạn đã gửi yêu cầu hoặc đã là Business",
       );
     }
 
@@ -311,6 +352,10 @@ class BusinessRoute extends BaseRoute {
       businessName,
       phone,
       address,
+      city: cleanAddressText(city),
+      province: cleanAddressText(province) || cleanAddressText(city),
+      district: cleanAddressText(district),
+      ward: cleanAddressText(ward),
       description,
       businessType: BusinessTypeEnum.INDIVIDUAL,
       isApproved: false,
@@ -319,7 +364,7 @@ class BusinessRoute extends BaseRoute {
     return res.status(201).json({
       status: 201,
       code: "201",
-      message: "Gui yeu cau tro thanh Business thanh cong",
+      message: "Gửi yêu cầu trở thành Business thành công",
       data: { business },
     });
   }
@@ -381,7 +426,7 @@ class BusinessRoute extends BaseRoute {
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Duyet Business thanh cong",
+      message: "Duyệt Business thành công",
       data: { business },
     });
   }
@@ -407,7 +452,7 @@ class BusinessRoute extends BaseRoute {
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Tu choi Business thanh cong",
+      message: "Từ chối Business thành công",
       data: { business },
     });
   }

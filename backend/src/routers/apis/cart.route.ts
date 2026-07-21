@@ -10,6 +10,7 @@ import {
   BookingStatusEnum,
   CarStatusEnum,
   CartStatusEnum,
+  OwnerTypeEnum,
   RentalModeEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
@@ -26,6 +27,17 @@ const BLOCKING_BOOKING_STATUSES = [
   BookingStatusEnum.CONFIRMED, // Trạng thái cũ
 ];
 const BOOKABLE_CAR_STATUSES = [CarStatusEnum.APPROVED, CarStatusEnum.RENTED];
+
+function assertUserIsNotCarOwner(car: any, userId: string) {
+  if (
+    car?.ownerType === OwnerTypeEnum.USER &&
+    String(car.ownerId || "") === String(userId)
+  ) {
+    throw ErrorHelper.requestDataInvalid(
+      "Không thể thuê xe do chính bạn sở hữu",
+    );
+  }
+}
 
 class CartRoute extends BaseRoute {
   constructor() {
@@ -123,7 +135,7 @@ class CartRoute extends BaseRoute {
     }
 
     if (!Object.values(RentalModeEnum).includes(rentalMode)) {
-      throw ErrorHelper.requestDataInvalid("Hinh thuc thue khong hop le");
+      throw ErrorHelper.requestDataInvalid("Hình thức thuê không hợp lệ");
     }
 
     const car = await CarModel.findOne({
@@ -136,6 +148,8 @@ class CartRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Xe");
     }
 
+    assertUserIsNotCarOwner(car, authUser.userId);
+
     const start = new Date(startDate);
     const end = new Date(endDate);
 
@@ -146,7 +160,7 @@ class CartRoute extends BaseRoute {
       throw ErrorHelper.requestDataInvalid("Ngày thuê không hợp lệ");
     }
 
-    const rentalResult = calculateRentalPrice(car, start, end, rentalMode);
+    const rentalResult = await calculateRentalPrice(car, start, end, rentalMode);
     const totalPrice = rentalResult.totalPrice;
 
     const expiredAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -158,6 +172,7 @@ class CartRoute extends BaseRoute {
       endDate: end,
       rentalMode: rentalResult.rentalMode,
       totalPrice,
+      pricingSnapshot: rentalResult.pricingSnapshot,
       expiredAt,
       status: CartStatusEnum.ACTIVE,
     });

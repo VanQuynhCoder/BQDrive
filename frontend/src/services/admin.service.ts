@@ -7,8 +7,13 @@ export type AdminUser = {
   name: string;
   email: string;
   phone?: string;
+  address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
   role: UserRole;
-  isBlocked?: boolean;
+  isBlocked: boolean;
   createdAt?: string;
 };
 
@@ -18,27 +23,16 @@ export type AdminBusiness = {
   businessType?: string;
   phone?: string;
   address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
   description?: string;
-  isApproved?: boolean;
-  isRejected?: boolean;
-  userId?: AdminUser;
-  carCount?: number;
-  totalCars?: number;
-  createdAt?: string;
-};
-
-export type PrivateOwnerRequest = {
-  _id: string;
-  userId?: AdminUser;
-  fullName: string;
-  phone: string;
-  identityNumber: string;
-  frontImage?: string;
-  backImage?: string;
-  address?: string;
-  reason?: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
-  adminNote?: string;
+  isApproved: boolean;
+  isRejected: boolean;
+  userId?: AdminUser | null;
+  carCount: number;
+  totalCars: number;
   createdAt?: string;
 };
 
@@ -55,33 +49,134 @@ export type AdminCar = {
   name: string;
   type?: string;
   licensePlate?: string;
-  brandId?: AdminBrand;
-  ownerId?: AdminUser | AdminBusiness | string;
+  brandId: AdminBrand;
+  ownerId: AdminUser | AdminBusiness | string;
   ownerType?: "USER" | "BUSINESS" | string;
   ownerModel?: "User" | "Business" | string;
   businessId?: AdminBusiness;
   pricePerDay?: number;
   pricePerHour?: number;
+  pricing?: {
+    weekdayPricePerDay?: number;
+    weekendPricePerDay?: number;
+    holidayPricePerDay?: number;
+    pricePerHour?: number;
+    weekendPricePerHour?: number;
+    holidayPricePerHour?: number;
+  };
   rentalUnit?: "DAY" | "HOUR" | string;
   seats?: number;
   fuelType?: string;
   transmission?: string;
   images?: string[];
   description?: string;
-  status?: "PENDING" | "APPROVED" | "REJECTED" | string;
+  pickupAddress?: string;
+  pickupFormattedAddress?: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  pickupNote?: string;
+  address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
+  locationNote?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | string;
   rejectReason?: string;
   createdAt?: string;
+};
+
+export type AdminHoliday = {
+  _id: string;
+  name: string;
+  date?: string;
+  startDate: string;
+  endDate: string;
+  type: "HOLIDAY" | string;
+  isActive: boolean;
+  note?: string;
+  createdAt?: string;
+};
+
+export type HolidayPayload = {
+  name: string;
+  startDate: string;
+  endDate: string;
+  isActive?: boolean;
+  note?: string;
 };
 
 export type DashboardStats = {
   totalUsers: number;
   totalBusinesses: number;
-  totalPrivateOwners?: number;
+  totalPrivateOwners: number;
+  totalConsignmentOwners: number;
   totalCars: number;
   pendingCars: number;
-  pendingBookings?: number;
+  pendingConsignmentCars: number;
+  pendingBusinessCars: number;
+  pendingBookings: number;
   totalBookings?: number;
   revenue?: number;
+  businessRevenue?: number;
+  userConsignmentRevenue?: number;
+  approvedCars?: number;
+  rentedCars?: number;
+  rejectedCars?: number;
+  hiddenCars?: number;
+  completedBookings?: number;
+  cancelledBookings?: number;
+  noShowBookings?: number;
+  totalPaidRevenue?: number;
+  totalReviews?: number;
+  averageRating?: number;
+  overview?: DashboardOverview;
+  bookingStatusStats?: Array<{ status: string; count: number }>;
+  carStatusStats?: Array<{ status: string; count: number }>;
+  paymentStats?: DashboardPaymentStats;
+  topRatedCars?: RatedCar[];
+  lowRatedCars?: RatedCar[];
+  mostReviewedCars?: RatedCar[];
+};
+
+export type DashboardOverview = {
+  totalUsers?: number;
+  totalBusinesses?: number;
+  totalCars?: number;
+  pendingCars?: number;
+  approvedCars?: number;
+  rentedCars?: number;
+  rejectedCars?: number;
+  hiddenCars?: number;
+  totalBookings?: number;
+  pendingBookings?: number;
+  completedBookings?: number;
+  cancelledBookings?: number;
+  noShowBookings?: number;
+  totalPaidRevenue?: number;
+  totalReviews?: number;
+  averageRating?: number;
+  totalConsignmentOwners?: number;
+  pendingConsignmentCars?: number;
+  pendingBusinessCars?: number;
+};
+
+export type DashboardPaymentStats = {
+  paidAmount: number;
+  pendingAmount: number;
+  failedCount: number;
+  refundedAmount: number;
+};
+
+export type RatedCar = {
+  carId: string;
+  carName: string;
+  licensePlate?: string;
+  image?: string;
+  ownerName?: string;
+  averageRating: number;
+  reviewCount: number;
+  latestReviewAt?: string;
 };
 
 export type SendBusinessOtpData = {
@@ -97,18 +192,18 @@ export type CreateBusinessData = {
   businessName: string;
   email: string;
   password: string;
-  phone: string;
-  address: string;
+  phone?: string;
+  address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
   description?: string;
 };
 
 type UsersParams = {
   role?: string;
   keyword?: string;
-};
-
-type PrivateOwnerParams = {
-  status?: string;
 };
 
 type CarsParams = {
@@ -129,11 +224,11 @@ function unwrap<T>(response: { data: ApiData<T> }) {
 
 export const adminService = {
   getDashboardStats: async () => {
-    const res = await api.get("/dashboard/admin");
+    const res = await api.get("/dashboard/admin/stats");
     return unwrap<DashboardStats>(res);
   },
 
-  getUsers: async (params?: UsersParams) => {
+  getUsers: async (params: UsersParams = {}) => {
     const res = await api.get("/admin/users", { params });
     return unwrap<{ users: AdminUser[] }>(res).users;
   },
@@ -197,23 +292,6 @@ export const adminService = {
     return unwrap<{ business: AdminBusiness }>(res).business;
   },
 
-  getPrivateOwnerRequests: async (params?: PrivateOwnerParams) => {
-    void params;
-    return [] as PrivateOwnerRequest[];
-  },
-
-  approvePrivateOwner: async (id: string, adminNote?: string) => {
-    void id;
-    void adminNote;
-    throw new Error("Luồng yêu cầu chủ xe cũ đã bị gỡ");
-  },
-
-  rejectPrivateOwner: async (id: string, adminNote: string) => {
-    void id;
-    void adminNote;
-    throw new Error("Luồng yêu cầu chủ xe cũ đã bị gỡ");
-  },
-
   getBrands: async () => {
     const res = await api.get("/brand/getAllBrand");
     return unwrap<{ brands: AdminBrand[] }>(res).brands;
@@ -242,7 +320,7 @@ export const adminService = {
     return unwrap<{ cars: AdminCar[] }>(res).cars;
   },
 
-  getCars: async (params?: CarsParams) => {
+  getCars: async (params: CarsParams = {}) => {
     const res = await api.get("/cars/getAllCars", { params });
     return unwrap<{ cars: AdminCar[] }>(res).cars;
   },
@@ -256,4 +334,35 @@ export const adminService = {
     const res = await api.post(`/cars/rejectCar/${id}`, { rejectReason });
     return unwrap<{ car: AdminCar }>(res).car;
   },
+
+  getHolidays: async () => {
+    const res = await api.get("/admin/holidays");
+    return unwrap<{ holidays: AdminHoliday[] }>(res).holidays;
+  },
+
+  createHoliday: async (data: HolidayPayload) => {
+    const res = await api.post("/admin/holidays", data);
+    return unwrap<{ holiday: AdminHoliday }>(res).holiday;
+  },
+
+  updateHoliday: async (id: string, data: HolidayPayload) => {
+    const res = await api.put(`/admin/holidays/${id}`, data);
+    return unwrap<{ holiday: AdminHoliday }>(res).holiday;
+  },
+
+  toggleHoliday: async (id: string) => {
+    const res = await api.patch(`/admin/holidays/${id}/toggle`);
+    return unwrap<{ holiday: AdminHoliday }>(res).holiday;
+  },
+
+  deleteHoliday: async (id: string) => {
+    const res = await api.delete(`/admin/holidays/${id}`);
+    return unwrap<{ holiday: AdminHoliday }>(res).holiday;
+  },
 };
+
+
+
+
+
+

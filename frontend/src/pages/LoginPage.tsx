@@ -149,7 +149,7 @@ export default function LoginPage() {
         </label>
 
         {error && (
-          <div className="flex items-start gap-3 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+          <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800">
             <AlertCircle size={18} className="mt-0.5 shrink-0" />
             <p>{error}</p>
           </div>
@@ -164,12 +164,12 @@ export default function LoginPage() {
             Ghi nhớ đăng nhập
           </label>
 
-          <button
-            type="button"
+          <Link
+            to="/forgot-password"
             className="w-fit text-sm font-extrabold text-secondary transition hover:text-secondaryLight"
           >
             Quên mật khẩu?
-          </button>
+          </Link>
         </div>
 
         <button
@@ -224,3 +224,8 @@ export default function LoginPage() {
     </AuthLayout>
   );
 }
+
+
+
+
+

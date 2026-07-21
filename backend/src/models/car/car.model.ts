@@ -18,8 +18,17 @@ export type ICar = BaseDocument & {
   name: string;
   type: string;
   licensePlate?: string;
+  plateNumberNormalized?: string;
   pricePerDay?: number;
   pricePerHour?: number;
+  pricing?: {
+    weekdayPricePerDay?: number;
+    weekendPricePerDay?: number;
+    holidayPricePerDay?: number;
+    pricePerHour?: number;
+    weekendPricePerHour?: number;
+    holidayPricePerHour?: number;
+  };
   allowDailyRental?: boolean;
   allowHourlyRental?: boolean;
   rentalUnit: string;
@@ -28,8 +37,49 @@ export type ICar = BaseDocument & {
   transmission?: string;
   images?: string[];
   description?: string;
+  pickupAddress?: string;
+  pickupFormattedAddress?: string;
+  pickupPlaceId?: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  pickupProvince?: string;
+  pickupDistrict?: string;
+  pickupWard?: string;
+  pickupNote?: string;
+  pickupLocationText?: string;
+  address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
+  locationNote?: string;
+  latitude?: number;
+  longitude?: number;
+  lastLocationUpdatedAt?: Date;
+  lastLocationUpdatedBy?: mongoose.Types.ObjectId;
+  lastLocationUpdatedByRole?: OwnerTypeEnum;
+  locationUpdateCount?: number;
+  locationHistory?: Array<{
+    oldLat?: number;
+    oldLng?: number;
+    newLat: number;
+    newLng: number;
+    oldAddress?: string;
+    newAddress?: string;
+    updatedBy: mongoose.Types.ObjectId;
+    updatedByRole: OwnerTypeEnum;
+    updatedAt: Date;
+  }>;
+  deliveryEnabled?: boolean;
+  deliveryBaseFee?: number;
+  deliveryFeePerKm?: number;
+  deliveryMaxDistanceKm?: number;
+  deliveryNote?: string;
   status: string;
   rejectReason?: string;
+  isHidden?: boolean;
+  hiddenByOwner?: boolean;
+  hiddenByAdmin?: boolean;
   isDeleted?: boolean;
 };
 
@@ -73,6 +123,12 @@ const carSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    plateNumberNormalized: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      index: true,
+    },
     pricePerDay: {
       type: Number,
       min: 0,
@@ -80,6 +136,32 @@ const carSchema = new mongoose.Schema(
     pricePerHour: {
       type: Number,
       min: 0,
+    },
+    pricing: {
+      weekdayPricePerDay: {
+        type: Number,
+        min: 0,
+      },
+      weekendPricePerDay: {
+        type: Number,
+        min: 0,
+      },
+      holidayPricePerDay: {
+        type: Number,
+        min: 0,
+      },
+      pricePerHour: {
+        type: Number,
+        min: 0,
+      },
+      weekendPricePerHour: {
+        type: Number,
+        min: 0,
+      },
+      holidayPricePerHour: {
+        type: Number,
+        min: 0,
+      },
     },
     allowDailyRental: {
       type: Boolean,
@@ -115,6 +197,152 @@ const carSchema = new mongoose.Schema(
     description: {
       type: String,
     },
+    pickupAddress: {
+      type: String,
+      trim: true,
+    },
+    pickupFormattedAddress: {
+      type: String,
+      trim: true,
+    },
+    pickupPlaceId: {
+      type: String,
+      trim: true,
+    },
+    pickupLat: {
+      type: Number,
+    },
+    pickupLng: {
+      type: Number,
+    },
+    pickupProvince: {
+      type: String,
+      trim: true,
+    },
+    pickupDistrict: {
+      type: String,
+      trim: true,
+    },
+    pickupWard: {
+      type: String,
+      trim: true,
+    },
+    pickupNote: {
+      type: String,
+      trim: true,
+    },
+    pickupLocationText: {
+      type: String,
+      trim: true,
+    },
+    address: {
+      type: String,
+      trim: true,
+    },
+    province: {
+      type: String,
+      trim: true,
+    },
+    city: {
+      type: String,
+      trim: true,
+    },
+    district: {
+      type: String,
+      trim: true,
+    },
+    ward: {
+      type: String,
+      trim: true,
+    },
+    locationNote: {
+      type: String,
+      trim: true,
+    },
+    latitude: {
+      type: Number,
+    },
+    longitude: {
+      type: Number,
+    },
+    lastLocationUpdatedAt: {
+      type: Date,
+    },
+    lastLocationUpdatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    lastLocationUpdatedByRole: {
+      type: String,
+      enum: [OwnerTypeEnum.BUSINESS, OwnerTypeEnum.USER],
+    },
+    locationUpdateCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    locationHistory: [
+      {
+        oldLat: {
+          type: Number,
+        },
+        oldLng: {
+          type: Number,
+        },
+        newLat: {
+          type: Number,
+          required: true,
+        },
+        newLng: {
+          type: Number,
+          required: true,
+        },
+        oldAddress: {
+          type: String,
+          trim: true,
+        },
+        newAddress: {
+          type: String,
+          trim: true,
+        },
+        updatedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        updatedByRole: {
+          type: String,
+          enum: [OwnerTypeEnum.BUSINESS, OwnerTypeEnum.USER],
+          required: true,
+        },
+        updatedAt: {
+          type: Date,
+          required: true,
+        },
+      },
+    ],
+    deliveryEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    deliveryBaseFee: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    deliveryFeePerKm: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    deliveryMaxDistanceKm: {
+      type: Number,
+      min: 0,
+    },
+    deliveryNote: {
+      type: String,
+      trim: true,
+    },
     status: {
       type: String,
       enum: Object.values(CarStatusEnum),
@@ -122,6 +350,18 @@ const carSchema = new mongoose.Schema(
     },
     rejectReason: {
       type: String,
+    },
+    isHidden: {
+      type: Boolean,
+      default: false,
+    },
+    hiddenByOwner: {
+      type: Boolean,
+      default: false,
+    },
+    hiddenByAdmin: {
+      type: Boolean,
+      default: false,
     },
     isDeleted: {
       type: Boolean,

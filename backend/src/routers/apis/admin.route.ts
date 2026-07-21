@@ -5,16 +5,29 @@ import { UserModel } from "../../models/user/user.model";
 import { BusinessModel } from "../../models/business/business.model";
 import { CarModel } from "../../models/car/car.model";
 import { BookingModel } from "../../models/booking/booking.model";
+import { ContractModel } from "../../models/contract/contract.model";
+import { PaymentModel } from "../../models/payment/payment.model";
 import { sendOtpMail } from "../../helper/mail.helper";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
+import { cleanAddressText } from "../../helper/address.helper";
 import {
   BookingStatusEnum,
   BusinessTypeEnum,
+  ContractStatusEnum,
+  OwnerTypeEnum,
+  PaymentStatusEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
+import { validatePhone } from "../../utils/validators";
 
 const ACTIVE_BOOKING_STATUSES = [
+  BookingStatusEnum.REQUESTED,
+  BookingStatusEnum.OWNER_APPROVED,
+  BookingStatusEnum.PAYMENT_PENDING,
+  BookingStatusEnum.PAID,
+  BookingStatusEnum.IN_PROGRESS,
   BookingStatusEnum.PENDING,
+  BookingStatusEnum.WAITING_PAYMENT,
   BookingStatusEnum.CONFIRMED,
 ];
 const TEMP_BUSINESS_NAME = "TEMP_BUSINESS";
@@ -111,11 +124,41 @@ class AdminRoute extends BaseRoute {
       .populate("userId", "-password -otpCode")
       .sort({ createdAt: -1 });
 
+    const businessIds = businesses.map((business) => business._id);
+    const carCountRows = await CarModel.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          $or: [
+            { businessId: { $in: businessIds } },
+            {
+              ownerId: { $in: businessIds },
+              ownerType: OwnerTypeEnum.BUSINESS,
+            },
+          ],
+        },
+      },
+      {
+        $group: {
+          _id: { $ifNull: ["$businessId", "$ownerId"] },
+          totalCars: { $sum: 1 },
+        },
+      },
+    ]);
+    const carCountByBusinessId = new Map(
+      carCountRows.map((item) => [String(item._id), Number(item.totalCars)]),
+    );
+    const businessesWithCounts = businesses.map((business) => ({
+      ...business.toObject(),
+      carCount: carCountByBusinessId.get(String(business._id)) || 0,
+      totalCars: carCountByBusinessId.get(String(business._id)) || 0,
+    }));
+
     return res.status(200).json({
       status: 200,
       code: "200",
       message: "success",
-      data: { businesses },
+      data: { businesses: businessesWithCounts },
     });
   }
 
@@ -225,14 +268,17 @@ class AdminRoute extends BaseRoute {
     const email = this.normalizeEmail(req.body.email);
     const password =
       typeof req.body.password === "string" ? req.body.password : "";
-    const phone =
-      typeof req.body.phone === "string" ? req.body.phone.trim() : "";
+    const phone = validatePhone(req.body.phone);
     const address =
       typeof req.body.address === "string" ? req.body.address.trim() : "";
     const description =
       typeof req.body.description === "string"
         ? req.body.description.trim()
         : "";
+    const city = cleanAddressText(req.body.city);
+    const province = cleanAddressText(req.body.province) || city;
+    const district = cleanAddressText(req.body.district);
+    const ward = cleanAddressText(req.body.ward);
 
     if (!businessName || !email || !password || !phone || !address) {
       throw ErrorHelper.requestDataInvalid(
@@ -283,6 +329,10 @@ class AdminRoute extends BaseRoute {
       businessName,
       phone,
       address,
+      city,
+      province,
+      district,
+      ward,
       description,
       businessType: BusinessTypeEnum.COMPANY,
       isApproved: true,
@@ -367,6 +417,153 @@ class AdminRoute extends BaseRoute {
     return !!booking;
   }
 
+  private buildBusinessWorkFilter(businessId: string, carIds: unknown[]) {
+    return {
+      $or: [
+        { businessId },
+        {
+          ownerId: businessId,
+          ownerType: OwnerTypeEnum.BUSINESS,
+        },
+        ...(carIds.length > 0 ? [{ carId: { $in: carIds } }] : []),
+      ],
+    };
+  }
+
+  private async getBusinessActiveWorkBlockReason(businessId: string) {
+    await expireAbandonedPendingBookings();
+
+    const carIds = await CarModel.distinct("_id", {
+      isDeleted: false,
+      $or: [
+        { businessId },
+        {
+          ownerId: businessId,
+          ownerType: OwnerTypeEnum.BUSINESS,
+        },
+      ],
+    } as any);
+    const businessWorkFilter = this.buildBusinessWorkFilter(businessId, carIds);
+
+    const activeBooking = await BookingModel.findOne({
+      ...businessWorkFilter,
+      status: { $in: ACTIVE_BOOKING_STATUSES },
+      isDeleted: false,
+    } as any).select("_id");
+
+    if (activeBooking) {
+      return "đang có booking thuê xe chưa hoàn tất";
+    }
+
+    const activeContract = await ContractModel.findOne({
+      ...businessWorkFilter,
+      status: ContractStatusEnum.ACTIVE,
+      isDeleted: false,
+    } as any).select("_id");
+
+    if (activeContract) {
+      return "đang có hợp đồng thuê xe còn hiệu lực";
+    }
+
+    const bookingIds = await BookingModel.distinct("_id", {
+      ...businessWorkFilter,
+      isDeleted: false,
+    } as any);
+
+    if (bookingIds.length === 0) {
+      return "";
+    }
+
+    const pendingPayment = await PaymentModel.findOne({
+      bookingId: { $in: bookingIds },
+      status: PaymentStatusEnum.PENDING,
+    } as any).select("_id");
+
+    if (pendingPayment) {
+      return "đang có thanh toán chưa hoàn tất";
+    }
+
+    return "";
+  }
+
+  private async hideCarsByAdmin(filter: Record<string, unknown>) {
+    await CarModel.updateMany(
+      filter as any,
+      {
+        hiddenByAdmin: true,
+        isHidden: true,
+      } as any,
+    );
+  }
+
+  private async restoreCarsAfterAdminUnblock(filter: Record<string, unknown>) {
+    const cars = await CarModel.find(filter as any).select("_id hiddenByOwner");
+
+    if (cars.length === 0) {
+      return;
+    }
+
+    await CarModel.bulkWrite(
+      cars.map((car) => ({
+        updateOne: {
+          filter: { _id: car._id },
+          update: {
+            $set: {
+              hiddenByAdmin: false,
+              isHidden: Boolean((car as any).hiddenByOwner),
+            },
+          } as any,
+        },
+      })),
+    );
+  }
+
+  private async checkUserOwnedCarsHaveActiveWork(userId: string) {
+    await expireAbandonedPendingBookings();
+
+    const carIds = await CarModel.distinct("_id", {
+      ownerId: userId,
+      ownerType: OwnerTypeEnum.USER,
+      isDeleted: false,
+    } as any);
+
+    if (carIds.length === 0) {
+      return false;
+    }
+
+    const [activeBooking, activeContract, bookingIds] = await Promise.all([
+      BookingModel.findOne({
+        carId: { $in: carIds },
+        status: { $in: ACTIVE_BOOKING_STATUSES },
+        isDeleted: false,
+      } as any).select("_id"),
+      ContractModel.findOne({
+        carId: { $in: carIds },
+        status: ContractStatusEnum.ACTIVE,
+        isDeleted: false,
+      } as any).select("_id"),
+      BookingModel.distinct("_id", {
+        carId: { $in: carIds },
+        isDeleted: false,
+      } as any),
+    ]);
+
+    if (activeBooking || activeContract) {
+      return true;
+    }
+
+    if (bookingIds.length === 0) {
+      return false;
+    }
+
+    const pendingPayment = await PaymentModel.findOne({
+      bookingId: { $in: bookingIds },
+      status: PaymentStatusEnum.PENDING,
+    } as any).select("_id");
+
+    return !!pendingPayment;
+  }
+
   async blockUser(req: Request, res: Response) {
     const authUser = (req as any).user;
     const id = String(req.params.id);
@@ -381,7 +578,11 @@ class AdminRoute extends BaseRoute {
       isDeleted: false,
     });
 
-    if (!user) throw ErrorHelper.userNotExist();
+    if (!user) {
+      throw ErrorHelper.requestDataInvalid(
+        "Tài khoản đăng nhập của doanh nghiệp không còn tồn tại. Không thể mở khóa doanh nghiệp mồ côi.",
+      );
+    }
 
     if (user.role === UserRoleEnum.ADMIN) {
       throw ErrorHelper.permissionDeny();
@@ -393,6 +594,33 @@ class AdminRoute extends BaseRoute {
       throw ErrorHelper.requestDataInvalid(
         "Không thể khóa tài khoản đang có booking PENDING hoặc CONFIRMED",
       );
+    }
+
+    if (user.role === UserRoleEnum.USER) {
+      const hasActiveConsignmentWork =
+        await this.checkUserOwnedCarsHaveActiveWork(id);
+
+      if (hasActiveConsignmentWork) {
+        throw ErrorHelper.requestDataInvalid(
+          "Không thể khóa tài khoản đang có xe ký gửi phát sinh booking, hợp đồng hoặc thanh toán chưa đóng",
+        );
+      }
+    }
+
+    if (user.role === UserRoleEnum.BUSINESS) {
+      const business = await BusinessModel.findOne({
+        userId: user._id,
+        isDeleted: false,
+      });
+      const activeReason = business
+        ? await this.getBusinessActiveWorkBlockReason(String(business._id))
+        : "";
+
+      if (activeReason) {
+        throw ErrorHelper.requestDataInvalid(
+          `Không thể khóa doanh nghiệp vì ${activeReason}`,
+        );
+      }
     }
 
     user.isBlocked = true;
@@ -409,13 +637,10 @@ class AdminRoute extends BaseRoute {
       });
 
       if (business) {
-        await CarModel.updateMany(
+        await this.hideCarsByAdmin(
           {
             businessId: business._id,
             isDeleted: false,
-          },
-          {
-            isHidden: true,
           } as any,
         );
       }
@@ -437,7 +662,11 @@ class AdminRoute extends BaseRoute {
       isDeleted: false,
     });
 
-    if (!user) throw ErrorHelper.userNotExist();
+    if (!user) {
+      throw ErrorHelper.requestDataInvalid(
+        "Tài khoản đăng nhập của doanh nghiệp không còn tồn tại. Không thể mở khóa doanh nghiệp mồ côi.",
+      );
+    }
 
     if (user.role === UserRoleEnum.ADMIN) {
       throw ErrorHelper.permissionDeny();
@@ -457,13 +686,10 @@ class AdminRoute extends BaseRoute {
       });
 
       if (business) {
-        await CarModel.updateMany(
+        await this.restoreCarsAfterAdminUnblock(
           {
             businessId: business._id,
             isDeleted: false,
-          },
-          {
-            isHidden: false,
           } as any,
         );
       }
@@ -505,6 +731,17 @@ class AdminRoute extends BaseRoute {
       );
     }
 
+    if (user.role === UserRoleEnum.USER) {
+      const hasActiveConsignmentWork =
+        await this.checkUserOwnedCarsHaveActiveWork(id);
+
+      if (hasActiveConsignmentWork) {
+        throw ErrorHelper.requestDataInvalid(
+          "Không thể xóa tài khoản đang có xe ký gửi phát sinh booking, hợp đồng hoặc thanh toán chưa đóng",
+        );
+      }
+    }
+
     if (user.role === UserRoleEnum.BUSINESS) {
       const business = await BusinessModel.findOne({
         userId: user._id,
@@ -512,12 +749,13 @@ class AdminRoute extends BaseRoute {
       });
 
       if (business) {
-        const businessHasActiveBooking =
-          await this.checkBusinessHasActiveBooking(String(business._id));
+        const activeReason = await this.getBusinessActiveWorkBlockReason(
+          String(business._id),
+        );
 
-        if (businessHasActiveBooking) {
+        if (activeReason) {
           throw ErrorHelper.requestDataInvalid(
-            "Không thể xóa doanh nghiệp đang có booking PENDING hoặc CONFIRMED",
+            `Không thể xóa doanh nghiệp vì ${activeReason}`,
           );
         }
 
@@ -574,7 +812,19 @@ class AdminRoute extends BaseRoute {
       isDeleted: false,
     });
 
-    if (!user) throw ErrorHelper.userNotExist();
+    if (!user) {
+      throw ErrorHelper.requestDataInvalid(
+        "Tài khoản đăng nhập của doanh nghiệp không còn tồn tại. Vui lòng xóa doanh nghiệp mồ côi này thay vì khóa.",
+      );
+    }
+
+    const activeReason = await this.getBusinessActiveWorkBlockReason(id);
+
+    if (activeReason) {
+      throw ErrorHelper.requestDataInvalid(
+        `Không thể khóa doanh nghiệp vì ${activeReason}`,
+      );
+    }
 
     user.isBlocked = true;
     user.blockedReason = reason;
@@ -583,13 +833,10 @@ class AdminRoute extends BaseRoute {
 
     await user.save();
 
-    await CarModel.updateMany(
+    await this.hideCarsByAdmin(
       {
         businessId: business._id,
         isDeleted: false,
-      },
-      {
-        isHidden: true,
       } as any,
     );
 
@@ -627,13 +874,10 @@ class AdminRoute extends BaseRoute {
 
     await user.save();
 
-    await CarModel.updateMany(
+    await this.restoreCarsAfterAdminUnblock(
       {
         businessId: business._id,
         isDeleted: false,
-      },
-      {
-        isHidden: false,
       } as any,
     );
 
@@ -663,11 +907,11 @@ class AdminRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Business");
     }
 
-    const hasActiveBooking = await this.checkBusinessHasActiveBooking(id);
+    const activeReason = await this.getBusinessActiveWorkBlockReason(id);
 
-    if (hasActiveBooking) {
+    if (activeReason) {
       throw ErrorHelper.requestDataInvalid(
-        "Không thể xóa doanh nghiệp đang có booking PENDING hoặc CONFIRMED",
+        `Không thể xóa doanh nghiệp vì ${activeReason}`,
       );
     }
 
@@ -676,32 +920,40 @@ class AdminRoute extends BaseRoute {
       isDeleted: false,
     });
 
-    if (!user) throw ErrorHelper.userNotExist();
-
     business.isDeleted = true;
     await business.save();
 
     await CarModel.updateMany(
       {
-        businessId: business._id,
+        $or: [
+          { businessId: business._id },
+          {
+            ownerId: business._id,
+            ownerType: OwnerTypeEnum.BUSINESS,
+          },
+        ],
         isDeleted: false,
-      },
+      } as any,
       {
         isDeleted: true,
       },
     );
 
-    user.isDeleted = true;
-    user.deletedReason = reason;
-    user.deletedAt = new Date();
-    user.deletedBy = authUser.userId;
+    if (user) {
+      user.isDeleted = true;
+      user.deletedReason = reason;
+      user.deletedAt = new Date();
+      user.deletedBy = authUser.userId;
 
-    await user.save();
+      await user.save();
+    }
 
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Xóa mềm doanh nghiệp thành công",
+      message: user
+        ? "Xóa mềm doanh nghiệp thành công"
+        : "Xóa mềm doanh nghiệp mồ côi thành công",
       data: { business, user },
     });
   }

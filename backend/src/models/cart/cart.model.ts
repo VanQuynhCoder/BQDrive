@@ -9,6 +9,24 @@ export type ICart = BaseDocument & {
   endDate: Date;
   rentalMode: string;
   totalPrice: number;
+  pricingSnapshot?: {
+    rentalMode: string;
+    weekdayPricePerDay?: number;
+    weekendPricePerDay?: number;
+    holidayPricePerDay?: number;
+    pricePerHour?: number;
+    weekendPricePerHour?: number;
+    holidayPricePerHour?: number;
+    breakdown?: Array<{
+      date: string;
+      type: string;
+      label?: string;
+      unitCount: number;
+      unitPrice: number;
+      price: number;
+    }>;
+    subtotal: number;
+  };
   expiredAt: Date;
   status: string;
 };
@@ -43,6 +61,9 @@ const cartSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
+    },
+    pricingSnapshot: {
+      type: mongoose.Schema.Types.Mixed,
     },
     expiredAt: {
       type: Date,

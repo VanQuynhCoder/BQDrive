@@ -1,4 +1,5 @@
 ﻿import api from "./api";
+import type { DashboardPaymentStats, RatedCar } from "./admin.service";
 
 export type BusinessStatus = "PENDING" | "APPROVED" | "REJECTED" | string;
 export type BookingStatus =
@@ -24,7 +25,7 @@ export type BusinessUser = {
   email: string;
   phone?: string;
   role?: string;
-  isBlocked?: boolean;
+  isBlocked: boolean;
 };
 
 export type BusinessBrand = {
@@ -40,10 +41,15 @@ export type BusinessProfile = {
   businessType?: string;
   phone?: string;
   address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
   description?: string;
-  isApproved?: boolean;
-  isRejected?: boolean;
-  userId?: BusinessUser;
+  logo?: string;
+  isApproved: boolean;
+  isRejected: boolean;
+  userId: BusinessUser;
 };
 
 export type BusinessCar = {
@@ -51,10 +57,18 @@ export type BusinessCar = {
   name: string;
   type?: string;
   licensePlate?: string;
-  brandId?: BusinessBrand;
+  brandId: BusinessBrand;
   businessId?: BusinessProfile;
   pricePerDay?: number;
   pricePerHour?: number;
+  pricing?: {
+    weekdayPricePerDay?: number;
+    weekendPricePerDay?: number;
+    holidayPricePerDay?: number;
+    pricePerHour?: number;
+    weekendPricePerHour?: number;
+    holidayPricePerHour?: number;
+  };
   allowDailyRental?: boolean;
   allowHourlyRental?: boolean;
   rentalUnit?: RentalUnit | string;
@@ -63,15 +77,38 @@ export type BusinessCar = {
   transmission?: string;
   images?: string[];
   description?: string;
+  pickupAddress?: string;
+  pickupFormattedAddress?: string;
+  pickupPlaceId?: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  pickupProvince?: string;
+  pickupDistrict?: string;
+  pickupWard?: string;
+  pickupNote?: string;
+  address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
+  locationNote?: string;
+  latitude?: number;
+  longitude?: number;
+  deliveryEnabled?: boolean;
+  deliveryBaseFee?: number;
+  deliveryFeePerKm?: number;
+  deliveryMaxDistanceKm?: number;
+  deliveryNote?: string;
   status?: BusinessStatus;
   rejectReason?: string;
+  isHidden?: boolean;
   createdAt?: string;
 };
 
 export type BusinessBooking = {
   _id: string;
-  userId?: BusinessUser;
-  carId?: BusinessCar;
+  userId: BusinessUser;
+  carId: BusinessCar;
   startDate: string;
   endDate: string;
   totalPrice?: number;
@@ -83,14 +120,26 @@ export type BusinessBooking = {
   status: BookingStatus;
   note?: string;
   noShowReason?: string;
+  noShowAt?: string;
+  renterInfo?: {
+    fullName?: string;
+    phone?: string;
+    email?: string;
+    cccdNumber?: string;
+    cccdFrontImage?: string;
+    cccdBackImage?: string;
+    driverLicenseNumber?: string;
+    driverLicenseImage?: string;
+    note?: string;
+  };
   createdAt?: string;
   payment?: BusinessPayment | null;
 };
 
 export type BusinessPayment = {
   _id: string;
-  bookingId?: BusinessBooking;
-  userId?: BusinessUser;
+  bookingId: BusinessBooking;
+  userId: BusinessUser;
   amount: number;
   method?: string;
   status: PaymentStatus;
@@ -105,31 +154,96 @@ export type BusinessDashboard = {
   approvedCars: number;
   pendingCars: number;
   rejectedCars: number;
-  totalBookings: number;
+  rentedCars?: number;
+  hiddenCars?: number;
+  totalBookings?: number;
   pendingBookings: number;
   confirmedBookings: number;
   completedBookings: number;
+  inProgressBookings?: number;
   revenueToday: number;
   revenueThisMonth: number;
   totalRevenue: number;
+  totalPaidRevenue?: number;
+  totalReviews?: number;
+  averageRating?: number;
+  overview?: {
+    totalCars?: number;
+    pendingCars?: number;
+    approvedCars?: number;
+    rentedCars?: number;
+    rejectedCars?: number;
+    hiddenCars?: number;
+    totalBookings?: number;
+    pendingBookings?: number;
+    confirmedBookings?: number;
+    inProgressBookings?: number;
+    completedBookings?: number;
+    totalPaidRevenue?: number;
+    totalReviews?: number;
+    averageRating?: number;
+  };
+  paymentStats?: DashboardPaymentStats;
+  recentBookings?: Array<{
+    bookingId: string;
+    bookingCode: string;
+    carName: string;
+    renterName: string;
+    status: string;
+    totalPrice: number;
+    createdAt?: string;
+  }>;
+  topRatedCars?: RatedCar[];
+  lowRatedCars?: RatedCar[];
+  mostReviewedCars?: RatedCar[];
   profile?: BusinessProfile;
 };
 
 export type CreateCarData = {
-  brandId: string;
+  brandId?: string;
   name: string;
   type: string;
   licensePlate?: string;
   pricePerDay?: number;
   pricePerHour?: number;
+  pricing?: {
+    weekdayPricePerDay?: number;
+    weekendPricePerDay?: number;
+    holidayPricePerDay?: number;
+    pricePerHour?: number;
+    weekendPricePerHour?: number;
+    holidayPricePerHour?: number;
+  };
   allowDailyRental: boolean;
   allowHourlyRental: boolean;
   rentalUnit?: RentalUnit;
-  seats: number;
+  seats?: number;
   fuelType: FuelType;
   transmission?: string;
   images?: string[];
   description?: string;
+  pickupAddress?: string;
+  pickupFormattedAddress?: string;
+  pickupPlaceId?: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  pickupProvince?: string;
+  pickupDistrict?: string;
+  pickupWard?: string;
+  pickupNote?: string;
+  address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
+  locationNote?: string;
+  latitude?: number;
+  longitude?: number;
+  deliveryEnabled?: boolean;
+  deliveryBaseFee?: number;
+  deliveryFeePerKm?: number;
+  deliveryMaxDistanceKm?: number;
+  deliveryNote?: string;
 };
 
 export type UpdateCarData = Partial<CreateCarData>;
@@ -138,7 +252,12 @@ export type UpdateBusinessProfileData = {
   businessName: string;
   phone?: string;
   address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
   description?: string;
+  logo?: string;
 };
 
 type ApiData<T> = {
@@ -151,7 +270,7 @@ function unwrap<T>(response: { data: ApiData<T> }) {
 
 export const businessService = {
   getDashboard: async () => {
-    const res = await api.get("/business/dashboard");
+    const res = await api.get("/dashboard/business/stats");
     return unwrap<BusinessDashboard>(res);
   },
 
@@ -180,6 +299,16 @@ export const businessService = {
     return unwrap<{ car: BusinessCar }>(res).car;
   },
 
+  hideCar: async (id: string) => {
+    const res = await api.post(`/cars/hideCar/${id}`);
+    return unwrap<{ car: BusinessCar }>(res).car;
+  },
+
+  unhideCar: async (id: string) => {
+    const res = await api.post(`/cars/unhideCar/${id}`);
+    return unwrap<{ car: BusinessCar }>(res).car;
+  },
+
   getMyBookings: async () => {
     const res = await api.get("/bookings/getBusinessBookings");
     return unwrap<{ bookings: BusinessBooking[] }>(res).bookings;
@@ -202,6 +331,18 @@ export const businessService = {
     return unwrap<{ booking: BusinessBooking }>(res).booking;
   },
 
+  handoverBooking: async (id: string) => {
+    const res = await api.post(`/bookings/handoverBooking/${id}`);
+    return unwrap<{ booking: BusinessBooking }>(res).booking;
+  },
+
+  confirmRemainingCash: async (id: string, note?: string) => {
+    const res = await api.post(`/bookings/${id}/confirm-remaining-cash`, {
+      note,
+    });
+    return unwrap<{ booking: BusinessBooking }>(res).booking;
+  },
+
   noShowBooking: async (id: string, noShowReason?: string) => {
     const res = await api.post(`/bookings/noShowBooking/${id}`, {
       noShowReason,
@@ -220,7 +361,13 @@ export const businessService = {
   },
 
   updateProfile: async (data: UpdateBusinessProfileData) => {
-    const res = await api.post("/business/profile", data);
+    const res = await api.patch("/business/profile", data);
     return unwrap<{ business: BusinessProfile }>(res).business;
   },
 };
+
+
+
+
+
+

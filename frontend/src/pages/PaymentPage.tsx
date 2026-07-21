@@ -5,8 +5,8 @@ import toast from "react-hot-toast";
 import {
   CreditCard,
   FileSignature,
-  Landmark,
   Loader2,
+  MapPin,
   ShieldCheck,
   Smartphone,
   Wallet,
@@ -14,11 +14,11 @@ import {
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { authService } from "../services/auth.service";
 import { bookingService } from "../services/booking.service";
 import { contractService } from "../services/contract.service";
 import { paymentService } from "../services/payment.service";
 import { getFirstCarImage } from "../utils/image.util";
+import { formatAddressSnapshot } from "../utils/address.util";
 
 type BookingCar = {
   _id: string;
@@ -31,32 +31,56 @@ type BookingCar = {
   fuelType?: string;
   transmission?: string;
   images?: string[];
+  pickupAddress: string;
+  address: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
+  locationNote?: string;
 };
 
 type Booking = {
   _id: string;
-  carId?: BookingCar;
+  carId: BookingCar;
   startDate: string;
   endDate: string;
   rentalMode?: string;
   totalPrice?: number;
-  depositAmount?: number;
-  remainingAmount?: number;
-  paidAmount?: number;
-  paymentOption?: string;
-  status?: string;
-};
-
-type ContractForm = {
-  renterName: string;
-  renterPhone: string;
-  renterIdentityNumber: string;
-  renterAddress: string;
-  note: string;
+  depositAmount: number;
+  remainingAmount: number;
+  paidAmount: number;
+  paymentOption: string;
+  status: string;
+  pricingSnapshot?: {
+    rentalSubtotal?: number;
+    deliveryFee?: number;
+    delivery?: {
+      deliveryType?: string;
+      deliveryAddress?: string;
+      deliveryAddressText?: string;
+      deliveryFormattedAddress?: string;
+      deliveryDistanceKm?: number;
+      deliveryDurationText?: string;
+    };
+  };
+  pickupAddressSnapshot: string;
+  returnAddressSnapshot: string;
+  renterInfo?: {
+    fullName?: string;
+    phone?: string;
+    email?: string;
+    cccdNumber?: string;
+    cccdFrontImage?: string;
+    cccdBackImage?: string;
+    driverLicenseNumber?: string;
+    driverLicenseImage?: string;
+    note?: string;
+  };
 };
 
 type PaymentType = "DEPOSIT" | "FULL" | "REMAINING";
-type PaymentMethod = "CASH" | "BANKING" | "MOMO" | "VNPAY";
+type PaymentMethod = "CASH" | "MOMO" | "VNPAY";
 
 const paymentMethods: Array<{
   value: PaymentMethod;
@@ -69,12 +93,6 @@ const paymentMethods: Array<{
     label: "Tiền mặt",
     description: "Thanh toán trực tiếp khi nhận xe.",
     icon: Wallet,
-  },
-  {
-    value: "BANKING",
-    label: "Chuyển khoản",
-    description: "Thanh toán qua tài khoản ngân hàng.",
-    icon: Landmark,
   },
   {
     value: "MOMO",
@@ -145,22 +163,6 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function getDigits(value: string) {
-  return value.replace(/\D/g, "");
-}
-
-function getInitialForm(): ContractForm {
-  const user = authService.getCurrentUser();
-
-  return {
-    renterName: user?.name || "",
-    renterPhone: user?.phone || "",
-    renterIdentityNumber: "",
-    renterAddress: "",
-    note: "",
-  };
-}
-
 export default function PaymentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -171,7 +173,6 @@ export default function PaymentPage() {
   const [submitting, setSubmitting] = useState(false);
   const [method, setMethod] = useState<PaymentMethod>("CASH");
   const [paymentType, setPaymentType] = useState<PaymentType>("DEPOSIT");
-  const [form, setForm] = useState<ContractForm>(() => getInitialForm());
 
   useEffect(() => {
     let active = true;
@@ -185,7 +186,7 @@ export default function PaymentPage() {
       .then((found: Booking) => {
         if (!active) return;
         setBooking(found || null);
-        setPaymentType(found?.paymentOption === "FULL" ? "FULL" : "DEPOSIT");
+        setPaymentType(found.paymentOption === "FULL" ? "FULL" : "DEPOSIT");
       })
       .catch((error) => {
         toast.error(getErrorMessage(error, "Không thể tải booking"));
@@ -204,11 +205,23 @@ export default function PaymentPage() {
     "OWNER_APPROVED", // Trạng thái mới: chủ xe đã duyệt, được phép thanh toán
     "PAYMENT_PENDING", // Trạng thái mới: đang chờ thanh toán, được quay lại thanh toán
     "PAID", // Trạng thái mới: cho phép thanh toán phần còn lại nếu còn tiền
-    "CONFIRMED", // Trạng thái cũ
-    "WAITING_PAYMENT", // Trạng thái cũ
+    "CONFIRMED", // Trạng thái cu
+    "WAITING_PAYMENT", // Trạng thái cu
     "IN_PROGRESS",
   ].includes(booking?.status || "");
   const rental = getRentalInfo(car, booking?.rentalMode);
+  const pickupAddress = formatAddressSnapshot(
+    booking?.pickupAddressSnapshot,
+    car,
+  );
+  const returnAddress = formatAddressSnapshot(
+    booking?.returnAddressSnapshot,
+    car,
+    pickupAddress,
+  );
+  const deliverySnapshot = booking?.pricingSnapshot?.delivery;
+  const isDeliveryToCustomer =
+    deliverySnapshot?.deliveryType === "DELIVERY_TO_CUSTOMER";
   const rentalTime = booking
     ? calculateRentalTime(booking.rentalMode, booking.startDate, booking.endDate)
     : 0;
@@ -220,91 +233,92 @@ export default function PaymentPage() {
     const paidAmount = booking.paidAmount || 0;
     const depositAmount =
       booking.depositAmount || Math.round(totalPrice * 0.3);
-    const remainingAmount =
-      booking.remainingAmount || Math.max(totalPrice - paidAmount, 0);
+    const outstandingAmount = Math.max(
+      booking.remainingAmount || totalPrice - paidAmount,
+      0,
+    );
 
-    if (booking.paymentOption === "FULL") {
+    if (paidAmount >= totalPrice && totalPrice > 0) {
+      return [];
+    }
+
+    if (paidAmount <= 0) {
       return [
+        {
+          value: "DEPOSIT" as const,
+          label: "Đặt cọc trước",
+          description: "Thanh toán tiền cọc để giữ xe, phần còn lại trả sau.",
+          amount: depositAmount,
+        },
         {
           value: "FULL" as const,
           label: "Thanh toán toàn bộ",
-          description: "Hoàn tất toàn bộ chi phí booking.",
+          description: "Thanh toán đủ toàn bộ chi phí thuê xe ngay bây giờ.",
           amount: totalPrice,
         },
       ];
     }
 
-    if (paidAmount > 0 && remainingAmount > 0) {
+    if (outstandingAmount > 0) {
       return [
         {
           value: "REMAINING" as const,
           label: "Thanh toán phần còn lại",
-          description: "Hoàn tất số tiền còn lại của booking.",
-          amount: remainingAmount,
+          description: "Thanh toán nốt số tiền còn lại của booking.",
+          amount: outstandingAmount,
         },
       ];
     }
 
-    return [
-      {
-        value: "DEPOSIT" as const,
-        label: "Đặt cọc trước",
-        description: "Giữ xe trước và thanh toán phần còn lại khi nhận xe.",
-        amount: depositAmount,
-      },
-    ];
+    return [];
+  }, [booking]);
+
+  const effectivePaymentType =
+    availablePaymentTypes.find((item) => item.value === paymentType)?.value ||
+    availablePaymentTypes[0]?.value ||
+    paymentType;
+
+  const paymentSummary = useMemo(() => {
+    if (!booking) {
+      return {
+        totalPrice: 0,
+        depositAmount: 0,
+        paidAmount: 0,
+        outstandingAmount: 0,
+      };
+    }
+
+    const totalPrice = booking.totalPrice || 0;
+    const paidAmount = booking.paidAmount || 0;
+    const depositAmount =
+      booking.depositAmount || Math.round(totalPrice * 0.3);
+    const outstandingAmount = Math.max(
+      booking.remainingAmount || totalPrice - paidAmount,
+      0,
+    );
+
+    return {
+      totalPrice,
+      depositAmount,
+      paidAmount,
+      outstandingAmount,
+    };
   }, [booking]);
 
   const payableAmount =
-    availablePaymentTypes.find((item) => item.value === paymentType)?.amount ||
+    availablePaymentTypes.find((item) => item.value === effectivePaymentType)?.amount ||
     0;
 
-  const updateForm = (field: keyof ContractForm, value: string) => {
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const validateForm = () => {
-    const renterName = form.renterName.trim();
-    const renterPhone = form.renterPhone.trim();
-    const renterIdentityNumber = form.renterIdentityNumber.trim();
-    const renterAddress = form.renterAddress.trim();
-
-    if (
-      !renterName ||
-      !renterPhone ||
-      !renterIdentityNumber ||
-      !renterAddress
-    ) {
-      toast.error("Vui lòng nhập đầy đủ thông tin hợp đồng bắt buộc");
-      return null;
-    }
-
-    if (getDigits(renterPhone).length < 10) {
-      toast.error("Số điện thoại phải có ít nhất 10 số");
-      return null;
-    }
-
-    if (getDigits(renterIdentityNumber).length < 9) {
-      toast.error("CCCD/CMND phải có ít nhất 9 số");
-      return null;
-    }
-
-    return {
-      renterName,
-      renterPhone,
-      renterIdentityNumber,
-      renterAddress,
-      note: form.note.trim(),
-    };
-  };
-
   const handlePayment = async (event: FormEvent) => {
-    event.preventDefault();
+    event?.preventDefault();
 
     if (!booking) return;
+
+    if (payableAmount <= 0) {
+      toast.error("Booking không còn số tiền cần thanh toán");
+      navigate(`/bookings/${booking._id}`);
+      return;
+    }
 
     if (!canCreatePayment) {
       toast.error("Booking cần được chủ xe xác nhận trước khi thanh toán");
@@ -312,8 +326,11 @@ export default function PaymentPage() {
       return;
     }
 
-    const payload = validateForm();
-    if (!payload) return;
+    if (!booking.renterInfo?.fullName || !booking.renterInfo?.cccdNumber) {
+      toast.error("Booking thiếu thông tin người thuê, không thể thanh toán");
+      navigate(`/bookings/${booking._id}`);
+      return;
+    }
 
     setSubmitting(true);
 
@@ -321,13 +338,12 @@ export default function PaymentPage() {
       console.log("PAYMENT DEBUG - START:", {
         bookingId: booking._id,
         method,
-        paymentType,
+        paymentType: effectivePaymentType,
       });
 
       try {
         const contract = await contractService.createContract({
           bookingId: booking._id,
-          ...payload,
         });
         console.log("PAYMENT DEBUG - CONTRACT CREATED:", contract);
       } catch (contractError) {
@@ -339,14 +355,14 @@ export default function PaymentPage() {
       console.log("PAYMENT DEBUG - CALL MOMO CREATE");
       const momoResult = await paymentService.createMomoPayment({
         bookingId: booking._id,
-        paymentType,
+        paymentType: effectivePaymentType,
       });
 
       console.log("MOMO RESULT:", momoResult);
-      console.log("PAY URL:", momoResult?.payUrl);
+      console.log("PAY URL:", momoResult.payUrl);
 
-      if (!momoResult?.payUrl) {
-        throw new Error("Không lấy được đường dẫn thanh toán MoMo");
+      if (!momoResult.payUrl) {
+        throw new Error("Không lấy được đường đến thanh toán MoMo");
       }
 
       window.open(momoResult.payUrl, "_self");
@@ -356,11 +372,11 @@ export default function PaymentPage() {
       if (method === "VNPAY") {
         const vnpayResult = await paymentService.createVnpayPayment({
           bookingId: booking._id,
-          paymentType,
+          paymentType: effectivePaymentType,
         });
 
-        if (!vnpayResult?.payUrl) {
-          throw new Error("Khong lay duoc duong dan thanh toan VNPAY");
+        if (!vnpayResult.payUrl) {
+          throw new Error("Không lấy được đường đến thanh toán VNPAY");
         }
 
         window.open(vnpayResult.payUrl, "_self");
@@ -370,12 +386,12 @@ export default function PaymentPage() {
       await paymentService.createPayment({
         bookingId: booking._id,
         method,
-        paymentType,
+        paymentType: effectivePaymentType,
       });
 
       toast.success(
         method === "CASH"
-          ? "Đã chọn thanh toán tiền mặt. Vui long cho business xac nhan booking."
+          ? "Đã tạo yêu cầu thanh toán ngoài hệ thống. Vui lòng chờ chủ xe xác nhận đã nhận tiền."
           : "Đã tạo yêu cầu thanh toán thành công.",
       );
       navigate(`/bookings/${booking._id}`);
@@ -456,8 +472,8 @@ export default function PaymentPage() {
             Hoàn tất thuê xe
           </h1>
           <p className="mt-3 max-w-2xl text-muted">
-            Nhập thông tin người thuê để tạo hợp đồng trước khi hệ thống ghi
-            nhận thanh toán.
+            Kiểm tra hồ sơ người thuê đã gửi trước đó và chọn khoản thanh toán
+            cho booking này.
           </p>
         </div>
 
@@ -470,51 +486,36 @@ export default function PaymentPage() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-extrabold text-primary">
-                    Thông tin hợp đồng thuê xe
+                    Hồ sơ người thuê
                   </h2>
                   <p className="mt-1 text-sm text-muted">
-                    Thông tin này chỉ dùng cho hợp đồng thuê xe của booking.
+                    Thông tin này được lấy từ hồ sơ đã gửi khi đặt xe.
                   </p>
                 </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <TextField
-                  label="Họ tên người thuê *"
-                  value={form.renterName}
-                  onChange={(value) => updateForm("renterName", value)}
+                <ReadonlyField label="Họ tên" value={booking.renterInfo?.fullName} />
+                <ReadonlyField label="Số điện thoại" value={booking.renterInfo?.phone} />
+                <ReadonlyField label="Email" value={booking.renterInfo?.email} />
+                <ReadonlyField label="CCCD/CMND" value={booking.renterInfo?.cccdNumber} />
+                <ReadonlyField
+                  label="Số bằng lái"
+                  value={booking.renterInfo?.driverLicenseNumber}
                 />
-                <TextField
-                  label="Số điện thoại người thuê *"
-                  value={form.renterPhone}
-                  onChange={(value) => updateForm("renterPhone", value)}
-                  inputMode="tel"
+                <ReadonlyField label="Ghi chú" value={booking.renterInfo?.note || "--"} />
+                <DocumentPreview
+                  label="CCCD mặt trước"
+                  value={booking.renterInfo?.cccdFrontImage}
                 />
-                <TextField
-                  label="CCCD/CMND *"
-                  value={form.renterIdentityNumber}
-                  onChange={(value) =>
-                    updateForm("renterIdentityNumber", value)
-                  }
-                  inputMode="numeric"
+                <DocumentPreview
+                  label="CCCD mặt sau"
+                  value={booking.renterInfo?.cccdBackImage}
                 />
-                <TextField
-                  label="Địa chỉ *"
-                  value={form.renterAddress}
-                  onChange={(value) => updateForm("renterAddress", value)}
+                <DocumentPreview
+                  label="Bằng lái xe"
+                  value={booking.renterInfo?.driverLicenseImage}
                 />
-                <label className="block md:col-span-2">
-                  <span className="mb-2 block text-sm font-extrabold text-primary">
-                    Ghi chú
-                  </span>
-                  <textarea
-                    value={form.note}
-                    onChange={(event) => updateForm("note", event.target.value)}
-                    rows={4}
-                    className="w-full rounded-lg border border-border px-4 py-3 font-semibold text-primary outline-none transition focus:border-secondary focus:ring-4 focus:ring-secondary/10"
-                    placeholder="Yêu cầu thêm khi nhận xe..."
-                  />
-                </label>
               </div>
             </div>
 
@@ -530,7 +531,7 @@ export default function PaymentPage() {
                     type="button"
                     onClick={() => setPaymentType(item.value)}
                     className={`w-full rounded-lg border p-5 text-left transition ${
-                      paymentType === item.value
+                      effectivePaymentType === item.value
                         ? "border-secondary bg-yellow-50"
                         : "border-border bg-white hover:bg-secondarySoft/35"
                     }`}
@@ -548,6 +549,42 @@ export default function PaymentPage() {
                     </div>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-white p-6 shadow-sm md:p-8">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-secondary text-primary">
+                  <MapPin size={22} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold uppercase text-secondary">
+                    Địa điểm
+                  </p>
+                  <h2 className="text-2xl font-extrabold text-primary">
+                    Nhận và trả xe
+                  </h2>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <AddressBlock label="Địa điểm nhận xe" value={pickupAddress} />
+                <AddressBlock
+                  label="Hình thức nhận xe"
+                  value={isDeliveryToCustomer ? "Giao xe tận nơi" : "Nhận tại vị trí chủ xe"}
+                />
+                {isDeliveryToCustomer && (
+                  <AddressBlock
+                    label="Địa chỉ giao xe"
+                    value={
+                      deliverySnapshot?.deliveryAddressText ||
+                      deliverySnapshot?.deliveryAddress ||
+                      deliverySnapshot?.deliveryFormattedAddress ||
+                      "--"
+                    }
+                  />
+                )}
+                <AddressBlock label="Địa điểm trả xe" value={returnAddress} />
               </div>
             </div>
 
@@ -608,11 +645,24 @@ export default function PaymentPage() {
               </div>
 
               <div className="space-y-4 border-y border-white/10 py-6">
+                <SummaryRow label="Nhận xe" value={pickupAddress} />
                 <SummaryRow label="Đơn giá" value={`${formatPrice(rental.price)} / ${rental.unit}`} />
                 <SummaryRow label={rental.label} value={`${rentalTime} ${rental.unit}`} />
-                <SummaryRow label="Tổng booking" value={formatPrice(booking.totalPrice)} />
-                <SummaryRow label="Tiền cọc" value={formatPrice(booking.depositAmount)} />
-                <SummaryRow label="Còn lại" value={formatPrice(booking.remainingAmount)} />
+                <SummaryRow
+                  label="Tiền thuê xe"
+                  value={formatPrice(
+                    booking?.pricingSnapshot?.rentalSubtotal ??
+                      paymentSummary.totalPrice,
+                  )}
+                />
+                <SummaryRow
+                  label="Phí giao xe"
+                  value={formatPrice(booking?.pricingSnapshot?.deliveryFee || 0)}
+                />
+                <SummaryRow label="Tổng booking" value={formatPrice(paymentSummary.totalPrice)} />
+                <SummaryRow label="Tiền cọc" value={formatPrice(paymentSummary.depositAmount)} />
+                <SummaryRow label="Đã thanh toán" value={formatPrice(paymentSummary.paidAmount)} />
+                <SummaryRow label="Còn lại" value={formatPrice(paymentSummary.outstandingAmount)} />
               </div>
 
               <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between lg:flex-col lg:items-start xl:flex-row xl:items-end">
@@ -630,11 +680,15 @@ export default function PaymentPage() {
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || payableAmount <= 0}
                 className="mt-8 flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-3 font-extrabold text-primary transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting && <Loader2 size={20} className="animate-spin" />}
-                {submitting ? "Đang xử lý..." : "Xác nhận thanh toán"}
+                {submitting
+                  ? "Đang xử lý..."
+                  : payableAmount > 0
+                    ? "Xác nhận thanh toán"
+                    : "Không cần thanh toán"}
               </button>
 
               <div className="mt-6 flex items-center justify-center gap-2 text-sm text-white/70">
@@ -651,29 +705,44 @@ export default function PaymentPage() {
   );
 }
 
-function TextField({
-  label,
-  value,
-  onChange,
-  inputMode,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  inputMode?: "text" | "tel" | "numeric";
-}) {
+function ReadonlyField({ label, value }: { label: string; value?: string }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-extrabold text-primary">
-        {label}
-      </span>
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        inputMode={inputMode}
-        className="min-h-12 w-full rounded-lg border border-border px-4 font-semibold text-primary outline-none transition focus:border-secondary focus:ring-4 focus:ring-secondary/10"
-      />
-    </label>
+    <div className="rounded-lg border border-border bg-soft/40 px-4 py-3">
+      <p className="text-xs font-bold uppercase text-muted">{label}</p>
+      <p className="mt-1 break-words font-extrabold text-primary">
+        {value || "--"}
+      </p>
+    </div>
+  );
+}
+
+function DocumentPreview({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-white p-3">
+      <p className="mb-2 text-xs font-bold uppercase text-muted">{label}</p>
+      {value ? (
+        <img
+          src={value}
+          alt={label}
+          className="h-32 w-full rounded-lg object-cover"
+        />
+      ) : (
+        <div className="flex h-32 items-center justify-center rounded-lg bg-soft text-sm font-bold text-muted">
+          Chưa có ảnh
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AddressBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border px-4 py-3">
+      <p className="text-sm font-bold text-muted">{label}</p>
+      <p className="mt-1 text-sm font-extrabold leading-6 text-primary">
+        {value}
+      </p>
+    </div>
   );
 }
 
@@ -685,3 +754,11 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+
+
+
+
+
+
+

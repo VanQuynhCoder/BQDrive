@@ -39,3 +39,6 @@ export function getFirstCarImage(images?: string[], fallback = defaultCarImage) 
 
   return normalizeImageUrl(image) || fallback;
 }
+
+
+

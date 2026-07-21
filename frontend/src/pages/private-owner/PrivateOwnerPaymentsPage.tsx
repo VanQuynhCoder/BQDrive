@@ -20,6 +20,7 @@ const filterOptions: Array<{ label: string; value: PaymentFilter }> = [
   { label: "Thất bại", value: "FAILED" },
   { label: "Hoàn tiền", value: "REFUNDED" },
 ];
+const MANUAL_CONFIRM_PAYMENT_METHODS = ["CASH"];
 
 function formatCurrency(value?: number) {
   return new Intl.NumberFormat("vi-VN", {
@@ -146,9 +147,9 @@ export default function PrivateOwnerPaymentsPage() {
         status: "PAID",
       });
       setPayments(await privateOwnerService.getMyPayments());
-      toast.success("Da ghi nhan thanh toan tien mat");
+      toast.success("Đã ghi nhận thanh toán tiền một");
     } catch (error) {
-      toast.error("Khong the cap nhat thanh toan");
+      toast.error(getErrorMessage(error, "Không thể cập nhật thanh toán"));
     } finally {
       setUpdatingPaymentId(null);
     }
@@ -158,7 +159,7 @@ export default function PrivateOwnerPaymentsPage() {
     <div className="space-y-6">
       <section>
         <p className="text-sm font-bold uppercase text-secondary">
-          Doanh thu cá nhân
+          Doanh thu xe ký gửi
         </p>
         <h2 className="mt-2 text-3xl font-extrabold text-primary">
           Thanh toán
@@ -245,10 +246,10 @@ export default function PrivateOwnerPaymentsPage() {
               <tr>
                 <th className="px-5 py-4">Mã thanh toán</th>
                 <th className="px-5 py-4">Booking</th>
-                <th className="px-5 py-4">Thao tac</th>
+                <th className="px-5 py-4">Thao tác</th>
                 <th className="px-5 py-4">Khách hàng</th>
                 <th className="px-5 py-4">Số tiền</th>
-                <th className="px-5 py-4">Phương thức</th>
+                <th className="px-5 py-4">Phuong thực</th>
                 <th className="px-5 py-4">Trạng thái</th>
                 <th className="px-5 py-4">Thời gian</th>
               </tr>
@@ -280,7 +281,7 @@ export default function PrivateOwnerPaymentsPage() {
                           : "--"}
                       </td>
                       <td className="px-5 py-4">
-                        {payment.method === "CASH" && payment.status === "PENDING" ? (
+                        {MANUAL_CONFIRM_PAYMENT_METHODS.includes(payment.method || "") && payment.status === "PENDING" ? (
                           <button
                             type="button"
                             onClick={() => markCashPaymentPaid(payment._id)}
@@ -292,7 +293,7 @@ export default function PrivateOwnerPaymentsPage() {
                             ) : (
                               <CheckCircle2 size={14} />
                             )}
-                            Da nhan tien
+                            Đã nhận tiền
                           </button>
                         ) : (
                           <span className="text-slate-400">--</span>
@@ -300,10 +301,10 @@ export default function PrivateOwnerPaymentsPage() {
                       </td>
                       <td className="px-5 py-4">
                         <p className="font-extrabold text-primary">
-                          {payment.userId?.name || "--"}
+                          {payment.userId.name || "--"}
                         </p>
                         <p className="text-xs font-semibold text-slate-500">
-                          {payment.userId?.email || "--"}
+                          {payment.userId.email || "--"}
                         </p>
                       </td>
                       <td className="px-5 py-4 font-extrabold text-primary">
@@ -339,3 +340,10 @@ export default function PrivateOwnerPaymentsPage() {
     </div>
   );
 }
+
+
+
+
+
+
+

@@ -16,6 +16,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import AuthLayout from "../layouts/AuthLayout";
 import { authService } from "../services/auth.service";
+import { isValidVietnamPhone, normalizePhone } from "../utils/validators";
 
 const inputShellClass =
   "flex min-h-11 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-4 transition focus-within:border-secondary focus-within:bg-white/[0.07] focus-within:ring-4 focus-within:ring-secondary/10";
@@ -33,6 +34,22 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 
   return fallback;
 };
+
+function getPasswordStrengthError(password: string) {
+  if (password.length < 8) {
+    return "Mật khẩu cần ít nhất 8 ký tự";
+  }
+
+  if (/\s/.test(password)) {
+    return "Mật khẩu không được chứa khoảng trắng";
+  }
+
+  if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+    return "Mật khẩu cần có chữ hoa, chữ thường và số";
+  }
+
+  return "";
+}
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -84,12 +101,18 @@ export default function RegisterPage() {
     e.preventDefault();
 
     if (!form.name || !form.email || !form.password) {
-      toast.error("Vui lòng nhập đầy đủ thông tin");
+      toast.error("Vui lòng nhập đầy để thông tin");
       return;
     }
 
     if (!form.otp) {
       toast.error("Vui lòng nhập OTP");
+      return;
+    }
+
+    const passwordError = getPasswordStrengthError(form.password);
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
 
@@ -100,6 +123,11 @@ export default function RegisterPage() {
 
     if (!agree) {
       toast.error("Vui lòng đồng ý điều khoản dịch vụ");
+      return;
+    }
+
+    if (form.phone && !isValidVietnamPhone(normalizePhone(form.phone))) {
+      toast.error("Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.");
       return;
     }
 
@@ -114,7 +142,7 @@ export default function RegisterPage() {
       await authService.register({
         name: form.name,
         email: form.email,
-        phone: form.phone,
+        phone: normalizePhone(form.phone),
         password: form.password,
       });
 
@@ -131,7 +159,7 @@ export default function RegisterPage() {
     <AuthLayout
       badge="Tạo tài khoản"
       title="Tham gia BQDrive"
-      subtitle="Tạo tài khoản để đặt xe nhanh hơn và quản lý mọi chuyến đi tại một nơi."
+      subtitle="Tạo tài khoản để đặt xe nhanh hơn và quản lý mỗi chuyến đi tải một nơi."
     >
       <form onSubmit={handleRegister} className="space-y-5">
         <label className="block">
@@ -144,7 +172,7 @@ export default function RegisterPage() {
               name="name"
               value={form.name}
               onChange={handleChange}
-              placeholder="Nguyễn Văn A"
+              placeholder="Nguyễn Van A"
               autoComplete="name"
               className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/[0.35]"
             />
@@ -212,10 +240,17 @@ export default function RegisterPage() {
               <input
                 name="phone"
                 value={form.phone}
-                onChange={handleChange}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    phone: normalizePhone(event.target.value),
+                  }))
+                }
                 placeholder="0901234567"
                 autoComplete="tel"
                 inputMode="tel"
+                type="tel"
+                maxLength={10}
                 className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/[0.35]"
               />
             </span>
@@ -224,7 +259,7 @@ export default function RegisterPage() {
 
         <label className="block">
           <span className="mb-2 block text-sm font-extrabold text-white">
-            Mật khẩu
+            Một khẩu
           </span>
           <span className={inputShellClass}>
             <LockKeyhole size={20} className="shrink-0 text-secondary" />
@@ -233,15 +268,15 @@ export default function RegisterPage() {
               type={showPassword ? "text" : "password"}
               value={form.password}
               onChange={handleChange}
-              placeholder="Nhập mật khẩu"
+              placeholder="Nhợp mật khẩu"
               autoComplete="new-password"
               className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/[0.35]"
             />
             <button
               type="button"
               onClick={() => setShowPassword((value) => !value)}
-              aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-              title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              aria-label={showPassword ? "Ẩn mật khẩu" : "HiẨn mật khẩu"}
+              title={showPassword ? "Ẩn mật khẩu" : "HiẨn mật khẩu"}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/50 transition hover:bg-white/10 hover:text-secondary"
             >
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -260,7 +295,7 @@ export default function RegisterPage() {
               type={showConfirmPassword ? "text" : "password"}
               value={form.confirmPassword}
               onChange={handleChange}
-              placeholder="Nhập lại mật khẩu"
+              placeholder="Xác nhận lại mật khẩu"
               autoComplete="new-password"
               className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/[0.35]"
             />
@@ -268,9 +303,9 @@ export default function RegisterPage() {
               type="button"
               onClick={() => setShowConfirmPassword((value) => !value)}
               aria-label={
-                showConfirmPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"
+                showConfirmPassword ? "Ẩn mật khẩu" : "Hiển thị mật khẩu"
               }
-              title={showConfirmPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              title={showConfirmPassword ? "Ẩn mật khẩu" : "Hiển thị mật khẩu"}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/50 transition hover:bg-white/10 hover:text-secondary"
             >
               {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -308,7 +343,7 @@ export default function RegisterPage() {
         </button>
 
         <p className="text-center text-sm font-semibold text-white/[0.62]">
-          Bạn đã có tài khoản?{" "}
+          Bạn đã có tài khoảnở{" "}
           <Link
             to="/login"
             className="font-extrabold text-secondary transition hover:text-secondaryLight"
@@ -320,3 +355,11 @@ export default function RegisterPage() {
     </AuthLayout>
   );
 }
+
+
+
+
+
+
+
+

@@ -67,7 +67,6 @@ export enum PaymentStatusEnum {
 
 export enum PaymentMethodEnum {
   CASH = "CASH",
-  BANKING = "BANKING",
   MOMO = "MOMO",
   VNPAY = "VNPAY",
 }
@@ -81,6 +80,28 @@ export enum PaymentTypeEnum {
   FULL = "FULL",
   REMAINING = "REMAINING",
 }
+export enum DeliveryTypeEnum {
+  PICKUP_AT_CAR_LOCATION = "PICKUP_AT_CAR_LOCATION",
+  DELIVERY_TO_CUSTOMER = "DELIVERY_TO_CUSTOMER",
+}
+export enum DeliveryAddressSourceEnum {
+  MANUAL_TEXT = "MANUAL_TEXT",
+  GEOCODE = "GEOCODE",
+  CURRENT_LOCATION = "CURRENT_LOCATION",
+  MAP_PIN = "MAP_PIN",
+}
+export enum ExtraChargeTypeEnum {
+  CLEANING = "CLEANING",
+  DAMAGE = "DAMAGE",
+  LATE_RETURN = "LATE_RETURN",
+  FUEL = "FUEL",
+  OTHER = "OTHER",
+}
+export enum ExtraChargeStatusEnum {
+  PENDING = "PENDING",
+  PAID = "PAID",
+  CANCELLED = "CANCELLED",
+}
 export enum RentalUnitEnum {
   DAY = "DAY",
   HOUR = "HOUR",
@@ -88,6 +109,11 @@ export enum RentalUnitEnum {
 export enum RentalModeEnum {
   DAILY = "DAILY",
   HOURLY = "HOURLY",
+}
+export enum PricingDateTypeEnum {
+  WEEKDAY = "WEEKDAY",
+  WEEKEND = "WEEKEND",
+  HOLIDAY = "HOLIDAY",
 }
 export enum ContractStatusEnum {
   DRAFT = "DRAFT",

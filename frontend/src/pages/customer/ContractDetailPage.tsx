@@ -10,6 +10,7 @@ import {
   contractService,
   type ContractBusiness,
   type ContractCar,
+  type ContractOwnerUser,
   type RentalContract,
 } from "../../services/contract.service";
 import {
@@ -17,6 +18,10 @@ import {
   getPaymentTypeLabel,
 } from "../../utils/display.util";
 import { formatVietnamDateTime } from "../../utils/date.util";
+import {
+  formatAddressSnapshot,
+  formatFullAddress,
+} from "../../utils/address.util";
 
 function formatCurrency(value?: number) {
   return new Intl.NumberFormat("vi-VN", {
@@ -56,6 +61,38 @@ function getBusiness(contract: RentalContract) {
   return typeof contract.businessId === "object"
     ? (contract.businessId as ContractBusiness)
     : undefined;
+}
+
+function getOwnerUser(contract: RentalContract) {
+  return contract.ownerType === "USER" && typeof contract.ownerId === "object"
+    ? (contract.ownerId as ContractOwnerUser)
+    : undefined;
+}
+
+function getOwnerBusiness(contract: RentalContract) {
+  if (contract.ownerType !== "BUSINESS") return undefined;
+
+  if (typeof contract.ownerId === "object") {
+    return contract.ownerId as ContractBusiness;
+  }
+
+  return getBusiness(contract);
+}
+
+function getContractBooking(contract: RentalContract) {
+  return typeof contract.bookingId === "object" ? contract.bookingId : undefined;
+}
+
+function getPaymentSummaryLabel(status?: string) {
+  const map: Record<string, string> = {
+    PAID_FULL: "Đã thanh toán đủ",
+    DEPOSIT_PAID: "Đã thanh toán cọc",
+    PARTIAL: "Đã thanh toán một phần",
+    PENDING: "Chờ thanh toán",
+    UNPAID: "Chưa thanh toán",
+  };
+
+  return map[status || ""] || status || "--";
 }
 
 export default function ContractDetailPage() {
@@ -111,7 +148,7 @@ export default function ContractDetailPage() {
         <main className="mx-auto max-w-7xl px-6 pt-32">
           <div className="rounded-lg border border-border bg-white p-10 text-center">
             <h1 className="text-2xl font-extrabold text-primary">
-              Không tìm thấy hợp đồng
+              Không tìm thủy hợp đồng
             </h1>
             <Link
               to="/my-contracts"
@@ -127,6 +164,47 @@ export default function ContractDetailPage() {
 
   const car = getCar(contract);
   const business = getBusiness(contract);
+  const booking = getContractBooking(contract);
+  const ownerUser = getOwnerUser(contract);
+  const ownerBusiness = getOwnerBusiness(contract);
+  const lessorName =
+    contract.ownerType === "USER"
+      ? ownerUser?.name || "Người dùng ký gửi"
+      : ownerBusiness?.businessName || business?.businessName || "--";
+  const lessorEmail =
+    contract.ownerType === "USER"
+      ? ownerUser?.email || "--"
+      : ownerBusiness?.userId?.email || business?.userId?.email || "--";
+  const lessorPhone =
+    contract.ownerType === "USER"
+      ? ownerUser?.phone || "--"
+      : ownerBusiness?.phone || business?.phone || "--";
+  const lessorAddress =
+    contract.ownerAddressSnapshot ||
+    (contract.ownerType === "USER"
+      ? formatFullAddress(ownerUser, "--")
+      : formatFullAddress(ownerBusiness || business, "--"));
+  const pickupAddress = formatAddressSnapshot(
+    contract.pickupAddressSnapshot || booking?.pickupAddressSnapshot,
+    car,
+  );
+  const returnAddress = formatAddressSnapshot(
+    contract.returnAddressSnapshot || booking?.returnAddressSnapshot,
+    car,
+    pickupAddress,
+  );
+  const deliverySnapshot = booking?.pricingSnapshot?.delivery;
+  const isDeliveryToCustomer =
+    deliverySnapshot?.deliveryType === "DELIVERY_TO_CUSTOMER";
+  const paymentSummary = contract.paymentSummary || {
+    totalPrice: contract.totalPrice || 0,
+    depositAmount: contract.depositAmount || 0,
+    paidAmount: contract.paidAmount || 0,
+    remainingAmount:
+      contract.remainingAmount ??
+      Math.max((contract.totalPrice || 0) - (contract.paidAmount || 0), 0),
+    paymentStatus: contract.paymentStatus,
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -196,13 +274,22 @@ export default function ContractDetailPage() {
             <InfoItem label="Biển số" value={car?.licensePlate || "--"} />
             <InfoItem
               label="Đơn vị cho thuê"
-              value={business?.businessName || "--"}
+              value={lessorName}
             />
+            <InfoItem
+              label="Email bên cho thuê"
+              value={lessorEmail}
+            />
+            <InfoItem
+              label="Số điện thoại bên cho thuê"
+              value={lessorPhone}
+            />
+            <InfoItem label="Địa chỉ bên cho thuê" value={lessorAddress} />
             <InfoItem
               label="Loại chủ xe"
               value={
                 contract.ownerType === "USER"
-                  ? "Chủ xe tư nhân"
+                  ? "Người dùng ký gửi"
                   : "Doanh nghiệp"
               }
             />
@@ -214,21 +301,50 @@ export default function ContractDetailPage() {
               label="Ngày trả xe"
               value={formatDateTime(contract.endDate)}
             />
+            <InfoItem label="Địa điểm nhận xe" value={pickupAddress} />
+            <InfoItem label="Địa điểm trả xe" value={returnAddress} />
+            <InfoItem
+              label="Hình thức nhận xe"
+              value={isDeliveryToCustomer ? "Giao xe tận nơi" : "Nhận tại vị trí chủ xe"}
+            />
+            {isDeliveryToCustomer && (
+              <InfoItem
+                label="Địa chỉ giao xe"
+                value={
+                  deliverySnapshot?.deliveryAddressText ||
+                  deliverySnapshot?.deliveryAddress ||
+                  deliverySnapshot?.deliveryFormattedAddress ||
+                  "--"
+                }
+              />
+            )}
+            <InfoItem
+              label="Phí giao xe"
+              value={formatCurrency(booking?.pricingSnapshot?.deliveryFee || 0)}
+            />
             <InfoItem
               label="Tổng tiền"
-              value={formatCurrency(contract.totalPrice)}
+              value={formatCurrency(paymentSummary.totalPrice)}
             />
             <InfoItem
               label="Tiền cọc"
-              value={formatCurrency(contract.depositAmount)}
+              value={formatCurrency(paymentSummary.depositAmount)}
+            />
+            <InfoItem
+              label="Đã thanh toán"
+              value={formatCurrency(paymentSummary.paidAmount)}
             />
             <InfoItem
               label="Còn lại"
-              value={formatCurrency(contract.remainingAmount)}
+              value={formatCurrency(paymentSummary.remainingAmount)}
             />
             <InfoItem
-              label="Phương án thanh toán"
+              label="Phuong án thanh toán"
               value={getPaymentTypeLabel(contract.paymentOption)}
+            />
+            <InfoItem
+              label="Trạng thái thanh toán"
+              value={getPaymentSummaryLabel(paymentSummary.paymentStatus)}
             />
             <InfoItem
               label="Trạng thái hợp đồng"
@@ -254,7 +370,7 @@ export default function ContractDetailPage() {
           <section className="mt-8 rounded-lg border border-border p-5">
             <p className="text-sm leading-7 text-muted">
               Hợp đồng này được tạo dựa trên thông tin booking và thông tin
-              người thuê đã cung cấp trên hệ thống BQDrive. Người thuê và đơn vị
+              người thuê đã cung cập trên hệ thống BQDrive. Người thuê và đơn vị
               cho thuê có trách nhiệm thực hiện đúng thời gian nhận/trả xe,
               phương án thanh toán và các điều khoản đã được xác nhận.
             </p>
@@ -275,3 +391,13 @@ function InfoItem({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+

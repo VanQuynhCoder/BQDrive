@@ -27,14 +27,14 @@ const serviceSections = [
     icon: Smartphone,
     audience: "Hệ thống tài khoản thành viên",
     title: "Trải nghiệm một chạm",
-    subtitle: "Đăng ký, đăng nhập nhanh chóng và bảo mật tuyệt đối",
+    subtitle: "Đăng ký, đăng nhập nhanh chóng và bảo một tuyệt đối",
     description:
-      "Chỉ mất chưa đầy 30 giây để thiết lập tài khoản và mở ra cánh cửa trải nghiệm mọi dịch vụ đẳng cấp của BQDrive. Hệ thống thông minh tối ưu hóa toàn bộ quy trình để bạn bắt đầu chuyến đi hoặc quản lý xe một cách mượt mà nhất.",
+      "Chỉ một chưa đầy 30 giây để thiết lập tài khoản và mở ra cánh của trải nghiệm mới dịch vụ đẳng cấp của BQDrive. Hệ thống thông minh tối ưu hóa toàn bộ quy trình để bạn bắt đầu chuyến đi hoặc quản lý xe một cách mượt mà nhất.",
     points: [
       "Kết nối đa nền tảng qua số điện thoại, email hoặc liên kết một chạm với Google, Facebook, Apple ID.",
       "Xác thực eKYC thông minh, hỗ trợ xác minh bằng lái và giấy tờ định danh nhanh chóng.",
       "Theo dõi lịch sử thuê xe, lịch sử doanh thu từ xe ký gửi và nhận nhắc lịch tự động khi đến ngày nhận/trả xe.",
-      "Tích hợp ví điện tử và cổng thanh toán MoMo, VNPAY, thẻ ngân hàng để giao dịch an toàn, bảo mật.",
+      "Tích hợp ví điện tử và cổng thanh toán MoMo, VNPAY, thẻ ngân hàng để giao dịch an toàn, bảo một.",
     ],
   },
   {
@@ -44,10 +44,10 @@ const serviceSections = [
     title: "Biến xe nhàn rỗi thành nguồn thu nhập",
     subtitle: "Đăng ký gửi xe dễ dàng, chủ động và an tâm",
     description:
-      "Chiếc ô tô của bạn đang nằm trong garage và vẫn phát sinh chi phí bảo dưỡng, bảo hiểm, bến bãi mỗi tháng? BQDrive giúp biến xe nhàn rỗi thành nguồn thu nhập thụ động bền vững bằng cách kết nối với khách thuê tự lái uy tín.",
+      "Chiếc ô tô của bạn đang nằm trong garage và vẫn phát sinh chi phí bảo dưỡng, bảo hiểm, bãi mỗi tháng? BQDrive giúp biến xe nhàn rỗi thành nguồn thu nhập thụ động bền vững bằng cách kết nối với khách thuê tự lái uy tín.",
     points: [
-      "Đăng xe trong 5 phút với hình ảnh, dòng xe, đời xe, tính năng đi kèm và mức giá mong muốn.",
-      "Toàn quyền bật/tắt lịch cho thuê vào những ngày bạn cần dùng xe.",
+      "Đăng xe trong 5 phút với hình ảnh, dòng xe, đội xe, tính năng di kèm và mức giá mong muốn.",
+      "Toàn quyền bắt/tắt lịch cho thuê vào những ngày bạn cần dùng xe.",
       "Xem hồ sơ, đánh giá của khách thuê trước khi quyết định đồng ý cho thuê.",
       "Quy trình bàn giao kỹ thuật số và gói bảo hiểm chuyến đi giúp chủ xe yên tâm hơn.",
     ],
@@ -71,21 +71,21 @@ const serviceSections = [
 
 const platformFeatures = [
   { icon: UserCheck, label: "eKYC thông minh" },
-  { icon: WalletCards, label: "Thanh toán đa cổng" },
-  { icon: BarChart3, label: "Báo cáo trực quan" },
+  { icon: WalletCards, label: "Thanh toán da cổng" },
+  { icon: BarChart3, label: "Báo cáo trảc quan" },
   { icon: Handshake, label: "Hợp tác minh bạch" },
 ];
 
 const reasons = [
   {
     icon: LockKeyhole,
-    title: "Công nghệ dẫn đầu",
-    text: "Hệ thống vận hành mượt mà, gợi ý xe thông minh dựa trên vị trí và nhu cầu của người dùng.",
+    title: "Công nghệ đến đầu",
+    text: "Hệ thống vận hành mượt mà, gửi ý xe thông minh dựa trên vị trí và nhu cầu của người dùng.",
   },
   {
     icon: ClipboardCheck,
     title: "Minh bạch tuyệt đối",
-    text: "Không chi phí ẩn, không phụ phí mập mờ. Giá thuê, chính sách hủy chuyến và bảo hiểm đều rõ ràng.",
+    text: "Không chi phí ẩn, không phụ phí mập mờ. Giá thuê, chính sách hủy chuyến và bảo hiểm đầu rõ ràng.",
   },
   {
     icon: Headphones,
@@ -165,7 +165,7 @@ export default function ServicesPage() {
               Hệ sinh thái dịch vụ
             </p>
             <h2 className="mt-3 text-3xl font-extrabold leading-tight text-primary md:text-5xl">
-              Mọi hành trình bắt đầu bằng sự tiện lợi, an toàn và tối ưu chi phí
+              Mỗi hành trình bắt đầu bạng số tiền lại, an toàn và tối ưu chi phí
             </h2>
           </div>
 
@@ -225,9 +225,9 @@ export default function ServicesPage() {
                 </h2>
                 <p className="mt-5 leading-8 text-muted">
                   BQDrive hoan nghênh sự đồng hành của các công ty vận tải hành
-                  khách, du lịch và cho thuê xe. Đội ngũ chuyên viên B2B hỗ trợ
+                  khách, du lịch và cho thuê xe. Đối ngu chuyên viên B2B hỗ trợ
                   thiết lập hệ thống riêng, tư vấn bảng giá chiết khấu và chuẩn
-                  hóa quy trình hợp tác bằng văn bản pháp lý minh bạch.
+                  hóa quy trình hợp tác bạng van bạn pháp lý minh bạch.
                 </p>
               </div>
 
@@ -256,3 +256,10 @@ export default function ServicesPage() {
     </div>
   );
 }
+
+
+
+
+
+
+

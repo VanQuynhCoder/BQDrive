@@ -23,8 +23,13 @@ export type IContract = BaseDocument & {
   endDate: Date;
   totalPrice: number;
   depositAmount: number;
+  paidAmount: number;
   remainingAmount: number;
+  paymentStatus?: string;
   paymentOption: string;
+  pickupAddressSnapshot?: string;
+  returnAddressSnapshot?: string;
+  ownerAddressSnapshot?: string;
   status: ContractStatusEnum;
   contractCode: string;
   signedAt?: Date;
@@ -109,15 +114,36 @@ const contractSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    paidAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     remainingAmount: {
       type: Number,
       default: 0,
       min: 0,
     },
+    paymentStatus: {
+      type: String,
+      trim: true,
+    },
     paymentOption: {
       type: String,
       enum: Object.values(PaymentOptionEnum),
       required: true,
+    },
+    pickupAddressSnapshot: {
+      type: String,
+      trim: true,
+    },
+    returnAddressSnapshot: {
+      type: String,
+      trim: true,
+    },
+    ownerAddressSnapshot: {
+      type: String,
+      trim: true,
     },
     status: {
       type: String,

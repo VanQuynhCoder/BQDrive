@@ -20,6 +20,7 @@ const filterOptions: Array<{ label: string; value: PaymentFilter }> = [
   { label: "Thất bại", value: "FAILED" },
   { label: "Hoàn tiền", value: "REFUNDED" },
 ];
+const MANUAL_CONFIRM_PAYMENT_METHODS = ["CASH"];
 
 function formatCurrency(value?: number) {
   return new Intl.NumberFormat("vi-VN", {
@@ -128,9 +129,9 @@ export default function BusinessPaymentsPage() {
         status: "PAID",
       });
       setPayments(await businessService.getPayments());
-      toast.success("Da ghi nhan thanh toan tien mat");
-    } catch (error) {
-      toast.error("Khong the cap nhat thanh toan");
+      toast.success("Đã ghi nhận thanh toán tiền một");
+    } catch {
+      toast.error("Không thể cập nhật thanh toán");
     } finally {
       setUpdatingPaymentId(null);
     }
@@ -227,10 +228,10 @@ export default function BusinessPaymentsPage() {
               <tr>
                 <th className="px-5 py-4">Mã thanh toán</th>
                 <th className="px-5 py-4">Booking</th>
-                <th className="px-5 py-4">Thao tac</th>
+                <th className="px-5 py-4">Thao tác</th>
                 <th className="px-5 py-4">Khách hàng</th>
                 <th className="px-5 py-4">Số tiền</th>
-                <th className="px-5 py-4">Phương thức</th>
+                <th className="px-5 py-4">Phuong thực</th>
                 <th className="px-5 py-4">Trạng thái</th>
                 <th className="px-5 py-4">Thời gian</th>
               </tr>
@@ -262,7 +263,7 @@ export default function BusinessPaymentsPage() {
                           : "--"}
                       </td>
                       <td className="px-5 py-4">
-                        {payment.method === "CASH" && payment.status === "PENDING" ? (
+                        {MANUAL_CONFIRM_PAYMENT_METHODS.includes(payment.method || "") && payment.status === "PENDING" ? (
                           <button
                             type="button"
                             onClick={() => markCashPaymentPaid(payment._id)}
@@ -274,7 +275,7 @@ export default function BusinessPaymentsPage() {
                             ) : (
                               <CheckCircle2 size={14} />
                             )}
-                            Da nhan tien
+                            Đã nhận tiền
                           </button>
                         ) : (
                           <span className="text-slate-400">--</span>
@@ -282,10 +283,10 @@ export default function BusinessPaymentsPage() {
                       </td>
                       <td className="px-5 py-4">
                         <p className="font-extrabold text-primary">
-                          {payment.userId?.name || "--"}
+                          {payment.userId.name || "--"}
                         </p>
                         <p className="text-xs font-semibold text-slate-500">
-                          {payment.userId?.email || "--"}
+                          {payment.userId.email || "--"}
                         </p>
                       </td>
                       <td className="px-5 py-4 font-extrabold text-primary">
@@ -321,3 +322,10 @@ export default function BusinessPaymentsPage() {
     </div>
   );
 }
+
+
+
+
+
+
+

@@ -19,7 +19,7 @@ const heroImage =
 const aboutHighlights = [
   {
     icon: Search,
-    title: "Tìm kiếm dễ dàng",
+    title: "Tìm kiểm dễ dàng",
     text: "Khách hàng có thể xem nhanh thông tin xe, hình ảnh, giá thuê, loại xe, số chỗ, nhiên liệu, hộp số và tình trạng khả dụng trước khi đặt.",
   },
   {
@@ -50,10 +50,10 @@ const aboutStats = [
 ];
 
 const values = [
-  "Thông tin xe trực quan, dễ so sánh trước khi đặt.",
+  "Thông tin xe trảc quan, để so sánh trước khi đặt.",
   "Lịch sử đặt xe và đơn thuê được quản lý tập trung.",
   "Chủ xe chủ động xác nhận yêu cầu và theo dõi phương tiện.",
-  "Trải nghiệm thuê xe hiện đại, linh hoạt và thân thiện.",
+  "Trải nghiệm thuê xe hiện đội, linh hoạt và thân thiện.",
 ];
 
 export default function AboutPage() {
@@ -84,7 +84,7 @@ export default function AboutPage() {
               <p className="mt-6 max-w-3xl text-lg leading-8 text-white/82">
                 BQ Drive là nền tảng thuê xe trực tuyến giúp khách hàng dễ dàng
                 tìm kiếm, lựa chọn và đặt thuê xe phù hợp với nhu cầu di chuyển
-                chỉ trong vài thao tác.
+                chỗ trong vài thao tác.
               </p>
 
               <div className="mt-9 flex flex-wrap gap-3">
@@ -133,11 +133,11 @@ export default function AboutPage() {
               <p className="mt-6 text-lg leading-8 text-muted">
                 Hệ thống kết nối khách hàng với các chủ xe và doanh nghiệp cho
                 thuê xe, mang đến quy trình đặt xe nhanh chóng, minh bạch và
-                tiện lợi.
+                tiền lại.
               </p>
               <p className="mt-4 leading-8 text-muted">
                 Với BQ Drive, người dùng có thể xem thông tin chi tiết từng xe
-                trước khi đặt. Đồng thời, chủ xe có công cụ để đăng tải, quản lý
+                trước khi đặt. Đồng thời, chủ xe có công cụ dễ dàng tải, quản lý
                 phương tiện và xác nhận các yêu cầu thuê xe dễ dàng hơn.
               </p>
             </div>
@@ -147,7 +147,7 @@ export default function AboutPage() {
                 <ShieldCheck size={24} />
               </div>
               <h3 className="text-2xl font-extrabold">
-                BQ Drive hướng đến trải nghiệm thuê xe hiện đại, an toàn và thân
+                BQ Drive hướng đến trải nghiệm thuê xe hiện đội, an toàn và thân
                 thiện.
               </h3>
               <div className="mt-6 grid gap-4">
@@ -205,8 +205,8 @@ export default function AboutPage() {
                 Tìm chiếc xe phù hợp cho chuyến đi tiếp theo của bạn
               </h2>
               <p className="mt-4 max-w-2xl leading-7 text-white/70">
-                BQ Drive giúp mọi chuyến đi trở nên chủ động, linh hoạt và thuận
-                tiện hơn từ lúc tìm xe đến khi hoàn tất đơn thuê.
+                BQ Drive giúp mỗi chuyến đi trở nên chủ động, linh hoạt và thuận
+                tiền hơn từ lúc tìm xe đến khi hoàn tất đơn thuê.
               </p>
             </div>
 
@@ -227,3 +227,9 @@ export default function AboutPage() {
     </div>
   );
 }
+
+
+
+
+
+

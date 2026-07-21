@@ -3,7 +3,13 @@ import { ErrorHelper } from "../../base/error";
 import { BookingModel } from "../../models/booking/booking.model";
 import { BusinessModel } from "../../models/business/business.model";
 import { ContractModel } from "../../models/contract/contract.model";
+import { UserModel } from "../../models/user/user.model";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
+import { formatAddress } from "../../helper/address.helper";
+import {
+  getContractStatusForBookingStatus,
+  syncContractFromBooking,
+} from "../../helper/payment-sync.helper";
 import {
   BookingStatusEnum,
   ContractStatusEnum,
@@ -13,6 +19,8 @@ import {
 } from "../../constants/model.const";
 
 const RENTER_ROLES = [UserRoleEnum.USER];
+const RENTER_INFO_REQUIRED_FOR_CONTRACT_MESSAGE =
+  "Booking thiếu thông tin người thuê, không thể tạo hợp đồng.";
 
 class ContractRoute extends BaseRoute {
   constructor() {
@@ -118,26 +126,92 @@ class ContractRoute extends BaseRoute {
     return ownerFilter;
   }
 
-  async createContract(req: Request, res: Response) {
-    const authUser = (req as any).user;
-    const {
-      bookingId,
+  private async getOwnerAddressSnapshot(booking: any) {
+    const ownerType = (booking as any).ownerType || OwnerTypeEnum.BUSINESS;
+
+    if (ownerType === OwnerTypeEnum.USER) {
+      const ownerUser = await UserModel.findById((booking as any).ownerId)
+        .select("-password -otpCode")
+        .lean();
+
+      return ownerUser ? formatAddress(ownerUser) : "";
+    }
+
+    const ownerBusinessId = (booking as any).ownerId || booking.businessId;
+    const ownerBusiness = ownerBusinessId
+      ? await BusinessModel.findById(ownerBusinessId).lean()
+      : null;
+
+    return ownerBusiness ? formatAddress(ownerBusiness) : "";
+  }
+
+  private getBusinessPopulate() {
+    return {
+      path: "businessId",
+      populate: {
+        path: "userId",
+        select: "-password -otpCode",
+      },
+    };
+  }
+
+  private getContractRenterInfo(booking: any) {
+    const renterInfo = (booking as any).renterInfo || {};
+    const renterName = String(renterInfo.fullName || "").trim();
+    const renterPhone = String(renterInfo.phone || "").trim();
+    const renterIdentityNumber = String(renterInfo.cccdNumber || "").trim();
+    const renterAddress = String(
+      renterInfo.address ||
+        (booking as any).pickupAddressSnapshot ||
+        "",
+    ).trim();
+
+    if (!renterName || !renterPhone || !renterIdentityNumber || !renterAddress) {
+      throw ErrorHelper.requestDataInvalid(RENTER_INFO_REQUIRED_FOR_CONTRACT_MESSAGE);
+    }
+
+    return {
       renterName,
       renterPhone,
       renterIdentityNumber,
       renterAddress,
-      note,
-    } = req.body;
+      note: String(renterInfo.note || "").trim(),
+    };
+  }
 
-    if (
-      !bookingId ||
-      !renterName ||
-      !renterPhone ||
-      !renterIdentityNumber ||
-      !renterAddress
-    ) {
+  private async buildContractResponse(contract: any) {
+    const booking =
+      contract && typeof contract.bookingId === "object"
+        ? contract.bookingId
+        : await BookingModel.findById(contract.bookingId);
+
+    if (!booking) {
+      return contract.toObject ? contract.toObject() : contract;
+    }
+
+    const paymentSummary = await syncContractFromBooking(booking);
+    const nextStatus = getContractStatusForBookingStatus(booking.status);
+    const plainContract = contract.toObject ? contract.toObject() : contract;
+
+    return {
+      ...plainContract,
+      status: nextStatus,
+      totalPrice: paymentSummary.totalPrice,
+      depositAmount: paymentSummary.depositAmount,
+      paidAmount: paymentSummary.paidAmount,
+      remainingAmount: paymentSummary.remainingAmount,
+      paymentStatus: paymentSummary.paymentStatus,
+      paymentSummary,
+    };
+  }
+
+  async createContract(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const { bookingId } = req.body;
+
+    if (!bookingId) {
       throw ErrorHelper.requestDataInvalid(
-        "Thiáº¿u bookingId hoáº·c thÃ´ng tin ngÆ°á»i thuÃª",
+        "Thiếu bookingId",
       );
     }
 
@@ -155,16 +229,16 @@ class ContractRoute extends BaseRoute {
 
     if (
       ![
-        BookingStatusEnum.OWNER_APPROVED, // Chá»§ xe Ä‘Ã£ duyá»‡t, khÃ¡ch Ä‘Æ°á»£c táº¡o há»£p Ä‘á»“ng trÆ°á»›c khi thanh toÃ¡n
-        BookingStatusEnum.PAYMENT_PENDING, // KhÃ¡ch Ä‘ang thanh toÃ¡n, há»£p Ä‘á»“ng váº«n há»£p lá»‡
-        BookingStatusEnum.PAID, // ÄÃ£ thanh toÃ¡n, há»£p Ä‘á»“ng cÃ³ thá»ƒ xem/tÃ¡i dÃ¹ng
-        BookingStatusEnum.IN_PROGRESS, // Äang thuÃª, há»£p Ä‘á»“ng váº«n cÃ²n hiá»‡u lá»±c
-        BookingStatusEnum.CONFIRMED, // Tráº¡ng thÃ¡i cÅ©
-        BookingStatusEnum.WAITING_PAYMENT, // Tráº¡ng thÃ¡i cÅ©
+        BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã duyệt, khách được tạo hợp đồng trước khi thanh toán
+        BookingStatusEnum.PAYMENT_PENDING, // Khách đang thanh toán, hợp đồng vẫn hợp lệ
+        BookingStatusEnum.PAID, // Đã thanh toán, hợp đồng có thể xem/tái dùng
+        BookingStatusEnum.IN_PROGRESS, // Đang thuê, hợp đồng vẫn còn hiệu lực
+        BookingStatusEnum.CONFIRMED, // Trạng thái cũ
+        BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ
       ].includes(booking.status as BookingStatusEnum)
     ) {
       throw ErrorHelper.requestDataInvalid(
-        "Booking cáº§n Ä‘Æ°á»£c chá»§ xe xÃ¡c nháº­n trÆ°á»›c khi táº¡o há»£p Ä‘á»“ng",
+        "Booking cần được chủ xe xác nhận trước khi tạo hợp đồng",
       );
     }
 
@@ -175,7 +249,7 @@ class ContractRoute extends BaseRoute {
         BookingStatusEnum.NO_SHOW,
       ].includes(booking.status as BookingStatusEnum)
     ) {
-      throw ErrorHelper.requestDataInvalid("Booking khÃ´ng cÃ²n kháº£ dá»¥ng Ä‘á»ƒ táº¡o há»£p Ä‘á»“ng");
+      throw ErrorHelper.requestDataInvalid("Booking không còn khả dụng để tạo hợp đồng");
     }
 
     const existedContract = await ContractModel.findOne({
@@ -183,17 +257,26 @@ class ContractRoute extends BaseRoute {
       isDeleted: false,
     })
       .populate("carId")
-      .populate("businessId")
+      .populate("ownerId", "-password -otpCode")
+      .populate(this.getBusinessPopulate())
       .populate("bookingId");
 
     if (existedContract) {
+      const contractResponse = await this.buildContractResponse(existedContract);
+
       return res.status(200).json({
         status: 200,
         code: "200",
-        message: "Contract Ä‘Ã£ tá»“n táº¡i",
-        data: { contract: existedContract },
+        message: "Contract đã tồn tại",
+        data: { contract: contractResponse },
       });
     }
+
+    const ownerAddressSnapshot =
+      (await this.getOwnerAddressSnapshot(booking)) ||
+      (booking as any).pickupAddressSnapshot ||
+      "";
+    const contractRenterInfo = this.getContractRenterInfo(booking);
 
     const contract = await ContractModel.create({
       bookingId: booking._id,
@@ -207,31 +290,32 @@ class ContractRoute extends BaseRoute {
         OwnerTypeEnum.USER
           ? "User"
           : "Business",
-      renterName,
-      renterPhone,
-      renterIdentityNumber,
-      renterAddress,
-      note,
+      ...contractRenterInfo,
       startDate: booking.startDate,
       endDate: booking.endDate,
       totalPrice: booking.totalPrice,
       depositAmount: booking.depositAmount,
       remainingAmount: booking.remainingAmount,
       paymentOption: booking.paymentOption || PaymentOptionEnum.DEPOSIT,
+      pickupAddressSnapshot: (booking as any).pickupAddressSnapshot,
+      returnAddressSnapshot: (booking as any).returnAddressSnapshot,
+      ownerAddressSnapshot,
       status: ContractStatusEnum.ACTIVE,
       contractCode: await this.generateContractCode(),
       signedAt: new Date(),
     });
 
     await contract.populate("carId");
-    await contract.populate("businessId");
+    await contract.populate("ownerId", "-password -otpCode");
+    await contract.populate(this.getBusinessPopulate());
     await contract.populate("bookingId");
+    const contractResponse = await this.buildContractResponse(contract);
 
     return res.status(201).json({
       status: 201,
       code: "201",
-      message: "Táº¡o há»£p Ä‘á»“ng thuÃª xe thÃ nh cÃ´ng",
-      data: { contract },
+      message: "Tạo hợp đồng thuê xe thành công",
+      data: { contract: contractResponse },
     });
   }
 
@@ -243,15 +327,19 @@ class ContractRoute extends BaseRoute {
       isDeleted: false,
     })
       .populate("carId")
-      .populate("businessId")
+      .populate("ownerId", "-password -otpCode")
+      .populate(this.getBusinessPopulate())
       .populate("bookingId")
       .sort({ createdAt: -1 });
+    const contractResponses = await Promise.all(
+      contracts.map((contract) => this.buildContractResponse(contract)),
+    );
 
     return res.status(200).json({
       status: 200,
       code: "200",
       message: "success",
-      data: { contracts },
+      data: { contracts: contractResponses },
     });
   }
 
@@ -265,18 +353,20 @@ class ContractRoute extends BaseRoute {
       isDeleted: false,
     } as any)
       .populate("carId")
-      .populate("businessId")
+      .populate("ownerId", "-password -otpCode")
+      .populate(this.getBusinessPopulate())
       .populate("bookingId");
 
     if (!contract) {
-      throw ErrorHelper.recordNotFound("Há»£p Ä‘á»“ng");
+      throw ErrorHelper.recordNotFound("Hợp đồng");
     }
+    const contractResponse = await this.buildContractResponse(contract);
 
     return res.status(200).json({
       status: 200,
       code: "200",
       message: "success",
-      data: { contract },
+      data: { contract: contractResponse },
     });
   }
 
@@ -299,15 +389,19 @@ class ContractRoute extends BaseRoute {
       isDeleted: false,
     })
       .populate("userId", "-password -otpCode")
+      .populate("ownerId", "-password -otpCode")
       .populate("carId")
       .populate("bookingId")
       .sort({ createdAt: -1 });
+    const contractResponses = await Promise.all(
+      contracts.map((contract) => this.buildContractResponse(contract)),
+    );
 
     return res.status(200).json({
       status: 200,
       code: "200",
       message: "success",
-      data: { contracts },
+      data: { contracts: contractResponses },
     });
   }
 }

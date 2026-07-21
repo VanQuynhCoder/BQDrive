@@ -46,10 +46,10 @@ export default function AdminLayout() {
                 </div>
                 <div className="max-w-[180px]">
                   <p className="truncate text-sm font-extrabold text-primary">
-                    {admin?.name || "Admin"}
+                    {admin.name || "Admin"}
                   </p>
                   <p className="truncate text-xs font-semibold text-slate-500">
-                    {admin?.email || "admin@bqdrive.vn"}
+                    {admin.email || "admin@bqdrive.vn"}
                   </p>
                 </div>
               </div>
@@ -73,3 +73,7 @@ export default function AdminLayout() {
     </div>
   );
 }
+
+
+
+

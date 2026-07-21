@@ -31,7 +31,7 @@ function formatDateTime(value?: string) {
   });
 }
 
-function getStatusTone(status: string) {
+function getStatusTone(status?: string) {
   const map: Record<string, "green" | "red" | "yellow" | "blue" | "gray"> = {
     ACTIVE: "blue",
     COMPLETED: "green",
@@ -39,7 +39,7 @@ function getStatusTone(status: string) {
     DRAFT: "yellow",
   };
 
-  return map[status] || "gray";
+  return map[status || ""] || "gray";
 }
 
 function getCar(contract: RentalContract) {
@@ -184,3 +184,10 @@ export default function MyContractsPage() {
     </div>
   );
 }
+
+
+
+
+
+
+

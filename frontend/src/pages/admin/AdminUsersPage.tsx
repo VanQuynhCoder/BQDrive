@@ -28,10 +28,25 @@ function getRoleLabel(role: string) {
   const labels: Record<string, string> = {
     USER: "Người dùng",
     BUSINESS: "Doanh nghiệp",
-    ADMIN: "Quản trị viên",
+    ADMIN: "Quận trả viên",
   };
 
   return labels[role] || role;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const response = (
+      error as { response?: { data?: { message?: unknown; data?: unknown } } }
+    ).response;
+
+    if (typeof response?.data?.data === "string") return response.data.data;
+    if (typeof response?.data?.message === "string") {
+      return response.data.message;
+    }
+  }
+
+  return fallback;
 }
 
 export default function AdminUsersPage() {
@@ -82,7 +97,7 @@ export default function AdminUsersPage() {
   }, []);
 
   const handleSearch = (event: FormEvent) => {
-    event.preventDefault();
+    event?.preventDefault();
     void fetchUsers();
   };
 
@@ -104,32 +119,32 @@ export default function AdminUsersPage() {
   const confirmAction = async () => {
     if (!action) return;
 
-    if ((action.type === "block" || action.type === "delete") && !reason.trim()) {
+    if ((action?.type === "block" || action?.type === "delete") && !reason.trim()) {
       toast.error("Vui lòng nhập lý do");
       return;
     }
 
     setSubmitting(true);
     try {
-      if (action.type === "block") {
-        await adminService.blockUser(action.user._id, reason.trim());
+      if (action?.type === "block") {
+        await adminService.blockUser(action?.user._id, reason.trim());
         toast.success("Đã khóa tài khoản");
       }
 
-      if (action.type === "unblock") {
-        await adminService.unblockUser(action.user._id);
+      if (action?.type === "unblock") {
+        await adminService.unblockUser(action?.user._id);
         toast.success("Đã mở khóa tài khoản");
       }
 
-      if (action.type === "delete") {
-        await adminService.deleteUser(action.user._id, reason.trim());
+      if (action?.type === "delete") {
+        await adminService.deleteUser(action?.user._id, reason.trim());
         toast.success("Đã xóa tài khoản");
       }
 
       closeAction();
       await fetchUsers();
-    } catch {
-      toast.error("Thao tác thất bại");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Thao tác thất bại"));
     } finally {
       setSubmitting(false);
     }
@@ -147,13 +162,13 @@ export default function AdminUsersPage() {
       <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm font-bold uppercase text-secondary">
-            Quản trị người dùng
+            Quận trả người dùng
           </p>
           <h2 className="mt-2 text-3xl font-extrabold text-primary">
             Quản lý User
           </h2>
           <p className="mt-2 text-slate-500">
-            Tìm kiếm, khóa, mở khóa hoặc xóa mềm tài khoản trong hệ thống.
+            Tìm kiểm, khóa, mở khóa hoặc xóa mềm tài khoản trong hệ thống.
           </p>
         </div>
       </section>
@@ -174,7 +189,7 @@ export default function AdminUsersPage() {
           </div>
 
           <button className="min-h-11 rounded-lg bg-primary px-6 py-2 font-extrabold text-white transition hover:bg-primaryDark">
-            Tìm kiếm
+            Tìm kiểm
           </button>
         </form>
 
@@ -247,7 +262,7 @@ export default function AdminUsersPage() {
                           <button
                             type="button"
                             onClick={() => openAction("unblock", user)}
-                            className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 font-bold text-emerald-700 hover:bg-emerald-100"
+                            className="inline-flex items-center gap-2 rounded-lg bg-secondary px-3 py-2 font-extrabold text-primary hover:bg-secondaryLight"
                           >
                             <Unlock size={16} />
                             Mở khóa
@@ -266,7 +281,7 @@ export default function AdminUsersPage() {
                         <button
                           type="button"
                           onClick={() => openAction("delete", user)}
-                          className="inline-flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 font-bold text-red-700 hover:bg-red-100"
+                          className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 font-extrabold text-slate-800 hover:bg-slate-200"
                         >
                           <Trash2 size={16} />
                           Xóa
@@ -293,7 +308,7 @@ export default function AdminUsersPage() {
         title={modalTitle}
         description={
           action
-            ? `Tài khoản: ${action.user.name} (${action.user.email})`
+            ? `Tài khoản: ${action?.user.name} (${action?.user.email})`
             : undefined
         }
         confirmText={
@@ -318,7 +333,7 @@ export default function AdminUsersPage() {
               onChange={(event) => setReason(event.target.value)}
               rows={4}
               className="w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-secondary"
-              placeholder="Nhập lý do thao tác..."
+              placeholder="Nhợp lý do thao tác..."
             />
           </label>
         )}
@@ -326,3 +341,11 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+

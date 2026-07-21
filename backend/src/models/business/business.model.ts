@@ -9,7 +9,12 @@ export type IBusiness = BaseDocument & {
   rejectReason?: string;
   phone?: string;
   address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
   description?: string;
+  logo?: string;
   isApproved?: boolean;
   isDeleted?: boolean;
 };
@@ -48,8 +53,28 @@ const businessSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    province: {
+      type: String,
+      trim: true,
+    },
+    city: {
+      type: String,
+      trim: true,
+    },
+    district: {
+      type: String,
+      trim: true,
+    },
+    ward: {
+      type: String,
+      trim: true,
+    },
     description: {
       type: String,
+    },
+    logo: {
+      type: String,
+      trim: true,
     },
     isApproved: {
       type: Boolean,

@@ -4,10 +4,10 @@
 };
 
 const toneClass = {
-  green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  red: "bg-red-50 text-red-700 ring-red-200",
-  yellow: "bg-amber-50 text-amber-700 ring-amber-200",
-  blue: "bg-blue-50 text-blue-700 ring-blue-200",
+  green: "bg-secondarySoft text-primary ring-secondary/40",
+  red: "bg-slate-100 text-slate-800 ring-slate-300",
+  yellow: "bg-secondarySoft text-primary ring-secondary/50",
+  blue: "bg-primary text-secondary ring-primary",
   gray: "bg-slate-100 text-slate-700 ring-slate-200",
 };
 
@@ -23,3 +23,5 @@ export default function AdminStatusBadge({
     </span>
   );
 }
+
+

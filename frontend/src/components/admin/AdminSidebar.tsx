@@ -1,6 +1,7 @@
 ﻿import {
   BarChart3,
   Building2,
+  CalendarDays,
   Car,
   Factory,
   LogOut,
@@ -8,6 +9,8 @@
   Users,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import NotificationBadge from "../NotificationBadge";
+import { useNotificationSummary } from "../../hooks/useNotificationSummary";
 
 type AdminSidebarProps = {
   onLogout: () => void;
@@ -29,6 +32,7 @@ const menuItems = [
     to: "/admin/businesses",
     label: "Quản lý Doanh nghiệp",
     icon: Building2,
+    badgeKeys: ["pendingBusiness"],
   },
   {
     to: "/admin/brands",
@@ -39,10 +43,18 @@ const menuItems = [
     to: "/admin/cars",
     label: "Quản lý Xe",
     icon: Car,
+    badgeKeys: ["pendingCars"],
+  },
+  {
+    to: "/admin/holidays",
+    label: "Quản lý ngày lễ",
+    icon: CalendarDays,
   },
 ];
 
 export default function AdminSidebar({ onLogout }: AdminSidebarProps) {
+  const { getCount } = useNotificationSummary();
+
   return (
     <>
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-72 border-r border-slate-800 bg-primary text-white lg:flex lg:flex-col">
@@ -61,23 +73,30 @@ export default function AdminSidebar({ onLogout }: AdminSidebarProps) {
         </div>
 
         <nav className="flex-1 space-y-1 px-4 py-5">
-          {menuItems.map(({ to, label, icon: Icon, end }) => (
+          {menuItems.map(({ to, label, icon: Icon, end, badgeKeys }) => {
+            const badgeCount = badgeKeys ? getCount(badgeKeys) : 0;
+
+            return (
             <NavLink
               key={to}
               to={to}
               end={end}
               className={({ isActive }) =>
-                `flex min-h-11 items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold transition ${
+                `flex min-h-11 items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm font-bold transition ${
                   isActive
                     ? "bg-secondary text-primary shadow-lg shadow-black/10"
                     : "text-white/72 hover:bg-white/10 hover:text-white"
                 }`
               }
             >
-              <Icon size={19} />
-              <span>{label}</span>
+              <span className="flex min-w-0 items-center gap-3">
+                <Icon size={19} />
+                <span className="truncate">{label}</span>
+              </span>
+              <NotificationBadge count={badgeCount} />
             </NavLink>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="border-t border-white/10 p-4">
@@ -94,23 +113,31 @@ export default function AdminSidebar({ onLogout }: AdminSidebarProps) {
 
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white px-3 py-2 shadow-2xl lg:hidden">
         <div className="flex gap-2 overflow-x-auto">
-          {menuItems.map(({ to, label, icon: Icon, end }) => (
+          {menuItems.map(({ to, label, icon: Icon, end, badgeKeys }) => {
+            const badgeCount = badgeKeys ? getCount(badgeKeys) : 0;
+
+            return (
             <NavLink
               key={to}
               to={to}
               end={end}
               className={({ isActive }) =>
-                `flex min-w-[92px] flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs font-extrabold transition ${
+                `relative flex min-w-[92px] flex-col items-center justify-center gap-1 rounded-lg px-3 py-2 text-xs font-extrabold transition ${
                   isActive
                     ? "bg-primary text-white"
                     : "bg-slate-100 text-slate-600"
                 }`
               }
             >
+              <NotificationBadge
+                count={badgeCount}
+                className="absolute right-2 top-1"
+              />
               <Icon size={18} />
               <span className="whitespace-nowrap">{label}</span>
             </NavLink>
-          ))}
+            );
+          })}
           <button
             type="button"
             onClick={onLogout}
@@ -124,3 +151,6 @@ export default function AdminSidebar({ onLogout }: AdminSidebarProps) {
     </>
   );
 }
+
+
+

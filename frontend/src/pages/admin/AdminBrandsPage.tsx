@@ -102,7 +102,7 @@ export default function AdminBrandsPage() {
     }
 
     if (file.size > 1024 * 1024) {
-      toast.error("Ảnh logo nên nhỏ hơn 1MB");
+      toast.error("ảnh logo nên nhỏ hơn 1MB");
       return;
     }
 
@@ -116,7 +116,7 @@ export default function AdminBrandsPage() {
   };
 
   const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
+    event?.preventDefault();
 
     if (!form.name.trim()) {
       toast.error("Vui lòng nhập tên hãng");
@@ -162,7 +162,7 @@ export default function AdminBrandsPage() {
     <div className="space-y-6">
       <section>
         <p className="text-sm font-bold uppercase text-secondary">
-          Danh mục xe
+          Danh mởc xe
         </p>
         <h2 className="mt-2 text-3xl font-extrabold text-primary">
           Quản lý Hãng xe
@@ -368,7 +368,7 @@ export default function AdminBrandsPage() {
                           <button
                             type="button"
                             onClick={() => setDeleteBrand(brand)}
-                            className="inline-flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 font-bold text-red-700 hover:bg-red-100"
+                            className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 font-extrabold text-slate-800 hover:bg-slate-200"
                           >
                             <Trash2 size={16} />
                             Xóa
@@ -396,7 +396,7 @@ export default function AdminBrandsPage() {
         title="Xóa hãng xe"
         description={
           deleteBrand
-            ? `Bạn chắc chắn muốn xóa hãng ${deleteBrand.name}?`
+            ? `Bạn chỗc chọn muốn xóa hãng ${deleteBrand.name}?`
             : undefined
         }
         confirmText="Xóa hãng"
@@ -408,3 +408,11 @@ export default function AdminBrandsPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
