@@ -1580,7 +1580,7 @@ export default function HomePage() {
                 ))}
               </div>
 
-              {cars.length > HOME_CARS_PER_PAGE && (
+              {cars.length > 0 && (
                 <div className="mt-8 flex justify-center rounded-2xl border border-border bg-white px-5 py-4 shadow-sm">
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     <button

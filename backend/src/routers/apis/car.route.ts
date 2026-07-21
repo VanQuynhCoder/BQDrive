@@ -999,15 +999,6 @@ class CarRoute extends BaseRoute {
     if (String(deliveryOnly || "") === "true") {
       filter.deliveryEnabled = true;
     }
-    if (authUserId && (authUser as any)?.role === UserRoleEnum.USER) {
-      andFilters.push({
-        $or: [
-          { ownerType: { $ne: OwnerTypeEnum.USER } },
-          { ownerId: { $ne: authUserId } },
-        ],
-      });
-    }
-
     if (selectedRentalMode === RentalModeEnum.HOURLY) {
       andFilters.push({
         $or: [{ allowHourlyRental: true }, { rentalUnit: RentalUnitEnum.HOUR }],
