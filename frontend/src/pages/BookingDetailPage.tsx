@@ -35,6 +35,7 @@ import {
 } from "../components/booking/BookingTimeline";
 import RouteMap from "../components/maps/RouteMap";
 import { bookingService } from "../services/booking.service";
+import type { CancellationPreview } from "../services/booking.service";
 import { notifyNotificationSummaryChanged } from "../services/notification.service";
 import {
   reviewService,
@@ -46,6 +47,12 @@ import {
   type ExtraCharge,
   type ExtraChargeType,
 } from "../services/extraCharge.service";
+import { refundService } from "../services/refund.service";
+import type {
+  RefundRecipientInfo,
+  RefundRecipientInfoPayload,
+  RefundRecipientMethod,
+} from "../services/refund.service";
 import { getFirstCarImage, normalizeImageUrl } from "../utils/image.util";
 import { formatVietnamDateTime } from "../utils/date.util";
 import { formatAddressSnapshot, formatFullAddress } from "../utils/address.util";
@@ -146,6 +153,19 @@ type Booking = {
   paymentOption: "DEPOSIT" | "FULL" | string;
   status: BookingStatus;
   cancelReason: string;
+  cancelledAt?: string;
+  cancelledByRole?: string;
+  cancelReasonCode?: string;
+  cancelReasonText?: string;
+  cancellationSummary?: {
+    paidAmountAtCancellation: number;
+    cancellationFee: number;
+    refundAmount: number;
+    policyRuleApplied: string;
+    refundRequired: boolean;
+    refundId?: string;
+  };
+  refunds?: BookingRefund[];
   rejectReason?: string;
   noShowReason: string;
   noShowAt?: string;
@@ -476,9 +496,15 @@ function canPayBooking(booking: Booking, nextAmount: number) {
 }
 
 function canCancelBooking(booking: Booking) {
-  return ["REQUESTED", "OWNER_APPROVED", "PENDING", "CONFIRMED"].includes(
-    booking.status || "",
-  );
+  return [
+    "REQUESTED",
+    "OWNER_APPROVED",
+    "PAYMENT_PENDING",
+    "PAID",
+    "PENDING",
+    "WAITING_PAYMENT",
+    "CONFIRMED",
+  ].includes(booking.status || "");
 }
 
 const extraChargeTypeLabels: Record<ExtraChargeType, string> = {
@@ -487,6 +513,22 @@ const extraChargeTypeLabels: Record<ExtraChargeType, string> = {
   LATE_RETURN: "Phí trễ giờ",
   FUEL: "Phí nhiên liệu",
   OTHER: "Phí khác",
+};
+
+type BookingRefund = {
+  _id: string;
+  refundAmount: number;
+  cancellationFee: number;
+  paidAmountAtCancellation: number;
+  status: string;
+  method: string;
+  policyRuleApplied: string;
+  reasonText?: string;
+  recipientInfo?: RefundRecipientInfo;
+  manualRefundReference?: string;
+  manualRefundSentAt?: string;
+  renterConfirmedAt?: string;
+  createdAt?: string;
 };
 
 function getExtraChargeTypeLabel(type: ExtraChargeType | string) {
@@ -514,6 +556,34 @@ function getExtraChargeStatusMeta(status?: string) {
   };
 }
 
+function getRefundStatusLabel(status?: string) {
+  const labels: Record<string, string> = {
+    PENDING: "Chờ xử lý",
+    WAITING_FOR_REFUND_INFO: "Chờ cung cấp thông tin nhận tiền",
+    PROCESSING: "Chủ xe đã gửi, chờ xác nhận",
+    SUCCEEDED: "Đã hoàn tất",
+    FAILED: "Hoàn tiền thất bại",
+    MANUAL_REQUIRED: "Chờ hoàn thủ công",
+    CANCELLED: "Không cần hoàn",
+  };
+
+  return labels[status || ""] || "Chờ xử lý";
+}
+
+function getCancellationPolicyLabel(rule?: string) {
+  const labels: Record<string, string> = {
+    NO_PAID_AMOUNT: "Chưa thanh toán, không phát sinh hoàn tiền",
+    RENTER_CANCEL_BEFORE_OWNER_APPROVAL: "Khách hủy trước khi chủ xe duyệt, hoàn 100%",
+    FULL_REFUND_BEFORE_48_HOURS: "Hủy trước giờ thuê từ 48 giờ, hoàn 100%",
+    PARTIAL_REFUND_24_TO_48_HOURS: "Hủy trước giờ thuê 24-48 giờ, hoàn 80%",
+    LATE_CANCEL_KEEP_DEPOSIT: "Hủy sát giờ, giữ lại tiền cọc",
+    OWNER_CANCEL_FULL_REFUND: "Chủ xe hủy, hoàn 100%",
+    PAYMENT_AFTER_CANCEL_FULL_REFUND: "Thanh toán đến sau khi booking đã hủy, hoàn 100%",
+  };
+
+  return labels[rule || ""] || rule || "--";
+}
+
 export default function BookingDetailPage() {
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -521,6 +591,12 @@ export default function BookingDetailPage() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelReasonCode, setCancelReasonCode] = useState("CHANGE_OF_PLAN");
+  const [cancelReasonText, setCancelReasonText] = useState("");
+  const [cancelPreview, setCancelPreview] = useState<CancellationPreview | null>(null);
+  const [cancelPreviewLoading, setCancelPreviewLoading] = useState(false);
+  const [cancelPolicyAccepted, setCancelPolicyAccepted] = useState(false);
   const [review, setReview] = useState<ReviewItem | null>(null);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
@@ -531,6 +607,20 @@ export default function BookingDetailPage() {
   const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
   const [extraChargeLoading, setExtraChargeLoading] = useState(false);
   const [extraChargePayingId, setExtraChargePayingId] = useState("");
+  const [refundConfirmingId, setRefundConfirmingId] = useState("");
+  const [refundRecipientSubmittingId, setRefundRecipientSubmittingId] =
+    useState("");
+  const [refundRecipientModalOpen, setRefundRecipientModalOpen] = useState(false);
+  const [refundRecipientMethod, setRefundRecipientMethod] =
+    useState<RefundRecipientMethod>("BANK_TRANSFER");
+  const [refundBankName, setRefundBankName] = useState("");
+  const [refundAccountNumber, setRefundAccountNumber] = useState("");
+  const [refundAccountHolderName, setRefundAccountHolderName] = useState("");
+  const [refundWalletProvider, setRefundWalletProvider] = useState("");
+  const [refundWalletAccount, setRefundWalletAccount] = useState("");
+  const [refundWalletHolderName, setRefundWalletHolderName] = useState("");
+  const [refundCashNote, setRefundCashNote] = useState("");
+  const [refundRecipientAccepted, setRefundRecipientAccepted] = useState(false);
 
   const fetchExtraCharges = useCallback(async (bookingId: string) => {
     setExtraChargeLoading(true);
@@ -586,14 +676,60 @@ export default function BookingDetailPage() {
     });
   }, [fetchBooking]);
 
-  const handleCancel = async () => {
+  const loadCancellationPreview = useCallback(
+    async (nextReasonCode = cancelReasonCode, nextReasonText = cancelReasonText) => {
+      if (!booking?._id) return;
+
+      setCancelPreviewLoading(true);
+      try {
+        const preview = await bookingService.previewCancellation(booking._id, {
+          reasonCode: nextReasonCode,
+          reasonText: nextReasonText,
+        });
+        setCancelPreview(preview);
+      } catch (error) {
+        const message =
+          typeof error === "object" &&
+          error !== null &&
+          "response" in error &&
+          typeof (error as { response?: { data?: { message?: unknown; data?: unknown } } })
+            .response?.data?.message === "string"
+            ? String(
+                (error as { response?: { data?: { message?: unknown } } }).response
+                  ?.data?.message,
+              )
+            : "Không thể xem trước chính sách hủy";
+
+        setCancelPreview(null);
+        toast.error(message);
+      } finally {
+        setCancelPreviewLoading(false);
+      }
+    },
+    [booking, cancelReasonCode, cancelReasonText],
+  );
+
+  const openCancelModal = async () => {
     if (!booking || cancelSubmitting) return;
-    if (!window.confirm("Bạn có chắc muốn hủy booking này?")) return;
+    setCancelModalOpen(true);
+    setCancelPolicyAccepted(false);
+    await loadCancellationPreview();
+  };
+
+  const handleCancel = async () => {
+    if (!booking || cancelSubmitting || !cancelPreview || !cancelPolicyAccepted) return;
 
     try {
       setCancelSubmitting(true);
-      await bookingService.cancelBooking(booking._id, "Khách hàng hủy booking");
-      toast.success("Đã hủy booking");
+      const result = await bookingService.cancelBooking(booking._id, {
+        reasonCode: cancelReasonCode,
+        reasonText: cancelReasonText,
+        confirmed: true,
+      });
+      toast.success(result?.message || "Đã hủy booking");
+      setCancelModalOpen(false);
+      setCancelPreview(null);
+      setCancelPolicyAccepted(false);
       await fetchBooking();
     } catch (error) {
       const message =
@@ -642,6 +778,120 @@ export default function BookingDetailPage() {
     }
   };
 
+  const handleConfirmRefundReceived = async (refundId: string) => {
+    if (refundConfirmingId) return;
+
+    setRefundConfirmingId(refundId);
+    try {
+      await refundService.confirmReceived(refundId);
+      toast.success("Đã xác nhận nhận tiền hoàn.");
+      await fetchBooking();
+      notifyNotificationSummaryChanged();
+    } catch {
+      toast.error("Không thể xác nhận nhận tiền hoàn");
+    } finally {
+      setRefundConfirmingId("");
+    }
+  };
+
+  const openRefundRecipientModal = () => {
+    setRefundRecipientMethod("BANK_TRANSFER");
+    setRefundBankName("");
+    setRefundAccountNumber("");
+    setRefundAccountHolderName("");
+    setRefundWalletProvider("");
+    setRefundWalletAccount("");
+    setRefundWalletHolderName("");
+    setRefundCashNote("");
+    setRefundRecipientAccepted(false);
+    setRefundRecipientModalOpen(true);
+  };
+
+  const buildRefundRecipientPayload = (): RefundRecipientInfoPayload | null => {
+    if (refundRecipientMethod === "BANK_TRANSFER") {
+      const bankName = refundBankName.trim();
+      const accountNumber = refundAccountNumber.trim();
+      const accountHolderName = refundAccountHolderName.trim();
+
+      if (!bankName || !accountNumber || !accountHolderName) {
+        toast.error("Vui lòng nhập đầy đủ thông tin tài khoản ngân hàng.");
+        return null;
+      }
+
+      return {
+        method: "BANK_TRANSFER",
+        bankName,
+        accountNumber,
+        accountHolderName,
+      };
+    }
+
+    if (refundRecipientMethod === "E_WALLET") {
+      const walletProvider = refundWalletProvider.trim();
+      const walletAccount = refundWalletAccount.trim();
+      const walletHolderName = refundWalletHolderName.trim();
+
+      if (!walletProvider || !walletAccount || !walletHolderName) {
+        toast.error("Vui lòng nhập đầy đủ thông tin ví điện tử.");
+        return null;
+      }
+
+      return {
+        method: "E_WALLET",
+        walletProvider,
+        walletAccount,
+        walletHolderName,
+      };
+    }
+
+    const cashNote = refundCashNote.trim();
+    if (cashNote.length < 10) {
+      toast.error("Vui lòng nhập ghi chú nhận tiền mặt rõ ràng hơn.");
+      return null;
+    }
+
+    return {
+      method: "CASH",
+      cashNote,
+    };
+  };
+
+  const handleSubmitRefundRecipientInfo = async () => {
+    if (!latestRefund || refundRecipientSubmittingId) return;
+    if (!refundRecipientAccepted) {
+      toast.error("Vui lòng xác nhận thông tin nhận tiền là chính xác.");
+      return;
+    }
+
+    const payload = buildRefundRecipientPayload();
+    if (!payload) return;
+
+    setRefundRecipientSubmittingId(latestRefund._id);
+    try {
+      await refundService.submitRecipientInfo(latestRefund._id, payload);
+      toast.success("Đã gửi thông tin nhận tiền hoàn cho chủ xe.");
+      setRefundRecipientModalOpen(false);
+      await fetchBooking();
+      notifyNotificationSummaryChanged();
+    } catch (error) {
+      const message =
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: { data?: { message?: unknown } } }).response
+          ?.data?.message === "string"
+          ? String(
+              (error as { response?: { data?: { message?: unknown } } }).response
+                ?.data?.message,
+            )
+          : "Không thể gửi thông tin nhận tiền hoàn";
+
+      toast.error(message);
+    } finally {
+      setRefundRecipientSubmittingId("");
+    }
+  };
+
   const openReviewModal = useCallback(() => {
     if (review) {
       setReviewRating(review.rating || 0);
@@ -687,6 +937,11 @@ export default function BookingDetailPage() {
 
     if (sectionParam === "extra-charge") {
       scrollToSection("booking-extra-charges");
+      return;
+    }
+
+    if (sectionParam === "refund") {
+      scrollToSection("booking-refund");
       return;
     }
 
@@ -887,6 +1142,7 @@ export default function BookingDetailPage() {
   const pendingExtraChargeTotal = extraCharges
     .filter((charge) => charge.status === "PENDING")
     .reduce((sum, charge) => sum + Number(charge.amount || 0), 0);
+  const latestRefund = booking.refunds?.[0];
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background">
@@ -1045,6 +1301,141 @@ export default function BookingDetailPage() {
                       cọc/thanh toán sẽ được thực hiện theo quy định của hệ
                       thống hoặc chủ xe.
                     </p>
+                  )}
+                </div>
+              )}
+
+              {booking.status === "CANCELLED" && booking.cancellationSummary && (
+                <div id="booking-refund" className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-sm font-bold uppercase text-secondary">
+                        Hoàn tiền
+                      </p>
+                      <h3 className="mt-1 text-xl font-extrabold text-primary">
+                        Trạng thái hoàn tiền sau hủy
+                      </h3>
+                      <p className="mt-2 text-sm font-semibold leading-6 text-muted">
+                        Booking đã hủy không còn giữ lịch xe. Hoàn tiền được xử lý bằng hồ sơ riêng.
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-secondarySoft px-4 py-2 text-sm font-extrabold text-primary">
+                      {latestRefund
+                        ? getRefundStatusLabel(latestRefund.status)
+                        : booking.cancellationSummary.refundRequired
+                          ? "Chờ tạo hồ sơ hoàn"
+                          : "Không cần hoàn"}
+                    </span>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                    <SummaryTile
+                      label="Đã thanh toán lúc hủy"
+                      value={formatPrice(booking.cancellationSummary.paidAmountAtCancellation)}
+                    />
+                    <SummaryTile
+                      label="Phí hủy"
+                      value={formatPrice(booking.cancellationSummary.cancellationFee)}
+                    />
+                    <SummaryTile
+                      label="Dự kiến hoàn"
+                      value={formatPrice(booking.cancellationSummary.refundAmount)}
+                    />
+                    <SummaryTile
+                      label="Chính sách"
+                      value={getCancellationPolicyLabel(
+                        booking.cancellationSummary.policyRuleApplied,
+                      )}
+                    />
+                  </div>
+
+                  {latestRefund && (
+                    <div className="mt-4 rounded-lg border border-dashed border-border bg-slate-50 px-4 py-3 text-sm font-semibold leading-6 text-slate-600">
+                      <p>Mã refund: #{latestRefund._id.slice(-8).toUpperCase()}</p>
+                      <p>Phương thức xử lý: {latestRefund.method}</p>
+                      {latestRefund.status === "WAITING_FOR_REFUND_INFO" && (
+                        <div className="mt-3 rounded-lg border border-secondary/30 bg-secondarySoft/35 p-4">
+                          <p className="font-extrabold text-primary">
+                            Cần cung cấp thông tin nhận tiền hoàn
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-muted">
+                            Chủ xe chỉ có thể thực hiện hoàn tiền sau khi bạn gửi
+                            thông tin nhận tiền chính xác.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={openRefundRecipientModal}
+                            className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2 font-extrabold text-primary transition hover:brightness-95"
+                          >
+                            <Wallet size={18} />
+                            Cung cấp thông tin nhận tiền
+                          </button>
+                        </div>
+                      )}
+                      {latestRefund.recipientInfo && (
+                        <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                          <p className="text-xs font-extrabold uppercase text-secondary">
+                            Thông tin nhận tiền đã gửi
+                          </p>
+                          {latestRefund.recipientInfo.method === "BANK_TRANSFER" && (
+                            <div className="mt-2 space-y-1">
+                              <p>Ngân hàng: {latestRefund.recipientInfo.bankName || "--"}</p>
+                              <p>
+                                Chủ tài khoản:{" "}
+                                {latestRefund.recipientInfo.accountHolderName || "--"}
+                              </p>
+                              <p>
+                                Số tài khoản:{" "}
+                                {latestRefund.recipientInfo.accountNumberMasked ||
+                                  latestRefund.recipientInfo.accountNumber ||
+                                  "--"}
+                              </p>
+                            </div>
+                          )}
+                          {latestRefund.recipientInfo.method === "E_WALLET" && (
+                            <div className="mt-2 space-y-1">
+                              <p>
+                                Ví điện tử:{" "}
+                                {latestRefund.recipientInfo.walletProvider || "--"}
+                              </p>
+                              <p>
+                                Chủ ví:{" "}
+                                {latestRefund.recipientInfo.walletHolderName || "--"}
+                              </p>
+                              <p>
+                                Tài khoản ví:{" "}
+                                {latestRefund.recipientInfo.walletAccountMasked ||
+                                  latestRefund.recipientInfo.walletAccount ||
+                                  "--"}
+                              </p>
+                            </div>
+                          )}
+                          {latestRefund.recipientInfo.method === "CASH" && (
+                            <p className="mt-2">
+                              Nhận tiền mặt:{" "}
+                              {latestRefund.recipientInfo.cashNote ||
+                                "Đã cung cấp ghi chú nhận tiền mặt."}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {latestRefund.manualRefundReference && (
+                        <p>Mã tham chiếu thủ công: {latestRefund.manualRefundReference}</p>
+                      )}
+                      {latestRefund.status === "PROCESSING" && (
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmRefundReceived(latestRefund._id)}
+                          disabled={refundConfirmingId === latestRefund._id}
+                          className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2 font-extrabold text-primary transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {refundConfirmingId === latestRefund._id && (
+                            <Loader2 size={18} className="animate-spin" />
+                          )}
+                          Tôi đã nhận tiền hoàn
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -1381,7 +1772,7 @@ export default function BookingDetailPage() {
               {showCancelAction && (
                 <button
                   type="button"
-                  onClick={handleCancel}
+                  onClick={openCancelModal}
                   disabled={cancelSubmitting}
                   className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-slate-100 px-5 py-3 font-extrabold text-slate-800 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -1403,6 +1794,362 @@ export default function BookingDetailPage() {
       </main>
 
       <Footer />
+
+      {refundRecipientModalOpen && latestRefund && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 px-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="bg-primary px-6 py-5 text-white">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-secondary">
+                    Thông tin nhận tiền hoàn
+                  </h2>
+                  <p className="mt-1 font-semibold text-white/75">
+                    Refund #{latestRefund._id.slice(-8).toUpperCase()} -{" "}
+                    {formatPrice(latestRefund.refundAmount)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRefundRecipientModalOpen(false)}
+                  disabled={Boolean(refundRecipientSubmittingId)}
+                  className="rounded-lg p-2 text-white/70 transition hover:bg-white/10 hover:text-white"
+                  aria-label="Đóng"
+                >
+                  <XCircle size={22} />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-5 p-6">
+              <div className="rounded-xl border border-secondary/30 bg-secondarySoft/30 p-4 text-sm font-semibold leading-6 text-primary">
+                Thông tin này chỉ dùng để chủ xe hoàn tiền cho booking đã hủy.
+                Không nhập OTP, mã PIN, mật khẩu, CVV hoặc thông tin đăng nhập.
+              </div>
+
+              <label className="block">
+                <span className="text-sm font-bold text-primary">
+                  Phương thức nhận tiền
+                </span>
+                <select
+                  value={refundRecipientMethod}
+                  onChange={(event) =>
+                    setRefundRecipientMethod(
+                      event.target.value as RefundRecipientMethod,
+                    )
+                  }
+                  className="mt-2 h-12 w-full rounded-lg border border-border px-3 font-semibold outline-none focus:border-secondary"
+                >
+                  <option value="BANK_TRANSFER">Chuyển khoản ngân hàng</option>
+                  <option value="E_WALLET">Ví điện tử</option>
+                  <option value="CASH">Nhận tiền mặt</option>
+                </select>
+              </label>
+
+              {refundRecipientMethod === "BANK_TRANSFER" && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-bold text-primary">
+                      Tên ngân hàng
+                    </span>
+                    <input
+                      value={refundBankName}
+                      onChange={(event) => setRefundBankName(event.target.value)}
+                      maxLength={100}
+                      className="mt-2 h-12 w-full rounded-lg border border-border px-3 font-semibold outline-none focus:border-secondary"
+                      placeholder="VD: Vietcombank"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-bold text-primary">
+                      Số tài khoản
+                    </span>
+                    <input
+                      value={refundAccountNumber}
+                      onChange={(event) =>
+                        setRefundAccountNumber(event.target.value)
+                      }
+                      maxLength={30}
+                      className="mt-2 h-12 w-full rounded-lg border border-border px-3 font-semibold outline-none focus:border-secondary"
+                      placeholder="VD: 0123456789"
+                    />
+                  </label>
+                  <label className="block sm:col-span-2">
+                    <span className="text-sm font-bold text-primary">
+                      Tên chủ tài khoản
+                    </span>
+                    <input
+                      value={refundAccountHolderName}
+                      onChange={(event) =>
+                        setRefundAccountHolderName(event.target.value)
+                      }
+                      maxLength={100}
+                      className="mt-2 h-12 w-full rounded-lg border border-border px-3 font-semibold uppercase outline-none focus:border-secondary"
+                      placeholder="VD: NGUYEN VAN A"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {refundRecipientMethod === "E_WALLET" && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-bold text-primary">
+                      Tên ví điện tử
+                    </span>
+                    <input
+                      value={refundWalletProvider}
+                      onChange={(event) =>
+                        setRefundWalletProvider(event.target.value)
+                      }
+                      maxLength={100}
+                      className="mt-2 h-12 w-full rounded-lg border border-border px-3 font-semibold outline-none focus:border-secondary"
+                      placeholder="VD: MoMo, ZaloPay"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-bold text-primary">
+                      Số điện thoại/tài khoản ví
+                    </span>
+                    <input
+                      value={refundWalletAccount}
+                      onChange={(event) =>
+                        setRefundWalletAccount(event.target.value)
+                      }
+                      maxLength={100}
+                      className="mt-2 h-12 w-full rounded-lg border border-border px-3 font-semibold outline-none focus:border-secondary"
+                      placeholder="VD: 0901234567"
+                    />
+                  </label>
+                  <label className="block sm:col-span-2">
+                    <span className="text-sm font-bold text-primary">
+                      Tên chủ ví
+                    </span>
+                    <input
+                      value={refundWalletHolderName}
+                      onChange={(event) =>
+                        setRefundWalletHolderName(event.target.value)
+                      }
+                      maxLength={100}
+                      className="mt-2 h-12 w-full rounded-lg border border-border px-3 font-semibold outline-none focus:border-secondary"
+                      placeholder="VD: Nguyễn Văn A"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {refundRecipientMethod === "CASH" && (
+                <label className="block">
+                  <span className="text-sm font-bold text-primary">
+                    Ghi chú nhận tiền mặt
+                  </span>
+                  <textarea
+                    value={refundCashNote}
+                    onChange={(event) => setRefundCashNote(event.target.value)}
+                    maxLength={500}
+                    rows={4}
+                    className="mt-2 w-full rounded-lg border border-border px-3 py-3 font-semibold outline-none focus:border-secondary"
+                    placeholder="VD: Tôi sẽ nhận tiền mặt khi gặp chủ xe tại điểm hẹn..."
+                  />
+                </label>
+              )}
+
+              <label className="flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm font-semibold leading-6 text-primary">
+                <input
+                  type="checkbox"
+                  checked={refundRecipientAccepted}
+                  onChange={(event) =>
+                    setRefundRecipientAccepted(event.target.checked)
+                  }
+                  className="mt-1 h-5 w-5 rounded border-border accent-secondary"
+                />
+                <span>
+                  Tôi xác nhận thông tin nhận tiền là chính xác và hiểu rằng chủ
+                  xe sẽ dùng thông tin này để hoàn tiền.
+                </span>
+              </label>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-border bg-slate-50 px-6 py-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setRefundRecipientModalOpen(false)}
+                disabled={Boolean(refundRecipientSubmittingId)}
+                className="min-h-11 rounded-lg border border-border bg-white px-5 py-2 font-extrabold text-primary"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitRefundRecipientInfo}
+                disabled={
+                  !refundRecipientAccepted || Boolean(refundRecipientSubmittingId)
+                }
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-2 font-extrabold text-primary transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {refundRecipientSubmittingId && (
+                  <Loader2 size={18} className="animate-spin" />
+                )}
+                Gửi thông tin
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cancelModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 px-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="bg-primary px-6 py-5 text-white">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-secondary">
+                    Hủy booking
+                  </h2>
+                  <p className="mt-1 font-semibold text-white/75">
+                    Booking {getShortId(booking._id)} - {car?.name || "Xe BQDrive"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCancelModalOpen(false)}
+                  className="rounded-lg p-2 text-white/70 transition hover:bg-white/10 hover:text-white"
+                  aria-label="Đóng"
+                >
+                  <XCircle size={22} />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-5 p-6">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="text-sm font-bold text-primary">Lý do hủy</span>
+                  <select
+                    value={cancelReasonCode}
+                    onChange={(event) => {
+                      setCancelReasonCode(event.target.value);
+                      setCancelPolicyAccepted(false);
+                    }}
+                    className="mt-2 h-12 w-full rounded-lg border border-border px-3 font-semibold outline-none focus:border-secondary"
+                  >
+                    <option value="CHANGE_OF_PLAN">Thay đổi lịch trình</option>
+                    <option value="FOUND_ANOTHER_CAR">Đã chọn xe khác</option>
+                    <option value="PRICE_OR_TIME_NOT_SUITABLE">Giá hoặc thời gian chưa phù hợp</option>
+                    <option value="OTHER">Lý do khác</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-sm font-bold text-primary">Ghi chú</span>
+                  <input
+                    value={cancelReasonText}
+                    onChange={(event) => {
+                      setCancelReasonText(event.target.value);
+                      setCancelPolicyAccepted(false);
+                    }}
+                    onBlur={() => void loadCancellationPreview()}
+                    placeholder="Nhập thêm lý do nếu cần"
+                    className="mt-2 h-12 w-full rounded-lg border border-border px-3 font-semibold outline-none focus:border-secondary"
+                  />
+                </label>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => void loadCancellationPreview()}
+                disabled={cancelPreviewLoading}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-slate-100 px-4 py-2 font-extrabold text-primary transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {cancelPreviewLoading && <Loader2 size={18} className="animate-spin" />}
+                Cập nhật xem trước
+              </button>
+
+              {cancelPreviewLoading ? (
+                <div className="flex min-h-32 items-center justify-center rounded-xl border border-dashed border-border bg-slate-50 text-sm font-bold text-muted">
+                  <Loader2 size={18} className="mr-2 animate-spin text-secondary" />
+                  Đang tính chính sách hủy...
+                </div>
+              ) : cancelPreview ? (
+                <div className="rounded-xl border border-secondary/30 bg-secondarySoft/30 p-4">
+                  <p className="text-sm font-bold uppercase text-secondary">
+                    Xem trước hoàn tiền
+                  </p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <SummaryRow
+                      label="Tổng tiền"
+                      value={formatPrice(cancelPreview.totalPrice)}
+                    />
+                    <SummaryRow
+                      label="Đã thanh toán"
+                      value={formatPrice(cancelPreview.paidAmountAtCancellation)}
+                    />
+                    <SummaryRow
+                      label="Phí hủy"
+                      value={formatPrice(cancelPreview.cancellationFee)}
+                    />
+                    <SummaryRow
+                      label="Dự kiến hoàn"
+                      value={formatPrice(cancelPreview.refundAmount)}
+                      strong
+                    />
+                  </div>
+                  <p className="mt-4 rounded-lg bg-white px-4 py-3 text-sm font-semibold leading-6 text-primary">
+                    {getCancellationPolicyLabel(cancelPreview.policyRuleApplied)}
+                  </p>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-muted">
+                    {cancelPreview.message}
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-700">
+                  Chưa thể xem trước chính sách hủy cho booking này.
+                </div>
+              )}
+
+              <label className="flex items-start gap-3 rounded-xl border border-border bg-slate-50 p-4 text-sm font-semibold leading-6 text-primary">
+                <input
+                  type="checkbox"
+                  checked={cancelPolicyAccepted}
+                  onChange={(event) => setCancelPolicyAccepted(event.target.checked)}
+                  className="mt-1 h-5 w-5 rounded border-border text-secondary"
+                />
+                <span>
+                  Tôi đã đọc, hiểu{" "}
+                  <Link
+                    to="/policies/cancellation-refund"
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(event) => event.stopPropagation()}
+                    className="font-extrabold text-secondary underline decoration-2 underline-offset-4 hover:text-primary"
+                  >
+                    chính sách hủy và hoàn tiền
+                  </Link>{" "}
+                  và xác nhận hủy booking này.
+                </span>
+              </label>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-border bg-slate-50 px-6 py-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setCancelModalOpen(false)}
+                className="min-h-11 rounded-lg border border-border bg-white px-5 py-2 font-extrabold text-primary"
+              >
+                Giữ booking
+              </button>
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={!cancelPreview || !cancelPolicyAccepted || cancelSubmitting}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-2 font-extrabold text-primary transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {cancelSubmitting && <Loader2 size={18} className="animate-spin" />}
+                Xác nhận hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {reviewModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 px-4">
@@ -1665,6 +2412,17 @@ function SummaryRow({
     >
       <span>{label}</span>
       <span className="text-right font-extrabold text-primary">{value}</span>
+    </div>
+  );
+}
+
+function SummaryTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-slate-50 p-3">
+      <p className="text-xs font-bold uppercase text-muted">{label}</p>
+      <p className="mt-1 break-words text-base font-extrabold text-primary">
+        {value}
+      </p>
     </div>
   );
 }

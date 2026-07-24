@@ -8,6 +8,7 @@
   Home,
   LogOut,
   MapPinned,
+  RefreshCw,
   Star,
   WalletCards,
 } from "lucide-react";
@@ -35,6 +36,7 @@ const navItems = [
       "consignmentCompleteBookingRequired",
       "consignmentPendingExtraCharges",
       "consignmentCashConfirmationRequired",
+      "consignmentOwnerManualRefundRequired",
     ],
   },
   {
@@ -59,6 +61,7 @@ const navItems = [
       "consignmentCompleteBookingRequired",
       "consignmentPendingExtraCharges",
       "consignmentCashConfirmationRequired",
+      "consignmentOwnerManualRefundRequired",
     ],
   },
   {
@@ -67,6 +70,12 @@ const navItems = [
     icon: History,
   },
   { label: "Thanh toán", to: "/consignment/payments", icon: CreditCard },
+  {
+    label: "Hoàn tiền",
+    to: "/consignment/refunds",
+    icon: RefreshCw,
+    badgeKeys: ["consignmentOwnerManualRefundRequired"],
+  },
   { label: "Đánh giá", to: "/consignment/reviews", icon: Star },
 ];
 

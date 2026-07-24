@@ -13,6 +13,7 @@ type RelatedCar = {
   fuelType?: string;
   transmission?: string;
   pricePerDay?: number;
+  thumbnail?: string;
   images?: string[];
   image?: string;
   pickupAddress?: string;
@@ -89,7 +90,7 @@ function toCarouselCar(car: RelatedCar): CarouselCar {
     id: car._id,
     name: car.name,
     brandName: car.brandId?.name || "",
-    image: car.images?.find(Boolean) || car.image || "",
+    image: car.thumbnail || car.images?.find(Boolean) || car.image || "",
     pricePerDay: getCarPrice(car),
     location: formatAddressArea(car) || formatPickupAddress(car),
     seats: car.seats,

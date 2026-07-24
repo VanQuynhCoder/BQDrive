@@ -34,7 +34,10 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import CarCard from "../components/CarCard";
 import { authService } from "../services/auth.service";
-import { bookingService } from "../services/booking.service";
+import {
+  bookingService,
+  type BookingHoldSummary,
+} from "../services/booking.service";
 import { cartService } from "../services/cart.service";
 import { carService, type PublicBrand } from "../services/car.service";
 import { buildVietnamDateTime } from "../utils/date.util";
@@ -56,8 +59,10 @@ type HomeCar = {
   seats?: number;
   fuelType?: string;
   transmission?: string;
+  thumbnail?: string;
   images?: string[];
   image?: string;
+  ownerName?: string;
   brandId: {
     name?: string;
   };
@@ -72,14 +77,6 @@ type HomeCar = {
   holdExpiredAt?: string;
   resumeBookingId?: string;
   resumeExpiresAt?: string;
-};
-
-type HomeBooking = {
-  _id: string;
-  carId: string | { _id: string };
-  status: string;
-  paidAmount: number;
-  createdAt: string;
 };
 
 type HomeCart = {
@@ -155,7 +152,7 @@ const carTypeOptions = [
   { value: "PICKUP", label: "Bán tải" },
   { value: "MPV", label: "MPV" },
 ];
-const seatOptions = ["4", "5", "7", "9", "16"];
+const seatOptions = ["4", "5", "7"];
 const fuelTypeOptions = [
   { value: "GASOLINE", label: "Xăng" },
   { value: "DIESEL", label: "Dầu" },
@@ -321,13 +318,13 @@ export default function HomePage() {
             ...filterParams,
           },
         )) as HomeCar[];
-        let myBookings: HomeBooking[] = [];
+        let myBookings: BookingHoldSummary[] = [];
         let myCarts: HomeCart[] = [];
 
         if (authService.isLoggedIn() && authService.getRole() === "USER") {
           try {
             [myBookings, myCarts] = await Promise.all([
-              bookingService.getMyBookings() as Promise<HomeBooking[]>,
+              bookingService.getMyActiveHolds(),
               cartService.getMyCart() as Promise<HomeCart[]>,
             ]);
           } catch (error) {
@@ -373,10 +370,7 @@ export default function HomePage() {
             : 0;
           if (createdAt > 0 && createdAt + BOOKING_HOLD_MS <= now) return;
 
-          const carId =
-            typeof booking.carId === "string"
-              ? booking.carId
-              : booking.carId._id;
+          const carId = String(booking.carId || "");
 
           if (carId && !resumableBookingByCarId.has(carId)) {
             resumableBookingByCarId.set(carId, {
@@ -933,16 +927,8 @@ export default function HomePage() {
                     : "border-border bg-white text-primary hover:border-secondary/60"
                 }`}
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-soft text-xs font-extrabold text-primary">
-                  {brand.logo ? (
-                    <img
-                      src={brand.logo}
-                      alt={brand.name}
-                      className="h-full w-full object-contain p-1"
-                    />
-                  ) : (
-                    getBrandInitials(brand.name)
-                  )}
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondarySoft text-xs font-extrabold text-primary">
+                  {getBrandInitials(brand.name)}
                 </span>
                 <span className="truncate text-sm font-extrabold">{brand.name}</span>
               </button>
@@ -1311,7 +1297,7 @@ export default function HomePage() {
                     <MapPin size={19} className="shrink-0 text-secondary" />
                     <input
                       className="min-w-0 flex-1 bg-transparent outline-none"
-                      placeholder="Bạn muốn nhận xe ở đâu?"
+                      placeholder="Bạn muốn nhận xe ở đâu? hãy nhập quận huyện mà bạn muốn nhận xe "
                       value={searchLocation}
                       onChange={(event) => setSearchLocation(event.target.value)}
                     />

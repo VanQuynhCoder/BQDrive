@@ -12,10 +12,29 @@ import {
   BookingStatusEnum,
   BusinessTypeEnum,
   CarStatusEnum,
+  OwnerTypeEnum,
   PaymentStatusEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
 import { validatePhone } from "../../utils/validators";
+
+type PublicPartnerAggregate = {
+  _id: unknown;
+  businessName?: string;
+  logo?: string;
+  description?: string;
+  shortDescription?: string;
+  publicEmail?: string;
+  publicPhone?: string;
+  phone?: string;
+  address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
+  website?: string;
+  createdAt?: Date;
+};
 
 class BusinessRoute extends BaseRoute {
   constructor() {
@@ -65,6 +84,8 @@ class BusinessRoute extends BaseRoute {
       this.route(this.getAllBusiness),
     );
 
+    this.router.get("/public-partners", [], this.route(this.getPublicPartners));
+
     this.router.get(
       "/getBusinessRequests",
       [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
@@ -98,6 +119,125 @@ class BusinessRoute extends BaseRoute {
 
     return business;
   }
+
+  private buildPublicAddress(partner: PublicPartnerAggregate) {
+    const parts = [
+      partner.address,
+      partner.ward,
+      partner.district,
+      partner.province || partner.city,
+    ]
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter(Boolean);
+
+    return Array.from(new Set(parts)).join(", ");
+  }
+
+  async getPublicPartners(req: Request, res: Response) {
+    const partners = await BusinessModel.aggregate<PublicPartnerAggregate>([
+      {
+        $match: {
+          isDeleted: false,
+          isApproved: true,
+          isRejected: { $ne: true },
+          $or: [
+            { isPublicPartner: true },
+            { isPublicPartner: { $exists: false } },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      {
+        $unwind: {
+          path: "$user",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $match: {
+          "user.isDeleted": { $ne: true },
+          "user.isBlocked": { $ne: true },
+        },
+      },
+      { $sort: { displayOrder: 1, createdAt: -1 } },
+      {
+        $project: {
+          _id: 1,
+          businessName: 1,
+          logo: 1,
+          description: 1,
+          shortDescription: 1,
+          publicEmail: 1,
+          publicPhone: 1,
+          phone: 1,
+          address: 1,
+          province: 1,
+          city: 1,
+          district: 1,
+          ward: 1,
+          website: 1,
+          createdAt: 1,
+        },
+      },
+    ]);
+
+    const businessIds = partners.map((partner) => partner._id);
+    const activeCarResult = await CarModel.aggregate<{ count: number }>([
+      {
+        $match: {
+          isDeleted: false,
+          status: CarStatusEnum.APPROVED,
+          $or: [
+            { businessId: { $in: businessIds } },
+            {
+              ownerId: { $in: businessIds },
+              ownerType: OwnerTypeEnum.BUSINESS,
+            },
+          ],
+        },
+      },
+      { $count: "count" },
+    ]);
+    const activeCarCount = activeCarResult[0]?.count || 0;
+
+    const servedAreas = new Set(
+      partners
+        .map((partner) => partner.district || partner.province || partner.city)
+        .filter((item): item is string => Boolean(item)),
+    );
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "success",
+      data: {
+        partners: partners.map((partner) => ({
+          _id: String(partner._id),
+          businessName: partner.businessName || "Đối tác BQDrive",
+          logo: partner.logo || "",
+          description: partner.shortDescription || partner.description || "",
+          publicEmail: partner.publicEmail || "",
+          publicPhone: partner.publicPhone || partner.phone || "",
+          address: this.buildPublicAddress(partner),
+          website: partner.website || "",
+          createdAt: partner.createdAt || null,
+        })),
+        stats: {
+          partnerCount: partners.length,
+          activeCarCount,
+          servedAreaCount: servedAreas.size,
+        },
+      },
+    });
+  }
+
   private paidRevenuePipeline(
     businessId: unknown,
     matchDate?: Record<string, Date>,

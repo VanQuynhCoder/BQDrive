@@ -187,13 +187,25 @@ class OwnerRoute extends BaseRoute {
       };
     }
 
+    const userId = String(authUser.userId);
+    const userObjectId = mongoose.Types.ObjectId.isValid(userId)
+      ? new mongoose.Types.ObjectId(userId)
+      : null;
+
     return {
       role: OwnerTypeEnum.USER,
-      userId: new mongoose.Types.ObjectId(authUser.userId),
+      userId: userObjectId || new mongoose.Types.ObjectId(),
       filter: {
         isDeleted: false,
-        ownerId: authUser.userId,
         ownerType: OwnerTypeEnum.USER,
+        $or: [
+          ...(userObjectId ? [{ ownerId: userObjectId }] : []),
+          {
+            $expr: {
+              $eq: [{ $toString: "$ownerId" }, userId],
+            },
+          },
+        ],
       },
     };
   }

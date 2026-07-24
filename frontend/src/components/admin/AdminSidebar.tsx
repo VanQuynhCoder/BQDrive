@@ -6,6 +6,7 @@
   ClipboardList,
   Factory,
   LogOut,
+  MapPinned,
   Tags,
   Users,
 } from "lucide-react";
@@ -51,6 +52,11 @@ const menuItems = [
     label: "Quản lý Xe",
     icon: Car,
     badgeKeys: ["pendingCars"],
+  },
+  {
+    to: "/admin/car-map",
+    label: "Bản đồ xe",
+    icon: MapPinned,
   },
   {
     to: "/admin/holidays",

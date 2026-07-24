@@ -111,10 +111,31 @@ export type PrivateOwnerBooking = {
   startDate: string;
   endDate: string;
   totalPrice?: number;
+  pickupAddressSnapshot?: string;
+  returnAddressSnapshot?: string;
   paymentOption?: string;
   depositAmount?: number;
   remainingAmount?: number;
   paidAmount?: number;
+  pricingSnapshot?: {
+    rentalSubtotal?: number;
+    deliveryFee?: number;
+    delivery?: {
+      deliveryType?: "PICKUP_AT_CAR_LOCATION" | "DELIVERY_TO_CUSTOMER" | string;
+      deliveryAddress?: string;
+      deliveryAddressText?: string;
+      deliveryFormattedAddress?: string;
+      deliveryLat?: number;
+      deliveryLng?: number;
+      deliveryDistanceKm?: number;
+      deliveryDurationText?: string;
+      deliveryBaseFee?: number;
+      deliveryFeePerKm?: number;
+      deliveryMaxDistanceKm?: number;
+      deliveryFee?: number;
+      deliveryNote?: string;
+    };
+  };
   isDepositRefundable?: boolean;
   status: BookingStatus;
   note?: string;

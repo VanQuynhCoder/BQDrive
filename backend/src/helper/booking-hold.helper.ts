@@ -1,14 +1,29 @@
 import {
   BookingStatusEnum,
+  ContractStatusEnum,
   PaymentStatusEnum,
 } from "../constants/model.const";
 import { BookingModel } from "../models/booking/booking.model";
 import { ContractModel } from "../models/contract/contract.model";
 import { PaymentModel } from "../models/payment/payment.model";
+import {
+  sendBookingPaymentTimeoutMail,
+  sendBookingRequestTimeoutMail,
+} from "./mail.helper";
 
 export const BOOKING_HOLD_MINUTES = 10;
 export const ABANDONED_BOOKING_CANCEL_REASON =
   "Booking hết hạn do khách chưa hoàn tất hợp đồng/thanh toán";
+export const REQUESTED_BOOKING_TIMEOUT_CANCEL_REASON =
+  "Yêu cầu thuê đã bị hủy tự động vì bên cho thuê không phản hồi trong thời gian quy định.";
+export const APPROVED_BOOKING_PAYMENT_TIMEOUT_CANCEL_REASON =
+  "Booking đã bị hủy tự động vì khách không thanh toán cọc hoặc thanh toán toàn bộ trong thời gian quy định.";
+
+const BOOKING_EXPIRATION_JOB_INTERVAL_MS = 60 * 1000;
+const REQUESTED_BOOKING_TIMEOUT_BATCH_SIZE = 25;
+const APPROVED_PAYMENT_TIMEOUT_BATCH_SIZE = 25;
+
+let bookingExpirationJobStarted = false;
 
 export function getBookingHoldExpiresAt(createdAt?: Date) {
   const baseTime = createdAt?.getTime() || Date.now();
@@ -43,47 +58,168 @@ export async function getCheckoutStartedBookingIdSet(bookingIds: unknown[]) {
   );
 }
 
-export async function expireAbandonedPendingBookings(now = new Date()) {
-  const cutoff = getBookingHoldCutoff(now);
-  const staleWaitingPaymentBookings = await BookingModel.find({
-    status: {
-      $in: [
-        BookingStatusEnum.PAYMENT_PENDING, // Trạng thái mới: khách đã bắt đầu thanh toán nhưng chưa hoàn tất
-        BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: giữ tương thích dữ liệu cũ
-      ],
-    },
-    $or: [{ paidAmount: { $lte: 0 } }, { paidAmount: { $exists: false } }],
+async function expireStaleRequestedBookings(cutoff: Date) {
+  const staleBookings = await BookingModel.find({
+    status: BookingStatusEnum.REQUESTED,
     isDeleted: false,
     createdAt: { $lte: cutoff },
   } as any)
     .select("_id")
+    .sort({ createdAt: 1 })
+    .limit(REQUESTED_BOOKING_TIMEOUT_BATCH_SIZE)
     .lean();
 
-  const staleBookingIds = staleWaitingPaymentBookings.map(
-    (booking) => booking._id,
-  );
+  let expiredCount = 0;
 
-  if (staleBookingIds.length === 0) {
-    return { expiredCount: 0 };
+  for (const staleBooking of staleBookings) {
+    const expiredBooking = await BookingModel.findOneAndUpdate(
+      {
+        _id: staleBooking._id,
+        status: BookingStatusEnum.REQUESTED,
+        isDeleted: false,
+        createdAt: { $lte: cutoff },
+      } as any,
+      {
+        status: BookingStatusEnum.CANCELLED,
+        cancelReason: REQUESTED_BOOKING_TIMEOUT_CANCEL_REASON,
+        cancelReasonCode: "OWNER_RESPONSE_TIMEOUT",
+        cancelReasonText: REQUESTED_BOOKING_TIMEOUT_CANCEL_REASON,
+        cancelledAt: new Date(),
+        cancelledByRole: "SYSTEM",
+      },
+      { new: true },
+    );
+
+    if (!expiredBooking) continue;
+
+    expiredCount += 1;
+    void sendBookingRequestTimeoutMail(expiredBooking);
   }
 
-  const result = await BookingModel.updateMany(
-    {
-      _id: { $in: staleBookingIds },
-      status: {
-        $in: [
-          BookingStatusEnum.PAYMENT_PENDING, // Chỉ auto hủy bước chờ thanh toán, không hủy yêu cầu chờ chủ xe duyệt
-          BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ
+  return expiredCount;
+}
+
+async function expireStaleWaitingPaymentBookings(now: Date, cutoff: Date) {
+  const staleBookings = await BookingModel.find({
+    status: {
+      $in: [
+        BookingStatusEnum.OWNER_APPROVED,
+        BookingStatusEnum.PAYMENT_PENDING,
+        BookingStatusEnum.WAITING_PAYMENT,
+      ],
+    },
+    $or: [{ paidAmount: { $lte: 0 } }, { paidAmount: { $exists: false } }],
+    isDeleted: false,
+    $and: [
+      {
+        $or: [
+          { paymentDeadlineAt: { $lte: now } },
+          {
+            paymentDeadlineAt: { $exists: false },
+            ownerApprovedAt: { $lte: cutoff },
+          },
+          {
+            paymentDeadlineAt: { $exists: false },
+            ownerApprovedAt: { $exists: false },
+            updatedAt: { $lte: cutoff },
+          },
         ],
       },
-      $or: [{ paidAmount: { $lte: 0 } }, { paidAmount: { $exists: false } }],
-      isDeleted: false,
-    } as any,
-    {
-      status: BookingStatusEnum.CANCELLED,
-      cancelReason: ABANDONED_BOOKING_CANCEL_REASON,
-    },
-  );
+    ],
+  } as any)
+    .select("_id")
+    .sort({ updatedAt: 1 })
+    .limit(APPROVED_PAYMENT_TIMEOUT_BATCH_SIZE)
+    .lean();
 
-  return { expiredCount: result.modifiedCount || 0 };
+  let expiredCount = 0;
+
+  for (const staleBooking of staleBookings) {
+    const expiredBooking = await BookingModel.findOneAndUpdate(
+      {
+        _id: staleBooking._id,
+        status: {
+          $in: [
+            BookingStatusEnum.OWNER_APPROVED,
+            BookingStatusEnum.PAYMENT_PENDING,
+            BookingStatusEnum.WAITING_PAYMENT,
+          ],
+        },
+        $or: [{ paidAmount: { $lte: 0 } }, { paidAmount: { $exists: false } }],
+        isDeleted: false,
+      } as any,
+      {
+        status: BookingStatusEnum.CANCELLED,
+        cancelReason: APPROVED_BOOKING_PAYMENT_TIMEOUT_CANCEL_REASON,
+        cancelReasonCode: "PAYMENT_TIMEOUT",
+        cancelReasonText: APPROVED_BOOKING_PAYMENT_TIMEOUT_CANCEL_REASON,
+        cancelledAt: now,
+        cancelledByRole: "SYSTEM",
+      },
+      { new: true },
+    );
+
+    if (!expiredBooking) continue;
+
+    await PaymentModel.updateMany(
+      {
+        bookingId: expiredBooking._id,
+        status: PaymentStatusEnum.PENDING,
+      } as any,
+      {
+        status: PaymentStatusEnum.FAILED,
+        note: APPROVED_BOOKING_PAYMENT_TIMEOUT_CANCEL_REASON,
+      },
+    );
+
+    await ContractModel.updateMany(
+      {
+        bookingId: expiredBooking._id,
+        isDeleted: false,
+        status: { $ne: ContractStatusEnum.CANCELLED },
+      } as any,
+      {
+        status: ContractStatusEnum.CANCELLED,
+      },
+    );
+
+    expiredCount += 1;
+    void sendBookingPaymentTimeoutMail(expiredBooking);
+  }
+
+  return expiredCount;
+}
+
+export async function expireAbandonedPendingBookings(now = new Date()) {
+  const cutoff = getBookingHoldCutoff(now);
+  const [requestedExpiredCount, paymentExpiredCount] = await Promise.all([
+    expireStaleRequestedBookings(cutoff),
+    expireStaleWaitingPaymentBookings(now, cutoff),
+  ]);
+
+  return {
+    expiredCount: requestedExpiredCount + paymentExpiredCount,
+    requestedExpiredCount,
+    paymentExpiredCount,
+  };
+}
+
+export function startBookingExpirationJob() {
+  if (bookingExpirationJobStarted) return;
+
+  bookingExpirationJobStarted = true;
+
+  const runJob = () => {
+    expireAbandonedPendingBookings().catch((error) => {
+      console.error("Booking expiration job failed", {
+        message: error?.message,
+        stack: error?.stack,
+      });
+    });
+  };
+
+  runJob();
+
+  const interval = setInterval(runJob, BOOKING_EXPIRATION_JOB_INTERVAL_MS);
+  interval.unref?.();
 }

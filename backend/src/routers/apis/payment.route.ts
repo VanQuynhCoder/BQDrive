@@ -22,6 +22,8 @@ import {
 } from "../../helper/mail.helper";
 import { syncBookingPaymentFromPaidPayments } from "../../helper/payment-sync.helper";
 import { notificationCenterService } from "../../services/notification-center.service";
+import { toCloudinaryCardThumbnailUrl } from "../../services/cloudinary.service";
+import { cancellationRefundService } from "../../services/cancellation-refund.service";
 import {
   BookingStatusEnum,
   CarStatusEnum,
@@ -315,6 +317,18 @@ class PaymentRoute extends BaseRoute {
       return;
     }
 
+    if (booking.status === BookingStatusEnum.CANCELLED) {
+      const refund =
+        await cancellationRefundService.createManualRefundForCancelledPaidPayment(
+          booking,
+          payment,
+        );
+      if (refund) {
+        void notificationCenterService.notifyRefundCreated(refund, booking);
+      }
+      return;
+    }
+
     await syncBookingPaymentFromPaidPayments(booking);
     await this.markCarRented(booking);
     void sendPaymentSuccessMail(booking, payment);
@@ -532,6 +546,15 @@ class PaymentRoute extends BaseRoute {
     } else {
       if (payment.paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
         await this.markExtraChargePaidFromPayment(payment);
+      } else if (booking.status === BookingStatusEnum.CANCELLED) {
+        const refund =
+          await cancellationRefundService.createManualRefundForCancelledPaidPayment(
+            booking,
+            payment,
+          );
+        if (refund) {
+          void notificationCenterService.notifyRefundCreated(refund, booking);
+        }
       } else {
         await syncBookingPaymentFromPaidPayments(booking);
       }
@@ -733,6 +756,15 @@ class PaymentRoute extends BaseRoute {
     if (payment.status === PaymentStatusEnum.PAID) {
       if (payment.paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
         await this.markExtraChargePaidFromPayment(payment);
+      } else if (booking.status === BookingStatusEnum.CANCELLED) {
+        const refund =
+          await cancellationRefundService.createManualRefundForCancelledPaidPayment(
+            booking,
+            payment,
+          );
+        if (refund) {
+          void notificationCenterService.notifyRefundCreated(refund, booking);
+        }
       } else {
         await syncBookingPaymentFromPaidPayments(booking);
       }
@@ -1083,6 +1115,15 @@ class PaymentRoute extends BaseRoute {
     if (payment.status === PaymentStatusEnum.PAID) {
       if (payment.paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
         await this.markExtraChargePaidFromPayment(payment);
+      } else if (booking.status === BookingStatusEnum.CANCELLED) {
+        const refund =
+          await cancellationRefundService.createManualRefundForCancelledPaidPayment(
+            booking,
+            payment,
+          );
+        if (refund) {
+          void notificationCenterService.notifyRefundCreated(refund, booking);
+        }
       } else {
         await syncBookingPaymentFromPaidPayments(booking);
       }
@@ -1334,7 +1375,9 @@ class PaymentRoute extends BaseRoute {
       name: car.name || "Xe đã bị xóa hoặc không còn tồn tại",
       brand: car.brandId?.name || "",
       plateNumber: car.licensePlate || car.plateNumberNormalized || "",
-      image: Array.isArray(car.images) ? car.images[0] || "" : "",
+      image: toCloudinaryCardThumbnailUrl(
+        Array.isArray(car.images) ? car.images[0] || "" : "",
+      ),
     };
   }
 

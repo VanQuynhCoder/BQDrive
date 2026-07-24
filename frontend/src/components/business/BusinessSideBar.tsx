@@ -7,6 +7,7 @@
   History,
   LogOut,
   MapPinned,
+  RefreshCw,
   Star,
   Store,
   UserCog,
@@ -38,6 +39,7 @@ const navItems = [
       "completeBookingRequired",
       "ownerPendingExtraCharges",
       "cashConfirmationRequired",
+      "ownerManualRefundRequired",
     ],
   },
   {
@@ -60,10 +62,17 @@ const navItems = [
       "completeBookingRequired",
       "ownerPendingExtraCharges",
       "cashConfirmationRequired",
+      "ownerManualRefundRequired",
     ],
   },
   { label: "Lịch sử booking", to: "/business/booking-history", icon: History },
   { label: "Thanh toán", to: "/business/payments", icon: CreditCard },
+  {
+    label: "Hoàn tiền",
+    to: "/business/refunds",
+    icon: RefreshCw,
+    badgeKeys: ["ownerManualRefundRequired"],
+  },
   { label: "Đánh giá", to: "/business/reviews", icon: Star },
   { label: "Hồ sơ", to: "/business/profile", icon: UserCog },
 ];

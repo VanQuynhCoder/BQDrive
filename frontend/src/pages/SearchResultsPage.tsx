@@ -21,8 +21,10 @@ type SearchCar = {
   seats?: number;
   fuelType?: string;
   transmission?: string;
+  thumbnail?: string;
   images?: string[];
   image?: string;
+  ownerName?: string;
   ownerType?: "BUSINESS" | "USER" | string;
   province?: string;
   city?: string;

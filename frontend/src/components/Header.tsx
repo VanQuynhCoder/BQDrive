@@ -249,9 +249,14 @@ export default function Header() {
           >
             Về chúng tôi
           </Link>
-          <a className={navItemMuted} href="#">
+          <Link
+            className={
+              location.pathname === "/contact" ? navItemActive : navItemMuted
+            }
+            to="/contact"
+          >
             Liên hệ
-          </a>
+          </Link>
         </nav>
       </div>
 

@@ -27,6 +27,7 @@ import {
   sendCarSubmittedToAdminMail,
 } from "../../helper/mail.helper";
 import { notificationCenterService } from "../../services/notification-center.service";
+import { toCloudinaryCardThumbnailUrl } from "../../services/cloudinary.service";
 
 import {
   BookingStatusEnum,
@@ -80,6 +81,36 @@ const DETAILED_PICKUP_BOOKING_STATUSES = [
 ];
 function cleanSearchText(value?: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeCarImagesInput(images: unknown) {
+  if (!Array.isArray(images)) return [];
+
+  return images
+    .map((image) => (typeof image === "string" ? image.trim() : ""))
+    .filter(Boolean);
+}
+
+function isBase64CarImage(image?: string) {
+  return String(image || "").trim().startsWith("data:image/");
+}
+
+function assertNoNewBase64CarImages(
+  nextImages: string[],
+  existingImages: string[] = [],
+) {
+  const existingBase64Images = new Set(
+    existingImages.filter((image) => isBase64CarImage(image)),
+  );
+  const newBase64Image = nextImages.find(
+    (image) => isBase64CarImage(image) && !existingBase64Images.has(image),
+  );
+
+  if (newBase64Image) {
+    throw ErrorHelper.requestDataInvalid(
+      "Ảnh xe mới cần được upload lên Cloudinary trước khi lưu",
+    );
+  }
 }
 
 function toOptionalPrice(value: unknown) {
@@ -296,6 +327,50 @@ function getDistanceKm(originLat?: number, originLng?: number, destLat?: number,
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return earthRadiusKm * c;
+}
+
+const HOME_CAR_LIST_PROJECTION = {
+  _id: 1,
+  businessId: 1,
+  ownerId: 1,
+  ownerType: 1,
+  brandId: 1,
+  name: 1,
+  type: 1,
+  licensePlate: 1,
+  pricePerDay: 1,
+  pricePerHour: 1,
+  pricing: 1,
+  allowDailyRental: 1,
+  allowHourlyRental: 1,
+  rentalUnit: 1,
+  seats: 1,
+  fuelType: 1,
+  transmission: 1,
+  images: { $slice: 1 },
+  pickupProvince: 1,
+  pickupDistrict: 1,
+  pickupWard: 1,
+  province: 1,
+  city: 1,
+  district: 1,
+  ward: 1,
+  pickupLat: 1,
+  pickupLng: 1,
+  latitude: 1,
+  longitude: 1,
+  deliveryEnabled: 1,
+  status: 1,
+  isHidden: 1,
+  createdAt: 1,
+};
+
+function buildHomeCarListProjection(includeThumbnail: boolean) {
+  if (includeThumbnail) return HOME_CAR_LIST_PROJECTION;
+
+  const projection = { ...HOME_CAR_LIST_PROJECTION };
+  delete (projection as Partial<typeof HOME_CAR_LIST_PROJECTION>).images;
+  return projection;
 }
 
 class CarRoute extends BaseRoute {
@@ -777,6 +852,41 @@ class CarRoute extends BaseRoute {
     };
   }
 
+  private buildHomeCarListDto(car: any) {
+    const brand = car.brandId
+      ? {
+          _id: car.brandId._id,
+          name: car.brandId.name,
+        }
+      : null;
+    const business = car.businessId
+      ? {
+          _id: car.businessId._id,
+          businessName: car.businessId.businessName,
+        }
+      : null;
+    const firstImage = Array.isArray(car.images)
+      ? car.images.find((image: unknown) => typeof image === "string" && image.trim()) || ""
+      : "";
+    const thumbnail = toCloudinaryCardThumbnailUrl(firstImage);
+    const publicCar = { ...car };
+
+    delete publicCar.images;
+    delete publicCar.ownerId;
+
+    return {
+      ...publicCar,
+      thumbnail,
+      brand,
+      brandId: brand,
+      businessId: business,
+      ownerName:
+        publicCar.ownerType === OwnerTypeEnum.USER
+          ? "Người dùng ký gửi"
+          : business?.businessName || "Đối tác BQDrive",
+    };
+  }
+
   private async assertCarHasNoActiveWork(carId: string, owner: any) {
     await expireAbandonedPendingBookings();
     await expireOldCarts();
@@ -863,14 +973,15 @@ class CarRoute extends BaseRoute {
       seats,
       fuelType,
       transmission,
-      images,
       description,
     } = req.body;
+    const images = normalizeCarImagesInput(req.body.images);
     const addressFields = normalizeCarAddressFields(req.body);
 
     if (!brandId || !name || !seats) {
       throw ErrorHelper.requestDataInvalid("Thiếu brandId, name hoặc seats");
     }
+    assertNoNewBase64CarImages(images);
     this.validatePickupAddress(addressFields);
     const normalizedLicensePlate = this.validateLicensePlate(licensePlate);
     const plateNumberNormalized = normalizedLicensePlate
@@ -975,9 +1086,11 @@ class CarRoute extends BaseRoute {
       minRating,
       userLat,
       userLng,
+      thumbnail,
     } =
       req.query;
     const isSearchRequest = req.path === "/search";
+    const includeThumbnail = String(thumbnail || "") !== "false";
 
     const filter: any = {
       status: isSearchRequest
@@ -1100,10 +1213,11 @@ class CarRoute extends BaseRoute {
     const sortOption = { createdAt: -1 };
 
     const cars = await CarModel.find(filter)
-      .populate("brandId")
-      .populate("businessId")
-      .populate("ownerId", "-password -otpCode")
-      .sort(sortOption as any);
+      .select(buildHomeCarListProjection(includeThumbnail) as any)
+      .populate("brandId", "_id name")
+      .populate("businessId", "_id businessName")
+      .sort(sortOption as any)
+      .lean();
 
     const requestedStart =
       typeof startDate === "string" ? new Date(startDate) : undefined;
@@ -1190,7 +1304,7 @@ class CarRoute extends BaseRoute {
       status: 200,
       code: "200",
       message: "success",
-      data: { cars: carsWithAvailability },
+      data: { cars: carsWithAvailability.map((car) => this.buildHomeCarListDto(car)) },
     });
   }
 
@@ -1248,8 +1362,14 @@ class CarRoute extends BaseRoute {
           .sort({ createdAt: -1 })
           .lean()
       : null;
+    const ownerId = (car as any).ownerId?._id || (car as any).ownerId;
+    const isCurrentUserConsignmentOwner =
+      Boolean(authUserId) &&
+      String((car as any).ownerType || "") === OwnerTypeEnum.USER &&
+      String(ownerId || "") === authUserId;
     const canShowDetailedPickupAddress =
       String((car as any).ownerType || "") !== OwnerTypeEnum.USER ||
+      isCurrentUserConsignmentOwner ||
       DETAILED_PICKUP_BOOKING_STATUSES.includes(
         currentUserActiveBooking?.status as BookingStatusEnum,
       );
@@ -1310,6 +1430,14 @@ class CarRoute extends BaseRoute {
 
     if (!existingCar) {
       throw ErrorHelper.recordNotFound("Xe");
+    }
+
+    if ("images" in updateData) {
+      updateData.images = normalizeCarImagesInput(updateData.images);
+      assertNoNewBase64CarImages(
+        updateData.images,
+        Array.isArray(existingCar.images) ? existingCar.images : [],
+      );
     }
 
     const addressFields = normalizeCarAddressFields(updateData);

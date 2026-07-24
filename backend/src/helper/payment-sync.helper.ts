@@ -33,7 +33,7 @@ export async function buildPaymentSummaryForBooking(booking: any): Promise<Booki
 
   const paidPayments = await PaymentModel.find({
     bookingId: booking._id,
-    status: PaymentStatusEnum.PAID,
+    status: { $in: [PaymentStatusEnum.PAID, PaymentStatusEnum.REFUNDED] },
     paymentType: {
       $in: [
         PaymentTypeEnum.DEPOSIT,
@@ -41,10 +41,18 @@ export async function buildPaymentSummaryForBooking(booking: any): Promise<Booki
         PaymentTypeEnum.REMAINING,
       ],
     },
-  }).select("amount paymentType method status paidAt transactionCode createdAt");
+  }).select("amount paymentType method status paidAt transactionCode refundedAmount createdAt");
 
   const paidAmount = Math.min(
-    paidPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0),
+    paidPayments.reduce((sum, payment) => {
+      const amount = Number(payment.amount || 0);
+      const refundedAmount =
+        payment.status === PaymentStatusEnum.REFUNDED
+          ? Number((payment as any).refundedAmount ?? amount)
+          : Number((payment as any).refundedAmount || 0);
+
+      return sum + Math.max(amount - refundedAmount, 0);
+    }, 0),
     totalPrice,
   );
   const remainingAmount = Math.max(totalPrice - paidAmount, 0);
@@ -91,6 +99,9 @@ export async function syncBookingPaymentFromPaidPayments(booking: any) {
       BookingStatusEnum.RETURN_INSPECTION,
       BookingStatusEnum.AWAITING_EXTRA_CHARGE,
       BookingStatusEnum.COMPLETED,
+      BookingStatusEnum.CANCELLED,
+      BookingStatusEnum.REJECTED,
+      BookingStatusEnum.NO_SHOW,
     ].includes(booking.status as BookingStatusEnum)
   ) {
     booking.status = BookingStatusEnum.PAID;

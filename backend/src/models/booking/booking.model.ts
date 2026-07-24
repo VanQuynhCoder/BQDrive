@@ -64,6 +64,13 @@ export type IBooking = BaseDocument & {
   remainingAmount: number;
   paidAmount: number;
   isDepositRefundable: boolean;
+  cancellationPolicySnapshot?: {
+    fullRefundBeforeHours: number;
+    partialRefundBeforeHours: number;
+    partialRefundRate: number;
+    lateCancellationRule: string;
+    ownerCancellationRefundRate: number;
+  };
   pickupAddressSnapshot?: string;
   returnAddressSnapshot?: string;
   renterInfo?: {
@@ -79,7 +86,22 @@ export type IBooking = BaseDocument & {
   };
 
   status: string;
+  ownerApprovedAt?: Date;
+  paymentDeadlineAt?: Date;
   cancelReason?: string;
+  cancelledAt?: Date;
+  cancelledBy?: mongoose.Types.ObjectId;
+  cancelledByRole?: string;
+  cancelReasonCode?: string;
+  cancelReasonText?: string;
+  cancellationSummary?: {
+    paidAmountAtCancellation: number;
+    cancellationFee: number;
+    refundAmount: number;
+    policyRuleApplied: string;
+    refundRequired: boolean;
+    refundId?: mongoose.Types.ObjectId;
+  };
   noShowReason?: string;
   noShowAt?: Date;
   returnReminderSentAt?: Date;
@@ -299,6 +321,35 @@ const bookingSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    cancellationPolicySnapshot: {
+      fullRefundBeforeHours: {
+        type: Number,
+        default: 48,
+        min: 0,
+      },
+      partialRefundBeforeHours: {
+        type: Number,
+        default: 24,
+        min: 0,
+      },
+      partialRefundRate: {
+        type: Number,
+        default: 0.8,
+        min: 0,
+        max: 1,
+      },
+      lateCancellationRule: {
+        type: String,
+        default: "KEEP_DEPOSIT",
+        trim: true,
+      },
+      ownerCancellationRefundRate: {
+        type: Number,
+        default: 1,
+        min: 0,
+        max: 1,
+      },
+    },
     pickupAddressSnapshot: {
       type: String,
       trim: true,
@@ -352,8 +403,62 @@ const bookingSchema = new mongoose.Schema(
       enum: Object.values(BookingStatusEnum),
       default: BookingStatusEnum.PENDING,
     },
+    ownerApprovedAt: {
+      type: Date,
+    },
+    paymentDeadlineAt: {
+      type: Date,
+    },
     cancelReason: {
       type: String,
+    },
+    cancelledAt: {
+      type: Date,
+    },
+    cancelledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    cancelledByRole: {
+      type: String,
+      trim: true,
+    },
+    cancelReasonCode: {
+      type: String,
+      trim: true,
+    },
+    cancelReasonText: {
+      type: String,
+      trim: true,
+    },
+    cancellationSummary: {
+      paidAmountAtCancellation: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+      cancellationFee: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+      refundAmount: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+      policyRuleApplied: {
+        type: String,
+        trim: true,
+      },
+      refundRequired: {
+        type: Boolean,
+        default: false,
+      },
+      refundId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Refund",
+      },
     },
     noShowReason: {
       type: String,
@@ -374,6 +479,16 @@ const bookingSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+bookingSchema.index({ userId: 1, isDeleted: 1, createdAt: -1 });
+bookingSchema.index({
+  carId: 1,
+  status: 1,
+  startDate: 1,
+  endDate: 1,
+  isDeleted: 1,
+});
+bookingSchema.index({ ownerId: 1, ownerType: 1, isDeleted: 1, createdAt: -1 });
 
 const BookingModel = mongoose.model<IBooking>("Booking", bookingSchema);
 

@@ -91,7 +91,9 @@ type BookingRequestState =
 
 type ApiError = {
   response?: {
+    status?: number;
     data?: {
+      code?: string;
       message?: string;
       data?: string;
     };
@@ -119,6 +121,22 @@ function getErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback;
+}
+
+function getBookingConflictMessage(error: unknown) {
+  const apiError = error as ApiError;
+
+  if (
+    apiError.response?.status !== 409 ||
+    apiError.response?.data?.code !== "CAR_TIME_CONFLICT"
+  ) {
+    return "";
+  }
+
+  return (
+    apiError.response.data.message ||
+    "Xe vừa được người khác đặt trong khung giờ này. Vui lòng chọn xe hoặc thời gian khác."
+  );
 }
 
 function readImageAsDataUrl(file: File) {
@@ -624,6 +642,21 @@ export default function BookingRequestPage() {
       toast.success("Đã gửi yêu cầu đặt xe, vui lòng chờ chủ xe xác nhận");
       navigate(`/bookings/${booking._id}`);
     } catch (error) {
+      const conflictMessage = getBookingConflictMessage(error);
+
+      if (conflictMessage) {
+        sessionStorage.removeItem(storageKey);
+        toast.error(conflictMessage);
+        navigate("/", {
+          replace: true,
+          state: {
+            bookingConflict: true,
+            message: conflictMessage,
+          },
+        });
+        return;
+      }
+
       toast.error(getErrorMessage(error, "Không thể gửi yêu cầu đặt xe"));
     } finally {
       setSubmitting(false);
@@ -1170,3 +1203,4 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+

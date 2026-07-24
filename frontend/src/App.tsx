@@ -3,11 +3,13 @@
 import HomePage from "./pages/HomePage";
 import AboutPage from "./pages/AboutPage";
 import ServicesPage from "./pages/ServicesPage";
+import ContactPartnersPage from "./pages/ContactPartnersPage";
 import SearchResultsPage from "./pages/SearchResultsPage";
 import CarDetailPage from "./pages/CarDetailPage";
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import RegisterPage from "./pages/RegisterPage";
+import CancellationPolicyPage from "./pages/CancellationPolicyPage";
 import CartPage from "./pages/CartPage";
 import BookingRequestPage from "./pages/BookingRequestPage";
 import BookingDetailPage from "./pages/BookingDetailPage";
@@ -28,6 +30,7 @@ import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminBusinessesPage from "./pages/admin/AdminBusinessesPage";
 import AdminBrandsPage from "./pages/admin/AdminBrandsPage";
 import AdminCarsPage from "./pages/admin/AdminCarsPage";
+import AdminCarMapPage from "./pages/admin/AdminCarMapPage";
 import AdminHolidaysPage from "./pages/admin/AdminHolidaysPage";
 import BusinessDashboardPage from "./pages/business/BusinessDashboardPage";
 import BusinessCarsPage from "./pages/business/BusinessCarsPage";
@@ -40,6 +43,7 @@ import PrivateOwnerBookingsPage from "./pages/private-owner/PrivateOwnerBookings
 import PrivateOwnerPaymentsPage from "./pages/private-owner/PrivateOwnerPaymentsPage";
 import OwnerBookingHistoryPage from "./pages/owner/OwnerBookingHistoryPage";
 import OwnerCarLocationPage from "./pages/owner/OwnerCarLocationPage";
+import OwnerRefundsPage from "./pages/owner/OwnerRefundsPage";
 import OwnerReviewsPage from "./pages/owner/OwnerReviewsPage";
 import TaskCenterPage from "./pages/tasks/TaskCenterPage";
 import NotificationCenterPage from "./pages/notifications/NotificationCenterPage";
@@ -57,6 +61,8 @@ function App() {
 
       <Route path="/services" element={<ServicesPage />} />
 
+      <Route path="/contact" element={<ContactPartnersPage />} />
+
       <Route path="/cars/search" element={<SearchResultsPage />} />
 
       <Route path="/cars/:id" element={<CarDetailPage />} />
@@ -66,6 +72,11 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
       <Route path="/register" element={<RegisterPage />} />
+
+      <Route
+        path="/policies/cancellation-refund"
+        element={<CancellationPolicyPage />}
+      />
 
       {/* Customer */}
       <Route
@@ -217,6 +228,15 @@ function App() {
         />
         <Route path="payments" element={<BusinessPaymentsPage />} />
         <Route
+          path="refunds"
+          element={
+            <OwnerRefundsPage
+              title="Quản lý hoàn tiền"
+              subtitle="Xử lý các hồ sơ hoàn tiền thủ công phát sinh sau khi booking bị hủy."
+            />
+          }
+        />
+        <Route
           path="reviews"
           element={
             <OwnerReviewsPage
@@ -283,6 +303,15 @@ function App() {
         />
         <Route path="payments" element={<PrivateOwnerPaymentsPage />} />
         <Route
+          path="refunds"
+          element={
+            <OwnerRefundsPage
+              title="Hoàn tiền xe ký gửi"
+              subtitle="Theo dõi và xác nhận hoàn tiền cho các booking thuộc xe ký gửi của bạn."
+            />
+          }
+        />
+        <Route
           path="reviews"
           element={
             <OwnerReviewsPage
@@ -335,6 +364,8 @@ function App() {
         <Route path="brands" element={<AdminBrandsPage />} />
 
         <Route path="cars" element={<AdminCarsPage />} />
+
+        <Route path="car-map" element={<AdminCarMapPage />} />
 
         <Route path="holidays" element={<AdminHolidaysPage />} />
       </Route>

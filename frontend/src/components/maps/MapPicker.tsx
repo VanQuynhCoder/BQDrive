@@ -59,6 +59,21 @@ function RecenterMap({ position }: { position: Location | null }) {
   return null;
 }
 
+function InvalidateMapSize() {
+  const map = useMap();
+
+  useEffect(() => {
+    const timers = [
+      window.setTimeout(() => map.invalidateSize(), 80),
+      window.setTimeout(() => map.invalidateSize(), 350),
+    ];
+
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [map]);
+
+  return null;
+}
+
 export default function MapPicker({
   lat,
   lng,
@@ -87,6 +102,7 @@ export default function MapPicker({
           url={tileLayer.url}
         />
         <MapClickHandler onPick={onLocationChange} />
+        <InvalidateMapSize />
         <RecenterMap position={position} />
         {position && (
           <Marker

@@ -39,6 +39,12 @@ export type ActionCenterTask = {
     totalPrice?: number;
     paidAmount?: number;
     remainingAmount?: number;
+    deliveryType?: string;
+    deliveryLabel?: string;
+    deliveryAddress?: string;
+    deliveryDistanceKm?: number;
+    deliveryDurationText?: string;
+    deliveryFee?: number;
     pendingExtraChargeAmount?: number;
     pendingExtraChargeCount?: number;
     renterName?: string;

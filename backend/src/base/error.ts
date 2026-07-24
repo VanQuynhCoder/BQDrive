@@ -51,6 +51,15 @@ export class ErrorHelper extends BaseError {
     );
   }
 
+  static carTimeConflict(data?: any) {
+    return new BaseError(
+      409,
+      "CAR_TIME_CONFLICT",
+      "Xe vừa được người khác đặt trong khung giờ này. Vui lòng chọn xe hoặc thời gian khác.",
+      data,
+    );
+  }
+
   static recordNotFound(message?: string) {
     return new BaseError(
       404,

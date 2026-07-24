@@ -422,6 +422,37 @@ class NotificationCenterService {
   async notifyBookingCancelled(rawBooking: any, actorId?: string) {
     const booking = await this.hydrateBooking(rawBooking);
     const owner = await this.getOwnerRecipientFromBooking(booking);
+    const cancelledByRole = booking?.cancelledByRole || UserRoleEnum.USER;
+    const ownerCancelled =
+      cancelledByRole !== UserRoleEnum.USER ||
+      toId(booking.cancelledBy) !== toId(booking.userId);
+
+    if (ownerCancelled) {
+      await this.createNotificationSafely({
+        recipientId: toId(booking.userId),
+        recipientRole: UserRoleEnum.USER,
+        type: NotificationTypeEnum.BOOKING_CANCELLED,
+        title: "Chủ xe đã hủy booking",
+        message: `Booking #${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã được chủ xe hủy. Nếu bạn đã thanh toán, yêu cầu hoàn tiền sẽ được xử lý theo chính sách.`,
+        actorId,
+        actorRole:
+          booking.ownerType === OwnerTypeEnum.USER
+            ? UserRoleEnum.USER
+            : UserRoleEnum.BUSINESS,
+        entityType: NotificationEntityTypeEnum.BOOKING,
+        entityId: toId(booking),
+        bookingId: toId(booking),
+        carId: toId(booking.carId),
+        actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
+        actionUrl: `/bookings/${toId(booking)}`,
+        metadata: {
+          bookingCode: bookingCode(booking),
+          carName: getBookingCarName(booking),
+        },
+        dedupeKey: `booking-cancelled:${toId(booking)}:renter`,
+      });
+      return;
+    }
     if (!owner) return;
 
     await this.createNotificationSafely({
@@ -442,6 +473,114 @@ class NotificationCenterService {
         carName: getBookingCarName(booking),
       },
       dedupeKey: `booking-cancelled:${toId(booking)}`,
+    });
+  }
+
+  async notifyRefundCreated(rawRefund: any, rawBooking?: any) {
+    const booking = await this.hydrateBooking(rawBooking || rawRefund?.bookingId);
+    await this.createNotificationSafely({
+      recipientId: toId(booking.userId),
+      recipientRole: UserRoleEnum.USER,
+      type: NotificationTypeEnum.PAYMENT_REFUNDED,
+      title: "Yêu cầu hoàn tiền đang chờ xử lý",
+      message: `Yêu cầu hoàn ${formatCurrency(rawRefund?.refundAmount)} cho booking #${bookingCode(booking)} đã được tạo và đang chờ xử lý thủ công.`,
+      entityType: NotificationEntityTypeEnum.REFUND,
+      entityId: toId(rawRefund),
+      bookingId: toId(booking),
+      carId: toId(booking.carId),
+      actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
+      actionUrl: `/bookings/${toId(booking)}?section=refund`,
+      metadata: {
+        bookingCode: bookingCode(booking),
+        amount: Number(rawRefund?.refundAmount || 0),
+        refundStatus: String(rawRefund?.status || ""),
+      },
+      dedupeKey: `refund-created:${toId(rawRefund)}`,
+    });
+  }
+
+  async notifyRefundRecipientInfoSubmitted(
+    rawRefund: any,
+    rawBooking?: any,
+    actorId?: string,
+  ) {
+    const booking = await this.hydrateBooking(rawBooking || rawRefund?.bookingId);
+    const owner = await this.getOwnerRecipientFromBooking(booking);
+    if (!owner) return;
+
+    await this.createNotificationSafely({
+      ...owner,
+      type: NotificationTypeEnum.REFUND_RECIPIENT_INFO_SUBMITTED,
+      title: "Khách đã cung cấp thông tin nhận tiền hoàn",
+      message: `Người thuê đã cung cấp thông tin nhận khoản hoàn ${formatCurrency(rawRefund?.refundAmount)} cho booking #${bookingCode(booking)}. Vui lòng thực hiện hoàn tiền.`,
+      actorId,
+      actorRole: UserRoleEnum.USER,
+      entityType: NotificationEntityTypeEnum.REFUND,
+      entityId: toId(rawRefund),
+      bookingId: toId(booking),
+      carId: toId(booking.carId),
+      actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
+      actionUrl:
+        booking?.ownerType === OwnerTypeEnum.USER
+          ? `/consignment/refunds?refundId=${toId(rawRefund)}`
+          : `/business/refunds?refundId=${toId(rawRefund)}`,
+      metadata: {
+        bookingCode: bookingCode(booking),
+        amount: Number(rawRefund?.refundAmount || 0),
+        refundStatus: String(rawRefund?.status || ""),
+      },
+      dedupeKey: `refund-recipient-info:${toId(rawRefund)}`,
+    });
+  }
+
+  async notifyManualRefundSent(rawRefund: any, rawBooking?: any, actorId?: string) {
+    const booking = await this.hydrateBooking(rawBooking || rawRefund?.bookingId);
+    await this.createNotificationSafely({
+      recipientId: toId(booking.userId),
+      recipientRole: UserRoleEnum.USER,
+      type: NotificationTypeEnum.PAYMENT_REFUNDED,
+      title: "Chủ xe đã gửi tiền hoàn",
+      message: `Chủ xe đã xác nhận gửi khoản hoàn ${formatCurrency(rawRefund?.refundAmount)} cho booking #${bookingCode(booking)}. Vui lòng kiểm tra và xác nhận đã nhận tiền.`,
+      actorId,
+      actorRole:
+        booking.ownerType === OwnerTypeEnum.USER
+          ? UserRoleEnum.USER
+          : UserRoleEnum.BUSINESS,
+      entityType: NotificationEntityTypeEnum.REFUND,
+      entityId: toId(rawRefund),
+      bookingId: toId(booking),
+      carId: toId(booking.carId),
+      actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
+      actionUrl: `/bookings/${toId(booking)}?section=refund`,
+      metadata: {
+        bookingCode: bookingCode(booking),
+        amount: Number(rawRefund?.refundAmount || 0),
+      },
+      dedupeKey: `refund-manual-sent:${toId(rawRefund)}`,
+    });
+  }
+
+  async notifyRefundSucceeded(rawRefund: any, rawBooking?: any, actorId?: string) {
+    const booking = await this.hydrateBooking(rawBooking || rawRefund?.bookingId);
+    await this.createNotificationSafely({
+      recipientId: toId(booking.userId),
+      recipientRole: UserRoleEnum.USER,
+      type: NotificationTypeEnum.PAYMENT_REFUNDED,
+      title: "Hoàn tiền đã hoàn tất",
+      message: `Khoản hoàn ${formatCurrency(rawRefund?.refundAmount)} cho booking #${bookingCode(booking)} đã được xác nhận hoàn tất.`,
+      actorId,
+      actorRole: UserRoleEnum.USER,
+      entityType: NotificationEntityTypeEnum.REFUND,
+      entityId: toId(rawRefund),
+      bookingId: toId(booking),
+      carId: toId(booking.carId),
+      actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
+      actionUrl: `/bookings/${toId(booking)}?section=refund`,
+      metadata: {
+        bookingCode: bookingCode(booking),
+        amount: Number(rawRefund?.refundAmount || 0),
+      },
+      dedupeKey: `refund-succeeded:${toId(rawRefund)}`,
     });
   }
 

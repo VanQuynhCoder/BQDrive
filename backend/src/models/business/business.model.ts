@@ -15,6 +15,12 @@ export type IBusiness = BaseDocument & {
   ward?: string;
   description?: string;
   logo?: string;
+  publicEmail?: string;
+  publicPhone?: string;
+  website?: string;
+  shortDescription?: string;
+  isPublicPartner?: boolean;
+  displayOrder?: number;
   isApproved?: boolean;
   isDeleted?: boolean;
 };
@@ -75,6 +81,30 @@ const businessSchema = new mongoose.Schema(
     logo: {
       type: String,
       trim: true,
+    },
+    publicEmail: {
+      type: String,
+      trim: true,
+    },
+    publicPhone: {
+      type: String,
+      trim: true,
+    },
+    website: {
+      type: String,
+      trim: true,
+    },
+    shortDescription: {
+      type: String,
+      trim: true,
+    },
+    isPublicPartner: {
+      type: Boolean,
+      default: true,
+    },
+    displayOrder: {
+      type: Number,
+      default: 0,
     },
     isApproved: {
       type: Boolean,

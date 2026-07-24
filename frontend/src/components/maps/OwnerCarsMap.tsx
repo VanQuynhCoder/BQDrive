@@ -42,6 +42,7 @@ type OwnerCarsMapProps = {
   ) => void;
   height?: number;
   draggable?: boolean;
+  readOnly?: boolean;
 };
 
 function hasCoordinate(car: OwnerMapCar) {
@@ -150,9 +151,11 @@ async function getReverseGeocodedAddress(lat: number, lng: number) {
 function MarkerPopupContent({
   car,
   onSearchLocation,
+  readOnly = false,
 }: {
   car: OwnerMapCar;
   onSearchLocation: (car: OwnerMapCar, address: string) => Promise<void>;
+  readOnly?: boolean;
 }) {
   const [addressInput, setAddressInput] = useState("");
   const [searching, setSearching] = useState(false);
@@ -207,6 +210,31 @@ function MarkerPopupContent({
         {status.label}
       </p>
 
+      {readOnly && (
+        <div className="mt-3 rounded-lg border border-slate-200 bg-white p-2">
+          <p className="text-xs font-bold uppercase text-slate-400">
+            Chủ sở hữu
+          </p>
+          <p className="mt-1 font-extrabold text-slate-950">
+            {car.ownerName || "--"}
+          </p>
+          <p className="mt-1 break-all text-xs font-semibold text-slate-600">
+            {car.ownerEmail || "--"}
+          </p>
+          {car.ownerPhone && (
+            <p className="mt-1 text-xs font-semibold text-slate-600">
+              {car.ownerPhone}
+            </p>
+          )}
+          {car.ownerAddress && (
+            <p className="mt-2 line-clamp-3 text-xs font-semibold leading-5 text-slate-600">
+              {car.ownerAddress}
+            </p>
+          )}
+        </div>
+      )}
+
+      {!readOnly && (
       <form className="mt-3 space-y-2" onSubmit={handleSubmit}>
         <label className="block">
           <span className="mb-1 block text-xs font-bold text-slate-600">
@@ -232,6 +260,7 @@ function MarkerPopupContent({
           {searching ? "Đang tìm..." : "Tìm và cập nhật vị trí"}
         </button>
       </form>
+      )}
     </div>
   );
 }
@@ -245,6 +274,7 @@ export default function OwnerCarsMap({
   onLocationDraft,
   height = 620,
   draggable = true,
+  readOnly = false,
 }: OwnerCarsMapProps) {
   const [tileLayerKey, setTileLayerKey] = useState(DEFAULT_MAP_TILE_LAYER_KEY);
   const selectedCar = useMemo(
@@ -291,10 +321,12 @@ export default function OwnerCarsMap({
           url={tileLayer.url}
         />
         <MapFocus selectedCar={selectedCar} draftLocation={draftLocation} />
-        <MapClickForMissingLocation
-          selectedCar={selectedCar}
-          onLocationDraft={onLocationDraft}
-        />
+        {!readOnly && (
+          <MapClickForMissingLocation
+            selectedCar={selectedCar}
+            onLocationDraft={onLocationDraft}
+          />
+        )}
 
         {markerCars.map((car) => {
           const position = getCarPosition(car, draftLocation);
@@ -334,6 +366,7 @@ export default function OwnerCarsMap({
                 <MarkerPopupContent
                   car={car}
                   onSearchLocation={handleSearchLocation}
+                  readOnly={readOnly}
                 />
               </Popup>
             </Marker>
@@ -341,7 +374,7 @@ export default function OwnerCarsMap({
         })}
       </MapContainer>
 
-      {selectedCar && !hasCoordinate(selectedCar) && (
+      {!readOnly && selectedCar && !hasCoordinate(selectedCar) && (
         <div className="absolute bottom-4 left-4 right-4 z-[500] rounded-lg border border-secondary/40 bg-white px-4 py-3 text-sm font-semibold text-primary shadow-xl md:left-auto md:max-w-md">
           Xe này chưa có vị trí bản đồ. Click vào bản đồ để chọn vị trí nhận xe.
         </div>

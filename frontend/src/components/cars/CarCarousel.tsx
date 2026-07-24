@@ -171,6 +171,8 @@ export default function CarCarousel({
                 <img
                   src={car.image || fallbackImage}
                   alt={car.name}
+                  loading="lazy"
+                  decoding="async"
                   onError={(event) => {
                     event.currentTarget.src = fallbackImage;
                   }}

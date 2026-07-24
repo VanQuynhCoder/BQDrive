@@ -57,6 +57,33 @@ export type PaymentTodo = {
   ownerName?: string;
 };
 
+export type BookingHoldSummary = {
+  _id: string;
+  carId: string;
+  status: string;
+  paidAmount: number;
+  createdAt: string;
+};
+
+export type CancellationPreview = {
+  bookingId: string;
+  bookingStatus: string;
+  canCancel: boolean;
+  hoursBeforeStart: number;
+  totalPrice: number;
+  depositAmount: number;
+  paidAmount: number;
+  paidAmountAtCancellation: number;
+  policyRuleApplied: string;
+  policySource: string;
+  cancellationFee: number;
+  refundAmount: number;
+  refundRequired: boolean;
+  refundMethod: string;
+  expectedRefundStatus: string;
+  message: string;
+};
+
 export type BookingDeliveryPayload = {
   deliveryType: "PICKUP_AT_CAR_LOCATION" | "DELIVERY_TO_CUSTOMER";
   deliveryAddress?: string;
@@ -108,6 +135,11 @@ export const bookingService = {
     return res.data.data.bookings;
   },
 
+  getMyActiveHolds: async () => {
+    const res = await api.get("/bookings/my-active-holds");
+    return (res.data.data.bookings || []) as BookingHoldSummary[];
+  },
+
   getMyBooking: async (id: string) => {
     const res = await api.get(`/bookings/getMyBooking/${id}`);
     return res.data.data.booking;
@@ -118,10 +150,30 @@ export const bookingService = {
     return (res.data.data.todos || []) as PaymentTodo[];
   },
 
-  cancelBooking: async (id: string, cancelReason?: string) => {
+  previewCancellation: async (
+    id: string,
+    payload?: { reasonCode?: string; reasonText?: string; cancelReason?: string },
+  ) => {
+    const res = await api.post(`/bookings/cancellation-preview/${id}`, payload || {});
+    return res.data.data.preview as CancellationPreview;
+  },
+
+  cancelBooking: async (
+    id: string,
+    payload?: string | {
+      reasonCode?: string;
+      reasonText?: string;
+      cancelReason?: string;
+      confirmed?: boolean;
+    },
+  ) => {
+    const body =
+      typeof payload === "string"
+        ? { cancelReason: payload, confirmed: true }
+        : { ...(payload || {}), confirmed: payload?.confirmed ?? true };
     const res = await api.post(`/bookings/cancelBooking/${id}`, {
-      cancelReason,
+      ...body,
     });
-    return res.data.data.booking;
+    return res.data.data;
   },
 };

@@ -1,5 +1,7 @@
 ﻿import api from "./api";
 
+import type { OwnerMapCar } from "./ownerCarLocation.service";
+
 export type UserRole = "USER" | "BUSINESS" | "ADMIN";
 
 export type AdminUser = {
@@ -293,7 +295,9 @@ export const adminService = {
   },
 
   getBrands: async () => {
-    const res = await api.get("/brand/getAllBrand");
+    const res = await api.get("/brand/getAllBrand", {
+      params: { includeDescription: true },
+    });
     return unwrap<{ brands: AdminBrand[] }>(res).brands;
   },
 
@@ -323,6 +327,11 @@ export const adminService = {
   getCars: async (params: CarsParams = {}) => {
     const res = await api.get("/cars/getAllCars", { params });
     return unwrap<{ cars: AdminCar[] }>(res).cars;
+  },
+
+  getCarsMap: async () => {
+    const res = await api.get("/admin/cars/map");
+    return unwrap<{ cars: OwnerMapCar[] }>(res).cars;
   },
 
   approveCar: async (id: string) => {

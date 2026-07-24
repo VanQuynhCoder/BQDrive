@@ -52,6 +52,24 @@ export type BusinessProfile = {
   userId: BusinessUser;
 };
 
+export type PublicBusinessPartner = {
+  _id: string;
+  businessName: string;
+  logo?: string | null;
+  description?: string | null;
+  publicEmail?: string | null;
+  publicPhone?: string | null;
+  address?: string | null;
+  website?: string | null;
+  createdAt?: string | null;
+};
+
+export type PublicPartnerStats = {
+  partnerCount: number;
+  activeCarCount: number;
+  servedAreaCount: number;
+};
+
 export type BusinessCar = {
   _id: string;
   name: string;
@@ -112,10 +130,31 @@ export type BusinessBooking = {
   startDate: string;
   endDate: string;
   totalPrice?: number;
+  pickupAddressSnapshot?: string;
+  returnAddressSnapshot?: string;
   paymentOption?: string;
   depositAmount?: number;
   remainingAmount?: number;
   paidAmount?: number;
+  pricingSnapshot?: {
+    rentalSubtotal?: number;
+    deliveryFee?: number;
+    delivery?: {
+      deliveryType?: "PICKUP_AT_CAR_LOCATION" | "DELIVERY_TO_CUSTOMER" | string;
+      deliveryAddress?: string;
+      deliveryAddressText?: string;
+      deliveryFormattedAddress?: string;
+      deliveryLat?: number;
+      deliveryLng?: number;
+      deliveryDistanceKm?: number;
+      deliveryDurationText?: string;
+      deliveryBaseFee?: number;
+      deliveryFeePerKm?: number;
+      deliveryMaxDistanceKm?: number;
+      deliveryFee?: number;
+      deliveryNote?: string;
+    };
+  };
   isDepositRefundable?: boolean;
   status: BookingStatus;
   note?: string;
@@ -306,6 +345,14 @@ function unwrap<T>(response: { data: ApiData<T> }) {
 }
 
 export const businessService = {
+  getPublicPartners: async () => {
+    const res = await api.get("/business/public-partners");
+    return unwrap<{
+      partners: PublicBusinessPartner[];
+      stats: PublicPartnerStats;
+    }>(res);
+  },
+
   getDashboard: async () => {
     const res = await api.get("/dashboard/business/stats");
     return unwrap<BusinessDashboard>(res);

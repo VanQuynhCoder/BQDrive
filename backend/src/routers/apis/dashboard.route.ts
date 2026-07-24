@@ -7,12 +7,14 @@ import {
   CarStatusEnum,
   OwnerTypeEnum,
   PaymentStatusEnum,
+  RefundStatusEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
 import { BookingModel } from "../../models/booking/booking.model";
 import { BusinessModel } from "../../models/business/business.model";
 import { CarModel } from "../../models/car/car.model";
 import { PaymentModel } from "../../models/payment/payment.model";
+import { RefundModel } from "../../models/refund/refund.model";
 import { ReviewModel, ReviewStatusEnum } from "../../models/review/review.model";
 import { UserModel } from "../../models/user/user.model";
 
@@ -93,12 +95,12 @@ class DashboardRoute extends BaseRoute {
     const bookingFilter: any =
       bookingIds && bookingIds.length > 0 ? { bookingId: { $in: bookingIds } } : {};
 
-    const [paidPayments, pendingPayments, failedCount, refundedPayments] =
+    const [paidPayments, pendingPayments, failedCount, succeededRefunds] =
       await Promise.all([
         PaymentModel.find({
           ...bookingFilter,
           status: PaymentStatusEnum.PAID,
-        }).select("amount"),
+        }).select("amount refundedAmount"),
         PaymentModel.find({
           ...bookingFilter,
           status: PaymentStatusEnum.PENDING,
@@ -107,17 +109,22 @@ class DashboardRoute extends BaseRoute {
           ...bookingFilter,
           status: PaymentStatusEnum.FAILED,
         }),
-        PaymentModel.find({
+        RefundModel.find({
           ...bookingFilter,
-          status: PaymentStatusEnum.REFUNDED,
-        }).select("amount"),
+          status: RefundStatusEnum.SUCCEEDED,
+          isDeleted: false,
+        }).select("refundAmount"),
       ]);
+    const refundAmount = succeededRefunds.reduce(
+      (sum, refund) => sum + Number(refund.refundAmount || 0),
+      0,
+    );
 
     return {
-      paidAmount: this.sumAmount(paidPayments),
+      paidAmount: Math.max(this.sumAmount(paidPayments) - refundAmount, 0),
       pendingAmount: this.sumAmount(pendingPayments),
       failedCount,
-      refundedAmount: this.sumAmount(refundedPayments),
+      refundedAmount: refundAmount,
     };
   }
 

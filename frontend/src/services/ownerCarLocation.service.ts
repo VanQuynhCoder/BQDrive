@@ -14,6 +14,10 @@ export type OwnerMapCar = {
   car_status?: string;
   approval_status?: string;
   ownerType?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerPhone?: string;
+  ownerAddress?: string;
   images?: string[];
   lastLocationUpdatedAt?: string;
   locationUpdateCount?: number;

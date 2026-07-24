@@ -9,10 +9,14 @@ import { ContractModel } from "../../models/contract/contract.model";
 import { PaymentModel } from "../../models/payment/payment.model";
 import { ExtraChargeModel } from "../../models/extra-charge/extraCharge.model";
 import { ReturnInspectionModel } from "../../models/return-inspection/returnInspection.model";
+import { RefundModel } from "../../models/refund/refund.model";
 import { calculateRentalPrice } from "../../helper/rental.helper";
 import { releaseCarIfNoConfirmedBooking } from "../../helper/car-status.helper";
 import { expireOldCarts } from "../../helper/cart.helper";
-import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
+import {
+  expireAbandonedPendingBookings,
+  getBookingHoldExpiresAt,
+} from "../../helper/booking-hold.helper";
 import { formatAddress } from "../../helper/address.helper";
 import {
   buildPaymentSummaryForBooking,
@@ -23,6 +27,7 @@ import {
 import {
   sendBookingApprovedMail,
   sendBookingCompletedMail,
+  sendBookingCancellationRefundMail,
   sendBookingCreatedMail,
   sendBookingHandoverMail,
   sendBookingNoShowMail,
@@ -30,6 +35,8 @@ import {
   sendRemainingCashConfirmedMail,
 } from "../../helper/mail.helper";
 import { notificationCenterService } from "../../services/notification-center.service";
+import { toCloudinaryCardThumbnailUrl } from "../../services/cloudinary.service";
+import { cancellationRefundService } from "../../services/cancellation-refund.service";
 import {
   BookingStatusEnum,
   CarStatusEnum,
@@ -286,9 +293,12 @@ async function ensureNoOverlappedActiveBooking(booking: any) {
   } as any);
 
   if (overlappedBooking) {
-    throw ErrorHelper.requestDataInvalid(
-      "Xe đã có booking trong khoảng thời gian này",
-    );
+    throw ErrorHelper.carTimeConflict({
+      carId: String(booking.carId || ""),
+      startAt: start.toISOString(),
+      endAt: end.toISOString(),
+      conflictType: "BOOKING",
+    });
   }
 }
 
@@ -319,6 +329,12 @@ class BookingRoute extends BaseRoute {
       "/getMyBookings",
       [this.authentication, this.roleGuard(RENTER_ROLES)],
       this.route(this.getMyBookings),
+    );
+
+    this.router.get(
+      "/my-active-holds",
+      [this.authentication, this.roleGuard(RENTER_ROLES)],
+      this.route(this.getMyActiveHolds),
     );
 
     this.router.get(
@@ -353,8 +369,20 @@ class BookingRoute extends BaseRoute {
 
     this.router.post(
       "/cancelBooking/:id",
-      [this.authentication, this.roleGuard(RENTER_ROLES)],
-      this.route(this.cancelBooking),
+      [
+        this.authentication,
+        this.roleGuard([UserRoleEnum.USER, UserRoleEnum.BUSINESS]),
+      ],
+      this.route(this.cancelBookingWithRefund),
+    );
+
+    this.router.post(
+      "/cancellation-preview/:id",
+      [
+        this.authentication,
+        this.roleGuard([UserRoleEnum.USER, UserRoleEnum.BUSINESS]),
+      ],
+      this.route(this.previewCancellation),
     );
 
     this.router.post(
@@ -1098,9 +1126,12 @@ class BookingRoute extends BaseRoute {
     } as any);
 
     if (existedBooking) {
-      throw ErrorHelper.requestDataInvalid(
-        "Xe đã có booking trong khoảng thời gian này",
-      );
+      throw ErrorHelper.carTimeConflict({
+        carId,
+        startAt: start.toISOString(),
+        endAt: end.toISOString(),
+        conflictType: "BOOKING",
+      });
     }
 
     const cartFilter: any = {
@@ -1119,9 +1150,12 @@ class BookingRoute extends BaseRoute {
     const existedHold = await CartModel.findOne(cartFilter);
 
     if (existedHold) {
-      throw ErrorHelper.requestDataInvalid(
-        "Xe đang được người khác giữ trong khoảng thời gian này",
-      );
+      throw ErrorHelper.carTimeConflict({
+        carId,
+        startAt: start.toISOString(),
+        endAt: end.toISOString(),
+        conflictType: "HOLD",
+      });
     }
   }
 
@@ -1204,6 +1238,7 @@ class BookingRoute extends BaseRoute {
       remainingAmount: paymentAmounts.remainingAmount,
       paidAmount: paymentAmounts.paidAmount,
       isDepositRefundable: true,
+      cancellationPolicySnapshot: cancellationRefundService.getPolicySnapshot(),
       pickupAddressSnapshot: this.getPickupAddressSnapshot(car),
       returnAddressSnapshot: this.getPickupAddressSnapshot(car),
       renterInfo: normalizedRenterInfo,
@@ -1265,13 +1300,22 @@ class BookingRoute extends BaseRoute {
     assertUserIsNotCarOwner(car, authUser.userId);
 
     this.validateRentalDateRange(start, end);
-    await this.validateCarAvailability(
-      String(car._id),
-      start,
-      end,
-      authUser.userId,
-      String(cart._id),
-    );
+    try {
+      await this.validateCarAvailability(
+        String(car._id),
+        start,
+        end,
+        authUser.userId,
+        String(cart._id),
+      );
+    } catch (error: any) {
+      if (error?.info?.code === "CAR_TIME_CONFLICT") {
+        cart.status = CartStatusEnum.EXPIRED;
+        await cart.save();
+      }
+
+      throw error;
+    }
 
     const selectedPaymentOption = paymentOption || PaymentOptionEnum.DEPOSIT;
 
@@ -1321,6 +1365,7 @@ class BookingRoute extends BaseRoute {
       remainingAmount: paymentAmounts.remainingAmount,
       paidAmount: paymentAmounts.paidAmount,
       isDepositRefundable: true,
+      cancellationPolicySnapshot: cancellationRefundService.getPolicySnapshot(),
       pickupAddressSnapshot: this.getPickupAddressSnapshot(car),
       returnAddressSnapshot: this.getPickupAddressSnapshot(car),
       renterInfo: normalizedRenterInfo,
@@ -1350,14 +1395,108 @@ class BookingRoute extends BaseRoute {
       userId: authUser.userId,
       isDeleted: false,
     })
-      .populate("carId")
-      .populate("businessId")
-      .populate("ownerId", "-password -otpCode")
-      .sort({ createdAt: -1 });
+      .select(
+        [
+          "_id",
+          "userId",
+          "businessId",
+          "ownerId",
+          "ownerType",
+          "ownerModel",
+          "carId",
+          "startDate",
+          "endDate",
+          "rentalMode",
+          "totalPrice",
+          "paymentOption",
+          "depositAmount",
+          "remainingAmount",
+          "paidAmount",
+          "isDepositRefundable",
+          "pickupAddressSnapshot",
+          "returnAddressSnapshot",
+          "status",
+          "cancelReason",
+          "noShowReason",
+          "noShowAt",
+          "note",
+          "createdAt",
+          "updatedAt",
+          "renterInfo.fullName",
+          "renterInfo.phone",
+          "renterInfo.email",
+          "renterInfo.cccdNumber",
+          "renterInfo.driverLicenseNumber",
+          "renterInfo.note",
+        ].join(" "),
+      )
+      .populate({
+        path: "carId",
+        select: {
+          _id: 1,
+          name: 1,
+          licensePlate: 1,
+          brandId: 1,
+          pricePerDay: 1,
+          pricePerHour: 1,
+          rentalUnit: 1,
+          seats: 1,
+          fuelType: 1,
+          transmission: 1,
+          images: { $slice: 1 },
+        },
+      })
+      .populate("businessId", "_id businessName")
+      .populate("ownerId", "_id name businessName")
+      .sort({ createdAt: -1 })
+      .lean();
+    const listBookings = bookings.map((booking: any) => {
+      const car = booking.carId;
+
+      if (!car || typeof car !== "object") return booking;
+
+      const firstImage = Array.isArray(car.images)
+        ? car.images.find((image: unknown) => typeof image === "string" && image.trim()) || ""
+        : "";
+      const thumbnail = toCloudinaryCardThumbnailUrl(firstImage);
+      const carPayload = { ...car, thumbnail };
+      delete carPayload.images;
+
+      return {
+        ...booking,
+        carId: carPayload,
+      };
+    });
 
     return res.status(200).json({
       status: 200,
       code: "200",
+      message: "success",
+      data: { bookings: listBookings },
+    });
+  }
+
+  async getMyActiveHolds(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const holdStartedAfter = new Date(Date.now() - 10 * 60 * 1000);
+
+    await expireAbandonedPendingBookings();
+
+    const bookings = await BookingModel.find({
+      userId: authUser.userId,
+      status: { $in: [BookingStatusEnum.REQUESTED, BookingStatusEnum.PENDING] },
+      paidAmount: { $lte: 0 },
+      createdAt: { $gte: holdStartedAfter },
+      isDeleted: false,
+    } as any)
+      .select("_id carId status paidAmount createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      success: true,
       message: "success",
       data: { bookings },
     });
@@ -1383,7 +1522,9 @@ class BookingRoute extends BaseRoute {
     return {
       carId: String(car?._id || ""),
       carName: car?.name || "Xe BQDrive",
-      carImage: Array.isArray(car?.images) ? car.images.find(Boolean) || "" : "",
+      carImage: toCloudinaryCardThumbnailUrl(
+        Array.isArray(car?.images) ? car.images.find(Boolean) || "" : "",
+      ),
       licensePlate: car?.licensePlate || "",
     };
   }
@@ -1406,7 +1547,15 @@ class BookingRoute extends BaseRoute {
       status: { $nin: excludedStatuses },
       isDeleted: false,
     } as any)
-      .populate("carId", "name images licensePlate")
+      .populate({
+        path: "carId",
+        select: {
+          _id: 1,
+          name: 1,
+          licensePlate: 1,
+          images: { $slice: 1 },
+        },
+      })
       .populate("businessId", "businessName userId")
       .populate("ownerId", "name businessName")
       .sort({ startDate: 1, createdAt: -1 });
@@ -1510,11 +1659,21 @@ class BookingRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Booking");
     }
 
+    const refunds = await RefundModel.find({
+      bookingId: booking._id,
+      isDeleted: false,
+    }).sort({ createdAt: -1 });
+
+    const bookingPayload =
+      typeof (booking as any).toObject === "function"
+        ? (booking as any).toObject()
+        : booking;
+
     return res.status(200).json({
       status: 200,
       code: "200",
       message: "success",
-      data: { booking },
+      data: { booking: { ...bookingPayload, refunds } },
     });
   }
 
@@ -1875,6 +2034,68 @@ class BookingRoute extends BaseRoute {
     });
   }
 
+  async previewCancellation(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const id = String(req.params.id);
+    const { reasonCode, reasonText, cancelReason } = req.body || {};
+
+    await expireAbandonedPendingBookings();
+
+    const preview = await cancellationRefundService.buildPreview(
+      id,
+      {
+        userId: authUser.userId,
+        role: authUser.role,
+      },
+      reasonCode,
+      reasonText || cancelReason,
+    );
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "success",
+      data: { preview },
+    });
+  }
+
+  async cancelBookingWithRefund(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const id = String(req.params.id);
+    const { reasonCode, reasonText, cancelReason, confirmed } = req.body || {};
+
+    if (confirmed === false) {
+      throw ErrorHelper.requestDataInvalid("Vui lòng xác nhận hủy booking");
+    }
+
+    await expireAbandonedPendingBookings();
+
+    const { booking, refund } = await cancellationRefundService.cancelBooking(
+      id,
+      {
+        userId: authUser.userId,
+        role: authUser.role,
+      },
+      reasonCode,
+      reasonText || cancelReason,
+    );
+
+    void notificationCenterService.notifyBookingCancelled(booking, authUser.userId);
+    if (refund) {
+      void notificationCenterService.notifyRefundCreated(refund, booking);
+    }
+    void sendBookingCancellationRefundMail(booking, refund);
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: refund
+        ? "Booking đã được hủy. Yêu cầu hoàn tiền đang chờ xử lý thủ công."
+        : "Booking đã được hủy.",
+      data: { booking, refund },
+    });
+  }
+
   async cancelBooking(req: Request, res: Response) {
     const authUser = (req as any).user;
     const id = String(req.params.id);
@@ -1953,6 +2174,8 @@ class BookingRoute extends BaseRoute {
       throw ErrorHelper.requestDataInvalid("Xe hiện không khả dụng để xác nhận");
     }
     booking.status = BookingStatusEnum.OWNER_APPROVED; // Chủ xe đồng ý: khách bắt đầu được tạo hợp đồng/thanh toán
+    booking.ownerApprovedAt = new Date();
+    booking.paymentDeadlineAt = getBookingHoldExpiresAt(booking.ownerApprovedAt);
     await booking.save();
     void sendBookingApprovedMail(booking);
     void notificationCenterService.notifyBookingApproved(booking, authUser.userId);
@@ -2466,3 +2689,4 @@ class BookingRoute extends BaseRoute {
 }
 
 export default new BookingRoute().router;
+

@@ -7,6 +7,8 @@ import {
   Clock3,
   Eye,
   Loader2,
+  MapPin,
+  Truck,
   X,
   UserX,
   XCircle,
@@ -161,6 +163,136 @@ function formatCurrency(value?: number) {
   }).format(value || 0);
 }
 
+function getPickupAddress(booking: PrivateOwnerBooking) {
+  const car = booking.carId;
+  const area = [car?.pickupWard, car?.pickupDistrict, car?.pickupProvince || car?.city]
+    .filter(Boolean)
+    .join(", ");
+
+  return (
+    booking.pickupAddressSnapshot ||
+    car?.pickupFormattedAddress ||
+    car?.pickupAddress ||
+    area ||
+    "Địa điểm nhận xe tại chủ xe"
+  );
+}
+
+function getDeliveryDisplay(booking: PrivateOwnerBooking) {
+  const delivery = booking.pricingSnapshot?.delivery;
+  const isDelivery = delivery?.deliveryType === "DELIVERY_TO_CUSTOMER";
+
+  if (!isDelivery) {
+    return {
+      isDelivery,
+      title: "Nhận xe tại vị trí chủ xe",
+      address: getPickupAddress(booking),
+      note: booking.carId?.pickupNote,
+      distance: "--",
+      duration: "--",
+      fee: 0,
+    };
+  }
+
+  return {
+    isDelivery,
+    title: "Giao xe tận nơi",
+    address:
+      delivery?.deliveryAddressText ||
+      delivery?.deliveryAddress ||
+      delivery?.deliveryFormattedAddress ||
+      "Chưa có địa chỉ giao xe",
+    note: delivery?.deliveryNote,
+    distance:
+      typeof delivery?.deliveryDistanceKm === "number"
+        ? `${delivery.deliveryDistanceKm.toLocaleString("vi-VN", {
+            maximumFractionDigits: 2,
+          })} km`
+        : "--",
+    duration: delivery?.deliveryDurationText || "--",
+    fee: booking.pricingSnapshot?.deliveryFee || delivery?.deliveryFee || 0,
+  };
+}
+
+function DeliveryMethodCard({ booking }: { booking: PrivateOwnerBooking }) {
+  const deliveryInfo = getDeliveryDisplay(booking);
+  const Icon = deliveryInfo.isDelivery ? Truck : MapPin;
+
+  return (
+    <div className="border-t border-slate-200 p-4">
+      <div
+        className={`rounded-xl border p-4 ${
+          deliveryInfo.isDelivery
+            ? "border-secondary/40 bg-yellow-50"
+            : "border-slate-200 bg-slate-50"
+        }`}
+      >
+        <div className="flex gap-3">
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+              deliveryInfo.isDelivery
+                ? "bg-secondary text-primary"
+                : "bg-white text-secondary"
+            }`}
+          >
+            <Icon size={20} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-extrabold uppercase text-secondary">
+              Phương thức nhận xe
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <h4 className="text-base font-extrabold text-primary">
+                {deliveryInfo.title}
+              </h4>
+              {deliveryInfo.isDelivery && (
+                <AdminStatusBadge tone="yellow" label="Có giao tận nơi" />
+              )}
+            </div>
+            <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">
+              {deliveryInfo.address}
+            </p>
+            {deliveryInfo.note && (
+              <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                Ghi chú: {deliveryInfo.note}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {deliveryInfo.isDelivery && (
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <div className="rounded-lg bg-white px-3 py-2">
+              <p className="text-xs font-bold uppercase text-slate-400">
+                Khoảng cách
+              </p>
+              <p className="mt-1 font-extrabold text-primary">
+                {deliveryInfo.distance}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white px-3 py-2">
+              <p className="text-xs font-bold uppercase text-slate-400">
+                Thời gian dự kiến
+              </p>
+              <p className="mt-1 font-extrabold text-primary">
+                {deliveryInfo.duration}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white px-3 py-2">
+              <p className="text-xs font-bold uppercase text-slate-400">
+                Phí giao xe
+              </p>
+              <p className="mt-1 font-extrabold text-primary">
+                {formatCurrency(deliveryInfo.fee)}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function BookingSummaryCard({
   booking,
   onPreviewDocument,
@@ -278,6 +410,8 @@ function BookingSummaryCard({
           </div>
         </div>
       </div>
+
+      <DeliveryMethodCard booking={booking} />
 
       <div className="space-y-4 border-t border-slate-200 p-4">
         <div>

@@ -786,6 +786,54 @@ export async function sendBookingRejectedMail(booking: any) {
   });
 }
 
+export async function sendBookingRequestTimeoutMail(booking: any) {
+  await safeSendMail("sendBookingRequestTimeoutMail", async () => {
+    const [customer, car] = await Promise.all([
+      getBookingCustomer(booking),
+      getBookingCar(booking),
+    ]);
+
+    await sendBusinessNotificationMail({
+      to: customer?.email,
+      subject: "BQDrive - Yêu cầu thuê xe đã được hủy tự động",
+      intro:
+        `Kính gửi ${customer?.name || "Quý khách"}, BQDrive rất tiếc vì yêu cầu thuê xe của bạn chưa được bên cho thuê phản hồi trong thời gian quy định.`,
+      lines: compactLines([
+        ...getBookingLines(booking, car),
+        booking?.cancelReason ? `Lý do: ${booking.cancelReason}` : undefined,
+        "Hệ thống đã tự động hủy yêu cầu này để tránh giữ lịch xe quá lâu.",
+        "Bạn có thể quay lại BQDrive để chọn xe khác hoặc chọn khung thời gian thuê phù hợp hơn.",
+      ]),
+      actionText:
+        "BQDrive xin lỗi bạn vì sự bất tiện này và hy vọng tiếp tục được hỗ trợ chuyến đi tiếp theo.",
+    });
+  });
+}
+
+export async function sendBookingPaymentTimeoutMail(booking: any) {
+  await safeSendMail("sendBookingPaymentTimeoutMail", async () => {
+    const [customer, car] = await Promise.all([
+      getBookingCustomer(booking),
+      getBookingCar(booking),
+    ]);
+
+    await sendBusinessNotificationMail({
+      to: customer?.email,
+      subject: "BQDrive - Booking đã được hủy tự động",
+      intro:
+        `Kính gửi ${customer?.name || "Quý khách"}, booking của bạn đã được chủ xe duyệt nhưng chưa được thanh toán trong thời gian quy định.`,
+      lines: compactLines([
+        ...getBookingLines(booking, car),
+        booking?.cancelReason ? `Lý do: ${booking.cancelReason}` : undefined,
+        "Hệ thống đã tự động hủy booking để giải phóng lịch xe.",
+        "Bạn có thể quay lại BQDrive để gửi yêu cầu thuê mới hoặc chọn khung thời gian phù hợp hơn.",
+      ]),
+      actionText:
+        "BQDrive xin lỗi vì sự bất tiện này và hy vọng tiếp tục được hỗ trợ bạn trong chuyến đi tiếp theo.",
+    });
+  });
+}
+
 export async function sendCashPaymentSelectedMail(booking: any, payment?: any) {
   await safeSendMail("sendCashPaymentSelectedMail", async () => {
     const [owner, car, customer] = await Promise.all([
@@ -1085,6 +1133,44 @@ export async function sendBookingNoShowMail(booking: any) {
       ]),
       actionText:
         "Chính sách xử lý cọc/thanh toán sẽ được thực hiện theo quy định của hệ thống hoặc chủ xe.",
+    });
+  });
+}
+
+export async function sendBookingCancellationRefundMail(booking: any, refund?: any) {
+  await safeSendMail("sendBookingCancellationRefundMail", async () => {
+    const [customer, car] = await Promise.all([
+      getBookingCustomer(booking),
+      getBookingCar(booking),
+    ]);
+    const bookingCode = String(booking?._id || "").slice(-8).toUpperCase();
+    const refundAmount = Number(refund?.refundAmount || 0);
+
+    await sendBusinessNotificationMail({
+      to: customer?.email || booking?.renterInfo?.email,
+      subject: refundAmount > 0
+        ? "BQDrive - Booking đã hủy, yêu cầu hoàn tiền đang chờ xử lý"
+        : "BQDrive - Booking đã được hủy",
+      intro:
+        "Booking của bạn đã được hủy thành công trên hệ thống BQDrive.",
+      lines: compactLines([
+        `Mã booking: #${bookingCode}`,
+        `Xe: ${getCarName(car)}`,
+        `Thời gian thuê: ${formatRentalPeriod(booking)}`,
+        booking?.cancelReason ? `Lý do hủy: ${booking.cancelReason}` : undefined,
+        `Số tiền đã thanh toán tại thời điểm hủy: ${formatCurrency(
+          booking?.cancellationSummary?.paidAmountAtCancellation,
+        )}`,
+        `Phí hủy: ${formatCurrency(booking?.cancellationSummary?.cancellationFee)}`,
+        `Số tiền dự kiến hoàn: ${formatCurrency(refundAmount)}`,
+        refundAmount > 0
+          ? "Do cổng thanh toán chưa có API hoàn tiền tự động trong hệ thống, yêu cầu hoàn tiền sẽ được xử lý thủ công và cần người thuê xác nhận sau khi nhận tiền."
+          : "Booking này không phát sinh khoản tiền cần hoàn.",
+      ]),
+      actionText:
+        refundAmount > 0
+          ? "Vui lòng theo dõi trạng thái hoàn tiền trong chi tiết booking."
+          : "Cảm ơn bạn đã sử dụng BQDrive.",
     });
   });
 }

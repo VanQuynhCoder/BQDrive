@@ -371,6 +371,10 @@ const carSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+carSchema.index({ status: 1, isDeleted: 1, isHidden: 1, createdAt: -1 });
+carSchema.index({ brandId: 1, status: 1, isDeleted: 1 });
+carSchema.index({ ownerId: 1, ownerType: 1, isDeleted: 1, createdAt: -1 });
+
 const CarModel = mongoose.model<ICar>("Car", carSchema);
 
 export { CarModel };

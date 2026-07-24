@@ -70,6 +70,12 @@ class AdminRoute extends BaseRoute {
       this.route(this.getBusinesses),
     );
 
+    this.router.get(
+      "/cars/map",
+      [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
+      this.route(this.getCarsMap),
+    );
+
     this.router.post(
       "/business/send-otp",
       [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
@@ -163,6 +169,196 @@ class AdminRoute extends BaseRoute {
       hiddenAt: review.hiddenAt,
       createdAt: review.createdAt,
     };
+  }
+
+  private getOwnerName(car: any) {
+    if (car.adminOwnerInfo) {
+      return car.adminOwnerInfo.name || "--";
+    }
+
+    if (car.ownerType === OwnerTypeEnum.BUSINESS) {
+      return (
+        car.ownerId?.businessName ||
+        car.businessId?.businessName ||
+        car.ownerId?.userId?.name ||
+        "--"
+      );
+    }
+
+    return car.ownerId?.name || "--";
+  }
+
+  private getOwnerEmail(car: any) {
+    if (car.adminOwnerInfo) {
+      return car.adminOwnerInfo.email || "--";
+    }
+
+    if (car.ownerType === OwnerTypeEnum.BUSINESS) {
+      return (
+        car.ownerId?.userId?.email ||
+        car.businessId?.userId?.email ||
+        car.ownerId?.email ||
+        "--"
+      );
+    }
+
+    return car.ownerId?.email || "--";
+  }
+
+  private getOwnerPhone(car: any) {
+    if (car.adminOwnerInfo) {
+      return car.adminOwnerInfo.phone || "";
+    }
+
+    if (car.ownerType === OwnerTypeEnum.BUSINESS) {
+      return car.ownerId?.phone || car.businessId?.phone || car.ownerId?.userId?.phone || "";
+    }
+
+    return car.ownerId?.phone || "";
+  }
+
+  private getOwnerAddress(car: any) {
+    if (car.adminOwnerInfo) {
+      return car.adminOwnerInfo.address || "";
+    }
+
+    if (car.ownerType === OwnerTypeEnum.BUSINESS) {
+      return (
+        car.ownerId?.address ||
+        car.businessId?.address ||
+        car.ownerId?.userId?.address ||
+        ""
+      );
+    }
+
+    return car.ownerId?.address || "";
+  }
+
+  private toAdminMapCar(car: any) {
+    return {
+      _id: car._id,
+      name: car.name,
+      brandName: car.brandId?.name || "",
+      licensePlate: car.licensePlate || "",
+      pickupAddress: car.pickupAddress || car.address || "",
+      pickupFormattedAddress:
+        car.pickupFormattedAddress || car.pickupAddress || car.address || "",
+      pickupLat: car.pickupLat,
+      pickupLng: car.pickupLng,
+      pickupNote: car.pickupNote || car.locationNote || "",
+      status: car.status,
+      car_status: car.status,
+      approval_status: car.status,
+      ownerType: car.ownerType,
+      ownerName: this.getOwnerName(car),
+      ownerEmail: this.getOwnerEmail(car),
+      ownerPhone: this.getOwnerPhone(car),
+      ownerAddress: this.getOwnerAddress(car),
+      images: [],
+      lastLocationUpdatedAt: car.lastLocationUpdatedAt,
+      locationUpdateCount: car.locationUpdateCount || 0,
+    };
+  }
+
+  private getAdminOwnerInfo(car: any, lookups: {
+    businesses: Map<string, any>;
+    users: Map<string, any>;
+  }) {
+    if (car.ownerType === OwnerTypeEnum.BUSINESS) {
+      const business =
+        lookups.businesses.get(String(car.ownerId || "")) ||
+        lookups.businesses.get(String(car.businessId || ""));
+      const user = business?.userId || {};
+
+      return {
+        name: business?.businessName || user?.name || "--",
+        email: user?.email || "",
+        phone: business?.phone || user?.phone || "",
+        address: business?.address || user?.address || "",
+      };
+    }
+
+    const user = lookups.users.get(String(car.ownerId || ""));
+
+    return {
+      name: user?.name || "--",
+      email: user?.email || "",
+      phone: user?.phone || "",
+      address: user?.address || "",
+    };
+  }
+
+  async getCarsMap(req: Request, res: Response) {
+    const cars = await CarModel.find({ isDeleted: false } as any)
+      .select(
+        [
+          "_id",
+          "name",
+          "licensePlate",
+          "brandId",
+          "businessId",
+          "ownerId",
+          "ownerType",
+          "ownerModel",
+          "pickupAddress",
+          "pickupFormattedAddress",
+          "pickupLat",
+          "pickupLng",
+          "pickupNote",
+          "address",
+          "locationNote",
+          "status",
+          "lastLocationUpdatedAt",
+          "locationUpdateCount",
+        ].join(" "),
+      )
+      .populate("brandId", "name")
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    const businessIds = Array.from(
+      new Set(
+        cars
+          .filter((car) => car.ownerType === OwnerTypeEnum.BUSINESS)
+          .flatMap((car) => [car.ownerId, car.businessId])
+          .filter(Boolean)
+          .map((id) => String(id)),
+      ),
+    );
+    const userIds = Array.from(
+      new Set(
+        cars
+          .filter((car) => car.ownerType === OwnerTypeEnum.USER)
+          .map((car) => String(car.ownerId || ""))
+          .filter(Boolean),
+      ),
+    );
+
+    const [businesses, users] = await Promise.all([
+      BusinessModel.find({ _id: { $in: businessIds }, isDeleted: false } as any)
+        .select("businessName phone address userId")
+        .populate("userId", "name email phone address")
+        .lean(),
+      UserModel.find({ _id: { $in: userIds }, isDeleted: false } as any)
+        .select("name email phone address")
+        .lean(),
+    ]);
+
+    const lookups = {
+      businesses: new Map(businesses.map((business) => [String(business._id), business])),
+      users: new Map(users.map((user) => [String(user._id), user])),
+    };
+    const carsWithOwnerInfo = cars.map((car) => ({
+      ...car,
+      adminOwnerInfo: this.getAdminOwnerInfo(car, lookups),
+    }));
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "success",
+      data: { cars: carsWithOwnerInfo.map((car) => this.toAdminMapCar(car)) },
+    });
   }
 
   async getReviews(req: Request, res: Response) {

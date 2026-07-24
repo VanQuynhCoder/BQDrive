@@ -28,6 +28,7 @@ import {
   type PrivateOwnerCar,
 } from "../../services/privateOwner.service";
 import { mapService } from "../../services/map.service";
+import { uploadService } from "../../services/upload.service";
 import { formatAddressArea, formatPickupAddress } from "../../utils/address.util";
 import { getCarStatusMeta } from "../../utils/display.util";
 import {
@@ -119,25 +120,7 @@ const carTypeOptions = [
 const fuelTypeOptions = ["GASOLINE", "DIESEL", "ELECTRIC", "HYBRID"];
 const transmissionOptions = ["AUTOMATIC", "MANUAL"];
 const maxGalleryImages = 8;
-const maxCarImageSize = 1024 * 1024;
-
-function readImageAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result);
-        return;
-      }
-
-      reject(new Error("Invalid image result"));
-    };
-
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
+const maxCarImageSize = 5 * 1024 * 1024;
 
 function formatCurrency(value?: number) {
   return new Intl.NumberFormat("vi-VN", {
@@ -310,6 +293,7 @@ export default function PrivateOwnerCarsPage() {
   const [brands, setBrands] = useState<PrivateOwnerBrand[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<CarForm>(emptyForm);
   const [editingCar, setEditingCar] = useState<PrivateOwnerCar | null>(null);
@@ -378,7 +362,7 @@ export default function PrivateOwnerCarsPage() {
   };
 
   const closeForm = () => {
-    if (submitting) return;
+    if (submitting || uploadingImages) return;
     setFormOpen(false);
     setEditingCar(null);
     setForm(emptyForm);
@@ -459,7 +443,7 @@ export default function PrivateOwnerCarsPage() {
     );
 
     if (invalidFile) {
-      toast.error("Vui lòng chờ chủn file ảnh");
+      toast.error("Vui lòng chọn file ảnh JPG, PNG hoặc WEBP");
       return;
     }
 
@@ -468,19 +452,26 @@ export default function PrivateOwnerCarsPage() {
     );
 
     if (oversizeFile) {
-      toast.error("Mỗi ảnh xe nên nhỏ hơn 1MB");
+      toast.error("Mỗi ảnh xe tối đa 5MB");
       return;
     }
 
+    setUploadingImages(true);
     try {
-      const mainImage = await readImageAsDataUrl(selectedFiles[0]);
+      const selectedFile = selectedFiles[0];
+
+      if (!selectedFile) return;
+
+      const uploadedImage = await uploadService.uploadCarImage(selectedFile);
       setForm((prev) => ({
         ...prev,
-        mainImage,
+        mainImage: uploadedImage.url,
       }));
-      toast.success("Đã chọn ảnh chính của xe");
-    } catch {
-      toast.error("Không thể đọc file ảnh");
+      toast.success("Đã upload ảnh chính của xe");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Không thể upload ảnh xe"));
+    } finally {
+      setUploadingImages(false);
     }
   };
 
@@ -502,7 +493,7 @@ export default function PrivateOwnerCarsPage() {
     );
 
     if (invalidFile) {
-      toast.error("Vui lòng chờ chủn file ảnh");
+      toast.error("Vui lòng chọn file ảnh JPG, PNG hoặc WEBP");
       return;
     }
 
@@ -511,19 +502,26 @@ export default function PrivateOwnerCarsPage() {
     );
 
     if (oversizeFile) {
-      toast.error("Mỗi ảnh xe nên nhỏ hơn 1MB");
+      toast.error("Mỗi ảnh xe tối đa 5MB");
       return;
     }
 
+    setUploadingImages(true);
     try {
-      const images = await Promise.all(selectedFiles.map(readImageAsDataUrl));
+      const images = await Promise.all(
+        selectedFiles.map((file) =>
+          uploadService.uploadCarImage(file).then((image) => image.url),
+        ),
+      );
       setForm((prev) => ({
         ...prev,
         galleryImages: [...prev.galleryImages, ...images],
       }));
-      toast.success("Đã chọn ảnh xe");
-    } catch {
-      toast.error("Không thể đọc file ảnh");
+      toast.success("Đã upload ảnh xe");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Không thể upload ảnh xe"));
+    } finally {
+      setUploadingImages(false);
     }
   };
 
@@ -716,6 +714,11 @@ export default function PrivateOwnerCarsPage() {
 
   const handleSubmit = async (event: FormEvent) => {
     event?.preventDefault();
+
+    if (uploadingImages) {
+      toast.error("Vui lòng chờ upload ảnh hoàn tất");
+      return;
+    }
 
     const payload = buildPayload();
     if (!payload) return;
@@ -1171,7 +1174,7 @@ export default function PrivateOwnerCarsPage() {
               <button
                 type="button"
                 onClick={closeForm}
-                disabled={submitting}
+                disabled={submitting || uploadingImages}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
                 aria-label="Đóng modal"
                 title="Đóng modal"
@@ -1676,6 +1679,9 @@ export default function PrivateOwnerCarsPage() {
                       onLocationChange={({ lat, lng }) => {
                         updateForm("pickupLat", String(lat));
                         updateForm("pickupLng", String(lng));
+                        setGeocodeStatus(
+                          "Đã chọn vị trí nhận xe trên bản đồ. Bạn có thể lưu xe hoặc chọn lại nếu chưa chính xác.",
+                        );
                       }}
                       height={240}
                     />
@@ -1695,19 +1701,24 @@ export default function PrivateOwnerCarsPage() {
                           ảnh chính *
                         </p>
                         <p className="mt-1 text-sm text-slate-500">
-                          ảnh đầu tiên hiển thị trên trang chỗ.
+                          Ảnh đầu tiên hiển thị trên trang chủ.
                         </p>
                       </div>
                     </div>
 
-                    <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2 font-extrabold text-white transition hover:bg-primaryDark">
-                      <Upload size={18} className="text-secondary" />
-                      Chọn ảnh chính
+                    <label className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2 font-extrabold text-white transition hover:bg-primaryDark ${uploadingImages ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+                      {uploadingImages ? (
+                        <Loader2 size={18} className="animate-spin text-secondary" />
+                      ) : (
+                        <Upload size={18} className="text-secondary" />
+                      )}
+                      {uploadingImages ? "Đang upload..." : "Chọn ảnh chính"}
                       <input
                         type="file"
                         accept="image/*"
                         className="hidden"
                         onChange={handleMainImageFileChange}
+                        disabled={uploadingImages}
                       />
                     </label>
                   </div>
@@ -1752,20 +1763,25 @@ export default function PrivateOwnerCarsPage() {
                           ảnh phụ mô tả
                         </p>
                         <p className="mt-1 text-sm text-slate-500">
-                          Tối đa {maxGalleryImages} ảnh phụ, mới ảnh dưới 1MB.
+                          Tối đa {maxGalleryImages} ảnh phụ, mỗi ảnh tối đa 5MB.
                         </p>
                       </div>
                     </div>
 
-                    <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-primary px-5 py-2 font-extrabold text-primary transition hover:bg-primary hover:text-white">
-                      <Upload size={18} className="text-secondary" />
-                      Chọn ảnh phụ
+                    <label className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-primary px-5 py-2 font-extrabold text-primary transition hover:bg-primary hover:text-white ${uploadingImages ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+                      {uploadingImages ? (
+                        <Loader2 size={18} className="animate-spin text-secondary" />
+                      ) : (
+                        <Upload size={18} className="text-secondary" />
+                      )}
+                      {uploadingImages ? "Đang upload..." : "Chọn ảnh phụ"}
                       <input
                         type="file"
                         accept="image/*"
                         multiple
                         className="hidden"
                         onChange={handleGalleryImageFileChange}
+                        disabled={uploadingImages}
                       />
                     </label>
                   </div>
@@ -1821,17 +1837,23 @@ export default function PrivateOwnerCarsPage() {
                 <button
                   type="button"
                   onClick={closeForm}
-                  disabled={submitting}
+                  disabled={submitting || uploadingImages}
                   className="min-h-11 rounded-lg border border-slate-200 px-5 py-2 font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
                 >
                   Hủy
                 </button>
                 <button
-                  disabled={submitting}
+                  disabled={submitting || uploadingImages}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-2 font-extrabold text-primary transition hover:brightness-95 disabled:opacity-60"
                 >
-                  {submitting && <Loader2 size={18} className="animate-spin" />}
-                  {editingCar ? "Cập nhật xe" : "Thêm xe"}
+                  {(submitting || uploadingImages) && (
+                    <Loader2 size={18} className="animate-spin" />
+                  )}
+                  {uploadingImages
+                    ? "Đang upload ảnh..."
+                    : editingCar
+                      ? "Cập nhật xe"
+                      : "Thêm xe"}
                 </button>
               </div>
             </form>

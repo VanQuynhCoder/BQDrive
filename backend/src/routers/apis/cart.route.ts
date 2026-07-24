@@ -104,9 +104,12 @@ class CartRoute extends BaseRoute {
     } as any);
 
     if (existedBooking) {
-      throw ErrorHelper.requestDataInvalid(
-        "Xe đã có booking trong khoảng thời gian này",
-      );
+      throw ErrorHelper.carTimeConflict({
+        carId,
+        startAt: start.toISOString(),
+        endAt: end.toISOString(),
+        conflictType: "BOOKING",
+      });
     }
 
     const existedHold = await CartModel.findOne({
@@ -119,9 +122,12 @@ class CartRoute extends BaseRoute {
     } as any);
 
     if (existedHold) {
-      throw ErrorHelper.requestDataInvalid(
-        "Xe đang được người khác giữ trong khoảng thời gian này",
-      );
+      throw ErrorHelper.carTimeConflict({
+        carId,
+        startAt: start.toISOString(),
+        endAt: end.toISOString(),
+        conflictType: "HOLD",
+      });
     }
   }
 
@@ -198,8 +204,23 @@ class CartRoute extends BaseRoute {
       status: CartStatusEnum.ACTIVE,
       expiredAt: { $gt: now },
     })
-      .populate("carId")
-      .sort({ createdAt: -1 });
+      .populate({
+        path: "carId",
+        select: {
+          _id: 1,
+          name: 1,
+          licensePlate: 1,
+          pricePerDay: 1,
+          pricePerHour: 1,
+          rentalUnit: 1,
+          seats: 1,
+          fuelType: 1,
+          transmission: 1,
+          images: { $slice: 1 },
+        },
+      })
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.status(200).json({
       status: 200,
@@ -239,3 +260,4 @@ class CartRoute extends BaseRoute {
 }
 
 export default new CartRoute().router;
+

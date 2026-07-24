@@ -14,6 +14,8 @@ import mapsRoute from "./maps.route";
 import ownerRoute from "./owner.route";
 import reviewRoute from "./review.route";
 import taskRoute from "./task.route";
+import uploadRoute from "./upload.route";
+import refundRoute from "./refund.route";
 const router = express.Router();
 
 function dashboardAlias(targetUrl: string) {
@@ -46,4 +48,6 @@ router.use("/holidays", holidayRoute);
 router.use("/maps", mapsRoute);
 router.use("/owner", ownerRoute);
 router.use("/reviews", reviewRoute);
+router.use("/uploads", uploadRoute);
+router.use("/refunds", refundRoute);
 export default router;

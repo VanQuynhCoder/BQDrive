@@ -78,5 +78,8 @@ const cartSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+cartSchema.index({ userId: 1, status: 1, expiredAt: 1, createdAt: -1 });
+cartSchema.index({ carId: 1, status: 1, startDate: 1, endDate: 1, expiredAt: 1 });
+
 const CartModel = mongoose.model<ICart>("Cart", cartSchema);
 export { CartModel };

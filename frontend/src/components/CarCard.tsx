@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { formatAddressArea } from "../utils/address.util";
+import { normalizeImageUrl } from "../utils/image.util";
 
 type RentalAvailability =
   | "AVAILABLE"
@@ -30,8 +31,10 @@ type CarCardProps = {
     seats?: number;
     fuelType?: string;
     transmission?: string;
+    thumbnail?: string;
     images?: string[];
     image?: string;
+    ownerName?: string;
     ownerType?: "BUSINESS" | "USER" | string;
     pickupProvince?: string;
     pickupDistrict?: string;
@@ -105,11 +108,14 @@ function getSpecLabel(value?: string) {
 }
 
 function getPrimaryImage(car: CarCardProps["car"]) {
+  const thumbnail = normalizeImageUrl(car.thumbnail);
+  if (thumbnail) return thumbnail;
+
   const uploadedImage = Array.isArray(car.images)
     ? car.images.find((image) => typeof image === "string" && image.trim())
     : "";
 
-  return uploadedImage || car.image || fallbackImage;
+  return normalizeImageUrl(uploadedImage || car.image) || fallbackImage;
 }
 
 function getAvailabilityInfo(car: CarCardProps["car"], now: number) {
@@ -203,9 +209,10 @@ export default function CarCard({ car, detailSearchParams = "" }: CarCardProps) 
   const canInteract = canOpenCart || canResumePayment || canOpenDetail;
   const detailUrl = `/cars/${carId}${detailSearchParams}`;
   const ownerName =
-    car.ownerType === "USER"
+    car.ownerName ||
+    (car.ownerType === "USER"
       ? "Người dùng ký gửi"
-      : car.businessId?.businessName || "Đối tác BQDrive";
+      : car.businessId?.businessName || "Đối tác BQDrive");
 
   useEffect(() => {
     if (!car.holdExpiredAt && !car.resumeExpiresAt) return;
@@ -227,6 +234,8 @@ export default function CarCard({ car, detailSearchParams = "" }: CarCardProps) 
         <img
           src={image}
           alt={car.name}
+          loading="lazy"
+          decoding="async"
           onError={(event) => {
             event.currentTarget.src = fallbackImage;
           }}

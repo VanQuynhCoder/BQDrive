@@ -16,6 +16,8 @@ export type IPayment = BaseDocument & {
   paymentType: string;
   paidAt?: Date;
   transactionCode?: string;
+  refundedAmount?: number;
+  refundStatus?: string;
   confirmedBy?: mongoose.Types.ObjectId;
   confirmedByRole?: string;
   note?: string;
@@ -63,6 +65,15 @@ const paymentSchema = new mongoose.Schema(
       type: Date,
     },
     transactionCode: {
+      type: String,
+      trim: true,
+    },
+    refundedAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    refundStatus: {
       type: String,
       trim: true,
     },
