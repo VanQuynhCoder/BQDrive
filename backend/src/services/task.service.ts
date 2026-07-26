@@ -65,20 +65,16 @@ const TERMINAL_BOOKING_STATUSES = [
 const PAYMENT_ALLOWED_STATUSES = [
   BookingStatusEnum.OWNER_APPROVED,
   BookingStatusEnum.PAYMENT_PENDING,
-  BookingStatusEnum.WAITING_PAYMENT,
   BookingStatusEnum.PAID,
-  BookingStatusEnum.CONFIRMED,
   BookingStatusEnum.IN_PROGRESS,
   BookingStatusEnum.RETURN_INSPECTION,
   BookingStatusEnum.AWAITING_EXTRA_CHARGE,
 ];
 const OWNER_REVIEW_STATUSES = [
   BookingStatusEnum.REQUESTED,
-  BookingStatusEnum.PENDING,
 ];
 const HANDOVER_STATUSES = [
   BookingStatusEnum.PAID,
-  BookingStatusEnum.CONFIRMED,
 ];
 const RETURN_DUE_SOON_MINUTES = 30;
 
@@ -621,7 +617,6 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
       [
         BookingStatusEnum.OWNER_APPROVED,
         BookingStatusEnum.PAYMENT_PENDING,
-        BookingStatusEnum.WAITING_PAYMENT,
       ].includes(status)
     ) {
       tasks.push({
@@ -789,8 +784,6 @@ async function getCustomerTasks(userId: string) {
       [
         BookingStatusEnum.OWNER_APPROVED,
         BookingStatusEnum.PAYMENT_PENDING,
-        BookingStatusEnum.WAITING_PAYMENT,
-        BookingStatusEnum.CONFIRMED,
       ].includes(status) &&
       paidAmount <= 0
     ) {
@@ -925,7 +918,9 @@ async function getCustomerTasks(userId: string) {
     }
 
     if (
-      [BookingStatusEnum.REQUESTED, BookingStatusEnum.PENDING].includes(status)
+      [
+        BookingStatusEnum.REQUESTED,
+      ].includes(status)
     ) {
       tasks.push({
         id: `WAITING_OWNER_APPROVAL:${id}`,
@@ -1713,7 +1708,6 @@ async function getOwnerSummaryCounter(
         $in: [
           BookingStatusEnum.OWNER_APPROVED,
           BookingStatusEnum.PAYMENT_PENDING,
-          BookingStatusEnum.WAITING_PAYMENT,
         ],
       },
     }),
@@ -1883,8 +1877,6 @@ async function getCustomerSummaryCounter(userId: string) {
         $in: [
           BookingStatusEnum.OWNER_APPROVED,
           BookingStatusEnum.PAYMENT_PENDING,
-          BookingStatusEnum.WAITING_PAYMENT,
-          BookingStatusEnum.CONFIRMED,
         ],
       },
       paidAmount: { $lte: 0 },
@@ -1928,7 +1920,9 @@ async function getCustomerSummaryCounter(userId: string) {
     BookingModel.countDocuments({
       userId: userId as unknown as mongoose.Types.ObjectId,
       isDeleted: false,
-      status: { $in: [BookingStatusEnum.REQUESTED, BookingStatusEnum.PENDING] },
+      status: {
+        $in: [BookingStatusEnum.REQUESTED],
+      },
     }),
     BookingModel.countDocuments({
       userId: userId as unknown as mongoose.Types.ObjectId,

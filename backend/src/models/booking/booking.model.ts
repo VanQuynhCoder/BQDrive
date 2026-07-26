@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { BaseDocument } from "../../base/baseModel";
 import {
+  BOOKING_STATUS_VALUES,
   BookingStatusEnum,
   OwnerTypeEnum,
   RentalModeEnum,
@@ -400,8 +401,8 @@ const bookingSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: Object.values(BookingStatusEnum),
-      default: BookingStatusEnum.PENDING,
+      enum: BOOKING_STATUS_VALUES,
+      default: BookingStatusEnum.REQUESTED,
     },
     ownerApprovedAt: {
       type: Date,

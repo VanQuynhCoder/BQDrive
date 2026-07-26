@@ -59,15 +59,13 @@ const BLOCKING_BOOKING_STATUSES = [
   BookingStatusEnum.IN_PROGRESS, // Xe đang được thuê
   BookingStatusEnum.RETURN_INSPECTION,
   BookingStatusEnum.AWAITING_EXTRA_CHARGE,
-  BookingStatusEnum.PENDING, // Trạng thái cũ: REQUESTED
-  BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: PAYMENT_PENDING
-  BookingStatusEnum.CONFIRMED, // Trạng thái cũ
 ];
 const PUBLIC_CAR_STATUSES = [CarStatusEnum.APPROVED, CarStatusEnum.RENTED];
 const DELETE_BLOCKING_CONTRACT_STATUSES = [
-  ContractStatusEnum.DRAFT,
   ContractStatusEnum.ACTIVE,
 ];
+const UPDATE_CAR_BLOCKED_MESSAGE =
+  "Không thể cập nhật xe đang có booking hoặc hợp đồng thuê còn hiệu lực";
 const DETAILED_PICKUP_BOOKING_STATUSES = [
   BookingStatusEnum.OWNER_APPROVED,
   BookingStatusEnum.PAYMENT_PENDING,
@@ -76,8 +74,6 @@ const DETAILED_PICKUP_BOOKING_STATUSES = [
   BookingStatusEnum.RETURN_INSPECTION,
   BookingStatusEnum.AWAITING_EXTRA_CHARGE,
   BookingStatusEnum.COMPLETED,
-  BookingStatusEnum.WAITING_PAYMENT,
-  BookingStatusEnum.CONFIRMED,
 ];
 function cleanSearchText(value?: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -555,10 +551,7 @@ class CarRoute extends BaseRoute {
       BookingModel.find({
         carId: { $in: carIds },
         status: {
-          $in: [
-            BookingStatusEnum.REQUESTED, // Booking mới đang chờ chủ xe duyệt
-            BookingStatusEnum.PENDING, // Booking cũ đang chờ chủ xe duyệt
-          ],
+          $in: [BookingStatusEnum.REQUESTED],
         },
         isDeleted: false,
         endDate: { $gt: now },
@@ -1430,6 +1423,29 @@ class CarRoute extends BaseRoute {
 
     if (!existingCar) {
       throw ErrorHelper.recordNotFound("Xe");
+    }
+
+    const [activeBooking, activeContract] = await Promise.all([
+      BookingModel.findOne({
+        carId: id,
+        ...this.buildOwnerFilter(owner),
+        status: { $in: BLOCKING_BOOKING_STATUSES },
+        isDeleted: false,
+      } as any).select("_id"),
+      ContractModel.findOne({
+        carId: id,
+        ...this.buildOwnerFilter(owner),
+        status: { $in: DELETE_BLOCKING_CONTRACT_STATUSES },
+        isDeleted: false,
+      } as any).select("_id"),
+    ]);
+
+    if (
+      existingCar.status === CarStatusEnum.RENTED ||
+      activeBooking ||
+      activeContract
+    ) {
+      throw ErrorHelper.requestDataInvalid(UPDATE_CAR_BLOCKED_MESSAGE);
     }
 
     if ("images" in updateData) {

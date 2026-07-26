@@ -1,11 +1,17 @@
+import mongoose, { ClientSession } from "mongoose";
 import { BaseRoute, Request, Response } from "../../base/baseRoute";
 import { ErrorHelper } from "../../base/error";
 import { CartModel } from "../../models/cart/cart.model";
 import { CarModel } from "../../models/car/car.model";
 import { BookingModel } from "../../models/booking/booking.model";
+import { UserModel } from "../../models/user/user.model";
 import { calculateRentalPrice } from "../../helper/rental.helper";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
 import { expireOldCarts } from "../../helper/cart.helper";
+import {
+  getBookingBufferHours,
+  getBufferedAvailabilityRange,
+} from "../../helper/booking-availability.helper";
 import {
   BookingStatusEnum,
   CarStatusEnum,
@@ -24,9 +30,6 @@ const BLOCKING_BOOKING_STATUSES = [
   BookingStatusEnum.IN_PROGRESS, // Xe đang được thuê
   BookingStatusEnum.RETURN_INSPECTION,
   BookingStatusEnum.AWAITING_EXTRA_CHARGE,
-  BookingStatusEnum.PENDING, // Trạng thái cũ: REQUESTED
-  BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: PAYMENT_PENDING
-  BookingStatusEnum.CONFIRMED, // Trạng thái cũ
 ];
 const BOOKABLE_CAR_STATUSES = [CarStatusEnum.APPROVED, CarStatusEnum.RENTED];
 
@@ -37,6 +40,22 @@ function assertUserIsNotCarOwner(car: any, userId: string) {
   ) {
     throw ErrorHelper.requestDataInvalid(
       "Không thể thuê xe do chính bạn sở hữu",
+    );
+  }
+}
+
+async function assertActiveRenter(userId: string, session?: ClientSession) {
+  const query = UserModel.findOne({
+    _id: userId,
+    isDeleted: false,
+    isBlocked: { $ne: true },
+    isVerified: true,
+  } as any).select("_id");
+  if (session) query.session(session);
+
+  if (!(await query)) {
+    throw ErrorHelper.forbidden(
+      "Tài khoản người thuê không còn hoạt động hoặc chưa được xác thực",
     );
   }
 }
@@ -87,21 +106,30 @@ class CartRoute extends BaseRoute {
     carId: string,
     start: Date,
     end: Date,
-    userId: string,
+    session?: ClientSession,
   ) {
     const now = new Date();
+    const { bufferedStart, bufferedEnd } = getBufferedAvailabilityRange(
+      start,
+      end,
+    );
 
-    await expireAbandonedPendingBookings(now);
-    await expireOldCarts(now);
-    const existedBooking = await BookingModel.findOne({
+    if (!session) {
+      await expireAbandonedPendingBookings(now);
+      await expireOldCarts(now);
+    }
+
+    const bookingQuery = BookingModel.findOne({
       carId,
       status: {
         $in: BLOCKING_BOOKING_STATUSES,
       },
       isDeleted: false,
-      startDate: { $lt: end },
-      endDate: { $gt: start },
+      startDate: { $lt: bufferedEnd },
+      endDate: { $gt: bufferedStart },
     } as any);
+    if (session) bookingQuery.session(session);
+    const existedBooking = await bookingQuery;
 
     if (existedBooking) {
       throw ErrorHelper.carTimeConflict({
@@ -109,17 +137,19 @@ class CartRoute extends BaseRoute {
         startAt: start.toISOString(),
         endAt: end.toISOString(),
         conflictType: "BOOKING",
+        bufferHours: getBookingBufferHours(),
       });
     }
 
-    const existedHold = await CartModel.findOne({
+    const cartQuery = CartModel.findOne({
       carId,
-      userId: { $ne: userId },
       status: CartStatusEnum.ACTIVE,
       expiredAt: { $gt: now },
-      startDate: { $lt: end },
-      endDate: { $gt: start },
+      startDate: { $lt: bufferedEnd },
+      endDate: { $gt: bufferedStart },
     } as any);
+    if (session) cartQuery.session(session);
+    const existedHold = await cartQuery;
 
     if (existedHold) {
       throw ErrorHelper.carTimeConflict({
@@ -127,14 +157,37 @@ class CartRoute extends BaseRoute {
         startAt: start.toISOString(),
         endAt: end.toISOString(),
         conflictType: "HOLD",
+        bufferHours: getBookingBufferHours(),
       });
     }
+  }
+
+  private async lockBookableCar(carId: string, session: ClientSession) {
+    const car = await CarModel.findOneAndUpdate(
+      {
+        _id: carId,
+        status: { $in: BOOKABLE_CAR_STATUSES },
+        isHidden: { $ne: true },
+        isDeleted: false,
+      } as any,
+      { $inc: { bookingRevision: 1 } },
+      { new: true, session },
+    );
+
+    if (!car) {
+      throw ErrorHelper.recordNotFound("Xe");
+    }
+
+    return car;
   }
 
   async addToCart(req: Request, res: Response) {
     const authUser = (req as any).user;
     const { carId, startDate, endDate, rentalMode } = req.body;
-    await expireOldCarts();
+    await Promise.all([
+      expireOldCarts(),
+      expireAbandonedPendingBookings(),
+    ]);
 
     if (!carId || !startDate || !endDate || !rentalMode) {
       throw ErrorHelper.requestDataInvalid(
@@ -146,44 +199,51 @@ class CartRoute extends BaseRoute {
       throw ErrorHelper.requestDataInvalid("Hình thức thuê không hợp lệ");
     }
 
-    const car = await CarModel.findOne({
-      _id: carId,
-      status: { $in: BOOKABLE_CAR_STATUSES },
-      isDeleted: false,
-    } as any);
-
-    if (!car || (car as any).isHidden || car.status === CarStatusEnum.HIDDEN) {
-      throw ErrorHelper.recordNotFound("Xe");
-    }
-
-    assertUserIsNotCarOwner(car, authUser.userId);
-
     const start = new Date(startDate);
     const end = new Date(endDate);
 
     this.validateRentalDateRange(start, end);
-    await this.validateCarAvailability(carId, start, end, authUser.userId);
+    const session = await mongoose.startSession();
+    let cart: any;
 
-    if (start >= end) {
-      throw ErrorHelper.requestDataInvalid("Ngày thuê không hợp lệ");
+    try {
+      await session.withTransaction(async () => {
+        await assertActiveRenter(authUser.userId, session);
+        const car = await this.lockBookableCar(carId, session);
+
+        assertUserIsNotCarOwner(car, authUser.userId);
+        await this.validateCarAvailability(carId, start, end, session);
+
+        const rentalResult = await calculateRentalPrice(
+          car,
+          start,
+          end,
+          rentalMode,
+        );
+        const expiredAt = new Date(Date.now() + 10 * 60 * 1000);
+
+        [cart] = await CartModel.create(
+          [{
+            userId: authUser.userId,
+            carId,
+            startDate: start,
+            endDate: end,
+            rentalMode: rentalResult.rentalMode,
+            totalPrice: rentalResult.totalPrice,
+            pricingSnapshot: rentalResult.pricingSnapshot,
+            expiredAt,
+            status: CartStatusEnum.ACTIVE,
+          }],
+          { session },
+        );
+      });
+    } finally {
+      await session.endSession();
     }
 
-    const rentalResult = await calculateRentalPrice(car, start, end, rentalMode);
-    const totalPrice = rentalResult.totalPrice;
-
-    const expiredAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    const cart = await CartModel.create({
-      userId: authUser.userId,
-      carId,
-      startDate: start,
-      endDate: end,
-      rentalMode: rentalResult.rentalMode,
-      totalPrice,
-      pricingSnapshot: rentalResult.pricingSnapshot,
-      expiredAt,
-      status: CartStatusEnum.ACTIVE,
-    });
+    if (!cart) {
+      throw ErrorHelper.somethingWentWrong("Không thể thêm xe vào giỏ hàng");
+    }
 
     return res.status(201).json({
       status: 201,

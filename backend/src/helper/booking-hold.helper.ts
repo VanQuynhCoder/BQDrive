@@ -105,7 +105,6 @@ async function expireStaleWaitingPaymentBookings(now: Date, cutoff: Date) {
       $in: [
         BookingStatusEnum.OWNER_APPROVED,
         BookingStatusEnum.PAYMENT_PENDING,
-        BookingStatusEnum.WAITING_PAYMENT,
       ],
     },
     $or: [{ paidAmount: { $lte: 0 } }, { paidAmount: { $exists: false } }],
@@ -142,7 +141,6 @@ async function expireStaleWaitingPaymentBookings(now: Date, cutoff: Date) {
           $in: [
             BookingStatusEnum.OWNER_APPROVED,
             BookingStatusEnum.PAYMENT_PENDING,
-            BookingStatusEnum.WAITING_PAYMENT,
           ],
         },
         $or: [{ paidAmount: { $lte: 0 } }, { paidAmount: { $exists: false } }],

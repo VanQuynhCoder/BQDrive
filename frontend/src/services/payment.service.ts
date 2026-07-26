@@ -1,5 +1,7 @@
 ﻿import api from "./api";
 
+import type { ContractPaymentStatus } from "../constants/status.constants";
+
 export type CustomerPaymentBooking = {
   _id: string;
   status?: string;
@@ -24,6 +26,8 @@ export type PaymentHistoryItem = {
   amount: number;
   method?: string;
   status?: string;
+  refundStatus?: string;
+  refundedAmount?: number;
   paymentType?: string;
   transactionCode?: string;
   paidAt?: string;
@@ -55,14 +59,7 @@ export type BookingPaymentHistory = {
   depositAmount: number;
   paidAmount: number;
   remainingAmount: number;
-  paymentSummaryStatus:
-    | "PAID_FULL"
-    | "DEPOSIT_PAID"
-    | "UNPAID"
-    | "PARTIAL"
-    | "PENDING"
-    | "REFUNDED"
-    | string;
+  paymentSummaryStatus: ContractPaymentStatus | (string & {});
   paymentCount: number;
   latestPaymentAt?: string | null;
   payments: PaymentHistoryItem[];

@@ -62,7 +62,7 @@ function isOverdue(startDate?: string, currentTime: Date = new Date()) {
 }
 
 function normalizeStatus(status?: string) {
-  return (status || "PENDING").toUpperCase();
+  return (status || "REQUESTED").toUpperCase();
 }
 
 function buildSteps(
@@ -99,10 +99,10 @@ function buildSteps(
 
 function getRenterCurrentIndex(status: string) {
   if (status === "WAITING_RENTER_INFO") return 0;
-  if (status === "REQUESTED" || status === "PENDING") return 0;
+  if (status === "REQUESTED") return 0;
   if (status === "OWNER_APPROVED") return 1;
-  if (status === "PAYMENT_PENDING" || status === "WAITING_PAYMENT") return 2;
-  if (status === "PAID" || status === "CONFIRMED") return 4;
+  if (status === "PAYMENT_PENDING") return 2;
+  if (status === "PAID") return 4;
   if (status === "IN_PROGRESS") return 5;
   if (status === "RETURN_INSPECTION" || status === "AWAITING_EXTRA_CHARGE") {
     return 6;
@@ -112,10 +112,10 @@ function getRenterCurrentIndex(status: string) {
 }
 
 function getOwnerCurrentIndex(status: string) {
-  if (status === "REQUESTED" || status === "PENDING") return 0;
+  if (status === "REQUESTED") return 0;
   if (status === "OWNER_APPROVED") return 2;
-  if (status === "PAYMENT_PENDING" || status === "WAITING_PAYMENT") return 2;
-  if (status === "PAID" || status === "CONFIRMED") return 4;
+  if (status === "PAYMENT_PENDING") return 2;
+  if (status === "PAID") return 4;
   if (status === "IN_PROGRESS") return 5;
   if (status === "RETURN_INSPECTION" || status === "AWAITING_EXTRA_CHARGE") {
     return 6;
@@ -218,7 +218,7 @@ export function getBookingTimelineView({
   if (terminalView) return terminalView;
 
   if (perspective === "OWNER") {
-    if (normalizedStatus === "REQUESTED" || normalizedStatus === "PENDING") {
+    if (normalizedStatus === "REQUESTED") {
       return {
         displayStatus: "Có yêu cầu thuê mới",
         nextActionText:
@@ -231,9 +231,7 @@ export function getBookingTimelineView({
     }
 
     if (
-      ["OWNER_APPROVED", "PAYMENT_PENDING", "WAITING_PAYMENT"].includes(
-        normalizedStatus,
-      )
+      ["OWNER_APPROVED", "PAYMENT_PENDING"].includes(normalizedStatus)
     ) {
       return {
         displayStatus: "Đã duyệt, chờ khách thanh toán",
@@ -247,7 +245,7 @@ export function getBookingTimelineView({
       };
     }
 
-    if (normalizedStatus === "PAID" || normalizedStatus === "CONFIRMED") {
+    if (normalizedStatus === "PAID") {
       return {
         displayStatus: hasDepositOnly
           ? "Khách đã cọc, chờ thu phần còn lại"
@@ -323,7 +321,7 @@ export function getBookingTimelineView({
     };
   }
 
-  if (normalizedStatus === "REQUESTED" || normalizedStatus === "PENDING") {
+  if (normalizedStatus === "REQUESTED") {
     return {
       displayStatus:
         perspective === "OWNER" ? "Có yêu cầu thuê mới" : "Đã gửi yêu cầu thuê",
@@ -340,9 +338,7 @@ export function getBookingTimelineView({
   }
 
   if (
-    ["OWNER_APPROVED", "PAYMENT_PENDING", "WAITING_PAYMENT"].includes(
-      normalizedStatus,
-    )
+    ["OWNER_APPROVED", "PAYMENT_PENDING"].includes(normalizedStatus)
   ) {
     return {
       displayStatus:
@@ -358,7 +354,7 @@ export function getBookingTimelineView({
     };
   }
 
-  if (normalizedStatus === "PAID" || normalizedStatus === "CONFIRMED") {
+  if (normalizedStatus === "PAID") {
     return {
       displayStatus: hasDepositOnly ? "Đã cọc, chờ nhận xe" : "Đã thanh toán, chờ nhận xe",
       nextActionText:

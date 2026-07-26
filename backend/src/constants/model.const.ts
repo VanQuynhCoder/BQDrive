@@ -12,8 +12,9 @@ export enum CarStatusEnum {
   APPROVED = "APPROVED",
   RENTED = "RENTED",
   REJECTED = "REJECTED",
-  HIDDEN = "HIDDEN",
 }
+
+export const CAR_STATUS_VALUES = Object.values(CarStatusEnum);
 export enum CarTypeEnum {
   SUV = "SUV",
   SEDAN = "SEDAN",
@@ -55,15 +56,22 @@ export enum BookingStatusEnum {
   CANCELLED = "CANCELLED", // Khách hoặc hệ thống đã hủy booking
   REJECTED = "REJECTED", // Chủ xe từ chối yêu cầu thuê
   NO_SHOW = "NO_SHOW", // Khách không đến nhận xe đúng lịch
-  PENDING = "PENDING", // Trạng thái cũ: tương đương REQUESTED, giữ lại để đọc dữ liệu cũ
-  WAITING_PAYMENT = "WAITING_PAYMENT", // Trạng thái cũ: tương đương PAYMENT_PENDING, giữ lại để đọc dữ liệu cũ
-  CONFIRMED = "CONFIRMED", // Trạng thái cũ: tương đương OWNER_APPROVED/PAID tùy ngữ cảnh, giữ lại để đọc dữ liệu cũ
 }
+
+// LEGACY: never write these values for new or updated bookings.
+export const BOOKING_STATUS_VALUES = Object.values(BookingStatusEnum);
 
 export enum PaymentStatusEnum {
   PENDING = "PENDING",
   PAID = "PAID",
   FAILED = "FAILED",
+}
+
+export const PAYMENT_STATUS_VALUES = Object.values(PaymentStatusEnum);
+
+export enum PaymentRefundStatusEnum {
+  NOT_REFUNDED = "NOT_REFUNDED",
+  PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED",
   REFUNDED = "REFUNDED",
 }
 
@@ -84,14 +92,13 @@ export enum PaymentTypeEnum {
   EXTRA_CHARGE = "EXTRA_CHARGE",
 }
 export enum RefundStatusEnum {
-  PENDING = "PENDING",
   WAITING_FOR_REFUND_INFO = "WAITING_FOR_REFUND_INFO",
   PROCESSING = "PROCESSING",
   SUCCEEDED = "SUCCEEDED",
-  FAILED = "FAILED",
   MANUAL_REQUIRED = "MANUAL_REQUIRED",
-  CANCELLED = "CANCELLED",
 }
+
+export const REFUND_STATUS_VALUES = Object.values(RefundStatusEnum);
 export enum RefundMethodEnum {
   VNPAY = "VNPAY",
   MOMO = "MOMO",
@@ -141,10 +148,19 @@ export enum PricingDateTypeEnum {
   HOLIDAY = "HOLIDAY",
 }
 export enum ContractStatusEnum {
-  DRAFT = "DRAFT",
   ACTIVE = "ACTIVE",
   COMPLETED = "COMPLETED",
   CANCELLED = "CANCELLED",
+}
+
+export const CONTRACT_STATUS_VALUES = Object.values(ContractStatusEnum);
+
+export enum ContractPaymentStatusEnum {
+  UNPAID = "UNPAID",
+  PENDING = "PENDING",
+  DEPOSIT_PAID = "DEPOSIT_PAID",
+  PARTIAL = "PARTIAL",
+  PAID_FULL = "PAID_FULL",
 }
 export enum OwnerTypeEnum {
   BUSINESS = "BUSINESS",

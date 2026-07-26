@@ -21,6 +21,7 @@ import {
   UserRoleEnum,
 } from "../../constants/model.const";
 import { cleanAddressText } from "../../helper/address.helper";
+import { transitionBookingStatus } from "../../helper/status.helper";
 import { notificationCenterService } from "../../services/notification-center.service";
 
 function normalizeRequiredCoordinate(
@@ -654,7 +655,10 @@ class OwnerRoute extends BaseRoute {
     await inspection.save();
 
     if (booking.status !== BookingStatusEnum.AWAITING_EXTRA_CHARGE) {
-      booking.status = BookingStatusEnum.AWAITING_EXTRA_CHARGE;
+      transitionBookingStatus(
+        booking,
+        BookingStatusEnum.AWAITING_EXTRA_CHARGE,
+      );
       await booking.save();
     }
     void notificationCenterService.notifyExtraChargeCreated(

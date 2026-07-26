@@ -9,33 +9,33 @@
 }
 
 export function getBookingStatusLabel(status?: string) {
-  const map: Record<string, string> = {
-    REQUESTED: "Đã gửi yêu cầu thuê",
-    OWNER_APPROVED: "Chủ xe đã duyệt",
-    PAYMENT_PENDING: "Chờ thanh toán",
-    PAID: "Đã thanh toán",
-    PENDING: "Chờ xác nhận",
-    WAITING_PAYMENT: "Chờ thanh toán",
-    CONFIRMED: "Đã xác nhận",
-    IN_PROGRESS: "Đang thuê",
-    COMPLETED: "Hoàn tất",
-    CANCELLED: "Đã hủy",
-    REJECTED: "Từ chối",
-    NO_SHOW: "Không nhận xe",
-  };
-
-  return map[status || ""] || status || "--";
+  return BOOKING_STATUS_LABELS[
+    status as keyof typeof BOOKING_STATUS_LABELS
+  ] || status || "--";
 }
 
 export function getPaymentStatusLabel(status?: string) {
-  const map: Record<string, string> = {
-    PENDING: "Chờ thanh toán",
-    PAID: "Đã thanh toán",
-    FAILED: "Thanh toán thất bại",
-    REFUNDED: "Đã hoàn tiền",
-  };
+  return PAYMENT_STATUS_LABELS[
+    status as keyof typeof PAYMENT_STATUS_LABELS
+  ] || status || "--";
+}
 
-  return map[status || ""] || status || "--";
+export function getPaymentRefundStatusLabel(status?: string) {
+  return PAYMENT_REFUND_STATUS_LABELS[
+    status as keyof typeof PAYMENT_REFUND_STATUS_LABELS
+  ] || status || "--";
+}
+
+export function getContractPaymentStatusLabel(status?: string) {
+  return CONTRACT_PAYMENT_STATUS_LABELS[
+    status as keyof typeof CONTRACT_PAYMENT_STATUS_LABELS
+  ] || status || "--";
+}
+
+export function getRefundStatusLabel(status?: string) {
+  return REFUND_STATUS_LABELS[
+    status as keyof typeof REFUND_STATUS_LABELS
+  ] || status || "--";
 }
 
 export function getPaymentMethodLabel(method?: string) {
@@ -71,15 +71,9 @@ export function getRequestStatusLabel(status?: string) {
 }
 
 export function getCarStatusLabel(status?: string) {
-  const map: Record<string, string> = {
-    PENDING: "Chờ duyệt",
-    APPROVED: "Đã duyệt",
-    REJECTED: "Từ chối",
-    RENTED: "Đang được thuê",
-    HIDDEN: "Đã ẩn",
-  };
-
-  return map[status || ""] || status || "--";
+  return CAR_STATUS_LABELS[status as keyof typeof CAR_STATUS_LABELS] ||
+    status ||
+    "--";
 }
 
 export type CarStatusTone = "green" | "red" | "yellow" | "blue" | "gray";
@@ -113,11 +107,6 @@ export function getCarStatusMeta(status?: string): {
       tone: "red",
       className: "bg-red-50 text-red-700 ring-red-200",
     },
-    HIDDEN: {
-      label: "Đã ẩn",
-      tone: "gray",
-      className: "bg-slate-100 text-slate-700 ring-slate-200",
-    },
   };
 
   return (
@@ -148,16 +137,20 @@ export function getOwnerTypeLabel(type?: string) {
 }
 
 export function getContractStatusLabel(status?: string) {
-  const map: Record<string, string> = {
-    DRAFT: "Bản nháp",
-    ACTIVE: "Đang hiệu lực",
-    COMPLETED: "Hoàn tất",
-    CANCELLED: "Đã hủy",
-  };
-
-  return map[status || ""] || status || "--";
+  return CONTRACT_STATUS_LABELS[
+    status as keyof typeof CONTRACT_STATUS_LABELS
+  ] || status || "--";
 }
 
 
 
 
+import {
+  BOOKING_STATUS_LABELS,
+  CAR_STATUS_LABELS,
+  CONTRACT_PAYMENT_STATUS_LABELS,
+  CONTRACT_STATUS_LABELS,
+  PAYMENT_REFUND_STATUS_LABELS,
+  PAYMENT_STATUS_LABELS,
+  REFUND_STATUS_LABELS,
+} from "../constants/status.constants";

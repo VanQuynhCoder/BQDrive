@@ -11,7 +11,11 @@ import {
   RefundStatusEnum,
   UserRoleEnum,
 } from "../constants/model.const";
-import { syncContractFromBooking } from "../helper/payment-sync.helper";
+import {
+  syncContractFromBooking,
+  syncPaymentRefundStatus,
+} from "../helper/payment-sync.helper";
+import { transitionRefundStatus } from "../helper/status.helper";
 import { BookingModel } from "../models/booking/booking.model";
 import { BusinessModel } from "../models/business/business.model";
 import { PaymentModel } from "../models/payment/payment.model";
@@ -34,9 +38,6 @@ const CANCELLABLE_BOOKING_STATUSES = [
   BookingStatusEnum.OWNER_APPROVED,
   BookingStatusEnum.PAYMENT_PENDING,
   BookingStatusEnum.PAID,
-  BookingStatusEnum.PENDING,
-  BookingStatusEnum.WAITING_PAYMENT,
-  BookingStatusEnum.CONFIRMED,
 ];
 
 const RENTAL_PAYMENT_TYPES = [
@@ -286,10 +287,6 @@ function getRefundMethod(payments: PaidPayment[]) {
 }
 
 function getPaymentRefundedAmount(payment: PaidPayment) {
-  if (payment.status === PaymentStatusEnum.REFUNDED) {
-    return Number(payment.refundedAmount ?? payment.amount ?? 0);
-  }
-
   return Number(payment.refundedAmount || 0);
 }
 
@@ -381,7 +378,7 @@ class CancellationRefundService {
     return PaymentModel.find({
       bookingId,
       paymentType: { $in: RENTAL_PAYMENT_TYPES },
-      status: { $in: [PaymentStatusEnum.PAID, PaymentStatusEnum.REFUNDED] },
+      status: PaymentStatusEnum.PAID,
     })
       .select("amount method status refundedAmount paidAt createdAt")
       .sort({ paidAt: 1, createdAt: 1 })
@@ -424,7 +421,9 @@ class CancellationRefundService {
       };
     }
 
-    if ([BookingStatusEnum.REQUESTED, BookingStatusEnum.PENDING].includes(status as BookingStatusEnum)) {
+    if (
+      status === BookingStatusEnum.REQUESTED
+    ) {
       return {
         cancellationFee: 0,
         refundAmount: paidAmountAtCancellation,
@@ -543,7 +542,7 @@ class CancellationRefundService {
       expectedRefundStatus:
         refundAmount > 0
           ? RefundStatusEnum.WAITING_FOR_REFUND_INFO
-          : RefundStatusEnum.CANCELLED,
+          : "NONE",
       reasonCode: normalizeReasonCode(reasonCode),
       reasonText: normalizeReasonText(reasonText),
       paymentIds: payments.map((payment) => payment._id),
@@ -764,8 +763,6 @@ class CancellationRefundService {
       [
         RefundStatusEnum.PROCESSING,
         RefundStatusEnum.SUCCEEDED,
-        RefundStatusEnum.CANCELLED,
-        RefundStatusEnum.FAILED,
       ].includes(refund.status)
     ) {
       throwConflict(
@@ -797,7 +794,7 @@ class CancellationRefundService {
     }
 
     refund.recipientInfo = normalizeRecipientInfoPayload(payload, actor.userId);
-    refund.status = RefundStatusEnum.MANUAL_REQUIRED;
+    transitionRefundStatus(refund, RefundStatusEnum.MANUAL_REQUIRED);
     await refund.save();
 
     return refund;
@@ -832,7 +829,7 @@ class CancellationRefundService {
       throw ErrorHelper.requestDataInvalid("REFUND_RECIPIENT_INFO_REQUIRED");
     }
 
-    refund.status = RefundStatusEnum.PROCESSING;
+    transitionRefundStatus(refund, RefundStatusEnum.PROCESSING);
     refund.processingAt = new Date();
     refund.manualRefundMethod = normalizeReasonText(payload.manualRefundMethod);
     refund.manualRefundReference = normalizeReasonText(payload.manualRefundReference);
@@ -871,7 +868,7 @@ class CancellationRefundService {
 
     await this.applySucceededRefundToPayments(refund);
 
-    refund.status = RefundStatusEnum.SUCCEEDED;
+    transitionRefundStatus(refund, RefundStatusEnum.SUCCEEDED);
     refund.renterConfirmedAt = new Date();
     refund.succeededAt = new Date();
     await refund.save();
@@ -885,7 +882,7 @@ class CancellationRefundService {
     const payments = await PaymentModel.find({
       _id: { $in: refund.paymentIds || [] },
       paymentType: { $in: RENTAL_PAYMENT_TYPES },
-      status: { $in: [PaymentStatusEnum.PAID, PaymentStatusEnum.REFUNDED] },
+      status: PaymentStatusEnum.PAID,
     }).sort({ paidAt: -1, createdAt: -1 });
 
     for (const payment of payments) {
@@ -899,14 +896,7 @@ class CancellationRefundService {
       if (applied <= 0) continue;
 
       payment.refundedAmount = alreadyRefunded + applied;
-      payment.refundStatus =
-        payment.refundedAmount >= amount ? "REFUNDED" : "PARTIALLY_REFUNDED";
-
-      if (payment.refundedAmount >= amount) {
-        payment.status = PaymentStatusEnum.REFUNDED;
-      }
-
-      await payment.save();
+      await syncPaymentRefundStatus(payment);
       remainingRefund -= applied;
     }
 

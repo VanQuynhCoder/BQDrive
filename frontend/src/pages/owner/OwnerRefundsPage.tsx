@@ -38,9 +38,7 @@ type RefundFilter =
   | "WAITING_FOR_REFUND_INFO"
   | "MANUAL_REQUIRED"
   | "PROCESSING"
-  | "SUCCEEDED"
-  | "FAILED"
-  | "CANCELLED";
+  | "SUCCEEDED";
 
 const refundFilters: Array<{ label: string; value: RefundFilter }> = [
   { label: "Tất cả", value: "ALL" },
@@ -48,8 +46,6 @@ const refundFilters: Array<{ label: string; value: RefundFilter }> = [
   { label: "Cần xử lý", value: "MANUAL_REQUIRED" },
   { label: "Chờ khách xác nhận", value: "PROCESSING" },
   { label: "Đã hoàn tất", value: "SUCCEEDED" },
-  { label: "Thất bại", value: "FAILED" },
-  { label: "Đã hủy", value: "CANCELLED" },
 ];
 
 const refundMethodOptions = [
@@ -100,7 +96,6 @@ function getRefundStatusMeta(status?: RefundStatus) {
     string,
     { label: string; tone: "green" | "red" | "yellow" | "blue" | "gray" }
   > = {
-    PENDING: { label: "Chờ xử lý", tone: "yellow" },
     WAITING_FOR_REFUND_INFO: {
       label: "Chờ khách cung cấp thông tin",
       tone: "yellow",
@@ -108,8 +103,6 @@ function getRefundStatusMeta(status?: RefundStatus) {
     MANUAL_REQUIRED: { label: "Chờ chủ xe hoàn tiền", tone: "yellow" },
     PROCESSING: { label: "Đã gửi tiền, chờ khách xác nhận", tone: "blue" },
     SUCCEEDED: { label: "Đã hoàn tiền", tone: "green" },
-    FAILED: { label: "Cần xử lý lại", tone: "red" },
-    CANCELLED: { label: "Đã hủy hồ sơ", tone: "gray" },
   };
 
   return map[status || ""] || { label: status || "--", tone: "gray" as const };
@@ -461,18 +454,12 @@ function RefundModal({
             </div>
           )}
 
-          {["PROCESSING", "SUCCEEDED", "FAILED", "CANCELLED"].includes(
-            refund.status,
-          ) && (
+          {["PROCESSING", "SUCCEEDED"].includes(refund.status) && (
             <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold leading-6 text-slate-700">
               {refund.status === "PROCESSING" &&
                 "Bạn đã xác nhận gửi tiền. Hệ thống đang chờ người thuê xác nhận đã nhận tiền."}
               {refund.status === "SUCCEEDED" &&
                 "Người thuê đã xác nhận nhận tiền hoàn. Hồ sơ hoàn tiền đã hoàn tất."}
-              {refund.status === "FAILED" &&
-                `Hoàn tiền thất bại${refund.failureReason ? `: ${refund.failureReason}` : "."}`}
-              {refund.status === "CANCELLED" &&
-                "Hồ sơ hoàn tiền này đã được hủy."}
             </div>
           )}
         </div>
@@ -581,9 +568,10 @@ export default function OwnerRefundsPage({
     const processing = refunds.filter(
       (refund) => refund.status === "PROCESSING",
     ).length;
-    const totalAmount = refunds
-      .filter((refund) => refund.status !== "CANCELLED")
-      .reduce((sum, refund) => sum + Number(refund.refundAmount || 0), 0);
+    const totalAmount = refunds.reduce(
+      (sum, refund) => sum + Number(refund.refundAmount || 0),
+      0,
+    );
 
     return { waitingInfo, needAction, processing, totalAmount };
   }, [refunds]);

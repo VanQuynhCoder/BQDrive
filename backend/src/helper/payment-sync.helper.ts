@@ -1,14 +1,26 @@
-import { BookingStatusEnum, ContractStatusEnum, PaymentStatusEnum, PaymentTypeEnum } from "../constants/model.const";
+import {
+  BookingStatusEnum,
+  ContractPaymentStatusEnum,
+  ContractStatusEnum,
+  PaymentStatusEnum,
+  PaymentTypeEnum,
+} from "../constants/model.const";
 import { BookingModel } from "../models/booking/booking.model";
 import { ContractModel } from "../models/contract/contract.model";
 import { PaymentModel } from "../models/payment/payment.model";
+import {
+  deriveContractPaymentStatus,
+  derivePaymentRefundStatus,
+  isTerminalBookingStatus,
+  transitionBookingStatus,
+} from "./status.helper";
 
 export type BookingPaymentSummary = {
   totalPrice: number;
   depositAmount: number;
   paidAmount: number;
   remainingAmount: number;
-  paymentStatus: "UNPAID" | "PENDING" | "DEPOSIT_PAID" | "PARTIAL" | "PAID_FULL";
+  paymentStatus: ContractPaymentStatusEnum;
 };
 
 export function getContractStatusForBookingStatus(status?: string) {
@@ -33,7 +45,7 @@ export async function buildPaymentSummaryForBooking(booking: any): Promise<Booki
 
   const paidPayments = await PaymentModel.find({
     bookingId: booking._id,
-    status: { $in: [PaymentStatusEnum.PAID, PaymentStatusEnum.REFUNDED] },
+    status: PaymentStatusEnum.PAID,
     paymentType: {
       $in: [
         PaymentTypeEnum.DEPOSIT,
@@ -46,10 +58,7 @@ export async function buildPaymentSummaryForBooking(booking: any): Promise<Booki
   const paidAmount = Math.min(
     paidPayments.reduce((sum, payment) => {
       const amount = Number(payment.amount || 0);
-      const refundedAmount =
-        payment.status === PaymentStatusEnum.REFUNDED
-          ? Number((payment as any).refundedAmount ?? amount)
-          : Number((payment as any).refundedAmount || 0);
+      const refundedAmount = Number((payment as any).refundedAmount || 0);
 
       return sum + Math.max(amount - refundedAmount, 0);
     }, 0),
@@ -57,13 +66,9 @@ export async function buildPaymentSummaryForBooking(booking: any): Promise<Booki
   );
   const remainingAmount = Math.max(totalPrice - paidAmount, 0);
 
-  let paymentStatus: BookingPaymentSummary["paymentStatus"] = "UNPAID";
-  if (totalPrice > 0 && paidAmount >= totalPrice) {
-    paymentStatus = "PAID_FULL";
-  } else if (paidAmount > 0) {
-    paymentStatus = paidAmount >= depositAmount && depositAmount > 0 ? "DEPOSIT_PAID" : "PARTIAL";
-  } else {
-    const hasPendingPayment = await PaymentModel.exists({
+  const hasPendingPayment =
+    paidAmount <= 0
+      ? await PaymentModel.exists({
       bookingId: booking._id,
       status: PaymentStatusEnum.PENDING,
       paymentType: {
@@ -73,9 +78,14 @@ export async function buildPaymentSummaryForBooking(booking: any): Promise<Booki
           PaymentTypeEnum.REMAINING,
         ],
       },
-    });
-    paymentStatus = hasPendingPayment ? "PENDING" : "UNPAID";
-  }
+        })
+      : false;
+  const paymentStatus = deriveContractPaymentStatus({
+    totalPrice,
+    depositAmount,
+    paidAmount,
+    hasPendingPayment: Boolean(hasPendingPayment),
+  });
 
   return {
     totalPrice,
@@ -94,17 +104,14 @@ export async function syncBookingPaymentFromPaidPayments(booking: any) {
 
   if (
     summary.paidAmount > 0 &&
+    !isTerminalBookingStatus(booking.status) &&
     ![
       BookingStatusEnum.IN_PROGRESS,
       BookingStatusEnum.RETURN_INSPECTION,
       BookingStatusEnum.AWAITING_EXTRA_CHARGE,
-      BookingStatusEnum.COMPLETED,
-      BookingStatusEnum.CANCELLED,
-      BookingStatusEnum.REJECTED,
-      BookingStatusEnum.NO_SHOW,
     ].includes(booking.status as BookingStatusEnum)
   ) {
-    booking.status = BookingStatusEnum.PAID;
+    transitionBookingStatus(booking, BookingStatusEnum.PAID);
   }
 
   await booking.save();
@@ -121,6 +128,20 @@ export async function syncBookingPaymentFromPaidPayments(booking: any) {
   );
 
   return summary;
+}
+
+export async function syncPaymentRefundStatus(payment: any) {
+  const refundStatus = derivePaymentRefundStatus(
+    payment?.amount,
+    payment?.refundedAmount,
+  );
+
+  if (payment.refundStatus !== refundStatus) {
+    payment.refundStatus = refundStatus;
+    await payment.save();
+  }
+
+  return refundStatus;
 }
 
 export async function syncContractFromBooking(booking: any) {

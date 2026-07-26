@@ -19,7 +19,7 @@ import {
   PaymentStatusEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
-import { validatePhone } from "../../utils/validators";
+import { isValidEmail, validatePhone } from "../../utils/validators";
 
 const ACTIVE_BOOKING_STATUSES = [
   BookingStatusEnum.REQUESTED,
@@ -27,9 +27,6 @@ const ACTIVE_BOOKING_STATUSES = [
   BookingStatusEnum.PAYMENT_PENDING,
   BookingStatusEnum.PAID,
   BookingStatusEnum.IN_PROGRESS,
-  BookingStatusEnum.PENDING,
-  BookingStatusEnum.WAITING_PAYMENT,
-  BookingStatusEnum.CONFIRMED,
 ];
 const TEMP_BUSINESS_NAME = "TEMP_BUSINESS";
 const TEMP_BUSINESS_PASSWORD = "TEMP_BUSINESS_PASSWORD";
@@ -133,6 +130,22 @@ class AdminRoute extends BaseRoute {
 
   private normalizeEmail(email: unknown) {
     return typeof email === "string" ? email.trim().toLowerCase() : "";
+  }
+
+  private validateBusinessEmail(email: unknown) {
+    const normalizedEmail = this.normalizeEmail(email);
+
+    if (!normalizedEmail) {
+      throw ErrorHelper.requestDataInvalid("Thiếu email doanh nghiệp");
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      throw ErrorHelper.requestDataInvalid(
+        "Email doanh nghiệp không hợp lệ. Vui lòng nhập đúng định dạng, ví dụ: business@gmail.com",
+      );
+    }
+
+    return normalizedEmail;
   }
 
   private isTempBusinessUser(user: { name?: string; role?: string }) {
@@ -474,18 +487,14 @@ class AdminRoute extends BaseRoute {
   }
 
   async sendBusinessOtp(req: Request, res: Response) {
-    const email = this.normalizeEmail(req.body.email);
+    const email = this.validateBusinessEmail(req.body.email);
 
-    if (!email) {
-      throw ErrorHelper.requestDataInvalid("Thiếu email doanh nghiệp");
-    }
+    const existedUser = await UserModel.findOne({ email });
 
-    const existedUser = await UserModel.findOne({
-      email,
-      isDeleted: false,
-    });
-
-    if (existedUser && !this.isTempBusinessUser(existedUser)) {
+    if (
+      existedUser &&
+      (existedUser.isDeleted || !this.isTempBusinessUser(existedUser))
+    ) {
       throw ErrorHelper.userExisted();
     }
 
@@ -527,11 +536,11 @@ class AdminRoute extends BaseRoute {
   }
 
   async verifyBusinessOtp(req: Request, res: Response) {
-    const email = this.normalizeEmail(req.body.email);
+    const email = this.validateBusinessEmail(req.body.email);
     const otp = typeof req.body.otp === "string" ? req.body.otp.trim() : "";
 
-    if (!email || !otp) {
-      throw ErrorHelper.requestDataInvalid("Thiếu email hoặc OTP");
+    if (!otp) {
+      throw ErrorHelper.requestDataInvalid("Thiếu OTP");
     }
 
     const user = await UserModel.findOne({
@@ -576,7 +585,7 @@ class AdminRoute extends BaseRoute {
       typeof req.body.businessName === "string"
         ? req.body.businessName.trim()
         : "";
-    const email = this.normalizeEmail(req.body.email);
+    const email = this.validateBusinessEmail(req.body.email);
     const password =
       typeof req.body.password === "string" ? req.body.password : "";
     const phone = validatePhone(req.body.phone);
@@ -903,7 +912,7 @@ class AdminRoute extends BaseRoute {
 
     if (hasActiveBooking) {
       throw ErrorHelper.requestDataInvalid(
-        "Không thể khóa tài khoản đang có booking PENDING hoặc CONFIRMED",
+        "Không thể khóa tài khoản đang có booking hoạt động",
       );
     }
 
@@ -1038,7 +1047,7 @@ class AdminRoute extends BaseRoute {
 
     if (hasActiveBooking) {
       throw ErrorHelper.requestDataInvalid(
-        "Không thể xóa tài khoản đang có booking PENDING hoặc CONFIRMED",
+        "Không thể xóa tài khoản đang có booking hoạt động",
       );
     }
 

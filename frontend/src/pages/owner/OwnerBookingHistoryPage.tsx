@@ -62,12 +62,9 @@ function formatDateTime(value?: string | null) {
 function getStatusTone(status?: string) {
   const map: Record<string, "green" | "red" | "yellow" | "blue" | "gray"> = {
     REQUESTED: "yellow",
-    PENDING: "yellow",
     OWNER_APPROVED: "blue",
     PAYMENT_PENDING: "yellow",
-    WAITING_PAYMENT: "yellow",
     PAID: "green",
-    CONFIRMED: "blue",
     IN_PROGRESS: "blue",
     COMPLETED: "green",
     CANCELLED: "gray",

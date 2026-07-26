@@ -1,7 +1,9 @@
 import mongoose from "mongoose";
 import { BaseDocument } from "../../base/baseModel";
 import {
+  PAYMENT_STATUS_VALUES,
   PaymentMethodEnum,
+  PaymentRefundStatusEnum,
   PaymentStatusEnum,
   PaymentTypeEnum,
 } from "../../constants/model.const";
@@ -17,7 +19,7 @@ export type IPayment = BaseDocument & {
   paidAt?: Date;
   transactionCode?: string;
   refundedAmount?: number;
-  refundStatus?: string;
+  refundStatus: PaymentRefundStatusEnum;
   confirmedBy?: mongoose.Types.ObjectId;
   confirmedByRole?: string;
   note?: string;
@@ -53,7 +55,7 @@ const paymentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: Object.values(PaymentStatusEnum),
+      enum: PAYMENT_STATUS_VALUES,
       default: PaymentStatusEnum.PENDING,
     },
     paymentType: {
@@ -75,7 +77,8 @@ const paymentSchema = new mongoose.Schema(
     },
     refundStatus: {
       type: String,
-      trim: true,
+      enum: Object.values(PaymentRefundStatusEnum),
+      default: PaymentRefundStatusEnum.NOT_REFUNDED,
     },
     confirmedBy: {
       type: mongoose.Schema.Types.ObjectId,

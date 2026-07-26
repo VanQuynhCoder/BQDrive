@@ -57,23 +57,7 @@ import { getFirstCarImage, normalizeImageUrl } from "../utils/image.util";
 import { formatVietnamDateTime } from "../utils/date.util";
 import { formatAddressSnapshot, formatFullAddress } from "../utils/address.util";
 import { getBookingTimelineView } from "../utils/bookingTimeline.util";
-
-type BookingStatus =
-  | "REQUESTED"
-  | "OWNER_APPROVED"
-  | "PAYMENT_PENDING"
-  | "PAID"
-  | "PENDING"
-  | "WAITING_PAYMENT"
-  | "CONFIRMED"
-  | "IN_PROGRESS"
-  | "RETURN_INSPECTION"
-  | "AWAITING_EXTRA_CHARGE"
-  | "CANCELLED"
-  | "REJECTED"
-  | "COMPLETED"
-  | "NO_SHOW"
-  | string;
+import type { BookingStatus } from "../constants/status.constants";
 
 type BookingCar = {
   _id: string;
@@ -311,7 +295,7 @@ function getSpecLabel(value?: string) {
 }
 
 function getStatusInfo(status: BookingStatus) {
-  const value = status || "PENDING";
+  const value = status || "REQUESTED";
 
   if (value === "OWNER_APPROVED") {
     return {
@@ -323,7 +307,7 @@ function getStatusInfo(status: BookingStatus) {
     };
   }
 
-  if (value === "PAYMENT_PENDING" || value === "WAITING_PAYMENT") {
+  if (value === "PAYMENT_PENDING") {
     return {
       label: "Chờ thanh toán",
       detail: "Bạn đã bắt đầu thanh toán, hệ thống đang chờ kết quả hoặc ghi nhận thanh toán.",
@@ -340,16 +324,6 @@ function getStatusInfo(status: BookingStatus) {
       badgeClass: "bg-secondarySoft text-primary",
       panelClass: "border-secondary/40 bg-secondarySoft text-primary",
       icon: CheckCircle2,
-    };
-  }
-
-  if (value === "CONFIRMED") {
-    return {
-      label: "Đã xác nhận",
-      detail: "Chủ xe đã xác nhận lịch thuê.",
-      badgeClass: "bg-primary text-secondary",
-      panelClass: "border-primary/15 bg-primary text-secondary",
-      icon: BadgeCheck,
     };
   }
 
@@ -484,8 +458,6 @@ function canPayBooking(booking: Booking, nextAmount: number) {
       "OWNER_APPROVED", // Chủ xe đã duyệt nên khách được thanh toán
       "PAYMENT_PENDING", // Đang chờ thanh toán, cho phép quay lại thanh toán
       "PAID", // Đã trả cọc, có thể thanh toán phần còn lại nếu còn tiền
-      "CONFIRMED", // Trạng thái cũ
-      "WAITING_PAYMENT", // Trạng thái cũ
       "IN_PROGRESS",
       "RETURN_INSPECTION",
       "AWAITING_EXTRA_CHARGE",
@@ -501,9 +473,6 @@ function canCancelBooking(booking: Booking) {
     "OWNER_APPROVED",
     "PAYMENT_PENDING",
     "PAID",
-    "PENDING",
-    "WAITING_PAYMENT",
-    "CONFIRMED",
   ].includes(booking.status || "");
 }
 
@@ -558,13 +527,10 @@ function getExtraChargeStatusMeta(status?: string) {
 
 function getRefundStatusLabel(status?: string) {
   const labels: Record<string, string> = {
-    PENDING: "Chờ xử lý",
     WAITING_FOR_REFUND_INFO: "Chờ cung cấp thông tin nhận tiền",
     PROCESSING: "Chủ xe đã gửi, chờ xác nhận",
     SUCCEEDED: "Đã hoàn tất",
-    FAILED: "Hoàn tiền thất bại",
     MANUAL_REQUIRED: "Chờ hoàn thủ công",
-    CANCELLED: "Không cần hoàn",
   };
 
   return labels[status || ""] || "Chờ xử lý";
@@ -1130,8 +1096,6 @@ export default function BookingDetailPage() {
     "OWNER_APPROVED",
     "PAYMENT_PENDING",
     "PAID",
-    "CONFIRMED",
-    "WAITING_PAYMENT",
     "IN_PROGRESS",
     "RETURN_INSPECTION",
     "AWAITING_EXTRA_CHARGE",
@@ -1758,7 +1722,7 @@ export default function BookingDetailPage() {
               ) : paymentNextAmount > 0 ? (
                 <div className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-amber-50 px-5 py-3 text-center font-extrabold text-amber-700">
                   <Clock3 size={20} />
-                  {booking.status === "PENDING"
+                  {booking.status === "REQUESTED"
                     ? "Chờ chủ xe xác nhận"
                     : "Chưa thể thanh toán"}
                 </div>

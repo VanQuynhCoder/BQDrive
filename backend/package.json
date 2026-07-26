@@ -9,7 +9,9 @@
     "start": "node dist/server.js",
     "seed:admin": "ts-node-dev --transpile-only src/seeds/admin.seed.ts",
     "migrate:car-images:dry": "npm run build && node dist/scripts/migrate-car-images-to-cloudinary.js --dry-run",
-    "migrate:car-images": "npm run build && node dist/scripts/migrate-car-images-to-cloudinary.js"
+    "migrate:car-images": "npm run build && node dist/scripts/migrate-car-images-to-cloudinary.js",
+    "audit:statuses": "npm run build && node dist/scripts/audit-status-values.js",
+    "test:statuses": "npm run build && node dist/scripts/verify-status-rules.js"
   },
   "keywords": [],
   "author": "",

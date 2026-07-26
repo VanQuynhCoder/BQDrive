@@ -45,7 +45,6 @@ function getStatusTone(status?: string) {
     ACTIVE: "blue",
     COMPLETED: "green",
     CANCELLED: "red",
-    DRAFT: "yellow",
   };
 
   return map[status || ""] || "gray";

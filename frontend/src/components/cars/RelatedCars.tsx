@@ -126,7 +126,7 @@ export default function RelatedCars({ currentCar }: RelatedCarsProps) {
     return cars
       .filter((car) => {
         if (!car?._id || car._id === currentCar._id) return false;
-        if (["PENDING", "REJECTED", "HIDDEN"].includes(car.status || "")) {
+        if (["PENDING", "REJECTED"].includes(car.status || "")) {
           return false;
         }
         return true;

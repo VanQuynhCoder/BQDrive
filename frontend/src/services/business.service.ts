@@ -1,20 +1,13 @@
 ﻿import api from "./api";
 import type { DashboardPaymentStats, RatedCar } from "./admin.service";
+import type {
+  BookingStatus as OfficialBookingStatus,
+  PaymentStatus as OfficialPaymentStatus,
+} from "../constants/status.constants";
 
 export type BusinessStatus = "PENDING" | "APPROVED" | "REJECTED" | string;
-export type BookingStatus =
-  | "PENDING"
-  | "CONFIRMED"
-  | "CANCELLED"
-  | "COMPLETED"
-  | "NO_SHOW"
-  | string;
-export type PaymentStatus =
-  | "PENDING"
-  | "PAID"
-  | "FAILED"
-  | "REFUNDED"
-  | string;
+export type BookingStatus = OfficialBookingStatus;
+export type PaymentStatus = OfficialPaymentStatus;
 export type RentalUnit = "DAY" | "HOUR";
 export type RentalMode = "DAILY" | "HOURLY";
 export type FuelType = "GASOLINE" | "DIESEL" | "ELECTRIC" | "HYBRID" | string;
@@ -219,6 +212,8 @@ export type BusinessPayment = {
   amount: number;
   method?: string;
   status: PaymentStatus;
+  refundStatus?: "NOT_REFUNDED" | "PARTIALLY_REFUNDED" | "REFUNDED";
+  refundedAmount?: number;
   paymentType?: string;
   transactionCode?: string;
   paidAt?: string;

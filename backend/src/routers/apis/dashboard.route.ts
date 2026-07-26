@@ -3,6 +3,8 @@ import { ErrorHelper } from "../../base/error";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
 import { syncRentedCarStatuses } from "../../helper/car-status.helper";
 import {
+  BOOKING_STATUS_VALUES,
+  CAR_STATUS_VALUES,
   BookingStatusEnum,
   CarStatusEnum,
   OwnerTypeEnum,
@@ -76,6 +78,21 @@ class DashboardRoute extends BaseRoute {
 
   private getStatusCount(stats: StatusCount[], status: string) {
     return stats.find((item) => item.status === status)?.count || 0;
+  }
+
+  private countHiddenCars(baseFilter: Record<string, unknown>) {
+    return CarModel.countDocuments({
+      $and: [
+        baseFilter,
+        {
+          $or: [
+            { isHidden: true },
+            { hiddenByOwner: true },
+            { hiddenByAdmin: true },
+          ],
+        },
+      ],
+    } as any);
   }
 
   private sumAmount(payments: Array<{ amount?: number }>) {
@@ -293,26 +310,34 @@ class DashboardRoute extends BaseRoute {
     ]);
     const carIds = cars.map((car) => car._id);
     const bookingIds = bookings.map((booking) => booking._id);
-    const [carStatusStats, bookingStatusStats, paymentStats, reviewStats, recentBookings] =
+    const [
+      carStatusStats,
+      bookingStatusStats,
+      hiddenCars,
+      paymentStats,
+      reviewStats,
+      recentBookings,
+    ] =
       await Promise.all([
-        this.countByStatus(CarModel, carFilter, Object.values(CarStatusEnum)),
+        this.countByStatus(CarModel, carFilter, CAR_STATUS_VALUES),
         this.countByStatus(
           BookingModel,
           bookingFilter,
-          Object.values(BookingStatusEnum),
+          BOOKING_STATUS_VALUES,
         ),
+        this.countHiddenCars(carFilter),
         this.getPaymentStats(bookingIds),
         this.getReviewStats(carIds),
         this.getRecentBookings(bookingFilter),
       ]);
-    const pendingBookings =
-      this.getStatusCount(bookingStatusStats, BookingStatusEnum.REQUESTED) +
-      this.getStatusCount(bookingStatusStats, BookingStatusEnum.PENDING);
+    const pendingBookings = this.getStatusCount(
+      bookingStatusStats,
+      BookingStatusEnum.REQUESTED,
+    );
     const confirmedBookings =
       this.getStatusCount(bookingStatusStats, BookingStatusEnum.OWNER_APPROVED) +
       this.getStatusCount(bookingStatusStats, BookingStatusEnum.PAYMENT_PENDING) +
-      this.getStatusCount(bookingStatusStats, BookingStatusEnum.PAID) +
-      this.getStatusCount(bookingStatusStats, BookingStatusEnum.CONFIRMED);
+      this.getStatusCount(bookingStatusStats, BookingStatusEnum.PAID);
 
     return {
       overview: {
@@ -321,7 +346,7 @@ class DashboardRoute extends BaseRoute {
         approvedCars: this.getStatusCount(carStatusStats, CarStatusEnum.APPROVED),
         rentedCars: this.getStatusCount(carStatusStats, CarStatusEnum.RENTED),
         rejectedCars: this.getStatusCount(carStatusStats, CarStatusEnum.REJECTED),
-        hiddenCars: this.getStatusCount(carStatusStats, CarStatusEnum.HIDDEN),
+        hiddenCars,
         totalBookings: bookingIds.length,
         pendingBookings,
         confirmedBookings,
@@ -339,6 +364,7 @@ class DashboardRoute extends BaseRoute {
       },
       carStatusStats,
       bookingStatusStats,
+      hiddenCars,
       paymentStats,
       recentBookings,
       topRatedCars: reviewStats.topRatedCars,
@@ -362,6 +388,7 @@ class DashboardRoute extends BaseRoute {
       businessBookingIds,
       carStatusStats,
       bookingStatusStats,
+      hiddenCars,
       paymentStats,
       reviewStats,
     ] = await Promise.all([
@@ -397,12 +424,13 @@ class DashboardRoute extends BaseRoute {
           { businessId: { $exists: true }, ownerId: { $exists: false } },
         ],
       } as any),
-      this.countByStatus(CarModel, { isDeleted: false }, Object.values(CarStatusEnum)),
+      this.countByStatus(CarModel, { isDeleted: false }, CAR_STATUS_VALUES),
       this.countByStatus(
         BookingModel,
         { isDeleted: false },
-        Object.values(BookingStatusEnum),
+        BOOKING_STATUS_VALUES,
       ),
+      this.countHiddenCars({ isDeleted: false }),
       this.getPaymentStats(),
       this.getReviewStats(),
     ]);
@@ -417,9 +445,10 @@ class DashboardRoute extends BaseRoute {
           status: PaymentStatusEnum.PAID,
         }).select("amount"),
       ]);
-    const pendingBookings =
-      this.getStatusCount(bookingStatusStats, BookingStatusEnum.REQUESTED) +
-      this.getStatusCount(bookingStatusStats, BookingStatusEnum.PENDING);
+    const pendingBookings = this.getStatusCount(
+      bookingStatusStats,
+      BookingStatusEnum.REQUESTED,
+    );
     const overview = {
       totalUsers,
       totalBusinesses,
@@ -428,7 +457,7 @@ class DashboardRoute extends BaseRoute {
       approvedCars: this.getStatusCount(carStatusStats, CarStatusEnum.APPROVED),
       rentedCars: this.getStatusCount(carStatusStats, CarStatusEnum.RENTED),
       rejectedCars: this.getStatusCount(carStatusStats, CarStatusEnum.REJECTED),
-      hiddenCars: this.getStatusCount(carStatusStats, CarStatusEnum.HIDDEN),
+      hiddenCars,
       totalBookings,
       pendingBookings,
       completedBookings: this.getStatusCount(

@@ -237,8 +237,6 @@ const DETAILED_PICKUP_STATUSES = [
   "PAID",
   "IN_PROGRESS",
   "COMPLETED",
-  "WAITING_PAYMENT",
-  "CONFIRMED",
 ];
 
 function formatPrice(price: number) {
@@ -1146,8 +1144,6 @@ export default function CarDetailPage() {
     [
       "OWNER_APPROVED",
       "PAYMENT_PENDING",
-      "WAITING_PAYMENT",
-      "CONFIRMED",
       "PAID",
       "IN_PROGRESS",
     ].includes(currentUserBooking?.status || "");
