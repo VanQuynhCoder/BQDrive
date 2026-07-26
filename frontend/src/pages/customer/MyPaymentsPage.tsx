@@ -14,6 +14,7 @@ import {
   getBookingStatusLabel,
   getOwnerTypeLabel,
   getPaymentMethodLabel,
+  getPaymentRefundStatusLabel,
   getPaymentStatusLabel,
   getPaymentTypeLabel,
 } from "../../utils/display.util";
@@ -41,7 +42,6 @@ function getStatusTone(status?: string) {
     PENDING: "yellow",
     PAID: "green",
     FAILED: "red",
-    REFUNDED: "gray",
   };
 
   return map[status || ""] || "gray";
@@ -54,7 +54,6 @@ function getSummaryTone(status?: string) {
     PARTIAL: "yellow",
     PENDING: "yellow",
     UNPAID: "gray",
-    REFUNDED: "gray",
   };
 
   return map[status || ""] || "gray";
@@ -67,7 +66,6 @@ function getSummaryLabel(status?: string) {
     PARTIAL: "Thanh toán một phần",
     PENDING: "Chờ thanh toán",
     UNPAID: "Chưa thanh toán",
-    REFUNDED: "Đã hoàn tiền",
   };
 
   return map[status || ""] || getPaymentStatusLabel(status);
@@ -78,7 +76,6 @@ function getStatusLabel(status?: string) {
     PENDING: "Chờ thanh toán",
     PAID: "Đã thanh toán",
     FAILED: "Thanh toán thất bại",
-    REFUNDED: "Đã hoàn tiền",
   };
 
   return map[status || ""] || getPaymentStatusLabel(status);
@@ -240,6 +237,17 @@ function PaymentHistoryDetailModal({
                           tone={getStatusTone(payment.status)}
                           label={getStatusLabel(payment.status)}
                         />
+                        {payment.refundStatus &&
+                          payment.refundStatus !== "NOT_REFUNDED" && (
+                            <div className="mt-1">
+                              <AdminStatusBadge
+                                tone="gray"
+                                label={getPaymentRefundStatusLabel(
+                                  payment.refundStatus,
+                                )}
+                              />
+                            </div>
+                          )}
                       </td>
                       <td className="px-5 py-4 text-muted">
                         {formatDateTime(payment.paidAt || payment.createdAt)}

@@ -21,6 +21,10 @@ import {
   sendPaymentSuccessMail,
 } from "../../helper/mail.helper";
 import { syncBookingPaymentFromPaidPayments } from "../../helper/payment-sync.helper";
+import {
+  deriveContractPaymentStatus,
+  transitionBookingStatus,
+} from "../../helper/status.helper";
 import { notificationCenterService } from "../../services/notification-center.service";
 import { toCloudinaryCardThumbnailUrl } from "../../services/cloudinary.service";
 import { cancellationRefundService } from "../../services/cancellation-refund.service";
@@ -45,8 +49,6 @@ const PAYMENT_ALLOWED_BOOKING_STATUSES = [
   BookingStatusEnum.IN_PROGRESS, // Đang thuê, có thể thanh toán phần còn lại/phụ phí
   BookingStatusEnum.RETURN_INSPECTION,
   BookingStatusEnum.AWAITING_EXTRA_CHARGE,
-  BookingStatusEnum.CONFIRMED, // Trạng thái cũ: tương đương đã được chủ xe xác nhận
-  BookingStatusEnum.WAITING_PAYMENT, // Trạng thái cũ: tương đương PAYMENT_PENDING
 ];
 const RENTER_INFO_REQUIRED_FOR_PAYMENT_MESSAGE =
   "Booking thiếu thông tin người thuê, không thể thanh toán.";
@@ -448,7 +450,6 @@ class PaymentRoute extends BaseRoute {
         $in: [
           BookingStatusEnum.PAID,
           BookingStatusEnum.IN_PROGRESS,
-          BookingStatusEnum.CONFIRMED,
         ],
       },
       isDeleted: false,
@@ -678,12 +679,8 @@ class PaymentRoute extends BaseRoute {
       });
     }
 
-    if (
-      [BookingStatusEnum.OWNER_APPROVED, BookingStatusEnum.CONFIRMED].includes(
-        booking.status as BookingStatusEnum,
-      )
-    ) {
-      booking.status = BookingStatusEnum.PAYMENT_PENDING; // Khách đã mở cổng thanh toán, chờ kết quả trả về
+    if (booking.status === BookingStatusEnum.OWNER_APPROVED) {
+      transitionBookingStatus(booking, BookingStatusEnum.PAYMENT_PENDING);
       await booking.save();
     } else {
       await booking.save();
@@ -1016,12 +1013,8 @@ class PaymentRoute extends BaseRoute {
       });
     }
 
-    if (
-      [BookingStatusEnum.OWNER_APPROVED, BookingStatusEnum.CONFIRMED].includes(
-        booking.status as BookingStatusEnum,
-      )
-    ) {
-      booking.status = BookingStatusEnum.PAYMENT_PENDING; // Khách đã mở cổng thanh toán VNPay
+    if (booking.status === BookingStatusEnum.OWNER_APPROVED) {
+      transitionBookingStatus(booking, BookingStatusEnum.PAYMENT_PENDING);
       await booking.save();
     } else {
       await booking.save();
@@ -1261,12 +1254,9 @@ class PaymentRoute extends BaseRoute {
     if (existedPendingPayment) {
       if (
         MANUAL_PAYMENT_METHODS.includes(method as PaymentMethodEnum) &&
-        [
-          BookingStatusEnum.PAYMENT_PENDING,
-          BookingStatusEnum.WAITING_PAYMENT,
-        ].includes(booking.status as BookingStatusEnum)
+        booking.status === BookingStatusEnum.PAYMENT_PENDING
       ) {
-        booking.status = BookingStatusEnum.OWNER_APPROVED; // Tiền mặt chưa thu thì quay về trạng thái chủ xe đã duyệt
+        transitionBookingStatus(booking, BookingStatusEnum.OWNER_APPROVED);
         await booking.save();
       }
 
@@ -1312,12 +1302,9 @@ class PaymentRoute extends BaseRoute {
 
     if (
       MANUAL_PAYMENT_METHODS.includes(method as PaymentMethodEnum) &&
-      [
-        BookingStatusEnum.PAYMENT_PENDING,
-        BookingStatusEnum.WAITING_PAYMENT,
-      ].includes(booking.status as BookingStatusEnum)
+      booking.status === BookingStatusEnum.PAYMENT_PENDING
     ) {
-      booking.status = BookingStatusEnum.OWNER_APPROVED; // Chọn tiền mặt: chờ chủ xe thu khi bàn giao
+      transitionBookingStatus(booking, BookingStatusEnum.OWNER_APPROVED);
       await booking.save();
     }
 
@@ -1332,31 +1319,32 @@ class PaymentRoute extends BaseRoute {
   }
 
   private getPaymentSummaryStatus(totalPrice: number, paidAmount: number, payments: any[]) {
-    const hasPaidPayment = payments.some(
-      (payment) => payment.status === PaymentStatusEnum.PAID,
-    );
     const hasPendingPayment = payments.some(
       (payment) => payment.status === PaymentStatusEnum.PENDING,
     );
-    const hasRefundedPayment = payments.some(
-      (payment) => payment.status === PaymentStatusEnum.REFUNDED,
-    );
-
-    if (hasRefundedPayment && paidAmount <= 0) return "REFUNDED";
-    if (totalPrice > 0 && paidAmount >= totalPrice) return "PAID_FULL";
-    if (paidAmount > 0) {
-      const hasDepositPayment = payments.some(
+    const depositAmount = payments
+      .filter(
         (payment) =>
           payment.status === PaymentStatusEnum.PAID &&
           payment.paymentType === PaymentTypeEnum.DEPOSIT,
+      )
+      .reduce(
+        (sum, payment) =>
+          sum +
+          Math.max(
+            Number(payment.amount || 0) -
+              Number(payment.refundedAmount || 0),
+            0,
+          ),
+        0,
       );
 
-      return hasDepositPayment ? "DEPOSIT_PAID" : "PARTIAL";
-    }
-    if (hasPendingPayment) return "PENDING";
-    if (!hasPaidPayment) return "UNPAID";
-
-    return "PARTIAL";
+    return deriveContractPaymentStatus({
+      totalPrice,
+      depositAmount,
+      paidAmount,
+      hasPendingPayment,
+    });
   }
 
   private buildHistoryCarPayload(car: any) {
@@ -1417,6 +1405,8 @@ class PaymentRoute extends BaseRoute {
       method: payment.method || "",
       paymentType: payment.paymentType || "",
       status: payment.status || "",
+      refundStatus: payment.refundStatus || "",
+      refundedAmount: Number(payment.refundedAmount || 0),
       paidAt: payment.paidAt || payment.createdAt,
       transactionCode: payment.transactionCode || "",
       note: payment.note || "",
@@ -1703,7 +1693,6 @@ class PaymentRoute extends BaseRoute {
           ![
             BookingStatusEnum.OWNER_APPROVED,
             BookingStatusEnum.PAID,
-            BookingStatusEnum.CONFIRMED,
             BookingStatusEnum.IN_PROGRESS,
           ].includes(booking.status as BookingStatusEnum)
         ) {

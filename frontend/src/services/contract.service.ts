@@ -1,6 +1,11 @@
 ﻿import api from "./api";
 
-export type ContractStatus = "DRAFT" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+import type {
+  ContractPaymentStatus,
+  ContractStatus,
+} from "../constants/status.constants";
+
+export type { ContractStatus };
 export type OwnerType = "BUSINESS" | "USER";
 
 export type ContractCar = {
@@ -71,7 +76,7 @@ export type ContractPaymentSummary = {
   depositAmount: number;
   paidAmount: number;
   remainingAmount: number;
-  paymentStatus: "UNPAID" | "PENDING" | "DEPOSIT_PAID" | "PARTIAL" | "PAID_FULL";
+  paymentStatus: ContractPaymentStatus;
 };
 
 export type RentalContract = {

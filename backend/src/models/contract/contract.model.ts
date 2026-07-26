@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import { BaseDocument } from "../../base/baseModel";
 import {
+  CONTRACT_STATUS_VALUES,
+  ContractPaymentStatusEnum,
   ContractStatusEnum,
   OwnerTypeEnum,
   PaymentOptionEnum,
@@ -25,7 +27,7 @@ export type IContract = BaseDocument & {
   depositAmount: number;
   paidAmount: number;
   remainingAmount: number;
-  paymentStatus?: string;
+  paymentStatus: ContractPaymentStatusEnum;
   paymentOption: string;
   pickupAddressSnapshot?: string;
   returnAddressSnapshot?: string;
@@ -126,7 +128,8 @@ const contractSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      trim: true,
+      enum: Object.values(ContractPaymentStatusEnum),
+      default: ContractPaymentStatusEnum.UNPAID,
     },
     paymentOption: {
       type: String,
@@ -147,7 +150,7 @@ const contractSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: Object.values(ContractStatusEnum),
+      enum: CONTRACT_STATUS_VALUES,
       default: ContractStatusEnum.ACTIVE,
     },
     contractCode: {

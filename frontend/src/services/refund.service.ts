@@ -1,14 +1,7 @@
 import api from "./api";
+import type { RefundStatus as OfficialRefundStatus } from "../constants/status.constants";
 
-export type RefundStatus =
-  | "PENDING"
-  | "WAITING_FOR_REFUND_INFO"
-  | "MANUAL_REQUIRED"
-  | "PROCESSING"
-  | "SUCCEEDED"
-  | "FAILED"
-  | "CANCELLED"
-  | string;
+export type RefundStatus = OfficialRefundStatus;
 
 export type RefundPayment = {
   _id: string;

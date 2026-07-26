@@ -360,7 +360,7 @@ export default function HomePage() {
         });
 
         myBookings.forEach((booking) => {
-          if (!["REQUESTED", "PENDING"].includes(booking.status || "")) return; // REQUESTED là trạng thái mới chờ chủ xe duyệt, PENDING là dữ liệu cũ
+          if (booking.status !== "REQUESTED") return;
 
           const paidAmount = booking.paidAmount || 0;
           if (paidAmount > 0) return;
@@ -1710,7 +1710,6 @@ export default function HomePage() {
     </div>
   );
 }
-
 
 
 

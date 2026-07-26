@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { BaseDocument } from "../../base/baseModel";
 
 import {
+  CAR_STATUS_VALUES,
   CarStatusEnum,
   CarTypeEnum,
   FuelTypeEnum,
@@ -75,6 +76,7 @@ export type ICar = BaseDocument & {
   deliveryFeePerKm?: number;
   deliveryMaxDistanceKm?: number;
   deliveryNote?: string;
+  bookingRevision?: number;
   status: string;
   rejectReason?: string;
   isHidden?: boolean;
@@ -343,9 +345,15 @@ const carSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    bookingRevision: {
+      type: Number,
+      default: 0,
+      min: 0,
+      select: false,
+    },
     status: {
       type: String,
-      enum: Object.values(CarStatusEnum),
+      enum: CAR_STATUS_VALUES,
       default: CarStatusEnum.PENDING,
     },
     rejectReason: {

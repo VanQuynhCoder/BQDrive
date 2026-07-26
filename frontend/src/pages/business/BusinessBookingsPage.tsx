@@ -43,13 +43,11 @@ type DocumentPreviewTarget = {
   label: string;
   value: string;
 };
-const OWNER_REVIEW_STATUSES = ["REQUESTED", "PENDING"]; // Booking chờ chủ xe duyệt
+const OWNER_REVIEW_STATUSES = ["REQUESTED"]; // Booking chờ chủ xe duyệt
 const READY_TO_HANDOVER_STATUSES = [
   "PAID",
   "OWNER_APPROVED",
   "PAYMENT_PENDING",
-  "WAITING_PAYMENT",
-  "CONFIRMED",
 ]; // Booking đã duyệt/đã thanh toán, có thể bàn giao hoặc xử lý no-show
 const PICKUP_GRACE_MINUTES = 30;
 
@@ -69,8 +67,6 @@ function getStatusBadge(status?: string) {
   if (status === "PAID") return { label: "Đã thanh toán", tone: "green" as const };
 
   const map: Record<string, { label: string; tone: "green" | "red" | "yellow" | "blue" | "gray" }> = {
-    PENDING: { label: "Chờ xác nhận", tone: "yellow" },
-    CONFIRMED: { label: "Đã xác nhận", tone: "blue" },
     IN_PROGRESS: { label: "Đang thuê", tone: "blue" },
     RETURN_INSPECTION: { label: "Đang kiểm tra xe", tone: "yellow" },
     AWAITING_EXTRA_CHARGE: { label: "Chờ xử lý phát sinh", tone: "yellow" },

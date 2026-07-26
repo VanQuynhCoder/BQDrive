@@ -28,7 +28,11 @@ import {
   type CreateBusinessData,
 } from "../../services/admin.service";
 import { getBusinessTypeLabel } from "../../utils/display.util";
-import { isValidVietnamPhone, normalizePhone } from "../../utils/validators";
+import {
+  isValidEmail,
+  isValidVietnamPhone,
+  normalizePhone,
+} from "../../utils/validators";
 
 type BusinessAction = "block" | "unblock" | "delete";
 type CreateBusinessStep = 1 | 2 | 3;
@@ -107,10 +111,6 @@ function getErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback;
-}
-
-function isValidEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 export default function AdminBusinessesPage() {
@@ -210,7 +210,7 @@ export default function AdminBusinessesPage() {
     const address = createForm.address.trim();
 
     if (!businessName || !email || !phone || !address) {
-      toast.error("Vui lòng nhập đầy để thông tin bắt bước");
+      toast.error("Vui lòng nhập đầy đủ thông tin bắt buộc");
       return false;
     }
 
@@ -287,7 +287,7 @@ export default function AdminBusinessesPage() {
     if (!validateBusinessInfo()) return;
 
     if (createForm.password.length < 6) {
-      toast.error("Một khẩu phải có ít nhất 6 ký từ");
+      toast.error("Mật khẩu phải có ít nhất 6 ký tự");
       return;
     }
 
@@ -794,7 +794,7 @@ export default function AdminBusinessesPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="block">
                       <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                        Một khẩu *
+                        Mật khẩu *
                       </span>
                       <span className="relative block">
                         <KeyRound
@@ -808,7 +808,7 @@ export default function AdminBusinessesPage() {
                             updateCreateForm("password", event.target.value)
                           }
                           className={`${iconInputClass} pr-12`}
-                          placeholder="Nhợp mật khẩu"
+                          placeholder="Nhập mật khẩu"
                           autoComplete="new-password"
                         />
                         <button
@@ -816,9 +816,9 @@ export default function AdminBusinessesPage() {
                           onClick={() => setShowPassword((value) => !value)}
                           className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-primary"
                           aria-label={
-                            showPassword ? "Ẩn mật khẩu" : "HiẨn mật khẩu"
+                            showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"
                           }
-                          title={showPassword ? "Ẩn mật khẩu" : "HiẨn mật khẩu"}
+                          title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                         >
                           {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                         </button>
@@ -844,7 +844,7 @@ export default function AdminBusinessesPage() {
                             )
                           }
                           className={`${iconInputClass} pr-12`}
-                          placeholder="Nhợp lệi mật khẩu"
+                          placeholder="Nhập lại mật khẩu"
                           autoComplete="new-password"
                         />
                         <button
@@ -856,12 +856,12 @@ export default function AdminBusinessesPage() {
                           aria-label={
                             showConfirmPassword
                               ? "Ẩn mật khẩu"
-                              : "HiẨn mật khẩu"
+                              : "Hiện mật khẩu"
                           }
                           title={
                             showConfirmPassword
                               ? "Ẩn mật khẩu"
-                              : "HiẨn mật khẩu"
+                              : "Hiện mật khẩu"
                           }
                         >
                           {showConfirmPassword ? (
@@ -968,7 +968,7 @@ export default function AdminBusinessesPage() {
               onChange={(event) => setReason(event.target.value)}
               rows={4}
               className="w-full rounded-lg border border-slate-200 px-4 py-3 outline-none focus:border-secondary"
-              placeholder="Nhợp lý do thao tác..."
+              placeholder="Nhập lý do thao tác..."
             />
           </label>
         )}

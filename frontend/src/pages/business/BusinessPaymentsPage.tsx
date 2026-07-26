@@ -8,17 +8,20 @@ import {
   type BusinessPayment,
 } from "../../services/business.service";
 import { paymentService } from "../../services/payment.service";
-import { getPaymentMethodLabel } from "../../utils/display.util";
+import {
+  getPaymentMethodLabel,
+  getPaymentRefundStatusLabel,
+} from "../../utils/display.util";
 import { formatVietnamDateTime } from "../../utils/date.util";
 
-type PaymentFilter = "ALL" | "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+type PaymentFilter = "ALL" | "PENDING" | "PAID" | "FAILED" | "HAS_REFUND";
 
 const filterOptions: Array<{ label: string; value: PaymentFilter }> = [
   { label: "Tất cả", value: "ALL" },
   { label: "Chờ thanh toán", value: "PENDING" },
   { label: "Đã thanh toán", value: "PAID" },
   { label: "Thất bại", value: "FAILED" },
-  { label: "Hoàn tiền", value: "REFUNDED" },
+  { label: "Có hoàn tiền", value: "HAS_REFUND" },
 ];
 const MANUAL_CONFIRM_PAYMENT_METHODS = ["CASH"];
 
@@ -59,7 +62,6 @@ function getStatusBadge(status?: string) {
     PENDING: { label: "Chờ thanh toán", tone: "yellow" },
     PAID: { label: "Đã thanh toán", tone: "green" },
     FAILED: { label: "Thanh toán thất bại", tone: "red" },
-    REFUNDED: { label: "Đã hoàn tiền", tone: "gray" },
   };
 
   return map[status || ""] || { label: status || "--", tone: "gray" };
@@ -118,6 +120,13 @@ export default function BusinessPaymentsPage() {
 
   const filteredPayments = useMemo(() => {
     if (filter === "ALL") return payments;
+    if (filter === "HAS_REFUND") {
+      return payments.filter((payment) =>
+        ["PARTIALLY_REFUNDED", "REFUNDED"].includes(
+          payment.refundStatus || "",
+        ),
+      );
+    }
     return payments.filter((payment) => payment.status === filter);
   }, [filter, payments]);
 
@@ -296,10 +305,19 @@ export default function BusinessPaymentsPage() {
                         {getPaymentMethodLabel(payment.method)}
                       </td>
                       <td className="px-5 py-4">
-                        <AdminStatusBadge
-                          tone={status.tone}
-                          label={status.label}
-                        />
+                      <AdminStatusBadge
+                        tone={status.tone}
+                        label={status.label}
+                      />
+                      {payment.refundStatus &&
+                        payment.refundStatus !== "NOT_REFUNDED" && (
+                          <AdminStatusBadge
+                            tone="gray"
+                            label={getPaymentRefundStatusLabel(
+                              payment.refundStatus,
+                            )}
+                          />
+                        )}
                       </td>
                       <td className="px-5 py-4 text-slate-600">
                         {formatDateTime(payment.paidAt || payment.createdAt)}

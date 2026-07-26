@@ -1,4 +1,7 @@
-import { BookingStatusEnum, CarStatusEnum } from "../constants/model.const";
+import {
+  BookingStatusEnum,
+  CarStatusEnum,
+} from "../constants/model.const";
 import { BookingModel } from "../models/booking/booking.model";
 import { CarModel } from "../models/car/car.model";
 
@@ -10,7 +13,6 @@ export async function syncRentedCarStatuses() {
         BookingStatusEnum.IN_PROGRESS, // Xe đang được bàn giao/đang thuê
         BookingStatusEnum.RETURN_INSPECTION,
         BookingStatusEnum.AWAITING_EXTRA_CHARGE,
-        BookingStatusEnum.CONFIRMED, // Trạng thái cũ: giữ tương thích dữ liệu cũ
       ],
     },
     isDeleted: false,
@@ -37,7 +39,6 @@ export async function releaseCarIfNoConfirmedBooking(carId: unknown) {
         BookingStatusEnum.IN_PROGRESS, // Còn booking đang thuê thì chưa trả xe về APPROVED
         BookingStatusEnum.RETURN_INSPECTION,
         BookingStatusEnum.AWAITING_EXTRA_CHARGE,
-        BookingStatusEnum.CONFIRMED, // Trạng thái cũ
       ],
     },
     isDeleted: false,

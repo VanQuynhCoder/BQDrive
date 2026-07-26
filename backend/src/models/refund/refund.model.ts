@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { BaseDocument } from "../../base/baseModel";
 import {
+  REFUND_STATUS_VALUES,
   RefundMethodEnum,
   RefundStatusEnum,
   UserRoleEnum,
@@ -138,8 +139,8 @@ const refundSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: Object.values(RefundStatusEnum),
-      default: RefundStatusEnum.MANUAL_REQUIRED,
+      enum: REFUND_STATUS_VALUES,
+      default: RefundStatusEnum.WAITING_FOR_REFUND_INFO,
       index: true,
     },
     paymentIds: [

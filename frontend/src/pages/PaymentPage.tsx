@@ -205,8 +205,6 @@ export default function PaymentPage() {
     "OWNER_APPROVED", // Trạng thái mới: chủ xe đã duyệt, được phép thanh toán
     "PAYMENT_PENDING", // Trạng thái mới: đang chờ thanh toán, được quay lại thanh toán
     "PAID", // Trạng thái mới: cho phép thanh toán phần còn lại nếu còn tiền
-    "CONFIRMED", // Trạng thái cu
-    "WAITING_PAYMENT", // Trạng thái cu
     "IN_PROGRESS",
   ].includes(booking?.status || "");
   const rental = getRentalInfo(car, booking?.rentalMode);

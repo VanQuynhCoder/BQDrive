@@ -318,7 +318,6 @@ class BusinessRoute extends BaseRoute {
         status: {
           $in: [
             BookingStatusEnum.REQUESTED, // Trạng thái mới: chờ chủ xe duyệt
-            BookingStatusEnum.PENDING, // Trạng thái cũ
           ],
         },
         isDeleted: false,
@@ -330,7 +329,6 @@ class BusinessRoute extends BaseRoute {
             BookingStatusEnum.OWNER_APPROVED, // Chủ xe đã duyệt, chờ thanh toán
             BookingStatusEnum.PAYMENT_PENDING, // Khách đang thanh toán
             BookingStatusEnum.PAID, // Đã thanh toán
-            BookingStatusEnum.CONFIRMED, // Trạng thái cũ
           ],
         },
         isDeleted: false,
