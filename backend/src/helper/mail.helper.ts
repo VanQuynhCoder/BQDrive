@@ -71,8 +71,7 @@ const smtpConfig = getSmtpConfig();
 let resolvedSmtpHost: string | null = null;
 
 function getSmtpPortCandidates() {
-  const fallbackPort = smtpConfig.port === 465 ? 587 : 465;
-  return [smtpConfig.port, fallbackPort];
+  return [smtpConfig.port];
 }
 
 async function resolveSmtpHostForRender() {
