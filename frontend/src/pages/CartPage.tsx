@@ -19,16 +19,15 @@ import toast from "react-hot-toast";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import PricingBreakdown from "../components/pricing/PricingBreakdown";
 import { cartService } from "../services/cart.service";
+import type { PricingSnapshot } from "../types/pricing";
 import { getFirstCarImage } from "../utils/image.util";
 import { formatVietnamDateTime } from "../utils/date.util";
 
 type CartCar = {
   _id: string;
   name?: string;
-  pricePerDay?: number;
-  pricePerHour?: number;
-  rentalUnit?: string;
   seats?: number;
   fuelType?: string;
   transmission?: string;
@@ -42,6 +41,7 @@ type CartItem = {
   endDate: string;
   rentalMode?: string;
   totalPrice?: number;
+  pricingSnapshot?: PricingSnapshot;
   expiredAt: string;
   status: string;
 };
@@ -82,10 +82,9 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 const HOUR_MS = 1000 * 60 * 60;
 
-function getRentalInfo(car: CartCar | undefined, rentalMode?: string) {
-  if (rentalMode === "HOURLY" || (!rentalMode && car?.rentalUnit === "HOUR")) {
+function getRentalInfo(rentalMode?: string) {
+  if (rentalMode === "HOURLY") {
     return {
-      price: car?.pricePerHour || 0,
       unit: "giờ",
       label: "Số giờ thuê",
       modeLabel: "Thuê theo giờ",
@@ -93,7 +92,6 @@ function getRentalInfo(car: CartCar | undefined, rentalMode?: string) {
   }
 
   return {
-    price: car?.pricePerDay || 0,
     unit: "ngày",
     label: "Số ngày thuê",
     modeLabel: "Thuê theo ngày",
@@ -315,7 +313,9 @@ export default function CartPage() {
 
             {carts.map((item) => {
               const car = item.carId;
-              const rental = getRentalInfo(car, item.rentalMode);
+              const rental = getRentalInfo(
+                item.pricingSnapshot?.rentalMode || item.rentalMode,
+              );
               const rentalTime = calculateRentalTime(
                 item.rentalMode,
                 item.startDate,
@@ -376,7 +376,13 @@ export default function CartPage() {
                           {getSpecLabel(car?.transmission)}
                         </span>
                         <span className="font-semibold text-primary">
-                          {formatPrice(rental.price)} / {rental.unit}
+                          Giá cơ bản:{" "}
+                          {item.pricingSnapshot?.basePricePerUnit !== null &&
+                          item.pricingSnapshot?.basePricePerUnit !== undefined
+                            ? `${formatPrice(
+                                item.pricingSnapshot.basePricePerUnit,
+                              )} / ${rental.unit}`
+                            : "Chưa cập nhật"}
                         </span>
                       </div>
 
@@ -429,6 +435,11 @@ export default function CartPage() {
                       </div>
                     </div>
                   </div>
+                  <PricingBreakdown
+                    snapshot={item.pricingSnapshot}
+                    embedded
+                    className="mt-5"
+                  />
                 </article>
               );
             })}

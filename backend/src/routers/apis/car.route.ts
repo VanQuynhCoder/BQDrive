@@ -109,59 +109,80 @@ function assertNoNewBase64CarImages(
   }
 }
 
-function toOptionalPrice(value: unknown) {
+function toOptionalPrice(value: unknown, fieldLabel: string) {
   if (value === undefined || value === null || value === "") return undefined;
 
-  const nextValue = Number(value);
-
-  if (!Number.isFinite(nextValue) || nextValue < 0) {
-    throw ErrorHelper.requestDataInvalid("Giá thuê không hợp lệ");
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < 0
+  ) {
+    throw ErrorHelper.requestDataInvalid(`${fieldLabel} không hợp lệ`);
   }
 
-  return nextValue;
+  return value;
 }
 
 function normalizeCarPricingPayload(body: any, dailyEnabled: boolean, hourlyEnabled: boolean) {
-  const pricingInput = body.pricing || {};
-  const weekdayPricePerDay = toOptionalPrice(
-    pricingInput.weekdayPricePerDay ?? body.weekdayPricePerDay ?? body.pricePerDay,
+  const pricingInput =
+    body.pricing && typeof body.pricing === "object" ? body.pricing : {};
+  const basePricePerDay = toOptionalPrice(
+    pricingInput.basePricePerDay,
+    "Giá thuê cơ bản theo ngày",
   );
-  const weekendPricePerDay =
-    toOptionalPrice(pricingInput.weekendPricePerDay ?? body.weekendPricePerDay) ??
-    weekdayPricePerDay;
-  const holidayPricePerDay =
-    toOptionalPrice(pricingInput.holidayPricePerDay ?? body.holidayPricePerDay) ??
-    weekendPricePerDay ??
-    weekdayPricePerDay;
-  const pricePerHour = toOptionalPrice(
-    pricingInput.pricePerHour ?? body.pricePerHour,
+  const weekendSurchargePerDay =
+    toOptionalPrice(
+      pricingInput.weekendSurchargePerDay,
+      "Phụ thu cuối tuần theo ngày",
+    ) ?? 0;
+  const holidaySurchargePerDay =
+    toOptionalPrice(
+      pricingInput.holidaySurchargePerDay,
+      "Phụ thu ngày lễ theo ngày",
+    ) ?? 0;
+  const basePricePerHour = toOptionalPrice(
+    pricingInput.basePricePerHour,
+    "Giá thuê cơ bản theo giờ",
   );
-  const weekendPricePerHour =
-    toOptionalPrice(pricingInput.weekendPricePerHour ?? body.weekendPricePerHour) ??
-    pricePerHour;
-  const holidayPricePerHour =
-    toOptionalPrice(pricingInput.holidayPricePerHour ?? body.holidayPricePerHour) ??
-    weekendPricePerHour ??
-    pricePerHour;
+  const weekendSurchargePerHour =
+    toOptionalPrice(
+      pricingInput.weekendSurchargePerHour,
+      "Phụ thu cuối tuần theo giờ",
+    ) ?? 0;
+  const holidaySurchargePerHour =
+    toOptionalPrice(
+      pricingInput.holidaySurchargePerHour,
+      "Phụ thu ngày lễ theo giờ",
+    ) ?? 0;
 
-  if (dailyEnabled && (!weekdayPricePerDay || weekdayPricePerDay <= 0)) {
-    throw ErrorHelper.requestDataInvalid("Xe thuê theo ngày cần giá ngày thường");
+  if (dailyEnabled && (!basePricePerDay || basePricePerDay <= 0)) {
+    throw ErrorHelper.requestDataInvalid(
+      "Xe thuê theo ngày cần giá thuê cơ bản theo ngày",
+    );
   }
 
-  if (hourlyEnabled && (!pricePerHour || pricePerHour <= 0)) {
-    throw ErrorHelper.requestDataInvalid("Xe thuê theo giờ cần giá theo giờ");
+  if (hourlyEnabled && (!basePricePerHour || basePricePerHour <= 0)) {
+    throw ErrorHelper.requestDataInvalid(
+      "Xe thuê theo giờ cần giá thuê cơ bản theo giờ",
+    );
   }
 
   return {
-    pricePerDay: weekdayPricePerDay,
-    pricePerHour,
     pricing: {
-      weekdayPricePerDay,
-      weekendPricePerDay,
-      holidayPricePerDay,
-      pricePerHour,
-      weekendPricePerHour,
-      holidayPricePerHour,
+      ...(dailyEnabled
+        ? {
+            basePricePerDay,
+            weekendSurchargePerDay,
+            holidaySurchargePerDay,
+          }
+        : {}),
+      ...(hourlyEnabled
+        ? {
+            basePricePerHour,
+            weekendSurchargePerHour,
+            holidaySurchargePerHour,
+          }
+        : {}),
     },
   };
 }
@@ -210,8 +231,6 @@ const IMPORTANT_CAR_REVIEW_FIELDS = [
   "name",
   "type",
   "licensePlate",
-  "pricePerDay",
-  "pricePerHour",
   "pricing",
   "pickupAddress",
   "pickupFormattedAddress",
@@ -243,6 +262,19 @@ const IMPORTANT_CAR_REVIEW_FIELDS = [
 
 function normalizeComparableValue(value: any): unknown {
   if (value === undefined || value === null || value === "") return "";
+
+  if (typeof value?.toHexString === "function") {
+    return value.toHexString();
+  }
+
+  if (typeof value?.toObject === "function") {
+    return normalizeComparableValue(
+      value.toObject({
+        depopulate: true,
+        versionKey: false,
+      }),
+    );
+  }
 
   if (Array.isArray(value)) {
     return value.map((item) => normalizeComparableValue(item));
@@ -286,14 +318,14 @@ function toOptionalPositiveNumber(value: unknown) {
 function getComparablePrice(car: any, rentalMode?: string) {
   if (rentalMode === RentalModeEnum.HOURLY) {
     return (
-      Number(car.pricePerHour || car.pricing?.pricePerHour || car.pricing?.weekendPricePerHour || 0) ||
-      Number(car.pricePerDay || car.pricing?.weekdayPricePerDay || 0)
+      Number(car.pricing?.basePricePerHour || 0) ||
+      Number(car.pricing?.basePricePerDay || 0)
     );
   }
 
   return (
-    Number(car.pricePerDay || car.pricing?.weekdayPricePerDay || car.pricing?.weekendPricePerDay || 0) ||
-    Number(car.pricePerHour || car.pricing?.pricePerHour || 0)
+    Number(car.pricing?.basePricePerDay || 0) ||
+    Number(car.pricing?.basePricePerHour || 0)
   );
 }
 
@@ -334,8 +366,6 @@ const HOME_CAR_LIST_PROJECTION = {
   name: 1,
   type: 1,
   licensePlate: 1,
-  pricePerDay: 1,
-  pricePerHour: 1,
   pricing: 1,
   allowDailyRental: 1,
   allowHourlyRental: 1,
@@ -1122,18 +1152,18 @@ class CarRoute extends BaseRoute {
       if (minPrice) priceFilter.$gte = Number(minPrice);
       if (maxPrice) priceFilter.$lte = Number(maxPrice);
 
-      andFilters.push({
-        $or: [
-          { pricePerDay: priceFilter },
-          { pricePerHour: priceFilter },
-          { "pricing.weekdayPricePerDay": priceFilter },
-          { "pricing.weekendPricePerDay": priceFilter },
-          { "pricing.holidayPricePerDay": priceFilter },
-          { "pricing.pricePerHour": priceFilter },
-          { "pricing.weekendPricePerHour": priceFilter },
-          { "pricing.holidayPricePerHour": priceFilter },
-        ],
-      });
+      if (selectedRentalMode === RentalModeEnum.HOURLY) {
+        andFilters.push({ "pricing.basePricePerHour": priceFilter });
+      } else if (selectedRentalMode === RentalModeEnum.DAILY) {
+        andFilters.push({ "pricing.basePricePerDay": priceFilter });
+      } else {
+        andFilters.push({
+          $or: [
+            { "pricing.basePricePerDay": priceFilter },
+            { "pricing.basePricePerHour": priceFilter },
+          ],
+        });
+      }
     }
 
     if (keyword) {
@@ -1486,11 +1516,19 @@ class CarRoute extends BaseRoute {
     const dailyEnabled =
       typeof updateData.allowDailyRental === "boolean"
         ? updateData.allowDailyRental
-        : updateData.rentalUnit !== RentalUnitEnum.HOUR;
+        : updateData.rentalUnit
+          ? updateData.rentalUnit !== RentalUnitEnum.HOUR
+          : typeof existingCar.allowDailyRental === "boolean"
+            ? existingCar.allowDailyRental
+            : existingCar.rentalUnit !== RentalUnitEnum.HOUR;
     const hourlyEnabled =
       typeof updateData.allowHourlyRental === "boolean"
         ? updateData.allowHourlyRental
-        : updateData.rentalUnit === RentalUnitEnum.HOUR;
+        : updateData.rentalUnit
+          ? updateData.rentalUnit === RentalUnitEnum.HOUR
+          : typeof existingCar.allowHourlyRental === "boolean"
+            ? existingCar.allowHourlyRental
+            : existingCar.rentalUnit === RentalUnitEnum.HOUR;
 
     if (!dailyEnabled && !hourlyEnabled) {
       throw ErrorHelper.requestDataInvalid(
@@ -1499,7 +1537,10 @@ class CarRoute extends BaseRoute {
     }
 
     const pricingPayload = normalizeCarPricingPayload(
-      updateData,
+      {
+        ...updateData,
+        pricing: updateData.pricing ?? existingCar.pricing,
+      },
       dailyEnabled,
       hourlyEnabled,
     );
@@ -1509,8 +1550,6 @@ class CarRoute extends BaseRoute {
     updateData.allowHourlyRental = hourlyEnabled;
     updateData.rentalUnit =
       hourlyEnabled && !dailyEnabled ? RentalUnitEnum.HOUR : RentalUnitEnum.DAY;
-    updateData.pricePerDay = pricingPayload.pricePerDay;
-    updateData.pricePerHour = pricingPayload.pricePerHour;
     updateData.pricing = pricingPayload.pricing;
     updateData.deliveryEnabled = deliveryPayload.deliveryEnabled;
     updateData.deliveryBaseFee = deliveryPayload.deliveryBaseFee;
@@ -1523,23 +1562,6 @@ class CarRoute extends BaseRoute {
         throw ErrorHelper.requestDataInvalid("Đơn vị thuê xe không hợp lệ");
       }
 
-      if (
-        updateData.rentalUnit === RentalUnitEnum.DAY &&
-        (!updateData.pricePerDay || Number(updateData.pricePerDay) <= 0)
-      ) {
-        throw ErrorHelper.requestDataInvalid(
-          "Xe thuê theo ngày cần giá ngày thường",
-        );
-      }
-
-      if (
-        updateData.rentalUnit === RentalUnitEnum.HOUR &&
-        (!updateData.pricePerHour || Number(updateData.pricePerHour) <= 0)
-      ) {
-        throw ErrorHelper.requestDataInvalid(
-          "Xe thuê theo giờ cần giá theo giờ",
-        );
-      }
     }
 
     const finalUpdateData = {

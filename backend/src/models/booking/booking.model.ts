@@ -8,7 +8,27 @@ import {
   PaymentOptionEnum,
   DeliveryTypeEnum,
   DeliveryAddressSourceEnum,
+  PricingDateTypeEnum,
 } from "../../constants/model.const";
+
+export type IPricingBreakdownItem = {
+  dateOrTime: string;
+  priceType: PricingDateTypeEnum;
+  basePrice: number;
+  surchargeAmount: number;
+  finalPrice: number;
+  unitCount: number;
+  price: number;
+};
+
+export type IPricingSnapshot = {
+  rentalMode: string;
+  basePricePerUnit: number;
+  weekendSurchargePerUnit: number;
+  holidaySurchargePerUnit: number;
+  breakdown: IPricingBreakdownItem[];
+  subtotal: number;
+};
 
 export type IBooking = BaseDocument & {
   userId: mongoose.Types.ObjectId;
@@ -40,23 +60,7 @@ export type IBooking = BaseDocument & {
     handoverRecordedBy: mongoose.Types.ObjectId;
   };
   totalPrice: number;
-  pricingSnapshot?: {
-    rentalMode: string;
-    weekdayPricePerDay?: number;
-    weekendPricePerDay?: number;
-    holidayPricePerDay?: number;
-    pricePerHour?: number;
-    weekendPricePerHour?: number;
-    holidayPricePerHour?: number;
-    breakdown?: Array<{
-      date: string;
-      type: string;
-      label?: string;
-      unitCount: number;
-      unitPrice: number;
-      price: number;
-    }>;
-    subtotal: number;
+  pricingSnapshot?: IPricingSnapshot & {
     rentalSubtotal?: number;
     deliveryFee?: number;
     totalPrice?: number;
@@ -252,60 +256,63 @@ const bookingSchema = new mongoose.Schema(
         type: String,
         enum: Object.values(RentalModeEnum),
       },
-      weekdayPricePerDay: {
+      basePricePerUnit: {
         type: Number,
+        required: true,
         min: 0,
       },
-      weekendPricePerDay: {
+      weekendSurchargePerUnit: {
         type: Number,
+        required: true,
         min: 0,
       },
-      holidayPricePerDay: {
+      holidaySurchargePerUnit: {
         type: Number,
-        min: 0,
-      },
-      pricePerHour: {
-        type: Number,
-        min: 0,
-      },
-      weekendPricePerHour: {
-        type: Number,
-        min: 0,
-      },
-      holidayPricePerHour: {
-        type: Number,
+        required: true,
         min: 0,
       },
       breakdown: [
         {
-          date: {
+          dateOrTime: {
             type: String,
+            required: true,
             trim: true,
           },
-          type: {
+          priceType: {
             type: String,
-            trim: true,
+            enum: Object.values(PricingDateTypeEnum),
+            required: true,
           },
-          label: {
-            type: String,
-            trim: true,
+          basePrice: {
+            type: Number,
+            required: true,
+            min: 0,
+          },
+          surchargeAmount: {
+            type: Number,
+            required: true,
+            min: 0,
+          },
+          finalPrice: {
+            type: Number,
+            required: true,
+            min: 0,
           },
           unitCount: {
             type: Number,
-            min: 0,
-          },
-          unitPrice: {
-            type: Number,
+            required: true,
             min: 0,
           },
           price: {
             type: Number,
+            required: true,
             min: 0,
           },
         },
       ],
       subtotal: {
         type: Number,
+        required: true,
         min: 0,
       },
       rentalSubtotal: {

@@ -15,7 +15,10 @@ export type CarouselCar = {
   name: string;
   brandName?: string;
   image?: string;
-  pricePerDay?: number;
+  basePrice?: number | null;
+  priceUnit?: "ngày" | "giờ";
+  rentalLabel?: string;
+  hasSurcharge?: boolean;
   location?: string;
   seats?: number;
   fuelType?: string;
@@ -33,9 +36,11 @@ type CarCarouselProps = {
 const fallbackImage =
   "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?q=80&w=1200";
 
-function formatPrice(price?: number) {
-  if (!price || price <= 0) return "Đang cập nhật";
-  return `${new Intl.NumberFormat("vi-VN").format(price)}đ`;
+function formatPrice(price?: number | null) {
+  if (price === null || price === undefined || price < 0) {
+    return "Chưa cập nhật giá";
+  }
+  return `${new Intl.NumberFormat("vi-VN").format(price)} đồng`;
 }
 
 function getSpecLabel(value?: string) {
@@ -210,13 +215,27 @@ export default function CarCarousel({
                 </div>
 
                 <div className="mt-3 flex items-end gap-1">
-                  <p className="text-xl font-extrabold text-secondary">
-                    {formatPrice(car.pricePerDay)}
-                  </p>
-                  <p className="pb-0.5 text-xs font-semibold text-muted">
-                    / ngày
-                  </p>
+                  <div>
+                    <p className="text-xs font-semibold text-muted">Giá từ</p>
+                    <div className="flex items-end gap-1">
+                      <p className="text-xl font-extrabold text-secondary">
+                        {formatPrice(car.basePrice)}
+                      </p>
+                      {car.basePrice !== null &&
+                        car.basePrice !== undefined && (
+                          <p className="pb-0.5 text-xs font-semibold text-muted">
+                            / {car.priceUnit || "ngày"}
+                          </p>
+                        )}
+                    </div>
+                  </div>
                 </div>
+
+                {car.hasSurcharge && (
+                  <p className="mt-2 text-xs font-semibold text-muted">
+                    Có phụ thu cuối tuần/ngày lễ
+                  </p>
+                )}
 
                 <div className="mt-4 grid grid-cols-2 gap-2 border-y border-border py-3 text-xs font-semibold text-muted">
                   <span className="flex items-center gap-1.5">
@@ -231,7 +250,9 @@ export default function CarCarousel({
                     <Gauge size={15} className="shrink-0 text-secondary" />
                     {getSpecLabel(car.transmission)}
                   </span>
-                  <span className="font-semibold text-primary">Theo ngày</span>
+                  <span className="font-semibold text-primary">
+                    {car.rentalLabel || "Thuê theo ngày"}
+                  </span>
                 </div>
               </div>
             </Link>

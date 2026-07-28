@@ -1,5 +1,7 @@
 ﻿import api from "./api";
 
+import type { CarPricing } from "../types/pricing";
+
 type HomeCarsParams = {
   location?: string;
   pickupProvince?: string;
@@ -28,6 +30,15 @@ export type PublicBrand = {
   name: string;
   logo?: string;
 };
+
+export type CarMileagePolicy = {
+  includedKmPerDay?: number | null;
+  includedKmPerHour?: number | null;
+  overageFeePerKm?: number | null;
+  graceKm?: number | null;
+};
+
+export type PublicCarPricing = CarPricing;
 
 export const carService = {
   getHomeCars: async (params: HomeCarsParams = {}) => {

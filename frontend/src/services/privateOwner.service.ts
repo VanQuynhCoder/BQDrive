@@ -4,6 +4,8 @@ import type {
   BookingStatus as OfficialBookingStatus,
   PaymentStatus as OfficialPaymentStatus,
 } from "../constants/status.constants";
+import type { CarPricing } from "../types/pricing";
+export type { CarPricing } from "../types/pricing";
 
 export type PrivateOwnerStatus = "PENDING" | "APPROVED" | "REJECTED" | string;
 export type BookingStatus = OfficialBookingStatus;
@@ -51,20 +53,18 @@ export type PrivateOwnerCar = {
   licensePlate?: string;
   brandId: PrivateOwnerBrand;
   businessId?: PrivateOwnerProfile;
-  pricePerDay?: number;
-  pricePerHour?: number;
-  pricing?: {
-    weekdayPricePerDay?: number;
-    weekendPricePerDay?: number;
-    holidayPricePerDay?: number;
-    pricePerHour?: number;
-    weekendPricePerHour?: number;
-    holidayPricePerHour?: number;
-  };
+  pricing?: CarPricing;
   allowDailyRental?: boolean;
   allowHourlyRental?: boolean;
   rentalUnit?: RentalUnit | string;
   seats?: number;
+  currentOdometerKm?: number | null;
+  mileagePolicy?: {
+    includedKmPerDay?: number;
+    includedKmPerHour?: number;
+    overageFeePerKm?: number;
+    graceKm?: number;
+  };
   fuelType?: FuelType;
   transmission?: string;
   images?: string[];
@@ -258,20 +258,18 @@ export type CreatePrivateOwnerCarData = {
   name: string;
   type: string;
   licensePlate?: string;
-  pricePerDay?: number;
-  pricePerHour?: number;
-  pricing?: {
-    weekdayPricePerDay?: number;
-    weekendPricePerDay?: number;
-    holidayPricePerDay?: number;
-    pricePerHour?: number;
-    weekendPricePerHour?: number;
-    holidayPricePerHour?: number;
-  };
+  pricing: CarPricing;
   allowDailyRental: boolean;
   allowHourlyRental: boolean;
   rentalUnit?: RentalUnit;
   seats?: number;
+  currentOdometerKm?: number;
+  mileagePolicy?: {
+    includedKmPerDay?: number;
+    includedKmPerHour?: number;
+    overageFeePerKm: number;
+    graceKm: number;
+  };
   fuelType: FuelType;
   transmission?: string;
   images?: string[];

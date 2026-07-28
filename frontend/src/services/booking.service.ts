@@ -16,7 +16,10 @@ export type BookingPriceQuote = {
   rentalMode: "DAILY" | "HOURLY";
   appliedPriceType: "WEEKDAY" | "WEEKEND" | "HOLIDAY" | "MIXED" | string;
   appliedLabel: string;
-  unitPrice?: number;
+  basePricePerUnit: number;
+  weekendSurchargePerUnit: number;
+  holidaySurchargePerUnit: number;
+  finalPrice?: number;
   totalTime: number;
   totalPrice: number;
   rentalSubtotal?: number;
@@ -28,12 +31,13 @@ export type BookingPriceQuote = {
     deliveryMaxDistanceKm?: number;
   };
   breakdown: Array<{
-    date: string;
-    type: "WEEKDAY" | "WEEKEND" | "HOLIDAY" | string;
+    dateOrTime: string;
+    priceType: "WEEKDAY" | "WEEKEND" | "HOLIDAY";
     label: string;
-    holidayName?: string;
+    basePrice: number;
+    surchargeAmount: number;
+    finalPrice: number;
     unitCount: number;
-    unitPrice: number;
     price: number;
   }>;
 };

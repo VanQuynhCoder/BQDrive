@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { carService } from "../../services/car.service";
+import type { CarPricing } from "../../types/pricing";
 import { formatAddressArea, formatPickupAddress } from "../../utils/address.util";
+import {
+  getBaseRentalPrice,
+  hasAnySurcharge,
+} from "../../utils/pricing.util";
 import CarCarousel, { type CarouselCar } from "./CarCarousel";
 
 type RelatedCar = {
@@ -12,7 +17,10 @@ type RelatedCar = {
   seats?: number;
   fuelType?: string;
   transmission?: string;
-  pricePerDay?: number;
+  pricing?: CarPricing;
+  allowDailyRental?: boolean;
+  allowHourlyRental?: boolean;
+  rentalUnit?: string;
   thumbnail?: string;
   images?: string[];
   image?: string;
@@ -25,9 +33,6 @@ type RelatedCar = {
   city?: string;
   district?: string;
   ward?: string;
-  pricing?: {
-    weekdayPricePerDay?: number;
-  };
   brandId?: {
     _id?: string;
     name?: string;
@@ -39,7 +44,7 @@ type RelatedCarsProps = {
 };
 
 function getCarPrice(car: RelatedCar) {
-  return Number(car.pricing?.weekdayPricePerDay || car.pricePerDay || 0);
+  return Number(getBaseRentalPrice(car).price ?? 0);
 }
 
 function getBrandKey(car: RelatedCar) {
@@ -86,12 +91,17 @@ function getRelatedScore(car: RelatedCar, currentCar: RelatedCar) {
 }
 
 function toCarouselCar(car: RelatedCar): CarouselCar {
+  const rental = getBaseRentalPrice(car);
+
   return {
     id: car._id,
     name: car.name,
     brandName: car.brandId?.name || "",
     image: car.thumbnail || car.images?.find(Boolean) || car.image || "",
-    pricePerDay: getCarPrice(car),
+    basePrice: rental.price,
+    priceUnit: rental.unit,
+    rentalLabel: rental.label,
+    hasSurcharge: hasAnySurcharge(car.pricing),
     location: formatAddressArea(car) || formatPickupAddress(car),
     seats: car.seats,
     fuelType: car.fuelType,

@@ -743,14 +743,15 @@ export default function PrivateOwnerBookingsPage() {
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="min-w-[1120px] w-full text-left text-sm">
+          <table className="min-w-[1280px] w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs font-extrabold uppercase text-slate-500">
               <tr>
                 <th className="px-5 py-4">Mã booking</th>
                 <th className="px-5 py-4">Khách hàng</th>
                 <th className="px-5 py-4">Xe</th>
-                <th className="px-5 py-4">Ngày nhận xe</th>
-                <th className="px-5 py-4">Ngày trả xe</th>
+                <th className="px-5 py-4">Ngày nhận dự kiến</th>
+                <th className="px-5 py-4">Ngày trả dự kiến</th>
+                <th className="px-5 py-4">Ngày trả thực tế</th>
                 <th className="px-5 py-4">Trạng thái</th>
                 <th className="px-5 py-4">Thanh toán</th>
                 <th className="px-5 py-4 text-right">Thao tác</th>
@@ -759,7 +760,7 @@ export default function PrivateOwnerBookingsPage() {
             <tbody className="divide-y divide-slate-100">
               {loading && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center text-slate-500">
+                  <td colSpan={9} className="px-5 py-8 text-center text-slate-500">
                     Đang tải danh sách booking...
                   </td>
                 </tr>
@@ -810,9 +811,10 @@ export default function PrivateOwnerBookingsPage() {
                         {formatDateTime(booking.startDate)}
                       </td>
                       <td className="px-5 py-4 text-slate-600">
-                        <p>{formatDateTime(booking.endDate)}</p>
-                        <p className="mt-1 text-xs font-semibold text-slate-500">
-                          Thực tế:{" "}
+                        {formatDateTime(booking.endDate)}
+                      </td>
+                      <td className="px-5 py-4 text-slate-600">
+                        <p>
                           {booking.actualReturnAt
                             ? formatDateTime(booking.actualReturnAt)
                             : "Chưa ghi nhận"}
@@ -979,7 +981,7 @@ export default function PrivateOwnerBookingsPage() {
 
               {!loading && bookings.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center text-slate-500">
+                  <td colSpan={9} className="px-5 py-8 text-center text-slate-500">
                     Chưa có booking nào.
                   </td>
                 </tr>

@@ -19,11 +19,24 @@ import {
 
 import AdminModal from "../../components/admin/AdminModal";
 import AdminStatusBadge from "../../components/admin/AdminStatusBadge";
+import {
+  CarFormNavigation,
+  CarFormStepper,
+  FieldError,
+  type CarFormStep,
+} from "../../components/cars/CarFormWizard";
+import CarFormReviewStep from "../../components/cars/CarFormReviewStep";
+import {
+  buildCarWizardPayload,
+  carToWizardForm,
+  EMPTY_CAR_WIZARD_FORM,
+  type CarWizardForm as CarForm,
+} from "../../components/cars/carFormWizard.model";
+import { useCarFormWizard } from "../../components/cars/useCarFormWizard";
+import FormattedNumberInput from "../../components/forms/FormattedNumberInput";
 import MapPicker from "../../components/maps/MapPicker";
 import {
   privateOwnerService,
-  type CreatePrivateOwnerCarData,
-  type FuelType,
   type PrivateOwnerBrand,
   type PrivateOwnerCar,
 } from "../../services/privateOwner.service";
@@ -33,79 +46,8 @@ import { formatAddressArea, formatPickupAddress } from "../../utils/address.util
 import { getCarStatusMeta } from "../../utils/display.util";
 import {
   isValidPlateNumber,
-  normalizePlateNumber,
   sanitizePlateNumberInput,
 } from "../../utils/validators";
-
-type CarForm = {
-  brandId: string;
-  name: string;
-  type: string;
-  licensePlate: string;
-  city: string;
-  district?: string;
-  ward?: string;
-  pickupAddress: string;
-  pickupFormattedAddress: string;
-  pickupPlaceId: string;
-  pickupLat: string;
-  pickupLng: string;
-  locationNote: string;
-  seats: string;
-  fuelType: FuelType;
-  transmission?: string;
-  allowDailyRental: boolean;
-  allowHourlyRental: boolean;
-  pricePerDay: string;
-  weekendPricePerDay: string;
-  holidayPricePerDay: string;
-  pricePerHour: string;
-  weekendPricePerHour: string;
-  holidayPricePerHour: string;
-  deliveryEnabled: boolean;
-  deliveryBaseFee: string;
-  deliveryFeePerKm: string;
-  deliveryMaxDistanceKm: string;
-  deliveryNote: string;
-  mainImage: string;
-  galleryImages: string[];
-  description: string;
-};
-
-const emptyForm: CarForm = {
-  brandId: "",
-  name: "",
-  type: "SEDAN",
-  licensePlate: "",
-  city: "",
-  district: "",
-  ward: "",
-  pickupAddress: "",
-  pickupFormattedAddress: "",
-  pickupPlaceId: "",
-  pickupLat: "",
-  pickupLng: "",
-  locationNote: "",
-  seats: "4",
-  fuelType: "GASOLINE",
-  transmission: "AUTOMATIC",
-  allowDailyRental: true,
-  allowHourlyRental: false,
-  pricePerDay: "",
-  weekendPricePerDay: "",
-  holidayPricePerDay: "",
-  pricePerHour: "",
-  weekendPricePerHour: "",
-  holidayPricePerHour: "",
-  deliveryEnabled: false,
-  deliveryBaseFee: "",
-  deliveryFeePerKm: "",
-  deliveryMaxDistanceKm: "",
-  deliveryNote: "",
-  mainImage: "",
-  galleryImages: [],
-  description: "",
-};
 
 const carTypeOptions = [
   "SUV",
@@ -122,7 +64,7 @@ const transmissionOptions = ["AUTOMATIC", "MANUAL"];
 const maxGalleryImages = 8;
 const maxCarImageSize = 5 * 1024 * 1024;
 
-function formatCurrency(value?: number) {
+function formatCurrency(value?: number | null) {
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
@@ -140,62 +82,52 @@ function getRentalPriceText(car: PrivateOwnerCar) {
       ? car.allowHourlyRental
       : car.rentalUnit === "HOUR";
   const prices = [
-    allowDailyRental ? `${formatCurrency(car.pricePerDay)} / ngày` : "",
-    allowHourlyRental ? `${formatCurrency(car.pricePerHour)} / giờ` : "",
+    allowDailyRental
+      ? `${formatCurrency(car.pricing?.basePricePerDay)} / ngày`
+      : "",
+    allowHourlyRental
+      ? `${formatCurrency(car.pricing?.basePricePerHour)} / giờ`
+      : "",
   ].filter(Boolean);
 
   return prices.join(" | ") || "--";
 }
 
-function formatPrice(value?: number) {
-  if (!value || value <= 0) return "--";
+function formatPrice(value?: number | null) {
+  if (value === undefined || value === null || value < 0) return "--";
   return `${value.toLocaleString("vi-VN")}đ`;
 }
 
 function getPricingRows(car: PrivateOwnerCar) {
   return [
     {
-      label: "Ngày thường",
-      value: car.pricing?.weekdayPricePerDay || car.pricePerDay,
+      label: "Giá cơ bản ngày",
+      value: car.pricing?.basePricePerDay,
       unit: "ngày",
     },
     {
-      label: "Cuối tuần",
-      value:
-        car.pricing?.weekendPricePerDay ||
-        car.pricing?.weekdayPricePerDay ||
-        car.pricePerDay,
+      label: "Phụ thu cuối tuần",
+      value: car.pricing?.weekendSurchargePerDay,
       unit: "ngày",
     },
     {
-      label: "Ngày lễ",
-      value:
-        car.pricing?.holidayPricePerDay ||
-        car.pricing?.weekendPricePerDay ||
-        car.pricing?.weekdayPricePerDay ||
-        car.pricePerDay,
+      label: "Phụ thu ngày lễ",
+      value: car.pricing?.holidaySurchargePerDay,
       unit: "ngày",
     },
     {
-      label: "Giờ thường",
-      value: car.pricing?.pricePerHour || car.pricePerHour,
+      label: "Giá cơ bản giờ",
+      value: car.pricing?.basePricePerHour,
       unit: "giờ",
     },
     {
-      label: "Giờ cuối tuần",
-      value:
-        car.pricing?.weekendPricePerHour ||
-        car.pricing?.pricePerHour ||
-        car.pricePerHour,
+      label: "Phụ thu cuối tuần",
+      value: car.pricing?.weekendSurchargePerHour,
       unit: "giờ",
     },
     {
-      label: "Giờ ngày lễ",
-      value:
-        car.pricing?.holidayPricePerHour ||
-        car.pricing?.weekendPricePerHour ||
-        car.pricing?.pricePerHour ||
-        car.pricePerHour,
+      label: "Phụ thu ngày lễ",
+      value: car.pricing?.holidaySurchargePerHour,
       unit: "giờ",
     },
   ];
@@ -240,54 +172,6 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function toForm(car: PrivateOwnerCar): CarForm {
-  const allowDailyRental =
-    typeof car.allowDailyRental === "boolean"
-      ? car.allowDailyRental
-      : car.rentalUnit !== "HOUR";
-  const allowHourlyRental =
-    typeof car.allowHourlyRental === "boolean"
-      ? car.allowHourlyRental
-      : car.rentalUnit === "HOUR";
-  const images = car.images || [];
-
-  return {
-    brandId: car.brandId._id || "",
-    name: car.name || "",
-    type: car.type || "SEDAN",
-    licensePlate: car.licensePlate || "",
-    city: car.city || car.province || "",
-    district: car.district || "",
-    ward: car.ward || "",
-    pickupAddress: car.pickupAddress || car.address || "",
-    pickupFormattedAddress:
-      car.pickupFormattedAddress || car.pickupAddress || car.address || "",
-    pickupPlaceId: car.pickupPlaceId || "",
-    pickupLat: String(car.pickupLat ?? car.latitude ?? ""),
-    pickupLng: String(car.pickupLng ?? car.longitude ?? ""),
-    locationNote: car.locationNote || "",
-    seats: String(car.seats || 4),
-    fuelType: car.fuelType || "GASOLINE",
-    transmission: car.transmission || "AUTOMATIC",
-    allowDailyRental,
-    allowHourlyRental,
-    pricePerDay: String(car.pricing?.weekdayPricePerDay || car.pricePerDay || ""),
-    weekendPricePerDay: String(car.pricing?.weekendPricePerDay || ""),
-    holidayPricePerDay: String(car.pricing?.holidayPricePerDay || ""),
-    pricePerHour: String(car.pricing?.pricePerHour || car.pricePerHour || ""),
-    weekendPricePerHour: String(car.pricing?.weekendPricePerHour || ""),
-    holidayPricePerHour: String(car.pricing?.holidayPricePerHour || ""),
-    deliveryEnabled: Boolean(car.deliveryEnabled),
-    deliveryBaseFee: String(car.deliveryBaseFee || ""),
-    deliveryFeePerKm: String(car.deliveryFeePerKm || ""),
-    deliveryMaxDistanceKm: String(car.deliveryMaxDistanceKm || ""),
-    deliveryNote: car.deliveryNote || "",
-    mainImage: images[0] || "",
-    galleryImages: images.slice(1),
-    description: car.description || "",
-  };
-}
-
 export default function PrivateOwnerCarsPage() {
   const [cars, setCars] = useState<PrivateOwnerCar[]>([]);
   const [brands, setBrands] = useState<PrivateOwnerBrand[]>([]);
@@ -295,7 +179,7 @@ export default function PrivateOwnerCarsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
-  const [form, setForm] = useState<CarForm>(emptyForm);
+  const [form, setForm] = useState<CarForm>(EMPTY_CAR_WIZARD_FORM);
   const [editingCar, setEditingCar] = useState<PrivateOwnerCar | null>(null);
   const [deleteCar, setDeleteCar] = useState<PrivateOwnerCar | null>(null);
   const [detailCar, setDetailCar] = useState<PrivateOwnerCar | null>(null);
@@ -304,6 +188,14 @@ export default function PrivateOwnerCarsPage() {
   const [visibilityUpdatingId, setVisibilityUpdatingId] = useState<string | null>(
     null,
   );
+  const wizard = useCarFormWizard("private-owner-car-form-scroll");
+  const {
+    currentStep,
+    highestStep,
+    visitedSteps,
+    fieldErrors,
+    goToStep,
+  } = wizard;
 
   const fetchData = async () => {
     setLoading(true);
@@ -349,27 +241,38 @@ export default function PrivateOwnerCarsPage() {
 
   const openCreate = () => {
     setEditingCar(null);
-    setForm(emptyForm);
+    setForm(EMPTY_CAR_WIZARD_FORM);
+    wizard.initialize(EMPTY_CAR_WIZARD_FORM);
     setGeocodeStatus("");
     setFormOpen(true);
   };
 
   const openEdit = (car: PrivateOwnerCar) => {
+    const nextForm = carToWizardForm(car);
     setEditingCar(car);
-    setForm(toForm(car));
+    setForm(nextForm);
+    wizard.initialize(nextForm);
     setGeocodeStatus("");
     setFormOpen(true);
   };
 
-  const closeForm = () => {
-    if (submitting || uploadingImages) return;
+  const closeForm = (force = false) => {
+    if (
+      !wizard.canClose(
+        form,
+        submitting || uploadingImages,
+        force,
+      )
+    ) return;
     setFormOpen(false);
     setEditingCar(null);
-    setForm(emptyForm);
+    setForm(EMPTY_CAR_WIZARD_FORM);
+    wizard.reset();
     setGeocodeStatus("");
   };
 
   const updateForm = <K extends keyof CarForm>(field: K, value: CarForm[K]) => {
+    wizard.clearFieldError(field);
     setForm((prev) => {
       return {
         ...prev,
@@ -377,6 +280,14 @@ export default function PrivateOwnerCarsPage() {
       };
     });
   };
+
+  const handleNextStep = () => {
+    wizard.goToNextStep(
+      form,
+      editingCar ? editingCar.currentOdometerKm ?? null : undefined,
+    );
+  };
+
 
   const handleGeocodeSearch = async () => {
     const address = form.pickupAddress.trim();
@@ -541,187 +452,31 @@ export default function PrivateOwnerCarsPage() {
     }));
   };
 
-  const buildPayload = (): CreatePrivateOwnerCarData | null => {
-    const name = form.name.trim();
-    const pricePerDay = Number(form.pricePerDay);
-    const weekendPricePerDay = form.weekendPricePerDay
-      ? Number(form.weekendPricePerDay)
-      : pricePerDay;
-    const holidayPricePerDay = form.holidayPricePerDay
-      ? Number(form.holidayPricePerDay)
-      : weekendPricePerDay;
-    const pricePerHour = Number(form.pricePerHour);
-    const weekendPricePerHour = form.weekendPricePerHour
-      ? Number(form.weekendPricePerHour)
-      : pricePerHour;
-    const holidayPricePerHour = form.holidayPricePerHour
-      ? Number(form.holidayPricePerHour)
-      : weekendPricePerHour;
-    const seats = Number(form.seats);
-    const city = form.city.trim();
-    const district = (form.district || "").trim();
-    const pickupAddress = form.pickupAddress.trim();
-    const pickupFormattedAddress =
-      form.pickupFormattedAddress.trim() || pickupAddress;
-    const pickupLat = form.pickupLat ? Number(form.pickupLat) : undefined;
-    const pickupLng = form.pickupLng ? Number(form.pickupLng) : undefined;
-    const licensePlate = normalizePlateNumber(form.licensePlate);
-
-    if (!name || !form.brandId || !form.type || !form.fuelType || !form.seats) {
-      toast.error("Vui lòng nhập đầy đủ thông tin bắt buộc");
-      return null;
-    }
-
-    if (!pickupAddress || !district || !city) {
-      toast.error("Vui lòng nhập địa chỉ nhận xe, quận/huyện và tỉnh/thành phố");
-      return null;
-    }
-
-    if (licensePlate && !isValidPlateNumber(licensePlate)) {
-      toast.error("Biển số ô tô không hợp lệ. Ví dụ đúng: 30A-123.45 hoặc 30A12345.");
-      return null;
-    }
-
-    if (
-      (pickupLat !== undefined && !Number.isFinite(pickupLat)) ||
-      (pickupLng !== undefined && !Number.isFinite(pickupLng))
-    ) {
-      toast.error("Tọa độ địa điểm nhận xe không hợp lệ");
-      return null;
-    }
-
-    if (!Number.isFinite(seats) || seats <= 0) {
-      toast.error("Số ghế không hợp lệ");
-      return null;
-    }
-
-    if (!form.allowDailyRental && !form.allowHourlyRental) {
-      toast.error("Giá thuê phải lớn hơn 0");
-      return null;
-    }
-
-    if (
-      form.allowDailyRental &&
-      (!Number.isFinite(pricePerDay) || pricePerDay <= 0)
-    ) {
-      toast.error("Giá thuê theo ngày phải lớn hơn 0");
-      return null;
-    }
-
-    if (
-      form.allowDailyRental &&
-      (!Number.isFinite(weekendPricePerDay) ||
-        weekendPricePerDay < 0 ||
-        !Number.isFinite(holidayPricePerDay) ||
-        holidayPricePerDay < 0)
-    ) {
-      toast.error("Giá cuối tuần/ngày lễ không được âm");
-      return null;
-    }
-
-    if (
-      form.allowHourlyRental &&
-      (!Number.isFinite(pricePerHour) || pricePerHour <= 0)
-    ) {
-      toast.error("Giá thuê theo giờ phải lớn hơn 0");
-      return null;
-    }
-
-    if (
-      form.allowHourlyRental &&
-      (!Number.isFinite(weekendPricePerHour) ||
-        weekendPricePerHour < 0 ||
-        !Number.isFinite(holidayPricePerHour) ||
-        holidayPricePerHour < 0)
-    ) {
-      toast.error("Giá giờ cuối tuần/ngày lễ không được âm");
-      return null;
-    }
-
-    if (!form.mainImage) {
-      toast.error("Vui lòng chọn ảnh chính của xe");
-      return null;
-    }
-
-    const images = [form.mainImage, ...form.galleryImages].filter(Boolean);
-    const deliveryBaseFee = form.deliveryBaseFee ? Number(form.deliveryBaseFee) : 0;
-    const deliveryFeePerKm = form.deliveryFeePerKm ? Number(form.deliveryFeePerKm) : 0;
-    const deliveryMaxDistanceKm = form.deliveryMaxDistanceKm
-      ? Number(form.deliveryMaxDistanceKm)
-      : undefined;
-
-    if (
-      form.deliveryEnabled &&
-      (!Number.isFinite(deliveryMaxDistanceKm) || !deliveryMaxDistanceKm || deliveryMaxDistanceKm <= 0)
-    ) {
-      toast.error("Vui lòng nhập khoảng cách giao xe tối đa");
-      return null;
-    }
-
-    return {
-      brandId: form.brandId,
-      name,
-      type: form.type,
-      licensePlate,
-      seats,
-      fuelType: form.fuelType,
-      transmission: form.transmission,
-      allowDailyRental: form.allowDailyRental,
-      allowHourlyRental: form.allowHourlyRental,
-      rentalUnit:
-        form.allowHourlyRental && !form.allowDailyRental ? "HOUR" : "DAY",
-      pricePerHour: form.allowHourlyRental ? pricePerHour : undefined,
-      pricePerDay: form.allowDailyRental ? pricePerDay : undefined,
-      pricing: {
-        weekdayPricePerDay: form.allowDailyRental ? pricePerDay : undefined,
-        weekendPricePerDay: form.allowDailyRental
-          ? weekendPricePerDay
-          : undefined,
-        holidayPricePerDay: form.allowDailyRental
-          ? holidayPricePerDay
-          : undefined,
-        pricePerHour: form.allowHourlyRental ? pricePerHour : undefined,
-        weekendPricePerHour: form.allowHourlyRental
-          ? weekendPricePerHour
-          : undefined,
-        holidayPricePerHour: form.allowHourlyRental
-          ? holidayPricePerHour
-          : undefined,
-      },
-      images,
-      description: form.description.trim(),
-      pickupAddress,
-      pickupFormattedAddress,
-      pickupPlaceId: form.pickupPlaceId.trim(),
-      pickupLat,
-      pickupLng,
-      pickupProvince: city,
-      pickupDistrict: district,
-      pickupWard: (form.ward || "").trim(),
-      pickupNote: form.locationNote.trim(),
-      city,
-      province: city,
-      district,
-      ward: (form.ward || "").trim(),
-      locationNote: form.locationNote.trim(),
-      deliveryEnabled: form.deliveryEnabled,
-      deliveryBaseFee: form.deliveryEnabled ? deliveryBaseFee : 0,
-      deliveryFeePerKm: form.deliveryEnabled ? deliveryFeePerKm : 0,
-      deliveryMaxDistanceKm: form.deliveryEnabled ? deliveryMaxDistanceKm : undefined,
-      deliveryNote: form.deliveryEnabled ? form.deliveryNote.trim() : "",
-    };
-  };
-
-  const handleSubmit = async (event: FormEvent) => {
+  const handleSubmit = async (event?: FormEvent) => {
     event?.preventDefault();
+
+    if (currentStep !== 6) {
+      handleNextStep();
+      return;
+    }
 
     if (uploadingImages) {
       toast.error("Vui lòng chờ upload ảnh hoàn tất");
       return;
     }
 
-    const payload = buildPayload();
-    if (!payload) return;
+    if (editingCar && !wizard.isDirty(form)) {
+      toast("Không có thay đổi nào cần lưu.");
+      closeForm(true);
+      return;
+    }
+
+    const editingOdometer = editingCar
+      ? (editingCar.currentOdometerKm ?? null)
+      : undefined;
+    if (wizard.findFirstInvalidStep(form, editingOdometer)) return;
+
+    const payload = buildCarWizardPayload(form);
 
     setSubmitting(true);
     try {
@@ -733,7 +488,7 @@ export default function PrivateOwnerCarsPage() {
         toast.success("Đã thêm xe, trạng thái đang cho Admin duyệt");
       }
 
-      closeForm();
+      closeForm(true);
       await fetchData();
     } catch (error) {
       toast.error(getErrorMessage(error, "Lưu xe thất bại"));
@@ -1125,7 +880,9 @@ export default function PrivateOwnerCarsPage() {
                           <dt className="text-slate-500">{row.label}</dt>
                           <dd className="font-extrabold text-primary">
                             {formatPrice(row.value)}
-                            {row.value ? `/${row.unit}` : ""}
+                            {row.value !== undefined && row.value !== null
+                              ? `/${row.unit}`
+                              : ""}
                           </dd>
                         </div>
                       ))}
@@ -1160,8 +917,16 @@ export default function PrivateOwnerCarsPage() {
       )}
 
       {formOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
-          <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeForm();
+          }}
+        >
+          <div
+            className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
             <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-primary px-6 py-5 text-white">
               <div>
                 <p className="text-sm font-bold uppercase text-secondary">
@@ -1173,7 +938,7 @@ export default function PrivateOwnerCarsPage() {
               </div>
               <button
                 type="button"
-                onClick={closeForm}
+                onClick={() => closeForm()}
                 disabled={submitting || uploadingImages}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
                 aria-label="Đóng modal"
@@ -1183,9 +948,27 @@ export default function PrivateOwnerCarsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="overflow-y-auto px-6 py-5">
+            <CarFormStepper
+              currentStep={currentStep}
+              highestStep={highestStep}
+              onStepChange={goToStep}
+            />
+
+            <form
+              id="private-owner-car-form-scroll"
+              onSubmit={handleSubmit}
+              className="overflow-y-auto px-5 py-5 sm:px-6"
+            >
+              {Object.keys(fieldErrors).length > 0 && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                  Vui lòng kiểm tra lại các trường được báo lỗi trong bước này.
+                </div>
+              )}
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block">
+                <label
+                  data-car-form-field="name"
+                  className={currentStep === 1 ? "block" : "hidden"}
+                >
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
                     Tên xe *
                   </span>
@@ -1195,9 +978,17 @@ export default function PrivateOwnerCarsPage() {
                     className="min-h-11 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10"
                     placeholder="VinFast VF 8"
                   />
+                  {fieldErrors.name && (
+                    <p className="mt-1 text-xs font-bold text-red-600">
+                      {fieldErrors.name}
+                    </p>
+                  )}
                 </label>
 
-                <label className="block">
+                <label
+                  data-car-form-field="brandId"
+                  className={currentStep === 1 ? "block" : "hidden"}
+                >
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
                     Hãng xe *
                   </span>
@@ -1215,9 +1006,17 @@ export default function PrivateOwnerCarsPage() {
                       </option>
                     ))}
                   </select>
+                  {fieldErrors.brandId && (
+                    <p className="mt-1 text-xs font-bold text-red-600">
+                      {fieldErrors.brandId}
+                    </p>
+                  )}
                 </label>
 
-                <label className="block">
+                <label
+                  data-car-form-field="licensePlate"
+                  className={currentStep === 1 ? "block" : "hidden"}
+                >
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
                     Dòng xe *
                   </span>
@@ -1234,7 +1033,10 @@ export default function PrivateOwnerCarsPage() {
                   </select>
                 </label>
 
-                <label className="block">
+                <label
+                  data-car-form-field="seats"
+                  className={currentStep === 1 ? "block" : "hidden"}
+                >
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
                     Biển số
                   </span>
@@ -1263,9 +1065,14 @@ export default function PrivateOwnerCarsPage() {
                     className="min-h-11 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10"
                     placeholder="30A-123.45"
                   />
+                  {fieldErrors.licensePlate && (
+                    <p className="mt-1 text-xs font-bold text-red-600">
+                      {fieldErrors.licensePlate}
+                    </p>
+                  )}
                 </label>
 
-                <label className="block">
+                <label className={currentStep === 1 ? "block" : "hidden"}>
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
                     Số ghế *
                   </span>
@@ -1276,9 +1083,42 @@ export default function PrivateOwnerCarsPage() {
                     inputMode="numeric"
                     placeholder="4"
                   />
+                  {fieldErrors.seats && (
+                    <p className="mt-1 text-xs font-bold text-red-600">
+                      {fieldErrors.seats}
+                    </p>
+                  )}
                 </label>
 
-                <label className="block">
+                <label
+                  data-car-form-field="currentOdometerKm"
+                  className={currentStep === 3 ? "block sm:col-span-2" : "hidden"}
+                >
+                  <span className="mb-2 block text-sm font-extrabold text-slate-700">
+                    ODO hiện tại {!editingCar && "*"}
+                  </span>
+                  <FormattedNumberInput
+                    value={form.currentOdometerKm}
+                    onChange={(value) =>
+                      updateForm(
+                        "currentOdometerKm",
+                        value === null ? "" : String(value),
+                      )
+                    }
+                    min={0}
+                    placeholder="45000"
+                    suffix="km"
+                    className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10"
+                    inputClassName="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
+                  />
+                  {fieldErrors.currentOdometerKm && (
+                    <p className="mt-1 text-xs font-bold text-red-600">
+                      {fieldErrors.currentOdometerKm}
+                    </p>
+                  )}
+                </label>
+
+                <label className={currentStep === 1 ? "block" : "hidden"}>
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
                     Nhiên liệu *
                   </span>
@@ -1297,7 +1137,7 @@ export default function PrivateOwnerCarsPage() {
                   </select>
                 </label>
 
-                <label className="block">
+                <label className={currentStep === 1 ? "block" : "hidden"}>
                   <span className="mb-2 block text-sm font-extrabold text-slate-700">
                     Hộp số
                   </span>
@@ -1316,7 +1156,134 @@ export default function PrivateOwnerCarsPage() {
                   </select>
                 </label>
 
-                <div className="col-span-full rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                <div
+                  className={
+                    currentStep === 3
+                      ? "col-span-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                      : "hidden"
+                  }
+                >
+                  <div className="mb-4">
+                    <p className="text-sm font-extrabold uppercase text-secondary">
+                      Chính sách kilomet
+                    </p>
+                    <h4 className="mt-1 text-lg font-extrabold text-primary">
+                      Thiết lập giới hạn quãng đường
+                    </h4>
+                    <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
+                      Các giới hạn và phí vượt kilomet sẽ áp dụng cho booking mới.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {form.allowDailyRental && (
+                      <label
+                        className="block"
+                        data-car-form-field="includedKmPerDay"
+                      >
+                        <span className="mb-2 block text-sm font-extrabold text-slate-700">
+                          Giới hạn kilomet mỗi ngày *
+                        </span>
+                        <FormattedNumberInput
+                          value={form.includedKmPerDay}
+                          onChange={(value) =>
+                            updateForm(
+                              "includedKmPerDay",
+                              value === null ? "" : String(value),
+                            )
+                          }
+                          min={1}
+                          placeholder="250"
+                          suffix="km/ngày"
+                          className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10"
+                          inputClassName="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
+                        />
+                        <FieldError message={fieldErrors.includedKmPerDay} />
+                      </label>
+                    )}
+
+                    {form.allowHourlyRental && (
+                      <label
+                        className="block"
+                        data-car-form-field="includedKmPerHour"
+                      >
+                        <span className="mb-2 block text-sm font-extrabold text-slate-700">
+                          Giới hạn kilomet mỗi giờ *
+                        </span>
+                        <FormattedNumberInput
+                          value={form.includedKmPerHour}
+                          onChange={(value) =>
+                            updateForm(
+                              "includedKmPerHour",
+                              value === null ? "" : String(value),
+                            )
+                          }
+                          min={1}
+                          placeholder="20"
+                          suffix="km/giờ"
+                          className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10"
+                          inputClassName="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
+                        />
+                        <FieldError message={fieldErrors.includedKmPerHour} />
+                      </label>
+                    )}
+
+                    <label
+                      className="block"
+                      data-car-form-field="overageFeePerKm"
+                    >
+                      <span className="mb-2 block text-sm font-extrabold text-slate-700">
+                        Phí vượt kilomet
+                      </span>
+                      <FormattedNumberInput
+                        value={form.overageFeePerKm}
+                        onChange={(value) =>
+                          updateForm(
+                            "overageFeePerKm",
+                            value === null ? "" : String(value),
+                          )
+                        }
+                        min={0}
+                        placeholder="4000"
+                        suffix="đồng/km"
+                        className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10"
+                        inputClassName="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
+                      />
+                    </label>
+
+                    <label
+                      className="block"
+                      data-car-form-field="graceKm"
+                    >
+                      <span className="mb-2 block text-sm font-extrabold text-slate-700">
+                        Số kilomet vượt được miễn
+                      </span>
+                      <FormattedNumberInput
+                        value={form.graceKm}
+                        onChange={(value) =>
+                          updateForm(
+                            "graceKm",
+                            value === null ? "" : String(value),
+                          )
+                        }
+                        min={0}
+                        placeholder="5"
+                        suffix="km"
+                        className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10"
+                        inputClassName="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div
+                  data-car-form-field="rentalMode"
+                  className={
+                    currentStep === 2
+                      ? "col-span-full rounded-xl border border-slate-200 bg-slate-50/80 p-4"
+                      : "hidden"
+                  }
+                >
                   <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                       <p className="text-sm font-extrabold uppercase text-secondary">
@@ -1327,7 +1294,7 @@ export default function PrivateOwnerCarsPage() {
                       </h4>
                     </div>
                     <p className="text-sm font-semibold leading-6 text-slate-500">
-                      Giá cuối tuần/ngày lễ có thể để trống để dùng giá mặc định.
+                      Phụ thu để trống sẽ được tính là 0 đồng.
                     </p>
                   </div>
 
@@ -1352,62 +1319,97 @@ export default function PrivateOwnerCarsPage() {
                         />
                       </label>
 
+                      {form.allowDailyRental ? (
                       <div className="space-y-3">
-                        <label className="block">
+                        <label
+                          className="block"
+                          data-car-form-field="basePricePerDay"
+                        >
                           <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                            Giá ngày thường *
+                            Giá thuê cơ bản *
                           </span>
-                          <div className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10">
-                            <input
-                              value={form.pricePerDay}
-                              onChange={(event) =>
-                                updateForm("pricePerDay", event.target.value)
-                              }
-                              className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none disabled:text-slate-400"
-                              inputMode="numeric"
-                              placeholder="900000"
-                              disabled={!form.allowDailyRental}
-                            />
-                            <span className="text-xs font-extrabold text-slate-400">
-                              đ/ngày
-                            </span>
-                          </div>
+                          <FormattedNumberInput
+                            value={form.basePricePerDay}
+                            onChange={(value) =>
+                              updateForm("basePricePerDay", value)
+                            }
+                            min={1}
+                            placeholder="500000"
+                            suffix="đồng/ngày"
+                            disabled={!form.allowDailyRental}
+                            className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10"
+                            inputClassName="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none disabled:text-slate-400"
+                          />
+                          <FieldError message={fieldErrors.basePricePerDay} />
                         </label>
 
                         <div className="grid gap-3 sm:grid-cols-2">
                           <label className="block">
                             <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                              Cuối tuần
+                              Phụ thu cuối tuần
                             </span>
-                            <input
-                              value={form.weekendPricePerDay}
-                              onChange={(event) =>
-                                updateForm("weekendPricePerDay", event.target.value)
+                            <FormattedNumberInput
+                              value={form.weekendSurchargePerDay}
+                              onChange={(value) =>
+                                updateForm("weekendSurchargePerDay", value)
                               }
-                              className="min-h-11 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10 disabled:bg-slate-100 disabled:text-slate-400"
-                              inputMode="numeric"
-                              placeholder="Bằng ngày thường"
+                              min={0}
+                              placeholder="0"
+                              suffix="đồng/ngày"
                               disabled={!form.allowDailyRental}
+                              className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10"
+                              inputClassName="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none disabled:text-slate-400"
                             />
                           </label>
 
                           <label className="block">
                             <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                              Ngày lễ
+                              Phụ thu ngày lễ
                             </span>
-                            <input
-                              value={form.holidayPricePerDay}
-                              onChange={(event) =>
-                                updateForm("holidayPricePerDay", event.target.value)
+                            <FormattedNumberInput
+                              value={form.holidaySurchargePerDay}
+                              onChange={(value) =>
+                                updateForm("holidaySurchargePerDay", value)
                               }
-                              className="min-h-11 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10 disabled:bg-slate-100 disabled:text-slate-400"
-                              inputMode="numeric"
-                              placeholder="Bằng cuối tuần"
+                              min={0}
+                              placeholder="0"
+                              suffix="đồng/ngày"
                               disabled={!form.allowDailyRental}
+                              className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10"
+                              inputClassName="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none disabled:text-slate-400"
                             />
                           </label>
                         </div>
+                        <div className="grid gap-2 rounded-lg bg-slate-50 p-3 text-sm sm:grid-cols-2">
+                          <p className="font-semibold text-slate-600">
+                            Giá cuối tuần dự kiến:{" "}
+                            <strong className="text-primary">
+                              {form.basePricePerDay !== null
+                                ? `${formatPrice(
+                                    form.basePricePerDay +
+                                      (form.weekendSurchargePerDay ?? 0),
+                                  )}/ngày`
+                                : "--"}
+                            </strong>
+                          </p>
+                          <p className="font-semibold text-slate-600">
+                            Giá ngày lễ dự kiến:{" "}
+                            <strong className="text-primary">
+                              {form.basePricePerDay !== null
+                                ? `${formatPrice(
+                                    form.basePricePerDay +
+                                      (form.holidaySurchargePerDay ?? 0),
+                                  )}/ngày`
+                                : "--"}
+                            </strong>
+                          </p>
+                        </div>
                       </div>
+                      ) : (
+                        <p className="rounded-lg bg-slate-50 p-3 text-sm font-semibold text-slate-500">
+                          Bật thuê theo ngày để thiết lập giá cơ bản và phụ thu.
+                        </p>
+                      )}
                     </div>
 
                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -1430,68 +1432,109 @@ export default function PrivateOwnerCarsPage() {
                         />
                       </label>
 
+                      {form.allowHourlyRental ? (
                       <div className="space-y-3">
-                        <label className="block">
+                        <label
+                          className="block"
+                          data-car-form-field="basePricePerHour"
+                        >
                           <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                            Giá giờ thường *
+                            Giá thuê cơ bản *
                           </span>
-                          <div className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10">
-                            <input
-                              value={form.pricePerHour}
-                              onChange={(event) =>
-                                updateForm("pricePerHour", event.target.value)
-                              }
-                              className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none disabled:text-slate-400"
-                              inputMode="numeric"
-                              placeholder="150000"
-                              disabled={!form.allowHourlyRental}
-                            />
-                            <span className="text-xs font-extrabold text-slate-400">
-                              đ/giờ
-                            </span>
-                          </div>
+                          <FormattedNumberInput
+                            value={form.basePricePerHour}
+                            onChange={(value) =>
+                              updateForm("basePricePerHour", value)
+                            }
+                            min={1}
+                            placeholder="150000"
+                            suffix="đồng/giờ"
+                            disabled={!form.allowHourlyRental}
+                            className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10"
+                            inputClassName="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none disabled:text-slate-400"
+                          />
+                          <FieldError message={fieldErrors.basePricePerHour} />
                         </label>
 
                         <div className="grid gap-3 sm:grid-cols-2">
                           <label className="block">
                             <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                              Cuối tuần
+                              Phụ thu cuối tuần
                             </span>
-                            <input
-                              value={form.weekendPricePerHour}
-                              onChange={(event) =>
-                                updateForm("weekendPricePerHour", event.target.value)
+                            <FormattedNumberInput
+                              value={form.weekendSurchargePerHour}
+                              onChange={(value) =>
+                                updateForm("weekendSurchargePerHour", value)
                               }
-                              className="min-h-11 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10 disabled:bg-slate-100 disabled:text-slate-400"
-                              inputMode="numeric"
-                              placeholder="Bằng giờ thường"
+                              min={0}
+                              placeholder="0"
+                              suffix="đồng/giờ"
                               disabled={!form.allowHourlyRental}
+                              className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10"
+                              inputClassName="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none disabled:text-slate-400"
                             />
                           </label>
 
                           <label className="block">
                             <span className="mb-2 block text-sm font-extrabold text-slate-700">
-                              Ngày lễ
+                              Phụ thu ngày lễ
                             </span>
-                            <input
-                              value={form.holidayPricePerHour}
-                              onChange={(event) =>
-                                updateForm("holidayPricePerHour", event.target.value)
+                            <FormattedNumberInput
+                              value={form.holidaySurchargePerHour}
+                              onChange={(value) =>
+                                updateForm("holidaySurchargePerHour", value)
                               }
-                              className="min-h-11 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10 disabled:bg-slate-100 disabled:text-slate-400"
-                              inputMode="numeric"
-                              placeholder="Bằng cuối tuần"
+                              min={0}
+                              placeholder="0"
+                              suffix="đồng/giờ"
                               disabled={!form.allowHourlyRental}
+                              className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10"
+                              inputClassName="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none disabled:text-slate-400"
                             />
                           </label>
                         </div>
+                        <div className="grid gap-2 rounded-lg bg-slate-50 p-3 text-sm sm:grid-cols-2">
+                          <p className="font-semibold text-slate-600">
+                            Giá cuối tuần dự kiến:{" "}
+                            <strong className="text-primary">
+                              {form.basePricePerHour !== null
+                                ? `${formatPrice(
+                                    form.basePricePerHour +
+                                      (form.weekendSurchargePerHour ?? 0),
+                                  )}/giờ`
+                                : "--"}
+                            </strong>
+                          </p>
+                          <p className="font-semibold text-slate-600">
+                            Giá ngày lễ dự kiến:{" "}
+                            <strong className="text-primary">
+                              {form.basePricePerHour !== null
+                                ? `${formatPrice(
+                                    form.basePricePerHour +
+                                      (form.holidaySurchargePerHour ?? 0),
+                                  )}/giờ`
+                                : "--"}
+                            </strong>
+                          </p>
+                        </div>
                       </div>
+                      ) : (
+                        <p className="rounded-lg bg-slate-50 p-3 text-sm font-semibold text-slate-500">
+                          Bật thuê theo giờ để thiết lập giá cơ bản và phụ thu.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div
+                className={
+                  currentStep === 4
+                    ? "mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                    : "hidden"
+                }
+              >
                 <label className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-extrabold uppercase text-secondary">
@@ -1520,42 +1563,63 @@ export default function PrivateOwnerCarsPage() {
                       <span className="mb-2 block text-sm font-extrabold text-slate-700">
                         Phí mở đầu
                       </span>
-                      <input
+                      <FormattedNumberInput
                         value={form.deliveryBaseFee}
-                        onChange={(event) =>
-                          updateForm("deliveryBaseFee", event.target.value)
+                        onChange={(value) =>
+                          updateForm(
+                            "deliveryBaseFee",
+                            value === null ? "" : String(value),
+                          )
                         }
-                        className="min-h-11 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10"
-                        inputMode="numeric"
+                        min={0}
                         placeholder="20000"
+                        suffix="đồng"
+                        className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10"
+                        inputClassName="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
                       />
                     </label>
                     <label className="block">
                       <span className="mb-2 block text-sm font-extrabold text-slate-700">
                         Đơn giá mỗi km
                       </span>
-                      <input
+                      <FormattedNumberInput
                         value={form.deliveryFeePerKm}
-                        onChange={(event) =>
-                          updateForm("deliveryFeePerKm", event.target.value)
+                        onChange={(value) =>
+                          updateForm(
+                            "deliveryFeePerKm",
+                            value === null ? "" : String(value),
+                          )
                         }
-                        className="min-h-11 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10"
-                        inputMode="numeric"
+                        min={0}
                         placeholder="10000"
+                        suffix="đồng/km"
+                        className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10"
+                        inputClassName="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
                       />
                     </label>
-                    <label className="block">
+                  <label
+                    className="block"
+                    data-car-form-field="deliveryMaxDistanceKm"
+                  >
                       <span className="mb-2 block text-sm font-extrabold text-slate-700">
                         Tối đa km *
                       </span>
-                      <input
+                      <FormattedNumberInput
                         value={form.deliveryMaxDistanceKm}
-                        onChange={(event) =>
-                          updateForm("deliveryMaxDistanceKm", event.target.value)
+                        onChange={(value) =>
+                          updateForm(
+                            "deliveryMaxDistanceKm",
+                            value === null ? "" : String(value),
+                          )
                         }
-                        className="min-h-11 w-full rounded-lg border border-slate-200 px-4 text-sm font-semibold outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10"
-                        inputMode="decimal"
+                        min={0}
                         placeholder="10"
+                        suffix="km"
+                        className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-4 focus-within:border-secondary focus-within:ring-4 focus-within:ring-secondary/10"
+                        inputClassName="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
+                      />
+                      <FieldError
+                        message={fieldErrors.deliveryMaxDistanceKm}
                       />
                     </label>
                     <label className="block sm:col-span-3">
@@ -1575,7 +1639,14 @@ export default function PrivateOwnerCarsPage() {
                 )}
               </div>
 
-              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+              {visitedSteps.has(4) && (
+              <div
+                className={
+                  currentStep === 4
+                    ? "mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4"
+                    : "hidden"
+                }
+              >
                 <div className="mb-4 flex items-center gap-2">
                   <MapPin size={18} className="text-secondary" />
                   <h4 className="font-extrabold text-primary">
@@ -1584,7 +1655,7 @@ export default function PrivateOwnerCarsPage() {
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block">
+                  <label className="block" data-car-form-field="city">
                     <span className="mb-2 block text-sm font-extrabold text-slate-700">
                       Tỉnh/Thành phố *
                     </span>
@@ -1594,9 +1665,10 @@ export default function PrivateOwnerCarsPage() {
                       className="min-h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10"
                       placeholder="TP. Hồ Chí Minh"
                     />
+                    <FieldError message={fieldErrors.city} />
                   </label>
 
-                  <label className="block">
+                  <label className="block" data-car-form-field="district">
                     <span className="mb-2 block text-sm font-extrabold text-slate-700">
                       Quận/Huyện *
                     </span>
@@ -1606,6 +1678,7 @@ export default function PrivateOwnerCarsPage() {
                       className="min-h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10"
                       placeholder="Quận 1"
                     />
+                    <FieldError message={fieldErrors.district} />
                   </label>
 
                   <label className="block">
@@ -1621,7 +1694,7 @@ export default function PrivateOwnerCarsPage() {
                   </label>
 
                   <div className="block sm:col-span-2">
-                    <label className="block">
+                    <label className="block" data-car-form-field="pickupAddress">
                       <span className="mb-2 block text-sm font-extrabold text-slate-700">
                         Địa chỉ nhận xe *
                       </span>
@@ -1649,6 +1722,7 @@ export default function PrivateOwnerCarsPage() {
                           Tìm trên bản đồ
                         </button>
                       </div>
+                      <FieldError message={fieldErrors.pickupAddress} />
                     </label>
                     {geocodeStatus && (
                       <p className="mt-2 rounded-lg border border-secondary/30 bg-secondarySoft/40 px-3 py-2 text-sm font-semibold text-primary">
@@ -1676,6 +1750,7 @@ export default function PrivateOwnerCarsPage() {
                     <MapPicker
                       lat={form.pickupLat}
                       lng={form.pickupLng}
+                      active={currentStep === 4}
                       onLocationChange={({ lat, lng }) => {
                         updateForm("pickupLat", String(lat));
                         updateForm("pickupLng", String(lng));
@@ -1688,9 +1763,14 @@ export default function PrivateOwnerCarsPage() {
                   </div>
                 </div>
               </div>
+              )}
 
+              {currentStep === 5 && (
               <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-                <div className="rounded-lg border border-dashed border-secondary/60 bg-amber-50/40 p-4">
+                <div
+                  data-car-form-field="mainImage"
+                  className="rounded-lg border border-dashed border-secondary/60 bg-amber-50/40 p-4"
+                >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white text-secondary ring-1 ring-secondary/30">
@@ -1750,6 +1830,7 @@ export default function PrivateOwnerCarsPage() {
                       </div>
                     )}
                   </div>
+                  <FieldError message={fieldErrors.mainImage} />
                 </div>
 
                 <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">
@@ -1817,7 +1898,9 @@ export default function PrivateOwnerCarsPage() {
                   )}
                 </div>
               </div>
+              )}
 
+              {currentStep === 5 && (
               <label className="mt-4 block">
                 <span className="mb-2 block text-sm font-extrabold text-slate-700">
                   Mô tả
@@ -1832,30 +1915,29 @@ export default function PrivateOwnerCarsPage() {
                   placeholder="Mô tả tiền nghi, tình trống xe..."
                 />
               </label>
+              )}
 
-              <div className="mt-5 flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={closeForm}
-                  disabled={submitting || uploadingImages}
-                  className="min-h-11 rounded-lg border border-slate-200 px-5 py-2 font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-                >
-                  Hủy
-                </button>
-                <button
-                  disabled={submitting || uploadingImages}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-2 font-extrabold text-primary transition hover:brightness-95 disabled:opacity-60"
-                >
-                  {(submitting || uploadingImages) && (
-                    <Loader2 size={18} className="animate-spin" />
-                  )}
-                  {uploadingImages
-                    ? "Đang upload ảnh..."
-                    : editingCar
-                      ? "Cập nhật xe"
-                      : "Thêm xe"}
-                </button>
-              </div>
+              {currentStep === 6 && (
+                <CarFormReviewStep
+                  form={form}
+                  brands={brandOptions}
+                  onEdit={goToStep}
+                />
+              )}
+
+              <CarFormNavigation
+                currentStep={currentStep}
+                editing={Boolean(editingCar)}
+                hasChanges={wizard.isDirty(form)}
+                submitting={submitting}
+                uploading={uploadingImages}
+                onBack={() =>
+                  goToStep((currentStep - 1) as CarFormStep)
+                }
+                onCancel={() => closeForm()}
+                onNext={handleNextStep}
+                onSubmit={() => void handleSubmit()}
+              />
             </form>
           </div>
         </div>

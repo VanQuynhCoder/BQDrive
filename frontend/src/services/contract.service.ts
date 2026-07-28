@@ -8,6 +8,8 @@ import type {
 export type { ContractStatus };
 export type OwnerType = "BUSINESS" | "USER";
 
+import type { CarPricing } from "../types/pricing";
+
 export type ContractCar = {
   _id: string;
   name?: string;
@@ -17,8 +19,7 @@ export type ContractCar = {
   fuelType?: string;
   transmission?: string;
   rentalUnit?: string;
-  pricePerDay?: number;
-  pricePerHour?: number;
+  pricing?: CarPricing;
   pickupAddress?: string;
   address?: string;
   province?: string;

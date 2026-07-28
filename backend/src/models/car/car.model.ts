@@ -10,6 +10,16 @@ import {
   RentalUnitEnum,
   OwnerTypeEnum,
 } from "../../constants/model.const";
+
+export type ICarPricing = {
+  basePricePerDay?: number;
+  weekendSurchargePerDay: number;
+  holidaySurchargePerDay: number;
+  basePricePerHour?: number;
+  weekendSurchargePerHour?: number;
+  holidaySurchargePerHour?: number;
+};
+
 export type ICar = BaseDocument & {
   ownerId: mongoose.Types.ObjectId;
   ownerType: OwnerTypeEnum;
@@ -20,16 +30,7 @@ export type ICar = BaseDocument & {
   type: string;
   licensePlate?: string;
   plateNumberNormalized?: string;
-  pricePerDay?: number;
-  pricePerHour?: number;
-  pricing?: {
-    weekdayPricePerDay?: number;
-    weekendPricePerDay?: number;
-    holidayPricePerDay?: number;
-    pricePerHour?: number;
-    weekendPricePerHour?: number;
-    holidayPricePerHour?: number;
-  };
+  pricing: ICarPricing;
   allowDailyRental?: boolean;
   allowHourlyRental?: boolean;
   rentalUnit: string;
@@ -138,38 +139,36 @@ const carSchema = new mongoose.Schema(
       uppercase: true,
       index: true,
     },
-    pricePerDay: {
-      type: Number,
-      min: 0,
-    },
-    pricePerHour: {
-      type: Number,
-      min: 0,
-    },
     pricing: {
-      weekdayPricePerDay: {
+      basePricePerDay: {
         type: Number,
-        min: 0,
+        min: 1,
       },
-      weekendPricePerDay: {
+      weekendSurchargePerDay: {
         type: Number,
+        required: true,
         min: 0,
+        default: 0,
       },
-      holidayPricePerDay: {
+      holidaySurchargePerDay: {
         type: Number,
+        required: true,
         min: 0,
+        default: 0,
       },
-      pricePerHour: {
+      basePricePerHour: {
         type: Number,
-        min: 0,
+        min: 1,
       },
-      weekendPricePerHour: {
+      weekendSurchargePerHour: {
         type: Number,
         min: 0,
+        default: 0,
       },
-      holidayPricePerHour: {
+      holidaySurchargePerHour: {
         type: Number,
         min: 0,
+        default: 0,
       },
     },
     allowDailyRental: {

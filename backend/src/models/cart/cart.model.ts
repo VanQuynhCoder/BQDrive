@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 import { BaseDocument } from "../../base/baseModel";
-import { CartStatusEnum, RentalModeEnum } from "../../constants/model.const";
+import {
+  CartStatusEnum,
+  PricingDateTypeEnum,
+  RentalModeEnum,
+} from "../../constants/model.const";
 
 export type ICart = BaseDocument & {
   userId: mongoose.Types.ObjectId;
@@ -11,18 +15,16 @@ export type ICart = BaseDocument & {
   totalPrice: number;
   pricingSnapshot?: {
     rentalMode: string;
-    weekdayPricePerDay?: number;
-    weekendPricePerDay?: number;
-    holidayPricePerDay?: number;
-    pricePerHour?: number;
-    weekendPricePerHour?: number;
-    holidayPricePerHour?: number;
-    breakdown?: Array<{
-      date: string;
-      type: string;
-      label?: string;
+    basePricePerUnit: number;
+    weekendSurchargePerUnit: number;
+    holidaySurchargePerUnit: number;
+    breakdown: Array<{
+      dateOrTime: string;
+      priceType: PricingDateTypeEnum;
+      basePrice: number;
+      surchargeAmount: number;
+      finalPrice: number;
       unitCount: number;
-      unitPrice: number;
       price: number;
     }>;
     subtotal: number;
@@ -63,7 +65,69 @@ const cartSchema = new mongoose.Schema(
       min: 0,
     },
     pricingSnapshot: {
-      type: mongoose.Schema.Types.Mixed,
+      rentalMode: {
+        type: String,
+        enum: Object.values(RentalModeEnum),
+      },
+      basePricePerUnit: {
+        type: Number,
+        required: true,
+        min: 0,
+      },
+      weekendSurchargePerUnit: {
+        type: Number,
+        required: true,
+        min: 0,
+      },
+      holidaySurchargePerUnit: {
+        type: Number,
+        required: true,
+        min: 0,
+      },
+      breakdown: [
+        {
+          dateOrTime: {
+            type: String,
+            required: true,
+            trim: true,
+          },
+          priceType: {
+            type: String,
+            enum: Object.values(PricingDateTypeEnum),
+            required: true,
+          },
+          basePrice: {
+            type: Number,
+            required: true,
+            min: 0,
+          },
+          surchargeAmount: {
+            type: Number,
+            required: true,
+            min: 0,
+          },
+          finalPrice: {
+            type: Number,
+            required: true,
+            min: 0,
+          },
+          unitCount: {
+            type: Number,
+            required: true,
+            min: 0,
+          },
+          price: {
+            type: Number,
+            required: true,
+            min: 0,
+          },
+        },
+      ],
+      subtotal: {
+        type: Number,
+        required: true,
+        min: 0,
+      },
     },
     expiredAt: {
       type: Date,

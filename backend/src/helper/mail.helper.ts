@@ -505,8 +505,8 @@ function getCarLines(car: any, ownerName?: string) {
   const brandName = car?.brandId?.name;
   const rentalPrice =
     car?.rentalUnit === "HOUR"
-      ? formatCurrency(car?.pricePerHour)
-      : formatCurrency(car?.pricePerDay);
+      ? formatCurrency(car?.pricing?.basePricePerHour)
+      : formatCurrency(car?.pricing?.basePricePerDay);
 
   return compactLines([
     `Xe: ${getCarName(car)}`,

@@ -52,3 +52,46 @@ body {
   animation-delay: var(--step-delay, 0s);
   will-change: transform;
 }
+
+@keyframes car-review-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes car-review-image-reveal {
+  from {
+    opacity: 0.7;
+    transform: scale(1.04);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.car-review-step {
+  animation: car-review-reveal 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.car-review-hero-image {
+  animation: car-review-image-reveal 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.car-review-hero-image:hover {
+  transform: scale(1.035);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .car-review-step,
+  .car-review-hero-image {
+    animation: none;
+    transition: none;
+  }
+}

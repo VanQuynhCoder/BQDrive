@@ -35,40 +35,25 @@ export function getCarRentalSupport(car: any) {
 }
 
 function toFinitePrice(value: unknown, fallback = 0) {
-  const nextValue = Number(value);
-  return Number.isFinite(nextValue) && nextValue >= 0 ? nextValue : fallback;
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : fallback;
 }
 
 function getPricingConfig(car: any) {
   const pricing = car?.pricing || {};
-  const weekdayPricePerDay = toFinitePrice(
-    pricing.weekdayPricePerDay ?? car?.pricePerDay,
-  );
-  const weekendPricePerDay = toFinitePrice(
-    pricing.weekendPricePerDay,
-    weekdayPricePerDay,
-  );
-  const holidayPricePerDay = toFinitePrice(
-    pricing.holidayPricePerDay,
-    weekendPricePerDay || weekdayPricePerDay,
-  );
-  const pricePerHour = toFinitePrice(pricing.pricePerHour ?? car?.pricePerHour);
-  const weekendPricePerHour = toFinitePrice(
-    pricing.weekendPricePerHour,
-    pricePerHour,
-  );
-  const holidayPricePerHour = toFinitePrice(
-    pricing.holidayPricePerHour,
-    weekendPricePerHour || pricePerHour,
-  );
 
   return {
-    weekdayPricePerDay,
-    weekendPricePerDay,
-    holidayPricePerDay,
-    pricePerHour,
-    weekendPricePerHour,
-    holidayPricePerHour,
+    basePricePerDay: toFinitePrice(pricing.basePricePerDay),
+    weekendSurchargePerDay: toFinitePrice(pricing.weekendSurchargePerDay),
+    holidaySurchargePerDay: toFinitePrice(pricing.holidaySurchargePerDay),
+    basePricePerHour: toFinitePrice(pricing.basePricePerHour),
+    weekendSurchargePerHour: toFinitePrice(
+      pricing.weekendSurchargePerHour,
+    ),
+    holidaySurchargePerHour: toFinitePrice(
+      pricing.holidaySurchargePerHour,
+    ),
   };
 }
 
@@ -164,34 +149,24 @@ function getDateType(date: Date, holidayMap: Map<string, string>) {
   };
 }
 
-function getDailyUnitPrice(
+export function calculateUnitPriceForDateType(
   type: PricingDateTypeEnum,
-  pricing: ReturnType<typeof getPricingConfig>,
+  basePrice: number,
+  weekendSurcharge: number,
+  holidaySurcharge: number,
 ) {
-  if (type === PricingDateTypeEnum.HOLIDAY) {
-    return pricing.holidayPricePerDay;
-  }
+  const surchargeAmount =
+    type === PricingDateTypeEnum.HOLIDAY
+      ? holidaySurcharge
+      : type === PricingDateTypeEnum.WEEKEND
+        ? weekendSurcharge
+        : 0;
 
-  if (type === PricingDateTypeEnum.WEEKEND) {
-    return pricing.weekendPricePerDay;
-  }
-
-  return pricing.weekdayPricePerDay;
-}
-
-function getHourlyUnitPrice(
-  type: PricingDateTypeEnum,
-  pricing: ReturnType<typeof getPricingConfig>,
-) {
-  if (type === PricingDateTypeEnum.HOLIDAY) {
-    return pricing.holidayPricePerHour;
-  }
-
-  if (type === PricingDateTypeEnum.WEEKEND) {
-    return pricing.weekendPricePerHour;
-  }
-
-  return pricing.pricePerHour;
+  return {
+    basePrice,
+    surchargeAmount,
+    finalPrice: basePrice + surchargeAmount,
+  };
 }
 
 export async function calculateRentalPrice(
@@ -220,8 +195,8 @@ export async function calculateRentalPrice(
       throw ErrorHelper.requestDataInvalid("Xe không hỗ trợ thuê theo giờ");
     }
 
-    if (!pricing.pricePerHour || pricing.pricePerHour <= 0) {
-      throw ErrorHelper.requestDataInvalid("Xe cần có giá thuê theo giờ");
+    if (!pricing.basePricePerHour || pricing.basePricePerHour <= 0) {
+      throw ErrorHelper.requestDataInvalid("Xe cần có giá thuê cơ bản theo giờ");
     }
 
     const totalHours = Math.max(1, Math.ceil(diffHours));
@@ -234,8 +209,13 @@ export async function calculateRentalPrice(
 
     const holidayMap = await getHolidayMap(start, 1);
     const dateInfo = getDateType(start, holidayMap);
-    const unitPrice = getHourlyUnitPrice(dateInfo.type, pricing);
-    const subtotal = totalHours * unitPrice;
+    const { surchargeAmount, finalPrice } = calculateUnitPriceForDateType(
+      dateInfo.type,
+      pricing.basePricePerHour,
+      pricing.weekendSurchargePerHour,
+      pricing.holidaySurchargePerHour,
+    );
+    const subtotal = totalHours * finalPrice;
 
     return {
       totalTime: totalHours,
@@ -244,14 +224,17 @@ export async function calculateRentalPrice(
       totalPrice: subtotal,
       pricingSnapshot: {
         rentalMode: RentalModeEnum.HOURLY,
-        ...pricing,
+        basePricePerUnit: pricing.basePricePerHour,
+        weekendSurchargePerUnit: pricing.weekendSurchargePerHour,
+        holidaySurchargePerUnit: pricing.holidaySurchargePerHour,
         breakdown: [
           {
-            date: formatDateKey(start),
-            type: dateInfo.type,
-            label: dateInfo.label,
+            dateOrTime: start.toISOString(),
+            priceType: dateInfo.type,
+            basePrice: pricing.basePricePerHour,
+            surchargeAmount,
+            finalPrice,
             unitCount: totalHours,
-            unitPrice,
             price: subtotal,
           },
         ],
@@ -264,8 +247,8 @@ export async function calculateRentalPrice(
     throw ErrorHelper.requestDataInvalid("Xe không hỗ trợ thuê theo ngày");
   }
 
-  if (!pricing.weekdayPricePerDay || pricing.weekdayPricePerDay <= 0) {
-    throw ErrorHelper.requestDataInvalid("Xe cần có giá thuê theo ngày");
+  if (!pricing.basePricePerDay || pricing.basePricePerDay <= 0) {
+    throw ErrorHelper.requestDataInvalid("Xe cần có giá thuê cơ bản theo ngày");
   }
 
   const rentalDays = Math.max(1, Math.ceil(diffHours / 24));
@@ -273,15 +256,21 @@ export async function calculateRentalPrice(
   const breakdown = Array.from({ length: rentalDays }, (_, index) => {
     const rentalDate = addDays(startOfDay(start), index);
     const dateInfo = getDateType(rentalDate, holidayMap);
-    const unitPrice = getDailyUnitPrice(dateInfo.type, pricing);
+    const { surchargeAmount, finalPrice } = calculateUnitPriceForDateType(
+      dateInfo.type,
+      pricing.basePricePerDay,
+      pricing.weekendSurchargePerDay,
+      pricing.holidaySurchargePerDay,
+    );
 
     return {
-      date: formatDateKey(rentalDate),
-      type: dateInfo.type,
-      label: dateInfo.label,
+      dateOrTime: formatDateKey(rentalDate),
+      priceType: dateInfo.type,
+      basePrice: pricing.basePricePerDay,
+      surchargeAmount,
+      finalPrice,
       unitCount: 1,
-      unitPrice,
-      price: unitPrice,
+      price: finalPrice,
     };
   });
   const subtotal = breakdown.reduce((sum, item) => sum + item.price, 0);
@@ -293,7 +282,9 @@ export async function calculateRentalPrice(
     totalPrice: subtotal,
     pricingSnapshot: {
       rentalMode: RentalModeEnum.DAILY,
-      ...pricing,
+      basePricePerUnit: pricing.basePricePerDay,
+      weekendSurchargePerUnit: pricing.weekendSurchargePerDay,
+      holidaySurchargePerUnit: pricing.holidaySurchargePerDay,
       breakdown,
       subtotal,
     },

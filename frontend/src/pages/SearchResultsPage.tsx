@@ -8,13 +8,13 @@ import Footer from "../components/Footer";
 import CarCard from "../components/CarCard";
 import { carService } from "../services/car.service";
 import { buildVietnamDateTime } from "../utils/date.util";
+import type { CarPricing } from "../types/pricing";
 
 type SearchCar = {
   _id: string;
   id: number;
   name: string;
-  pricePerDay?: number;
-  pricePerHour?: number;
+  pricing?: CarPricing;
   allowDailyRental?: boolean;
   allowHourlyRental?: boolean;
   rentalUnit?: string;

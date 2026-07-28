@@ -33,6 +33,7 @@ import {
   BookingStatusBadge,
   BookingTimeline,
 } from "../components/booking/BookingTimeline";
+import PricingBreakdown from "../components/pricing/PricingBreakdown";
 import RouteMap from "../components/maps/RouteMap";
 import { bookingService } from "../services/booking.service";
 import type { CancellationPreview } from "../services/booking.service";
@@ -58,14 +59,12 @@ import { formatVietnamDateTime } from "../utils/date.util";
 import { formatAddressSnapshot, formatFullAddress } from "../utils/address.util";
 import { getBookingTimelineView } from "../utils/bookingTimeline.util";
 import type { BookingStatus } from "../constants/status.constants";
+import type { PricingSnapshot } from "../types/pricing";
 
 type BookingCar = {
   _id: string;
   name?: string;
   licensePlate?: string;
-  pricePerDay?: number;
-  pricePerHour?: number;
-  rentalUnit?: string;
   seats?: number;
   fuelType?: string;
   transmission?: string;
@@ -105,20 +104,6 @@ type BookingOwnerUser = {
   city?: string;
   district?: string;
   ward?: string;
-};
-
-type PricingSnapshot = {
-  rentalSubtotal?: number;
-  deliveryFee?: number;
-  totalPrice?: number;
-  delivery?: {
-    deliveryType?: string;
-    deliveryAddress?: string;
-    deliveryAddressText?: string;
-    deliveryFormattedAddress?: string;
-    deliveryDistanceKm?: number;
-    deliveryDurationText?: string;
-  };
 };
 
 type Booking = {
@@ -186,10 +171,9 @@ function getShortId(id: string) {
   return id ? `#${id.slice(-8).toUpperCase()}` : "--";
 }
 
-function getRentalInfo(car: BookingCar | undefined, rentalMode?: string) {
-  if (rentalMode === "HOURLY" || (!rentalMode && car?.rentalUnit === "HOUR")) {
+function getRentalInfo(rentalMode?: string) {
+  if (rentalMode === "HOURLY") {
     return {
-      price: car?.pricePerHour || 0,
       unit: "giờ",
       label: "Số giờ thuê",
       mode: "Thuê theo giờ",
@@ -197,7 +181,6 @@ function getRentalInfo(car: BookingCar | undefined, rentalMode?: string) {
   }
 
   return {
-    price: car?.pricePerDay || 0,
     unit: "ngày",
     label: "Số ngày thuê",
     mode: "Thuê theo ngày",
@@ -1065,7 +1048,9 @@ export default function BookingDetailPage() {
   const deliverySnapshot = booking.pricingSnapshot?.delivery;
   const isDeliveryToCustomer =
     deliverySnapshot?.deliveryType === "DELIVERY_TO_CUSTOMER";
-  const rental = getRentalInfo(car, booking.rentalMode);
+  const rental = getRentalInfo(
+    booking.pricingSnapshot?.rentalMode || booking.rentalMode,
+  );
   const rentalTime = calculateRentalTime(
     booking.rentalMode,
     booking.startDate,
@@ -1180,7 +1165,18 @@ export default function BookingDetailPage() {
                     <InfoLine icon={CalendarDays} label="Nhận xe" value={formatDateTime(booking.startDate)} />
                     <InfoLine icon={CalendarDays} label="Trả xe" value={formatDateTime(booking.endDate)} />
                     <InfoLine icon={Clock3} label={rental.label} value={`${rentalTime} ${rental.unit}`} />
-                    <InfoLine icon={Wallet} label="Đơn giá" value={`${formatPrice(rental.price)} / ${rental.unit}`} />
+                    <InfoLine
+                      icon={Wallet}
+                      label="Giá cơ bản"
+                      value={
+                        booking.pricingSnapshot?.basePricePerUnit !== null &&
+                        booking.pricingSnapshot?.basePricePerUnit !== undefined
+                          ? `${formatPrice(
+                              booking.pricingSnapshot.basePricePerUnit,
+                            )} / ${rental.unit}`
+                          : "Chưa cập nhật"
+                      }
+                    />
                   </div>
 
                   <div className="mt-5 grid gap-4 border-b border-border pb-5 md:grid-cols-2">
@@ -1214,6 +1210,8 @@ export default function BookingDetailPage() {
                 </div>
               </div>
             </article>
+
+            <PricingBreakdown snapshot={booking.pricingSnapshot} />
 
             <section className="rounded-lg border border-border bg-white p-6 shadow-sm">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

@@ -59,6 +59,7 @@ import {
   PaymentOptionEnum,
   PaymentStatusEnum,
   PaymentTypeEnum,
+  PricingDateTypeEnum,
   RentalModeEnum,
   ReturnInspectionStatusEnum,
   UserRoleEnum,
@@ -113,6 +114,48 @@ function toCoordinate(value: unknown, min: number, max: number) {
 
 function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function isNonNegativeFiniteNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function hasValidPricingSnapshot(snapshot: any) {
+  if (
+    !snapshot ||
+    !Object.values(RentalModeEnum).includes(snapshot.rentalMode) ||
+    !isNonNegativeFiniteNumber(snapshot.basePricePerUnit) ||
+    !isNonNegativeFiniteNumber(snapshot.weekendSurchargePerUnit) ||
+    !isNonNegativeFiniteNumber(snapshot.holidaySurchargePerUnit) ||
+    !isNonNegativeFiniteNumber(snapshot.subtotal) ||
+    !Array.isArray(snapshot.breakdown) ||
+    snapshot.breakdown.length === 0
+  ) {
+    return false;
+  }
+
+  const calculatedSubtotal = snapshot.breakdown.reduce(
+    (sum: number, item: any) => {
+      const isValidItem =
+        typeof item?.dateOrTime === "string" &&
+        Object.values(PricingDateTypeEnum).includes(item?.priceType) &&
+        isNonNegativeFiniteNumber(item?.basePrice) &&
+        isNonNegativeFiniteNumber(item?.surchargeAmount) &&
+        isNonNegativeFiniteNumber(item?.finalPrice) &&
+        isNonNegativeFiniteNumber(item?.unitCount) &&
+        isNonNegativeFiniteNumber(item?.price) &&
+        item.finalPrice === item.basePrice + item.surchargeAmount &&
+        item.price === item.finalPrice * item.unitCount;
+
+      return isValidItem ? sum + item.price : Number.NaN;
+    },
+    0,
+  );
+
+  return (
+    Number.isFinite(calculatedSubtotal) &&
+    calculatedSubtotal === snapshot.subtotal
+  );
 }
 
 async function getDrivingDistanceKm(
@@ -738,28 +781,24 @@ class BookingRoute extends BaseRoute {
   private buildQuoteResponse(rentalResult: any) {
     const breakdown = rentalResult.pricingSnapshot?.breakdown || [];
     const normalizedBreakdown = breakdown.map((item: any) => {
-      const holidayName =
-        item.type === "HOLIDAY" && item.label !== "Ngày lễ"
-          ? item.label
-          : undefined;
-
       return {
-        date: item.date,
-        type: item.type,
+        dateOrTime: item.dateOrTime,
+        priceType: item.priceType,
         label:
-          item.type === "HOLIDAY"
+          item.priceType === PricingDateTypeEnum.HOLIDAY
             ? "Ngày lễ"
-            : item.type === "WEEKEND"
+            : item.priceType === PricingDateTypeEnum.WEEKEND
               ? "Cuối tuần"
               : "Ngày thường",
-        holidayName,
+        basePrice: Number(item.basePrice || 0),
+        surchargeAmount: Number(item.surchargeAmount || 0),
+        finalPrice: Number(item.finalPrice || 0),
         unitCount: Number(item.unitCount || 1),
-        unitPrice: Number(item.unitPrice || 0),
         price: Number(item.price || 0),
       };
     });
     const uniqueTypes = Array.from(
-      new Set(normalizedBreakdown.map((item: any) => item.type)),
+      new Set(normalizedBreakdown.map((item: any) => item.priceType)),
     );
     const appliedPriceType =
       uniqueTypes.length === 1 ? uniqueTypes[0] : "MIXED";
@@ -772,10 +811,19 @@ class BookingRoute extends BaseRoute {
       rentalMode: rentalResult.rentalMode,
       appliedPriceType,
       appliedLabel,
-      unitPrice:
+      basePricePerUnit: Number(
+        rentalResult.pricingSnapshot?.basePricePerUnit || 0,
+      ),
+      weekendSurchargePerUnit: Number(
+        rentalResult.pricingSnapshot?.weekendSurchargePerUnit || 0,
+      ),
+      holidaySurchargePerUnit: Number(
+        rentalResult.pricingSnapshot?.holidaySurchargePerUnit || 0,
+      ),
+      finalPrice:
         appliedPriceType === "MIXED"
           ? undefined
-          : normalizedBreakdown[0]?.unitPrice,
+          : normalizedBreakdown[0]?.finalPrice,
       totalTime: rentalResult.totalTime,
       totalPrice: rentalResult.totalPrice,
       rentalSubtotal:
@@ -1373,11 +1421,14 @@ class BookingRoute extends BaseRoute {
           session,
         );
 
+        const hasReusableCartPricing =
+          hasValidPricingSnapshot(cart.pricingSnapshot) &&
+          Number(cart.totalPrice) === Number(cart.pricingSnapshot?.subtotal);
         const baseRentalResult =
-          cart.pricingSnapshot && cart.totalPrice
+          hasReusableCartPricing
             ? {
                 rentalMode: cart.rentalMode,
-                totalPrice: cart.totalPrice,
+                totalPrice: Number(cart.pricingSnapshot?.subtotal),
                 pricingSnapshot: cart.pricingSnapshot,
               }
             : await calculateRentalPrice(car, start, end, cart.rentalMode);
@@ -1515,8 +1566,7 @@ class BookingRoute extends BaseRoute {
           name: 1,
           licensePlate: 1,
           brandId: 1,
-          pricePerDay: 1,
-          pricePerHour: 1,
+          pricing: 1,
           rentalUnit: 1,
           seats: 1,
           fuelType: 1,

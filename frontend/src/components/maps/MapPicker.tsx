@@ -17,6 +17,7 @@ type MapPickerProps = {
   lng?: number | string;
   onLocationChange: (location: Location) => void;
   height?: number;
+  active?: boolean;
 };
 
 function toCoordinate(value?: number | string) {
@@ -59,17 +60,19 @@ function RecenterMap({ position }: { position: Location | null }) {
   return null;
 }
 
-function InvalidateMapSize() {
+function InvalidateMapSize({ active }: { active: boolean }) {
   const map = useMap();
 
   useEffect(() => {
+    if (!active) return;
+
     const timers = [
       window.setTimeout(() => map.invalidateSize(), 80),
       window.setTimeout(() => map.invalidateSize(), 350),
     ];
 
     return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [map]);
+  }, [active, map]);
 
   return null;
 }
@@ -79,6 +82,7 @@ export default function MapPicker({
   lng,
   onLocationChange,
   height = 280,
+  active = true,
 }: MapPickerProps) {
   const [tileLayerKey, setTileLayerKey] = useState(DEFAULT_MAP_TILE_LAYER_KEY);
   const position = getPosition(lat, lng);
@@ -102,7 +106,7 @@ export default function MapPicker({
           url={tileLayer.url}
         />
         <MapClickHandler onPick={onLocationChange} />
-        <InvalidateMapSize />
+        <InvalidateMapSize active={active} />
         <RecenterMap position={position} />
         {position && (
           <Marker

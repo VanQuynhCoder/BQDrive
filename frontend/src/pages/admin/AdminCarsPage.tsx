@@ -8,6 +8,7 @@ import {
   Gauge,
   Image,
   MapPin,
+  Milestone,
   ShieldCheck,
   SlidersHorizontal,
   Users,
@@ -18,6 +19,7 @@ import {
 import AdminModal from "../../components/admin/AdminModal";
 import AdminStatusBadge from "../../components/admin/AdminStatusBadge";
 import MapPreview from "../../components/maps/MapPreview";
+import CarPricingOverview from "../../components/pricing/CarPricingOverview";
 import { adminService, type AdminCar } from "../../services/admin.service";
 import { notifyNotificationSummaryChanged } from "../../services/notification.service";
 import {
@@ -26,6 +28,10 @@ import {
   formatPickupAddress,
 } from "../../utils/address.util";
 import { getCarStatusMeta } from "../../utils/display.util";
+import {
+  formatCurrencyWithUnit,
+  getBaseRentalPrice,
+} from "../../utils/pricing.util";
 
 type CarAction = "approve" | "reject";
 type OwnerType = "BUSINESS" | "USER";
@@ -120,66 +126,9 @@ function getOwnerAddress(car: AdminCar) {
   return formatFullAddress(car.businessId, "--");
 }
 
-function formatPrice(value?: number) {
-  if (!value || value <= 0) return "--";
-  return `${value.toLocaleString("vi-VN")}đ`;
-}
-
 function getPriceLabel(car: AdminCar) {
-  const isHourly = car.rentalUnit === "HOUR";
-  const price = isHourly ? car.pricePerHour : car.pricePerDay;
-
-  if (!price || price <= 0) return "--";
-  return `${formatPrice(price)}/${isHourly ? "giờ" : "ngày"}`;
-}
-
-function getPricingRows(car: AdminCar) {
-  return [
-    {
-      label: "Ngày thường",
-      value: car.pricing?.weekdayPricePerDay || car.pricePerDay,
-      unit: "ngày",
-    },
-    {
-      label: "Cuối tuần",
-      value:
-        car.pricing?.weekendPricePerDay ||
-        car.pricing?.weekdayPricePerDay ||
-        car.pricePerDay,
-      unit: "ngày",
-    },
-    {
-      label: "Ngày lễ",
-      value:
-        car.pricing?.holidayPricePerDay ||
-        car.pricing?.weekendPricePerDay ||
-        car.pricing?.weekdayPricePerDay ||
-        car.pricePerDay,
-      unit: "ngày",
-    },
-    {
-      label: "Giờ thường",
-      value: car.pricing?.pricePerHour || car.pricePerHour,
-      unit: "giờ",
-    },
-    {
-      label: "Giờ cuối tuần",
-      value:
-        car.pricing?.weekendPricePerHour ||
-        car.pricing?.pricePerHour ||
-        car.pricePerHour,
-      unit: "giờ",
-    },
-    {
-      label: "Giờ ngày lễ",
-      value:
-        car.pricing?.holidayPricePerHour ||
-        car.pricing?.weekendPricePerHour ||
-        car.pricing?.pricePerHour ||
-        car.pricePerHour,
-      unit: "giờ",
-    },
-  ];
+  const rental = getBaseRentalPrice(car);
+  return formatCurrencyWithUnit(rental.price, rental.unit);
 }
 
 function getCarImages(car: AdminCar) {
@@ -196,6 +145,30 @@ function formatDate(value?: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function hasNumber(value: number | null | undefined): value is number {
+  return value !== null && value !== undefined && Number.isFinite(value);
+}
+
+function formatKilometers(value: number | null | undefined) {
+  return hasNumber(value)
+    ? `${new Intl.NumberFormat("vi-VN").format(value)} km`
+    : "Chưa cập nhật";
+}
+
+function hasMileagePolicy(car: AdminCar) {
+  const policy = car.mileagePolicy;
+
+  return Boolean(
+    policy &&
+      [
+        policy.includedKmPerDay,
+        policy.includedKmPerHour,
+        policy.overageFeePerKm,
+        policy.graceKm,
+      ].some(hasNumber),
+  );
 }
 
 function getFuelLabel(value?: string) {
@@ -795,18 +768,12 @@ export default function AdminCarsPage() {
                         {getRentalLabel(detailCar.rentalUnit)}
                       </dd>
                     </div>
-                    {getPricingRows(detailCar).map((row) => (
-                      <div
-                        key={`${row.label}-${row.unit}`}
-                        className="flex justify-between gap-3"
-                      >
-                        <dt className="text-slate-500">{row.label}</dt>
-                        <dd className="font-extrabold text-primary">
-                          {formatPrice(row.value)}
-                          {row.value ? `/${row.unit}` : ""}
-                        </dd>
-                      </div>
-                    ))}
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-slate-500">Giá từ</dt>
+                      <dd className="text-right font-extrabold text-primary">
+                        {getPriceLabel(detailCar)}
+                      </dd>
+                    </div>
                   </dl>
                 </div>
 
@@ -838,6 +805,23 @@ export default function AdminCarsPage() {
                 </div>
               </div>
 
+              <div className="mt-5">
+                <div className="mb-4">
+                  <p className="text-xs font-extrabold uppercase text-secondary">
+                    Kiểm duyệt giá thuê
+                  </p>
+                  <h4 className="mt-1 font-extrabold uppercase text-primary">
+                    Giá cơ bản và phụ thu
+                  </h4>
+                </div>
+                <CarPricingOverview
+                  pricing={detailCar.pricing}
+                  allowDailyRental={detailCar.allowDailyRental}
+                  allowHourlyRental={detailCar.allowHourlyRental}
+                  rentalUnit={detailCar.rentalUnit}
+                />
+              </div>
+
               <div className="mt-5 rounded-lg border border-slate-200 bg-white p-5">
                 <div className="mb-4 flex items-center gap-2 text-primary">
                   <MapPin size={18} className="text-secondary" />
@@ -859,6 +843,74 @@ export default function AdminCarsPage() {
                     height={280}
                   />
                 </div>
+              </div>
+
+              <div className="mt-5 rounded-lg border border-slate-200 bg-white p-5">
+                <div className="mb-4 flex items-center gap-2 text-primary">
+                  <Milestone size={18} className="text-secondary" />
+                  <h4 className="font-extrabold uppercase">
+                    ODO và chính sách kilomet
+                  </h4>
+                </div>
+                <dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-5">
+                  <div>
+                    <dt className="text-slate-500">ODO hiện tại</dt>
+                    <dd className="mt-1 font-extrabold text-primary">
+                      {formatKilometers(detailCar.currentOdometerKm)}
+                    </dd>
+                  </div>
+                  {!hasMileagePolicy(detailCar) ? (
+                    <div className="sm:col-span-1 lg:col-span-4">
+                      <dt className="text-slate-500">Chính sách kilomet</dt>
+                      <dd className="mt-1 font-extrabold text-primary">
+                        Chưa thiết lập
+                      </dd>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <dt className="text-slate-500">Giới hạn ngày</dt>
+                        <dd className="mt-1 font-extrabold text-primary">
+                          {hasNumber(detailCar.mileagePolicy?.includedKmPerDay)
+                            ? `${new Intl.NumberFormat("vi-VN").format(
+                                detailCar.mileagePolicy.includedKmPerDay,
+                              )} km/ngày`
+                            : "Chưa thiết lập"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500">Giới hạn giờ</dt>
+                        <dd className="mt-1 font-extrabold text-primary">
+                          {hasNumber(detailCar.mileagePolicy?.includedKmPerHour)
+                            ? `${new Intl.NumberFormat("vi-VN").format(
+                                detailCar.mileagePolicy.includedKmPerHour,
+                              )} km/giờ`
+                            : "Không áp dụng"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500">Phí vượt</dt>
+                        <dd className="mt-1 font-extrabold text-primary">
+                          {hasNumber(detailCar.mileagePolicy?.overageFeePerKm)
+                            ? `${new Intl.NumberFormat("vi-VN").format(
+                                detailCar.mileagePolicy.overageFeePerKm,
+                              )} đồng/km`
+                            : "Chưa thiết lập"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500">Mức miễn</dt>
+                        <dd className="mt-1 font-extrabold text-primary">
+                          {hasNumber(detailCar.mileagePolicy?.graceKm)
+                            ? `${new Intl.NumberFormat("vi-VN").format(
+                                detailCar.mileagePolicy.graceKm,
+                              )} km`
+                            : "Chưa thiết lập"}
+                        </dd>
+                      </div>
+                    </>
+                  )}
+                </dl>
               </div>
 
               <div className="mt-5 rounded-lg border border-slate-200 bg-white p-5">

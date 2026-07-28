@@ -14,19 +14,18 @@ import {
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import PricingBreakdown from "../components/pricing/PricingBreakdown";
 import { bookingService } from "../services/booking.service";
 import { contractService } from "../services/contract.service";
 import { paymentService } from "../services/payment.service";
 import { getFirstCarImage } from "../utils/image.util";
 import { formatAddressSnapshot } from "../utils/address.util";
+import type { PricingSnapshot } from "../types/pricing";
 
 type BookingCar = {
   _id: string;
   name?: string;
   licensePlate?: string;
-  pricePerDay?: number;
-  pricePerHour?: number;
-  rentalUnit?: string;
   seats?: number;
   fuelType?: string;
   transmission?: string;
@@ -52,18 +51,7 @@ type Booking = {
   paidAmount: number;
   paymentOption: string;
   status: string;
-  pricingSnapshot?: {
-    rentalSubtotal?: number;
-    deliveryFee?: number;
-    delivery?: {
-      deliveryType?: string;
-      deliveryAddress?: string;
-      deliveryAddressText?: string;
-      deliveryFormattedAddress?: string;
-      deliveryDistanceKm?: number;
-      deliveryDurationText?: string;
-    };
-  };
+  pricingSnapshot?: PricingSnapshot;
   pickupAddressSnapshot: string;
   returnAddressSnapshot: string;
   renterInfo?: {
@@ -116,17 +104,15 @@ function formatPrice(price?: number) {
   }).format(price || 0);
 }
 
-function getRentalInfo(car: BookingCar | undefined, rentalMode?: string) {
-  if (rentalMode === "HOURLY" || (!rentalMode && car?.rentalUnit === "HOUR")) {
+function getRentalInfo(rentalMode?: string) {
+  if (rentalMode === "HOURLY") {
     return {
-      price: car?.pricePerHour || 0,
       unit: "giờ",
       label: "Số giờ thuê",
     };
   }
 
   return {
-    price: car?.pricePerDay || 0,
     unit: "ngày",
     label: "Số ngày thuê",
   };
@@ -207,7 +193,9 @@ export default function PaymentPage() {
     "PAID", // Trạng thái mới: cho phép thanh toán phần còn lại nếu còn tiền
     "IN_PROGRESS",
   ].includes(booking?.status || "");
-  const rental = getRentalInfo(car, booking?.rentalMode);
+  const rental = getRentalInfo(
+    booking?.pricingSnapshot?.rentalMode || booking?.rentalMode,
+  );
   const pickupAddress = formatAddressSnapshot(
     booking?.pickupAddressSnapshot,
     car,
@@ -517,6 +505,8 @@ export default function PaymentPage() {
               </div>
             </div>
 
+            <PricingBreakdown snapshot={booking.pricingSnapshot} />
+
             <div className="rounded-lg border border-border bg-white p-6 shadow-sm md:p-8">
               <h2 className="mb-5 text-2xl font-extrabold text-primary">
                 Khoản thanh toán
@@ -644,7 +634,17 @@ export default function PaymentPage() {
 
               <div className="space-y-4 border-y border-white/10 py-6">
                 <SummaryRow label="Nhận xe" value={pickupAddress} />
-                <SummaryRow label="Đơn giá" value={`${formatPrice(rental.price)} / ${rental.unit}`} />
+                <SummaryRow
+                  label="Giá cơ bản"
+                  value={
+                    booking?.pricingSnapshot?.basePricePerUnit !== null &&
+                    booking?.pricingSnapshot?.basePricePerUnit !== undefined
+                      ? `${formatPrice(
+                          booking.pricingSnapshot.basePricePerUnit,
+                        )} / ${rental.unit}`
+                      : "Chưa cập nhật"
+                  }
+                />
                 <SummaryRow label={rental.label} value={`${rentalTime} ${rental.unit}`} />
                 <SummaryRow
                   label="Tiền thuê xe"

@@ -1,6 +1,8 @@
 ﻿import api from "./api";
 
+import type { CarMileagePolicy } from "./car.service";
 import type { OwnerMapCar } from "./ownerCarLocation.service";
+import type { CarPricing } from "../types/pricing";
 
 export type UserRole = "USER" | "BUSINESS" | "ADMIN";
 
@@ -56,20 +58,15 @@ export type AdminCar = {
   ownerType?: "USER" | "BUSINESS" | string;
   ownerModel?: "User" | "Business" | string;
   businessId?: AdminBusiness;
-  pricePerDay?: number;
-  pricePerHour?: number;
-  pricing?: {
-    weekdayPricePerDay?: number;
-    weekendPricePerDay?: number;
-    holidayPricePerDay?: number;
-    pricePerHour?: number;
-    weekendPricePerHour?: number;
-    holidayPricePerHour?: number;
-  };
+  pricing?: CarPricing;
+  allowDailyRental?: boolean;
+  allowHourlyRental?: boolean;
   rentalUnit?: "DAY" | "HOUR" | string;
   seats?: number;
   fuelType?: string;
   transmission?: string;
+  currentOdometerKm?: number | null;
+  mileagePolicy?: CarMileagePolicy | null;
   images?: string[];
   description?: string;
   pickupAddress?: string;

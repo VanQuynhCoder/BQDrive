@@ -41,6 +41,7 @@ import {
 import { cartService } from "../services/cart.service";
 import { carService, type PublicBrand } from "../services/car.service";
 import { buildVietnamDateTime } from "../utils/date.util";
+import type { CarPricing } from "../types/pricing";
 
 type RentalAvailability =
   | "AVAILABLE"
@@ -51,8 +52,7 @@ type HomeCar = {
   _id: string;
   id: number;
   name: string;
-  pricePerDay?: number;
-  pricePerHour?: number;
+  pricing?: CarPricing;
   allowDailyRental?: boolean;
   allowHourlyRental?: boolean;
   rentalUnit?: string;

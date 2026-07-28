@@ -24,6 +24,7 @@ import {
   Headphones,
   KeyRound,
   MapPin,
+  Milestone,
   ShieldCheck,
   ShoppingCart,
   Sparkles,
@@ -38,7 +39,11 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import RouteMap from "../components/maps/RouteMap";
 import RelatedCars from "../components/cars/RelatedCars";
-import { carService } from "../services/car.service";
+import CarPricingOverview from "../components/pricing/CarPricingOverview";
+import {
+  carService,
+  type CarMileagePolicy,
+} from "../services/car.service";
 import { cartService } from "../services/cart.service";
 import {
   bookingService,
@@ -57,6 +62,8 @@ import {
 } from "../utils/date.util";
 import { formatAddressArea, formatPickupAddress } from "../utils/address.util";
 import { normalizeImageUrl } from "../utils/image.util";
+import type { CarPricing } from "../types/pricing";
+import { hasPricingNumber } from "../utils/pricing.util";
 
 type RentalAvailability =
   | "AVAILABLE"
@@ -104,22 +111,15 @@ type CarDetail = {
   name: string;
   licensePlate?: string;
   description: string;
-  pricePerDay?: number;
-  pricePerHour?: number;
-  pricing?: {
-    weekdayPricePerDay?: number;
-    weekendPricePerDay?: number;
-    holidayPricePerDay?: number;
-    pricePerHour?: number;
-    weekendPricePerHour?: number;
-    holidayPricePerHour?: number;
-  };
+  pricing?: CarPricing;
   allowDailyRental?: boolean;
   allowHourlyRental?: boolean;
   rentalUnit?: string;
   seats?: number;
   fuelType?: string;
   transmission?: string;
+  currentOdometerKm?: number | null;
+  mileagePolicy?: CarMileagePolicy | null;
   images?: string[];
   pickupAddress: string;
   pickupFormattedAddress?: string;
@@ -194,6 +194,22 @@ type CurrentUserActiveBooking = {
 };
 
 type RentalMode = "DAILY" | "HOURLY";
+
+function hasNumber(value: number | null | undefined): value is number {
+  return value !== null && value !== undefined && Number.isFinite(value);
+}
+
+function formatKilometers(value: number | null | undefined) {
+  return hasNumber(value)
+    ? `${new Intl.NumberFormat("vi-VN").format(value)} km`
+    : "Chưa cập nhật";
+}
+
+function formatMileageRate(value: number | null | undefined) {
+  return hasNumber(value)
+    ? `${new Intl.NumberFormat("vi-VN").format(value)} đồng/km`
+    : "Chưa thiết lập";
+}
 
 type HolidayDateInfo = {
   name: string;
@@ -538,7 +554,7 @@ function getRentalModes(car?: CarDetail | null) {
 function getRentalInfo(car: CarDetail | null | undefined, rentalMode: RentalMode) {
   if (rentalMode === "HOURLY") {
     return {
-      price: Number(car?.pricing?.pricePerHour || car?.pricePerHour || 0),
+      price: Number(car?.pricing?.basePricePerHour ?? 0),
       unit: "giờ",
       label: "Số giờ thuê",
       priceLabel: "Giá thuê theo giờ",
@@ -547,7 +563,7 @@ function getRentalInfo(car: CarDetail | null | undefined, rentalMode: RentalMode
   }
 
   return {
-    price: Number(car?.pricing?.weekdayPricePerDay || car?.pricePerDay || 0),
+    price: Number(car?.pricing?.basePricePerDay ?? 0),
     unit: "ngày",
     label: "Số ngày thuê",
     priceLabel: "Giá thuê theo ngày",
@@ -595,22 +611,18 @@ function groupQuoteBreakdown(quote?: BookingPriceQuote | null) {
   >();
 
   quote.breakdown.forEach((item) => {
-    const key = `${item.type}-${item.unitPrice}`;
+    const key = `${item.priceType}-${item.finalPrice}`;
     const current = groupMap.get(key) || {
       label: item.label,
-      type: item.type,
+      type: item.priceType,
       holidayNames: [],
       unitCount: 0,
-      unitPrice: item.unitPrice,
+      unitPrice: item.finalPrice,
       price: 0,
     };
 
     current.unitCount += Number(item.unitCount || 1);
     current.price += Number(item.price || 0);
-
-    if (item.holidayName && !current.holidayNames.includes(item.holidayName)) {
-      current.holidayNames.push(item.holidayName);
-    }
 
     groupMap.set(key, current);
   });
@@ -1005,12 +1017,14 @@ export default function CarDetailPage() {
         priceLabel: "Giá thuê theo ngày",
         modeLabel: "Thuê theo ngày",
       };
-  const startingDailyPrice = Number(
-    car?.pricing?.weekdayPricePerDay || car?.pricePerDay || 0,
-  );
-  const startingHourlyPrice = Number(
-    car?.pricing?.pricePerHour || car?.pricePerHour || 0,
-  );
+  const startingDailyPrice = car?.pricing?.basePricePerDay;
+  const startingHourlyPrice = car?.pricing?.basePricePerHour;
+  const primaryStartingPrice = supportedRentalModes.allowDailyRental
+    ? startingDailyPrice
+    : startingHourlyPrice;
+  const primaryStartingUnit = supportedRentalModes.allowDailyRental
+    ? "ngày"
+    : "giờ";
   const availabilityInfo = getAvailabilityInfo(car);
 
   const rentalTime = useMemo(() => {
@@ -1565,6 +1579,16 @@ export default function CarDetailPage() {
     "Dòng xe được kiểm duyệt trên hệ thống BQDrive, phù hợp cho lịch trình cá nhân, công tác và di chuyển gia đình.";
   const fuelType = getFuelTypeLabel(car.fuelType);
   const transmission = getTransmissionLabel(car.transmission);
+  const mileagePolicy = car.mileagePolicy;
+  const hasMileagePolicy = Boolean(
+    mileagePolicy &&
+      [
+        mileagePolicy.includedKmPerDay,
+        mileagePolicy.includedKmPerHour,
+        mileagePolicy.overageFeePerKm,
+        mileagePolicy.graceKm,
+      ].some(hasNumber),
+  );
 
   const previewImages = galleryImages.slice(1, 5);
   const hiddenImageCount = Math.max(galleryImages.length - 5, 0);
@@ -1591,6 +1615,11 @@ export default function CarDetailPage() {
       icon: Clock,
       label: "Hình thức",
       value: rentalInfo.modeLabel,
+    },
+    {
+      icon: Milestone,
+      label: "ODO hiện tại",
+      value: formatKilometers(car.currentOdometerKm),
     },
   ];
 
@@ -1761,7 +1790,7 @@ export default function CarDetailPage() {
                 </p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 {vehicleSpecs.map(({ icon: Icon, label, value }) => (
                   <div
                     key={label}
@@ -1779,6 +1808,79 @@ export default function CarDetailPage() {
                   </div>
                 ))}
               </div>
+
+              <div className="mt-5 border-t border-border pt-5">
+                <p className="text-sm font-extrabold text-primary">
+                  Chính sách kilomet
+                </p>
+                {!hasMileagePolicy ? (
+                  <p className="mt-2 text-sm font-semibold text-muted">
+                    Chưa thiết lập
+                  </p>
+                ) : (
+                  <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                      <dt className="text-muted">Giới hạn</dt>
+                      <dd className="mt-1 font-extrabold text-primary">
+                        {hasNumber(mileagePolicy?.includedKmPerDay)
+                          ? `${new Intl.NumberFormat("vi-VN").format(
+                              mileagePolicy.includedKmPerDay,
+                            )} km/ngày`
+                          : "Chưa thiết lập"}
+                      </dd>
+                    </div>
+                    {hasNumber(mileagePolicy?.includedKmPerHour) && (
+                      <div>
+                        <dt className="text-muted">Giới hạn thuê giờ</dt>
+                        <dd className="mt-1 font-extrabold text-primary">
+                          {new Intl.NumberFormat("vi-VN").format(
+                            mileagePolicy.includedKmPerHour,
+                          )}{" "}
+                          km/giờ
+                        </dd>
+                      </div>
+                    )}
+                    <div>
+                      <dt className="text-muted">Phí vượt</dt>
+                      <dd className="mt-1 font-extrabold text-primary">
+                        {formatMileageRate(mileagePolicy?.overageFeePerKm)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted">Miễn tính phí</dt>
+                      <dd className="mt-1 font-extrabold text-primary">
+                        {hasNumber(mileagePolicy?.graceKm)
+                          ? `${new Intl.NumberFormat("vi-VN").format(
+                              mileagePolicy.graceKm,
+                            )} km`
+                          : "Chưa thiết lập"}
+                      </dd>
+                    </div>
+                  </dl>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-lg border border-border bg-white p-5 shadow-sm">
+              <div>
+                <p className="text-sm font-bold uppercase text-secondary">
+                  Bảng giá
+                </p>
+                <h2 className="mt-1 text-2xl font-extrabold text-primary">
+                  Giá cơ bản và phụ thu
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-muted">
+                  Giá cuối tuần và ngày lễ bên dưới là mức dự kiến. Tổng chính
+                  thức được hệ thống chốt theo lịch thuê bạn chọn.
+                </p>
+              </div>
+              <CarPricingOverview
+                pricing={car.pricing}
+                allowDailyRental={car.allowDailyRental}
+                allowHourlyRental={car.allowHourlyRental}
+                rentalUnit={car.rentalUnit}
+                className="mt-5"
+              />
             </section>
 
             <section className="rounded-lg border border-border bg-white p-6">
@@ -1893,14 +1995,24 @@ export default function CarDetailPage() {
                         Giá thuê từ
                       </p>
                       <div className="mt-1 flex items-end gap-2">
-                        <span className="text-3xl font-extrabold text-primary">
-                          {formatPrice(startingDailyPrice || rentalInfo.price)}
-                        </span>
-                        <span className="pb-1 text-sm font-semibold text-muted">
-                          / {startingDailyPrice ? "ngày" : rentalInfo.unit}
-                        </span>
+                        {hasPricingNumber(primaryStartingPrice) ? (
+                          <>
+                            <span className="text-3xl font-extrabold text-primary">
+                              {formatPrice(primaryStartingPrice)}
+                            </span>
+                            <span className="pb-1 text-sm font-semibold text-muted">
+                              / {primaryStartingUnit}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-lg font-extrabold text-muted">
+                            Chưa cập nhật giá
+                          </span>
+                        )}
                       </div>
-                      {supportedRentalModes.allowHourlyRental && startingHourlyPrice > 0 && (
+                      {supportedRentalModes.allowDailyRental &&
+                        supportedRentalModes.allowHourlyRental &&
+                        hasPricingNumber(startingHourlyPrice) && (
                         <p className="mt-2 text-sm font-semibold text-muted">
                           Hoặc từ {formatPrice(startingHourlyPrice)} / giờ
                         </p>
@@ -1930,7 +2042,11 @@ export default function CarDetailPage() {
                         </p>
                         <div className="mt-1 flex items-end gap-2">
                           <span className="text-3xl font-extrabold text-primary">
-                            {formatPrice(priceQuote.unitPrice || rentalInfo.price)}
+                            {formatPrice(
+                              priceQuote.finalPrice ??
+                                priceQuote.breakdown[0]?.finalPrice ??
+                                rentalInfo.price,
+                            )}
                           </span>
                           <span className="pb-1 text-sm font-semibold text-muted">
                             / {quoteUnitLabel}
@@ -2242,7 +2358,11 @@ export default function CarDetailPage() {
                     {priceQuote
                       ? priceQuote.appliedPriceType === "MIXED"
                         ? "Theo từng loại ngày"
-                        : formatPrice(priceQuote.unitPrice || rentalInfo.price)
+                        : formatPrice(
+                            priceQuote.finalPrice ??
+                              priceQuote.breakdown[0]?.finalPrice ??
+                              rentalInfo.price,
+                          )
                       : formatPrice(rentalInfo.price)}
                   </dd>
                 </div>

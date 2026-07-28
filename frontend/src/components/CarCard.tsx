@@ -12,6 +12,13 @@ import {
 } from "lucide-react";
 import { formatAddressArea } from "../utils/address.util";
 import { normalizeImageUrl } from "../utils/image.util";
+import type { CarPricing } from "../types/pricing";
+import {
+  formatCurrency,
+  getBaseRentalPrice,
+  hasAnySurcharge,
+  hasPricingNumber,
+} from "../utils/pricing.util";
 
 type RentalAvailability =
   | "AVAILABLE"
@@ -23,8 +30,7 @@ type CarCardProps = {
     _id: string;
     id: number;
     name: string;
-    pricePerDay?: number;
-    pricePerHour?: number;
+    pricing?: CarPricing;
     allowDailyRental?: boolean;
     allowHourlyRental?: boolean;
     rentalUnit?: string;
@@ -65,33 +71,8 @@ type CarCardProps = {
 const fallbackImage =
   "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?q=80&w=1200";
 
-function formatPrice(price: number) {
-  return `${new Intl.NumberFormat("vi-VN").format(price || 0)}d`;
-}
-
 function getRentalPrice(car: CarCardProps["car"]) {
-  const allowDailyRental =
-    typeof car.allowDailyRental === "boolean"
-      ? car.allowDailyRental
-      : car.rentalUnit !== "HOUR";
-  const allowHourlyRental =
-    typeof car.allowHourlyRental === "boolean"
-      ? car.allowHourlyRental
-      : car.rentalUnit === "HOUR";
-
-  if (!allowDailyRental && allowHourlyRental) {
-    return {
-      price: car.pricePerHour || 0,
-      unit: "giờ",
-      label: "Thuê theo giờ",
-    };
-  }
-
-  return {
-    price: car.pricePerDay || 0,
-    unit: "ngày",
-    label: "Thuê theo ngày",
-  };
+  return getBaseRentalPrice(car);
 }
 
 function getSpecLabel(value?: string) {
@@ -276,12 +257,29 @@ export default function CarCard({ car, detailSearchParams = "" }: CarCardProps) 
           </div>
 
           <div className="shrink-0 text-right">
-            <p className="text-lg font-extrabold text-secondary">
-              {formatPrice(rental.price)}
-            </p>
-            <p className="text-sm font-semibold text-muted">/ {rental.unit}</p>
+            <p className="text-xs font-semibold text-muted">Giá từ</p>
+            {hasPricingNumber(rental.price) ? (
+              <>
+                <p className="text-lg font-extrabold text-secondary">
+                  {formatCurrency(rental.price)}
+                </p>
+                <p className="text-sm font-semibold text-muted">
+                  / {rental.unit}
+                </p>
+              </>
+            ) : (
+              <p className="mt-1 text-sm font-bold text-muted">
+                Chưa cập nhật giá
+              </p>
+            )}
           </div>
         </div>
+
+        {hasAnySurcharge(car.pricing) && (
+          <p className="mt-3 text-xs font-semibold text-muted">
+            Có phụ thu cuối tuần/ngày lễ
+          </p>
+        )}
 
         <div className="mt-5 grid grid-cols-2 gap-3 border-y border-border py-4 text-sm text-muted">
           <span className="flex items-center gap-2">
