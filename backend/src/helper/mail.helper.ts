@@ -219,7 +219,7 @@ function getSupportEmail() {
     process.env.EMAIL_FROM_ADDRESS ||
     smtpConfig.fromAddress ||
     smtpConfig.user ||
-    "Đang cập nhật"
+    "buiquynh497@gmail.com"
   );
 }
 

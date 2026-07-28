@@ -1,0 +1,4253 @@
+{
+  "source": "D:\\DoAn_LuanVanTotNghiep\\Du_lieu_muc_vat_ly_he_thong_thue_xe.docx",
+  "sections": 1,
+  "paragraphs": 32,
+  "tables": 15,
+  "blocks": [
+    {
+      "kind": "paragraph",
+      "index": 0,
+      "style": "Heading 3",
+      "text": "3.1.3 Dữ liệu ở mức vật lý"
+    },
+    {
+      "kind": "paragraph",
+      "index": 1,
+      "style": "Normal",
+      "text": "Hệ thống sử dụng MongoDB và Mongoose. Mỗi bảng dưới đây tương ứng với một collection được tạo từ model hiện có trong mã nguồn. Các thuộc tính lồng nhau được biểu diễn bằng ký pháp dấu chấm; ký hiệu [] biểu thị phần tử trong mảng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 2,
+      "style": "Normal",
+      "text": "Quy ước: K - khóa; U - duy nhất; M - bắt buộc theo schema; x - có áp dụng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 3,
+      "style": "Heading 4",
+      "text": "Bảng users"
+    },
+    {
+      "kind": "table",
+      "index": 0,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã định danh do MongoDB sinh"
+        ],
+        [
+          "name",
+          "String",
+          "",
+          "",
+          "x",
+          "Họ tên người dùng"
+        ],
+        [
+          "email",
+          "String",
+          "",
+          "x",
+          "x",
+          "Email đăng nhập, được chuẩn hóa chữ thường"
+        ],
+        [
+          "password",
+          "String",
+          "",
+          "",
+          "x",
+          "Mật khẩu đã mã hóa"
+        ],
+        [
+          "phone",
+          "String",
+          "",
+          "",
+          "",
+          "Số điện thoại"
+        ],
+        [
+          "address",
+          "String",
+          "",
+          "",
+          "",
+          "Địa chỉ chi tiết"
+        ],
+        [
+          "province",
+          "String",
+          "",
+          "",
+          "",
+          "Tỉnh/thành phố"
+        ],
+        [
+          "city",
+          "String",
+          "",
+          "",
+          "",
+          "Thành phố"
+        ],
+        [
+          "district",
+          "String",
+          "",
+          "",
+          "",
+          "Quận/huyện"
+        ],
+        [
+          "ward",
+          "String",
+          "",
+          "",
+          "",
+          "Phường/xã"
+        ],
+        [
+          "avatar",
+          "String",
+          "",
+          "",
+          "",
+          "Đường dẫn ảnh đại diện"
+        ],
+        [
+          "bio",
+          "String",
+          "",
+          "",
+          "",
+          "Thông tin giới thiệu"
+        ],
+        [
+          "role",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Vai trò: ADMIN, BUSINESS hoặc USER"
+        ],
+        [
+          "isBlocked",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Đánh dấu tài khoản bị khóa"
+        ],
+        [
+          "blockedReason",
+          "String",
+          "",
+          "",
+          "",
+          "Lý do khóa tài khoản"
+        ],
+        [
+          "blockedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm khóa tài khoản"
+        ],
+        [
+          "blockedBy",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Người quản trị thực hiện khóa; tham chiếu users"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Đánh dấu xóa mềm"
+        ],
+        [
+          "deletedReason",
+          "String",
+          "",
+          "",
+          "",
+          "Lý do xóa tài khoản"
+        ],
+        [
+          "deletedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm xóa"
+        ],
+        [
+          "deletedBy",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Người thực hiện xóa; tham chiếu users"
+        ],
+        [
+          "isVerified",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trạng thái xác thực tài khoản"
+        ],
+        [
+          "otpCode",
+          "String",
+          "",
+          "",
+          "",
+          "Mã OTP xác thực"
+        ],
+        [
+          "otpExpireAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm hết hạn OTP"
+        ],
+        [
+          "resetPasswordOtpHash",
+          "String",
+          "",
+          "",
+          "",
+          "Giá trị băm OTP đặt lại mật khẩu"
+        ],
+        [
+          "resetPasswordOtpExpiresAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm OTP đặt lại mật khẩu hết hạn"
+        ],
+        [
+          "resetPasswordOtpVerified",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trạng thái xác minh OTP đặt lại mật khẩu"
+        ],
+        [
+          "resetPasswordOtpVerifiedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm xác minh OTP"
+        ],
+        [
+          "resetPasswordOtpAttempts",
+          "Number",
+          "",
+          "",
+          "",
+          "Số lần nhập OTP đặt lại mật khẩu"
+        ],
+        [
+          "resetPasswordTokenHash",
+          "String",
+          "",
+          "",
+          "",
+          "Giá trị băm token đặt lại mật khẩu"
+        ],
+        [
+          "resetPasswordTokenExpiresAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm token đặt lại mật khẩu hết hạn"
+        ],
+        [
+          "createdAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm tạo bản ghi"
+        ],
+        [
+          "updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật gần nhất"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 4,
+      "style": "Normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 5,
+      "style": "Heading 4",
+      "text": "Bảng businesses"
+    },
+    {
+      "kind": "table",
+      "index": 1,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã định danh do MongoDB sinh"
+        ],
+        [
+          "userId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Tài khoản đại diện doanh nghiệp; tham chiếu users"
+        ],
+        [
+          "businessName",
+          "String",
+          "",
+          "",
+          "x",
+          "Tên đơn vị kinh doanh"
+        ],
+        [
+          "businessType",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Loại chủ xe: COMPANY hoặc INDIVIDUAL"
+        ],
+        [
+          "isRejected",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trạng thái hồ sơ bị từ chối"
+        ],
+        [
+          "rejectReason",
+          "String",
+          "",
+          "",
+          "",
+          "Lý do từ chối hồ sơ"
+        ],
+        [
+          "phone",
+          "String",
+          "",
+          "",
+          "",
+          "Số điện thoại liên hệ"
+        ],
+        [
+          "address",
+          "String",
+          "",
+          "",
+          "",
+          "Địa chỉ chi tiết"
+        ],
+        [
+          "province",
+          "String",
+          "",
+          "",
+          "",
+          "Tỉnh/thành phố"
+        ],
+        [
+          "city",
+          "String",
+          "",
+          "",
+          "",
+          "Thành phố"
+        ],
+        [
+          "district",
+          "String",
+          "",
+          "",
+          "",
+          "Quận/huyện"
+        ],
+        [
+          "ward",
+          "String",
+          "",
+          "",
+          "",
+          "Phường/xã"
+        ],
+        [
+          "description",
+          "String",
+          "",
+          "",
+          "",
+          "Mô tả doanh nghiệp"
+        ],
+        [
+          "logo",
+          "String",
+          "",
+          "",
+          "",
+          "Đường dẫn logo"
+        ],
+        [
+          "publicEmail",
+          "String",
+          "",
+          "",
+          "",
+          "Email công khai"
+        ],
+        [
+          "publicPhone",
+          "String",
+          "",
+          "",
+          "",
+          "Số điện thoại công khai"
+        ],
+        [
+          "website",
+          "String",
+          "",
+          "",
+          "",
+          "Website doanh nghiệp"
+        ],
+        [
+          "shortDescription",
+          "String",
+          "",
+          "",
+          "",
+          "Mô tả ngắn hiển thị công khai"
+        ],
+        [
+          "isPublicPartner",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Cho phép hiển thị trong danh sách đối tác"
+        ],
+        [
+          "displayOrder",
+          "Number",
+          "",
+          "",
+          "",
+          "Thứ tự hiển thị"
+        ],
+        [
+          "isApproved",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trạng thái được quản trị viên phê duyệt"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Đánh dấu xóa mềm"
+        ],
+        [
+          "createdAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm tạo bản ghi"
+        ],
+        [
+          "updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật gần nhất"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 6,
+      "style": "Normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 7,
+      "style": "Heading 4",
+      "text": "Bảng brands"
+    },
+    {
+      "kind": "table",
+      "index": 2,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã định danh do MongoDB sinh"
+        ],
+        [
+          "name",
+          "String",
+          "",
+          "x",
+          "x",
+          "Tên hãng xe"
+        ],
+        [
+          "logo",
+          "String",
+          "",
+          "",
+          "",
+          "Đường dẫn logo hãng xe"
+        ],
+        [
+          "description",
+          "String",
+          "",
+          "",
+          "",
+          "Mô tả hãng xe"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Đánh dấu xóa mềm"
+        ],
+        [
+          "createdAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm tạo bản ghi"
+        ],
+        [
+          "updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật gần nhất"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 8,
+      "style": "Normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 9,
+      "style": "Heading 4",
+      "text": "Bảng cars"
+    },
+    {
+      "kind": "table",
+      "index": 3,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã định danh do MongoDB sinh"
+        ],
+        [
+          "businessId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Doanh nghiệp sở hữu theo mô hình dữ liệu cũ; tham chiếu businesses"
+        ],
+        [
+          "ownerId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Chủ xe; tham chiếu users hoặc businesses theo ownerModel"
+        ],
+        [
+          "ownerType",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Loại chủ xe: BUSINESS hoặc USER"
+        ],
+        [
+          "ownerModel",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Tên model tham chiếu động: User hoặc Business"
+        ],
+        [
+          "brandId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Hãng xe; tham chiếu brands"
+        ],
+        [
+          "name",
+          "String",
+          "",
+          "",
+          "x",
+          "Tên xe"
+        ],
+        [
+          "type",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Loại xe: SUV, SEDAN, HATCHBACK, PICKUP, MPV, COUPE, CONVERTIBLE hoặc ELECTRIC"
+        ],
+        [
+          "licensePlate",
+          "String",
+          "",
+          "",
+          "",
+          "Biển số xe"
+        ],
+        [
+          "plateNumberNormalized",
+          "String",
+          "",
+          "",
+          "",
+          "Biển số đã chuẩn hóa để tìm kiếm/kiểm tra trùng"
+        ],
+        [
+          "pricePerDay",
+          "Number",
+          "",
+          "",
+          "",
+          "Giá thuê cơ bản theo ngày, không âm"
+        ],
+        [
+          "pricePerHour",
+          "Number",
+          "",
+          "",
+          "",
+          "Giá thuê cơ bản theo giờ, không âm"
+        ],
+        [
+          "pricing",
+          "Object",
+          "",
+          "",
+          "",
+          "Cấu hình giá theo ngày thường, cuối tuần và ngày lễ"
+        ],
+        [
+          "pricing.weekdayPricePerDay",
+          "Number",
+          "",
+          "",
+          "",
+          "Giá thuê ngày thường"
+        ],
+        [
+          "pricing.weekendPricePerDay",
+          "Number",
+          "",
+          "",
+          "",
+          "Giá thuê cuối tuần"
+        ],
+        [
+          "pricing.holidayPricePerDay",
+          "Number",
+          "",
+          "",
+          "",
+          "Giá thuê ngày lễ"
+        ],
+        [
+          "pricing.pricePerHour",
+          "Number",
+          "",
+          "",
+          "",
+          "Giá thuê giờ ngày thường"
+        ],
+        [
+          "pricing.weekendPricePerHour",
+          "Number",
+          "",
+          "",
+          "",
+          "Giá thuê giờ cuối tuần"
+        ],
+        [
+          "pricing.holidayPricePerHour",
+          "Number",
+          "",
+          "",
+          "",
+          "Giá thuê giờ ngày lễ"
+        ],
+        [
+          "allowDailyRental",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Cho phép thuê theo ngày"
+        ],
+        [
+          "allowHourlyRental",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Cho phép thuê theo giờ"
+        ],
+        [
+          "rentalUnit",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Đơn vị thuê mặc định: DAY hoặc HOUR"
+        ],
+        [
+          "seats",
+          "Number",
+          "",
+          "",
+          "x",
+          "Số chỗ ngồi, tối thiểu 1"
+        ],
+        [
+          "fuelType",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Nhiên liệu: GASOLINE, DIESEL, ELECTRIC hoặc HYBRID"
+        ],
+        [
+          "transmission",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Hộp số: AUTOMATIC hoặc MANUAL"
+        ],
+        [
+          "images",
+          "Array<String>",
+          "",
+          "",
+          "",
+          "Danh sách đường dẫn hình ảnh xe"
+        ],
+        [
+          "description",
+          "String",
+          "",
+          "",
+          "",
+          "Mô tả xe"
+        ],
+        [
+          "pickupAddress",
+          "String",
+          "",
+          "",
+          "",
+          "Địa chỉ nhận xe"
+        ],
+        [
+          "pickupFormattedAddress",
+          "String",
+          "",
+          "",
+          "",
+          "Địa chỉ nhận xe đã định dạng"
+        ],
+        [
+          "pickupPlaceId",
+          "String",
+          "",
+          "",
+          "",
+          "Mã địa điểm từ dịch vụ bản đồ"
+        ],
+        [
+          "pickupLat",
+          "Number",
+          "",
+          "",
+          "",
+          "Vĩ độ điểm nhận xe"
+        ],
+        [
+          "pickupLng",
+          "Number",
+          "",
+          "",
+          "",
+          "Kinh độ điểm nhận xe"
+        ],
+        [
+          "pickupProvince",
+          "String",
+          "",
+          "",
+          "",
+          "Tỉnh/thành điểm nhận xe"
+        ],
+        [
+          "pickupDistrict",
+          "String",
+          "",
+          "",
+          "",
+          "Quận/huyện điểm nhận xe"
+        ],
+        [
+          "pickupWard",
+          "String",
+          "",
+          "",
+          "",
+          "Phường/xã điểm nhận xe"
+        ],
+        [
+          "pickupNote",
+          "String",
+          "",
+          "",
+          "",
+          "Ghi chú điểm nhận xe"
+        ],
+        [
+          "pickupLocationText",
+          "String",
+          "",
+          "",
+          "",
+          "Chuỗi vị trí nhận xe hiển thị"
+        ],
+        [
+          "address",
+          "String",
+          "",
+          "",
+          "",
+          "Địa chỉ xe theo cấu trúc cũ"
+        ],
+        [
+          "province",
+          "String",
+          "",
+          "",
+          "",
+          "Tỉnh/thành theo cấu trúc cũ"
+        ],
+        [
+          "city",
+          "String",
+          "",
+          "",
+          "",
+          "Thành phố theo cấu trúc cũ"
+        ],
+        [
+          "district",
+          "String",
+          "",
+          "",
+          "",
+          "Quận/huyện theo cấu trúc cũ"
+        ],
+        [
+          "ward",
+          "String",
+          "",
+          "",
+          "",
+          "Phường/xã theo cấu trúc cũ"
+        ],
+        [
+          "locationNote",
+          "String",
+          "",
+          "",
+          "",
+          "Ghi chú vị trí"
+        ],
+        [
+          "latitude",
+          "Number",
+          "",
+          "",
+          "",
+          "Vĩ độ hiện tại"
+        ],
+        [
+          "longitude",
+          "Number",
+          "",
+          "",
+          "",
+          "Kinh độ hiện tại"
+        ],
+        [
+          "lastLocationUpdatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật vị trí gần nhất"
+        ],
+        [
+          "lastLocationUpdatedBy",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Người cập nhật vị trí; tham chiếu users"
+        ],
+        [
+          "lastLocationUpdatedByRole",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Vai trò người cập nhật: BUSINESS hoặc USER"
+        ],
+        [
+          "locationUpdateCount",
+          "Number",
+          "",
+          "",
+          "",
+          "Số lần cập nhật vị trí"
+        ],
+        [
+          "locationHistory",
+          "Array<Object>",
+          "",
+          "",
+          "",
+          "Lịch sử thay đổi vị trí"
+        ],
+        [
+          "locationHistory[].oldLat",
+          "Number",
+          "",
+          "",
+          "",
+          "Vĩ độ cũ"
+        ],
+        [
+          "locationHistory[].oldLng",
+          "Number",
+          "",
+          "",
+          "",
+          "Kinh độ cũ"
+        ],
+        [
+          "locationHistory[].newLat",
+          "Number",
+          "",
+          "",
+          "x",
+          "Vĩ độ mới trong phần tử lịch sử"
+        ],
+        [
+          "locationHistory[].newLng",
+          "Number",
+          "",
+          "",
+          "x",
+          "Kinh độ mới trong phần tử lịch sử"
+        ],
+        [
+          "locationHistory[].oldAddress",
+          "String",
+          "",
+          "",
+          "",
+          "Địa chỉ cũ"
+        ],
+        [
+          "locationHistory[].newAddress",
+          "String",
+          "",
+          "",
+          "",
+          "Địa chỉ mới"
+        ],
+        [
+          "locationHistory[].updatedBy",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Người cập nhật; tham chiếu users"
+        ],
+        [
+          "locationHistory[].updatedByRole",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Vai trò người cập nhật"
+        ],
+        [
+          "locationHistory[].updatedAt",
+          "Date",
+          "",
+          "",
+          "x",
+          "Thời điểm cập nhật"
+        ],
+        [
+          "deliveryEnabled",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Cho phép giao xe đến khách hàng"
+        ],
+        [
+          "deliveryBaseFee",
+          "Number",
+          "",
+          "",
+          "",
+          "Phí giao xe cơ bản"
+        ],
+        [
+          "deliveryFeePerKm",
+          "Number",
+          "",
+          "",
+          "",
+          "Phí giao xe theo ki-lô-mét"
+        ],
+        [
+          "deliveryMaxDistanceKm",
+          "Number",
+          "",
+          "",
+          "",
+          "Khoảng cách giao xe tối đa"
+        ],
+        [
+          "deliveryNote",
+          "String",
+          "",
+          "",
+          "",
+          "Ghi chú dịch vụ giao xe"
+        ],
+        [
+          "bookingRevision",
+          "Number",
+          "",
+          "",
+          "",
+          "Phiên bản thay đổi phục vụ kiểm soát booking"
+        ],
+        [
+          "status",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Trạng thái: PENDING, APPROVED, RENTED, REJECTED hoặc HIDDEN"
+        ],
+        [
+          "rejectReason",
+          "String",
+          "",
+          "",
+          "",
+          "Lý do từ chối xe"
+        ],
+        [
+          "isHidden",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trạng thái ẩn tổng hợp"
+        ],
+        [
+          "hiddenByOwner",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Xe bị ẩn bởi chủ xe"
+        ],
+        [
+          "hiddenByAdmin",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Xe bị ẩn bởi quản trị viên"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Đánh dấu xóa mềm"
+        ],
+        [
+          "createdAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm tạo bản ghi"
+        ],
+        [
+          "updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật gần nhất"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 10,
+      "style": "Normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 11,
+      "style": "Heading 4",
+      "text": "Bảng carts"
+    },
+    {
+      "kind": "table",
+      "index": 4,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã định danh do MongoDB sinh"
+        ],
+        [
+          "userId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Người thuê; tham chiếu users"
+        ],
+        [
+          "carId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Xe được giữ trong giỏ; tham chiếu cars"
+        ],
+        [
+          "startDate",
+          "Date",
+          "",
+          "",
+          "x",
+          "Thời điểm bắt đầu thuê"
+        ],
+        [
+          "endDate",
+          "Date",
+          "",
+          "",
+          "x",
+          "Thời điểm kết thúc thuê"
+        ],
+        [
+          "rentalMode",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Hình thức thuê: DAILY hoặc HOURLY"
+        ],
+        [
+          "totalPrice",
+          "Number",
+          "",
+          "",
+          "x",
+          "Tổng tiền tạm tính"
+        ],
+        [
+          "pricingSnapshot",
+          "Mixed",
+          "",
+          "",
+          "",
+          "Bản chụp cấu hình và chi tiết tính giá tại thời điểm thêm giỏ"
+        ],
+        [
+          "expiredAt",
+          "Date",
+          "",
+          "",
+          "x",
+          "Thời điểm giữ xe trong giỏ hết hạn"
+        ],
+        [
+          "status",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Trạng thái: ACTIVE, EXPIRED, BOOKED hoặc CANCELLED"
+        ],
+        [
+          "createdAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm tạo bản ghi"
+        ],
+        [
+          "updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật gần nhất"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 12,
+      "style": "Normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 13,
+      "style": "Heading 4",
+      "text": "Bảng bookings"
+    },
+    {
+      "kind": "table",
+      "index": 5,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã định danh do MongoDB sinh"
+        ],
+        [
+          "userId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Người thuê; tham chiếu users"
+        ],
+        [
+          "businessId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Doanh nghiệp sở hữu theo mô hình cũ; tham chiếu businesses"
+        ],
+        [
+          "ownerId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Chủ xe; tham chiếu động theo ownerModel"
+        ],
+        [
+          "ownerType",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Loại chủ xe: BUSINESS hoặc USER"
+        ],
+        [
+          "ownerModel",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Model chủ xe: User hoặc Business"
+        ],
+        [
+          "carId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Xe được đặt; tham chiếu cars"
+        ],
+        [
+          "cartId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Mục giỏ hàng nguồn; tham chiếu carts"
+        ],
+        [
+          "startDate",
+          "Date",
+          "",
+          "",
+          "x",
+          "Thời điểm bắt đầu thuê"
+        ],
+        [
+          "endDate",
+          "Date",
+          "",
+          "",
+          "x",
+          "Thời điểm kết thúc thuê"
+        ],
+        [
+          "rentalMode",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Hình thức thuê: DAILY hoặc HOURLY"
+        ],
+        [
+          "totalPrice",
+          "Number",
+          "",
+          "",
+          "x",
+          "Tổng giá trị booking"
+        ],
+        [
+          "pricingSnapshot",
+          "Object",
+          "",
+          "",
+          "",
+          "Bản chụp cấu hình tính giá"
+        ],
+        [
+          "pricingSnapshot.rentalMode",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Hình thức thuê tại thời điểm đặt"
+        ],
+        [
+          "pricingSnapshot.weekdayPricePerDay",
+          "Number",
+          "",
+          "",
+          "",
+          "Giá ngày thường"
+        ],
+        [
+          "pricingSnapshot.weekendPricePerDay",
+          "Number",
+          "",
+          "",
+          "",
+          "Giá cuối tuần"
+        ],
+        [
+          "pricingSnapshot.holidayPricePerDay",
+          "Number",
+          "",
+          "",
+          "",
+          "Giá ngày lễ"
+        ],
+        [
+          "pricingSnapshot.pricePerHour",
+          "Number",
+          "",
+          "",
+          "",
+          "Giá giờ ngày thường"
+        ],
+        [
+          "pricingSnapshot.weekendPricePerHour",
+          "Number",
+          "",
+          "",
+          "",
+          "Giá giờ cuối tuần"
+        ],
+        [
+          "pricingSnapshot.holidayPricePerHour",
+          "Number",
+          "",
+          "",
+          "",
+          "Giá giờ ngày lễ"
+        ],
+        [
+          "pricingSnapshot.breakdown",
+          "Array<Object>",
+          "",
+          "",
+          "",
+          "Chi tiết tiền theo ngày/giờ"
+        ],
+        [
+          "pricingSnapshot.breakdown[].date",
+          "String",
+          "",
+          "",
+          "",
+          "Ngày tính giá"
+        ],
+        [
+          "pricingSnapshot.breakdown[].type",
+          "String",
+          "",
+          "",
+          "",
+          "Loại ngày"
+        ],
+        [
+          "pricingSnapshot.breakdown[].label",
+          "String",
+          "",
+          "",
+          "",
+          "Nhãn hiển thị"
+        ],
+        [
+          "pricingSnapshot.breakdown[].unitCount",
+          "Number",
+          "",
+          "",
+          "",
+          "Số đơn vị thuê"
+        ],
+        [
+          "pricingSnapshot.breakdown[].unitPrice",
+          "Number",
+          "",
+          "",
+          "",
+          "Đơn giá"
+        ],
+        [
+          "pricingSnapshot.breakdown[].price",
+          "Number",
+          "",
+          "",
+          "",
+          "Thành tiền"
+        ],
+        [
+          "pricingSnapshot.subtotal",
+          "Number",
+          "",
+          "",
+          "",
+          "Tổng tạm tính"
+        ],
+        [
+          "pricingSnapshot.rentalSubtotal",
+          "Number",
+          "",
+          "",
+          "",
+          "Tiền thuê xe"
+        ],
+        [
+          "pricingSnapshot.deliveryFee",
+          "Number",
+          "",
+          "",
+          "",
+          "Phí giao xe"
+        ],
+        [
+          "pricingSnapshot.totalPrice",
+          "Number",
+          "",
+          "",
+          "",
+          "Tổng tiền sau phí giao xe"
+        ],
+        [
+          "pricingSnapshot.delivery",
+          "Object",
+          "",
+          "",
+          "",
+          "Thông tin giao/nhận xe"
+        ],
+        [
+          "pricingSnapshot.delivery.deliveryType",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Nhận tại vị trí xe hoặc giao đến khách"
+        ],
+        [
+          "pricingSnapshot.delivery.deliveryAddress",
+          "String",
+          "",
+          "",
+          "",
+          "Địa chỉ giao xe"
+        ],
+        [
+          "pricingSnapshot.delivery.deliveryAddressText",
+          "String",
+          "",
+          "",
+          "",
+          "Chuỗi địa chỉ giao xe"
+        ],
+        [
+          "pricingSnapshot.delivery.deliveryFormattedAddress",
+          "String",
+          "",
+          "",
+          "",
+          "Địa chỉ giao xe đã định dạng"
+        ],
+        [
+          "pricingSnapshot.delivery.deliveryAddressSource",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Nguồn địa chỉ: nhập tay, geocode, vị trí hiện tại hoặc ghim bản đồ"
+        ],
+        [
+          "pricingSnapshot.delivery.deliveryLat",
+          "Number",
+          "",
+          "",
+          "",
+          "Vĩ độ điểm giao"
+        ],
+        [
+          "pricingSnapshot.delivery.deliveryLng",
+          "Number",
+          "",
+          "",
+          "",
+          "Kinh độ điểm giao"
+        ],
+        [
+          "pricingSnapshot.delivery.deliveryDistanceKm",
+          "Number",
+          "",
+          "",
+          "",
+          "Khoảng cách giao xe"
+        ],
+        [
+          "pricingSnapshot.delivery.deliveryDurationText",
+          "String",
+          "",
+          "",
+          "",
+          "Thời gian giao xe dự kiến"
+        ],
+        [
+          "pricingSnapshot.delivery.deliveryBaseFee",
+          "Number",
+          "",
+          "",
+          "",
+          "Phí giao cơ bản"
+        ],
+        [
+          "pricingSnapshot.delivery.deliveryFeePerKm",
+          "Number",
+          "",
+          "",
+          "",
+          "Phí theo ki-lô-mét"
+        ],
+        [
+          "pricingSnapshot.delivery.deliveryMaxDistanceKm",
+          "Number",
+          "",
+          "",
+          "",
+          "Khoảng cách giao tối đa"
+        ],
+        [
+          "pricingSnapshot.delivery.deliveryFee",
+          "Number",
+          "",
+          "",
+          "",
+          "Tổng phí giao"
+        ],
+        [
+          "pricingSnapshot.delivery.deliveryNote",
+          "String",
+          "",
+          "",
+          "",
+          "Ghi chú giao xe"
+        ],
+        [
+          "paymentOption",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Lựa chọn thanh toán: DEPOSIT hoặc FULL"
+        ],
+        [
+          "depositAmount",
+          "Number",
+          "",
+          "",
+          "",
+          "Số tiền đặt cọc"
+        ],
+        [
+          "remainingAmount",
+          "Number",
+          "",
+          "",
+          "",
+          "Số tiền còn phải thanh toán"
+        ],
+        [
+          "paidAmount",
+          "Number",
+          "",
+          "",
+          "",
+          "Tổng số tiền đã thanh toán"
+        ],
+        [
+          "isDepositRefundable",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Tiền cọc có thể hoàn lại"
+        ],
+        [
+          "cancellationPolicySnapshot",
+          "Object",
+          "",
+          "",
+          "",
+          "Bản chụp chính sách hủy"
+        ],
+        [
+          "cancellationPolicySnapshot.fullRefundBeforeHours",
+          "Number",
+          "",
+          "",
+          "",
+          "Số giờ tối thiểu để hoàn đủ"
+        ],
+        [
+          "cancellationPolicySnapshot.partialRefundBeforeHours",
+          "Number",
+          "",
+          "",
+          "",
+          "Số giờ tối thiểu để hoàn một phần"
+        ],
+        [
+          "cancellationPolicySnapshot.partialRefundRate",
+          "Number",
+          "",
+          "",
+          "",
+          "Tỷ lệ hoàn một phần, từ 0 đến 1"
+        ],
+        [
+          "cancellationPolicySnapshot.lateCancellationRule",
+          "String",
+          "",
+          "",
+          "",
+          "Quy tắc hủy sát giờ"
+        ],
+        [
+          "cancellationPolicySnapshot.ownerCancellationRefundRate",
+          "Number",
+          "",
+          "",
+          "",
+          "Tỷ lệ hoàn khi chủ xe hủy"
+        ],
+        [
+          "pickupAddressSnapshot",
+          "String",
+          "",
+          "",
+          "",
+          "Địa chỉ nhận xe được chụp tại thời điểm đặt"
+        ],
+        [
+          "returnAddressSnapshot",
+          "String",
+          "",
+          "",
+          "",
+          "Địa chỉ trả xe được chụp tại thời điểm đặt"
+        ],
+        [
+          "renterInfo",
+          "Object",
+          "",
+          "",
+          "",
+          "Thông tin người thuê dùng cho booking/hợp đồng"
+        ],
+        [
+          "renterInfo.fullName",
+          "String",
+          "",
+          "",
+          "",
+          "Họ tên người thuê"
+        ],
+        [
+          "renterInfo.phone",
+          "String",
+          "",
+          "",
+          "",
+          "Số điện thoại người thuê"
+        ],
+        [
+          "renterInfo.email",
+          "String",
+          "",
+          "",
+          "",
+          "Email người thuê"
+        ],
+        [
+          "renterInfo.cccdNumber",
+          "String",
+          "",
+          "",
+          "",
+          "Số căn cước công dân"
+        ],
+        [
+          "renterInfo.cccdFrontImage",
+          "String",
+          "",
+          "",
+          "",
+          "Ảnh mặt trước căn cước"
+        ],
+        [
+          "renterInfo.cccdBackImage",
+          "String",
+          "",
+          "",
+          "",
+          "Ảnh mặt sau căn cước"
+        ],
+        [
+          "renterInfo.driverLicenseNumber",
+          "String",
+          "",
+          "",
+          "",
+          "Số giấy phép lái xe"
+        ],
+        [
+          "renterInfo.driverLicenseImage",
+          "String",
+          "",
+          "",
+          "",
+          "Ảnh giấy phép lái xe"
+        ],
+        [
+          "renterInfo.note",
+          "String",
+          "",
+          "",
+          "",
+          "Ghi chú người thuê"
+        ],
+        [
+          "status",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Trạng thái vòng đời booking"
+        ],
+        [
+          "ownerApprovedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm chủ xe duyệt"
+        ],
+        [
+          "paymentDeadlineAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Hạn thanh toán"
+        ],
+        [
+          "cancelReason",
+          "String",
+          "",
+          "",
+          "",
+          "Lý do hủy theo cấu trúc cũ"
+        ],
+        [
+          "cancelledAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm hủy"
+        ],
+        [
+          "cancelledBy",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Người hủy; tham chiếu users"
+        ],
+        [
+          "cancelledByRole",
+          "String",
+          "",
+          "",
+          "",
+          "Vai trò người hủy"
+        ],
+        [
+          "cancelReasonCode",
+          "String",
+          "",
+          "",
+          "",
+          "Mã lý do hủy"
+        ],
+        [
+          "cancelReasonText",
+          "String",
+          "",
+          "",
+          "",
+          "Nội dung lý do hủy"
+        ],
+        [
+          "cancellationSummary",
+          "Object",
+          "",
+          "",
+          "",
+          "Kết quả tính phí và hoàn tiền khi hủy"
+        ],
+        [
+          "cancellationSummary.paidAmountAtCancellation",
+          "Number",
+          "",
+          "",
+          "",
+          "Số tiền đã trả tại lúc hủy"
+        ],
+        [
+          "cancellationSummary.cancellationFee",
+          "Number",
+          "",
+          "",
+          "",
+          "Phí hủy"
+        ],
+        [
+          "cancellationSummary.refundAmount",
+          "Number",
+          "",
+          "",
+          "",
+          "Số tiền được hoàn"
+        ],
+        [
+          "cancellationSummary.policyRuleApplied",
+          "String",
+          "",
+          "",
+          "",
+          "Quy tắc hoàn tiền áp dụng"
+        ],
+        [
+          "cancellationSummary.refundRequired",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Có yêu cầu hoàn tiền hay không"
+        ],
+        [
+          "cancellationSummary.refundId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Bản hoàn tiền; tham chiếu refunds"
+        ],
+        [
+          "noShowReason",
+          "String",
+          "",
+          "",
+          "",
+          "Lý do khách không đến nhận xe"
+        ],
+        [
+          "noShowAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm ghi nhận không đến"
+        ],
+        [
+          "returnReminderSentAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm gửi nhắc trả xe"
+        ],
+        [
+          "note",
+          "String",
+          "",
+          "",
+          "",
+          "Ghi chú booking"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Đánh dấu xóa mềm"
+        ],
+        [
+          "createdAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm tạo bản ghi"
+        ],
+        [
+          "updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật gần nhất"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 14,
+      "style": "Normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 15,
+      "style": "Heading 4",
+      "text": "Bảng contracts"
+    },
+    {
+      "kind": "table",
+      "index": 6,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã định danh do MongoDB sinh"
+        ],
+        [
+          "bookingId",
+          "ObjectId",
+          "",
+          "x",
+          "x",
+          "Booking duy nhất của hợp đồng; tham chiếu bookings"
+        ],
+        [
+          "userId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Người thuê; tham chiếu users"
+        ],
+        [
+          "carId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Xe cho thuê; tham chiếu cars"
+        ],
+        [
+          "businessId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Doanh nghiệp sở hữu theo mô hình cũ; tham chiếu businesses"
+        ],
+        [
+          "ownerId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Chủ xe; tham chiếu động theo ownerModel"
+        ],
+        [
+          "ownerType",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Loại chủ xe: BUSINESS hoặc USER"
+        ],
+        [
+          "ownerModel",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Model chủ xe: User hoặc Business"
+        ],
+        [
+          "renterName",
+          "String",
+          "",
+          "",
+          "x",
+          "Họ tên người thuê"
+        ],
+        [
+          "renterPhone",
+          "String",
+          "",
+          "",
+          "x",
+          "Số điện thoại người thuê"
+        ],
+        [
+          "renterIdentityNumber",
+          "String",
+          "",
+          "",
+          "x",
+          "Số giấy tờ định danh"
+        ],
+        [
+          "renterAddress",
+          "String",
+          "",
+          "",
+          "x",
+          "Địa chỉ người thuê"
+        ],
+        [
+          "note",
+          "String",
+          "",
+          "",
+          "",
+          "Ghi chú hợp đồng"
+        ],
+        [
+          "startDate",
+          "Date",
+          "",
+          "",
+          "x",
+          "Thời điểm bắt đầu hợp đồng"
+        ],
+        [
+          "endDate",
+          "Date",
+          "",
+          "",
+          "x",
+          "Thời điểm kết thúc hợp đồng"
+        ],
+        [
+          "totalPrice",
+          "Number",
+          "",
+          "",
+          "x",
+          "Tổng giá trị hợp đồng"
+        ],
+        [
+          "depositAmount",
+          "Number",
+          "",
+          "",
+          "",
+          "Tiền đặt cọc"
+        ],
+        [
+          "paidAmount",
+          "Number",
+          "",
+          "",
+          "",
+          "Số tiền đã thanh toán"
+        ],
+        [
+          "remainingAmount",
+          "Number",
+          "",
+          "",
+          "",
+          "Số tiền còn lại"
+        ],
+        [
+          "paymentStatus",
+          "String",
+          "",
+          "",
+          "",
+          "Trạng thái thanh toán tổng hợp"
+        ],
+        [
+          "paymentOption",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Lựa chọn DEPOSIT hoặc FULL"
+        ],
+        [
+          "pickupAddressSnapshot",
+          "String",
+          "",
+          "",
+          "",
+          "Địa chỉ nhận xe tại thời điểm lập hợp đồng"
+        ],
+        [
+          "returnAddressSnapshot",
+          "String",
+          "",
+          "",
+          "",
+          "Địa chỉ trả xe tại thời điểm lập hợp đồng"
+        ],
+        [
+          "ownerAddressSnapshot",
+          "String",
+          "",
+          "",
+          "",
+          "Địa chỉ chủ xe tại thời điểm lập hợp đồng"
+        ],
+        [
+          "status",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Trạng thái: DRAFT, ACTIVE, COMPLETED hoặc CANCELLED"
+        ],
+        [
+          "contractCode",
+          "String",
+          "",
+          "x",
+          "x",
+          "Mã hợp đồng"
+        ],
+        [
+          "signedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm ký hợp đồng"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Đánh dấu xóa mềm"
+        ],
+        [
+          "createdAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm tạo bản ghi"
+        ],
+        [
+          "updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật gần nhất"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 16,
+      "style": "Normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 17,
+      "style": "Heading 4",
+      "text": "Bảng payments"
+    },
+    {
+      "kind": "table",
+      "index": 7,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã định danh do MongoDB sinh"
+        ],
+        [
+          "bookingId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Booking được thanh toán; tham chiếu bookings"
+        ],
+        [
+          "extraChargeId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Phụ phí được thanh toán; tham chiếu extracharges"
+        ],
+        [
+          "userId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Người thanh toán; tham chiếu users"
+        ],
+        [
+          "amount",
+          "Number",
+          "",
+          "",
+          "x",
+          "Số tiền thanh toán"
+        ],
+        [
+          "method",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Phương thức: CASH, MOMO hoặc VNPAY"
+        ],
+        [
+          "status",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Trạng thái: PENDING, PAID, FAILED hoặc REFUNDED"
+        ],
+        [
+          "paymentType",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Loại tiền: DEPOSIT, FULL, REMAINING hoặc EXTRA_CHARGE"
+        ],
+        [
+          "paidAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm thanh toán thành công"
+        ],
+        [
+          "transactionCode",
+          "String",
+          "",
+          "",
+          "",
+          "Mã giao dịch"
+        ],
+        [
+          "refundedAmount",
+          "Number",
+          "",
+          "",
+          "",
+          "Số tiền đã hoàn"
+        ],
+        [
+          "refundStatus",
+          "String",
+          "",
+          "",
+          "",
+          "Trạng thái hoàn tiền liên quan"
+        ],
+        [
+          "confirmedBy",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Người xác nhận thanh toán; tham chiếu users"
+        ],
+        [
+          "confirmedByRole",
+          "String",
+          "",
+          "",
+          "",
+          "Vai trò người xác nhận"
+        ],
+        [
+          "note",
+          "String",
+          "",
+          "",
+          "",
+          "Ghi chú thanh toán"
+        ],
+        [
+          "remainingPaymentReminderSentAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm gửi nhắc thanh toán phần còn lại"
+        ],
+        [
+          "createdAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm tạo bản ghi"
+        ],
+        [
+          "updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật gần nhất"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 18,
+      "style": "Normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 19,
+      "style": "Heading 4",
+      "text": "Bảng refunds"
+    },
+    {
+      "kind": "table",
+      "index": 8,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã định danh do MongoDB sinh"
+        ],
+        [
+          "bookingId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Booking phát sinh hoàn tiền; tham chiếu bookings"
+        ],
+        [
+          "requestedBy",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Người yêu cầu hoàn; tham chiếu users"
+        ],
+        [
+          "requestedByRole",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Vai trò người yêu cầu"
+        ],
+        [
+          "cancelledBy",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Người hủy booking; tham chiếu users"
+        ],
+        [
+          "cancelledByRole",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Vai trò người hủy"
+        ],
+        [
+          "reasonCode",
+          "String",
+          "",
+          "",
+          "x",
+          "Mã lý do hoàn tiền"
+        ],
+        [
+          "reasonText",
+          "String",
+          "",
+          "",
+          "",
+          "Nội dung lý do hoàn tiền"
+        ],
+        [
+          "paidAmountAtCancellation",
+          "Number",
+          "",
+          "",
+          "x",
+          "Số tiền đã thanh toán khi hủy"
+        ],
+        [
+          "cancellationFee",
+          "Number",
+          "",
+          "",
+          "x",
+          "Phí hủy"
+        ],
+        [
+          "refundAmount",
+          "Number",
+          "",
+          "",
+          "x",
+          "Số tiền hoàn"
+        ],
+        [
+          "policySnapshot",
+          "Mixed",
+          "",
+          "",
+          "",
+          "Bản chụp chính sách hoàn tiền"
+        ],
+        [
+          "policyRuleApplied",
+          "String",
+          "",
+          "",
+          "x",
+          "Quy tắc chính sách đã áp dụng"
+        ],
+        [
+          "policySource",
+          "String",
+          "",
+          "",
+          "x",
+          "Nguồn chính sách"
+        ],
+        [
+          "method",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Phương thức hoàn: VNPAY, MOMO, CASH, MANUAL hoặc NONE"
+        ],
+        [
+          "status",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Trạng thái xử lý hoàn tiền"
+        ],
+        [
+          "paymentIds",
+          "Array<ObjectId>",
+          "",
+          "",
+          "",
+          "Các giao dịch được hoàn; tham chiếu payments"
+        ],
+        [
+          "provider",
+          "String",
+          "",
+          "",
+          "",
+          "Nhà cung cấp thanh toán"
+        ],
+        [
+          "providerRefundId",
+          "String",
+          "",
+          "",
+          "",
+          "Mã hoàn tiền phía nhà cung cấp"
+        ],
+        [
+          "providerTransactionId",
+          "String",
+          "",
+          "",
+          "",
+          "Mã giao dịch phía nhà cung cấp"
+        ],
+        [
+          "providerResponseCode",
+          "String",
+          "",
+          "",
+          "",
+          "Mã phản hồi nhà cung cấp"
+        ],
+        [
+          "providerResponseMessage",
+          "String",
+          "",
+          "",
+          "",
+          "Thông điệp phản hồi nhà cung cấp"
+        ],
+        [
+          "idempotencyKey",
+          "String",
+          "",
+          "x",
+          "x",
+          "Khóa chống xử lý hoàn tiền trùng"
+        ],
+        [
+          "failureReason",
+          "String",
+          "",
+          "",
+          "",
+          "Lý do hoàn tiền thất bại"
+        ],
+        [
+          "retryCount",
+          "Number",
+          "",
+          "",
+          "",
+          "Số lần thử lại"
+        ],
+        [
+          "recipientInfo",
+          "Object",
+          "",
+          "",
+          "",
+          "Thông tin người nhận tiền hoàn"
+        ],
+        [
+          "recipientInfo.method",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "BANK_TRANSFER, E_WALLET hoặc CASH"
+        ],
+        [
+          "recipientInfo.bankName",
+          "String",
+          "",
+          "",
+          "",
+          "Tên ngân hàng"
+        ],
+        [
+          "recipientInfo.accountNumber",
+          "String",
+          "",
+          "",
+          "",
+          "Số tài khoản"
+        ],
+        [
+          "recipientInfo.accountNumberMasked",
+          "String",
+          "",
+          "",
+          "",
+          "Số tài khoản đã che"
+        ],
+        [
+          "recipientInfo.accountHolderName",
+          "String",
+          "",
+          "",
+          "",
+          "Tên chủ tài khoản"
+        ],
+        [
+          "recipientInfo.walletProvider",
+          "String",
+          "",
+          "",
+          "",
+          "Nhà cung cấp ví điện tử"
+        ],
+        [
+          "recipientInfo.walletAccount",
+          "String",
+          "",
+          "",
+          "",
+          "Tài khoản ví điện tử"
+        ],
+        [
+          "recipientInfo.walletAccountMasked",
+          "String",
+          "",
+          "",
+          "",
+          "Tài khoản ví đã che"
+        ],
+        [
+          "recipientInfo.walletHolderName",
+          "String",
+          "",
+          "",
+          "",
+          "Tên chủ ví"
+        ],
+        [
+          "recipientInfo.cashNote",
+          "String",
+          "",
+          "",
+          "",
+          "Ghi chú hoàn tiền mặt"
+        ],
+        [
+          "recipientInfo.submittedBy",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Người cung cấp thông tin; tham chiếu users"
+        ],
+        [
+          "recipientInfo.submittedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cung cấp thông tin"
+        ],
+        [
+          "recipientInfo.updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật thông tin nhận hoàn"
+        ],
+        [
+          "manualRefundEvidence",
+          "Array<String>",
+          "",
+          "",
+          "",
+          "Danh sách ảnh/chứng từ hoàn thủ công"
+        ],
+        [
+          "manualRefundMethod",
+          "String",
+          "",
+          "",
+          "",
+          "Phương thức hoàn thủ công"
+        ],
+        [
+          "manualRefundReference",
+          "String",
+          "",
+          "",
+          "",
+          "Mã tham chiếu hoàn thủ công"
+        ],
+        [
+          "manualRefundNote",
+          "String",
+          "",
+          "",
+          "",
+          "Ghi chú hoàn thủ công"
+        ],
+        [
+          "manualRefundSentAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm gửi khoản hoàn thủ công"
+        ],
+        [
+          "renterConfirmedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm người thuê xác nhận đã nhận tiền"
+        ],
+        [
+          "requestedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm yêu cầu hoàn"
+        ],
+        [
+          "processingAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm bắt đầu xử lý"
+        ],
+        [
+          "succeededAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm hoàn thành"
+        ],
+        [
+          "failedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm thất bại"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Đánh dấu xóa mềm"
+        ],
+        [
+          "createdAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm tạo bản ghi"
+        ],
+        [
+          "updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật gần nhất"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 20,
+      "style": "Normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 21,
+      "style": "Heading 4",
+      "text": "Bảng extracharges"
+    },
+    {
+      "kind": "table",
+      "index": 9,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã định danh do MongoDB sinh"
+        ],
+        [
+          "bookingId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Booking phát sinh phụ phí; tham chiếu bookings"
+        ],
+        [
+          "carId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Xe phát sinh phụ phí; tham chiếu cars"
+        ],
+        [
+          "renterId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Người thuê; tham chiếu users"
+        ],
+        [
+          "ownerId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Chủ xe; tham chiếu động theo ownerModel"
+        ],
+        [
+          "ownerType",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Loại chủ xe: BUSINESS hoặc USER"
+        ],
+        [
+          "ownerModel",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Model chủ xe: User hoặc Business"
+        ],
+        [
+          "type",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Loại phụ phí: CLEANING, DAMAGE, LATE_RETURN, FUEL hoặc OTHER"
+        ],
+        [
+          "amount",
+          "Number",
+          "",
+          "",
+          "x",
+          "Số tiền phụ phí, tối thiểu 1"
+        ],
+        [
+          "description",
+          "String",
+          "",
+          "",
+          "x",
+          "Nội dung phụ phí"
+        ],
+        [
+          "evidenceImages",
+          "Array<String>",
+          "",
+          "",
+          "",
+          "Hình ảnh bằng chứng"
+        ],
+        [
+          "status",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Trạng thái: PENDING, PAID hoặc CANCELLED"
+        ],
+        [
+          "paymentId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Giao dịch thanh toán phụ phí; tham chiếu payments"
+        ],
+        [
+          "paymentMethod",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Phương thức thanh toán"
+        ],
+        [
+          "paidAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm thanh toán"
+        ],
+        [
+          "confirmedBy",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Người xác nhận; tham chiếu users"
+        ],
+        [
+          "confirmedByRole",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Vai trò người xác nhận"
+        ],
+        [
+          "cancelReason",
+          "String",
+          "",
+          "",
+          "",
+          "Lý do hủy phụ phí"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Đánh dấu xóa mềm"
+        ],
+        [
+          "createdAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm tạo bản ghi"
+        ],
+        [
+          "updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật gần nhất"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 22,
+      "style": "Normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 23,
+      "style": "Heading 4",
+      "text": "Bảng returninspections"
+    },
+    {
+      "kind": "table",
+      "index": 10,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã định danh do MongoDB sinh"
+        ],
+        [
+          "bookingId",
+          "ObjectId",
+          "",
+          "x",
+          "x",
+          "Booking duy nhất được kiểm tra trả xe"
+        ],
+        [
+          "carId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Xe được kiểm tra; tham chiếu cars"
+        ],
+        [
+          "renterId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Người thuê; tham chiếu users"
+        ],
+        [
+          "ownerId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Chủ xe; tham chiếu động theo ownerModel"
+        ],
+        [
+          "ownerType",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Loại chủ xe: BUSINESS hoặc USER"
+        ],
+        [
+          "ownerModel",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Model chủ xe: User hoặc Business"
+        ],
+        [
+          "receivedAt",
+          "Date",
+          "",
+          "",
+          "x",
+          "Thời điểm tiếp nhận xe trả"
+        ],
+        [
+          "receivedBy",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Người tiếp nhận; tham chiếu users"
+        ],
+        [
+          "actualReturnAt",
+          "Date",
+          "",
+          "",
+          "x",
+          "Thời điểm khách thực tế trả xe"
+        ],
+        [
+          "returnOdometer",
+          "Number",
+          "",
+          "",
+          "",
+          "Số công-tơ-mét khi trả"
+        ],
+        [
+          "returnFuelLevel",
+          "Number",
+          "",
+          "",
+          "",
+          "Mức nhiên liệu khi trả, từ 0 đến 100"
+        ],
+        [
+          "returnPhotos",
+          "Array<String>",
+          "",
+          "",
+          "",
+          "Ảnh xe khi trả"
+        ],
+        [
+          "conditionNotes",
+          "String",
+          "",
+          "",
+          "",
+          "Ghi chú tình trạng xe"
+        ],
+        [
+          "isLate",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trả xe trễ hay không"
+        ],
+        [
+          "lateMinutes",
+          "Number",
+          "",
+          "",
+          "",
+          "Số phút trả trễ"
+        ],
+        [
+          "hasDamage",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Có hư hỏng hay không"
+        ],
+        [
+          "hasCleaningIssue",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Có vấn đề vệ sinh hay không"
+        ],
+        [
+          "hasFuelShortage",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Có thiếu nhiên liệu hay không"
+        ],
+        [
+          "inspectionStatus",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "RECEIVED, INSPECTING, CHARGES_PENDING hoặc CLEARED"
+        ],
+        [
+          "inspectedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm hoàn tất kiểm tra"
+        ],
+        [
+          "inspectedBy",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Người kiểm tra; tham chiếu users"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Đánh dấu xóa mềm"
+        ],
+        [
+          "createdAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm tạo bản ghi"
+        ],
+        [
+          "updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật gần nhất"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 24,
+      "style": "Normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 25,
+      "style": "Heading 4",
+      "text": "Bảng reviews"
+    },
+    {
+      "kind": "table",
+      "index": 11,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã định danh do MongoDB sinh"
+        ],
+        [
+          "bookingId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Booking đã hoàn thành; tham chiếu bookings; thuộc chỉ mục duy nhất ghép với renterId"
+        ],
+        [
+          "carId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Xe được đánh giá; tham chiếu cars"
+        ],
+        [
+          "renterId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Người đánh giá; tham chiếu users; thuộc chỉ mục duy nhất ghép với bookingId"
+        ],
+        [
+          "ownerId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Chủ xe; tham chiếu động theo ownerModel"
+        ],
+        [
+          "ownerType",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Loại chủ xe: BUSINESS hoặc USER"
+        ],
+        [
+          "ownerModel",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Model chủ xe: Business hoặc User"
+        ],
+        [
+          "rating",
+          "Number",
+          "",
+          "",
+          "x",
+          "Điểm tổng, số nguyên từ 1 đến 5"
+        ],
+        [
+          "criteria",
+          "Object",
+          "",
+          "",
+          "",
+          "Điểm theo từng tiêu chí"
+        ],
+        [
+          "criteria.vehicleQuality",
+          "Number",
+          "",
+          "",
+          "",
+          "Chất lượng xe, từ 1 đến 5"
+        ],
+        [
+          "criteria.cleanliness",
+          "Number",
+          "",
+          "",
+          "",
+          "Độ sạch, từ 1 đến 5"
+        ],
+        [
+          "criteria.descriptionAccuracy",
+          "Number",
+          "",
+          "",
+          "",
+          "Độ chính xác mô tả, từ 1 đến 5"
+        ],
+        [
+          "criteria.handoverService",
+          "Number",
+          "",
+          "",
+          "",
+          "Dịch vụ bàn giao, từ 1 đến 5"
+        ],
+        [
+          "criteria.ownerAttitude",
+          "Number",
+          "",
+          "",
+          "",
+          "Thái độ chủ xe, từ 1 đến 5"
+        ],
+        [
+          "criteria.punctuality",
+          "Number",
+          "",
+          "",
+          "",
+          "Đúng giờ, từ 1 đến 5"
+        ],
+        [
+          "comment",
+          "String",
+          "",
+          "",
+          "",
+          "Nội dung đánh giá"
+        ],
+        [
+          "images",
+          "Array<String>",
+          "",
+          "",
+          "",
+          "Tối đa 3 ảnh đánh giá"
+        ],
+        [
+          "ownerReply",
+          "Object",
+          "",
+          "",
+          "",
+          "Phản hồi của chủ xe"
+        ],
+        [
+          "ownerReply.content",
+          "String",
+          "",
+          "",
+          "",
+          "Nội dung phản hồi"
+        ],
+        [
+          "ownerReply.repliedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm phản hồi"
+        ],
+        [
+          "ownerReply.updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật phản hồi"
+        ],
+        [
+          "status",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Trạng thái: VISIBLE, REPORTED hoặc HIDDEN"
+        ],
+        [
+          "report",
+          "Object",
+          "",
+          "",
+          "",
+          "Thông tin báo cáo đánh giá"
+        ],
+        [
+          "report.reason",
+          "String",
+          "",
+          "",
+          "",
+          "Lý do báo cáo"
+        ],
+        [
+          "report.reportedBy",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Người báo cáo; tham chiếu users"
+        ],
+        [
+          "report.reportedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm báo cáo"
+        ],
+        [
+          "hiddenReason",
+          "String",
+          "",
+          "",
+          "",
+          "Lý do ẩn đánh giá"
+        ],
+        [
+          "hiddenBy",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Người ẩn; tham chiếu users"
+        ],
+        [
+          "hiddenAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm ẩn"
+        ],
+        [
+          "helpfulCount",
+          "Number",
+          "",
+          "",
+          "",
+          "Số lượt đánh dấu hữu ích"
+        ],
+        [
+          "helpfulBy",
+          "Array<ObjectId>",
+          "",
+          "",
+          "",
+          "Người đánh dấu hữu ích; tham chiếu users"
+        ],
+        [
+          "reviewerNameSnapshot",
+          "String",
+          "",
+          "",
+          "",
+          "Tên người đánh giá tại thời điểm tạo"
+        ],
+        [
+          "carNameSnapshot",
+          "String",
+          "",
+          "",
+          "",
+          "Tên xe tại thời điểm tạo"
+        ],
+        [
+          "ownerNameSnapshot",
+          "String",
+          "",
+          "",
+          "",
+          "Tên chủ xe tại thời điểm tạo"
+        ],
+        [
+          "createdAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm tạo bản ghi"
+        ],
+        [
+          "updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật gần nhất"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 26,
+      "style": "Normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 27,
+      "style": "Heading 4",
+      "text": "Bảng notifications"
+    },
+    {
+      "kind": "table",
+      "index": 12,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã định danh do MongoDB sinh"
+        ],
+        [
+          "recipientId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Người nhận; tham chiếu users; thuộc chỉ mục duy nhất ghép với dedupeKey"
+        ],
+        [
+          "recipientRole",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Vai trò người nhận"
+        ],
+        [
+          "type",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Loại sự kiện thông báo"
+        ],
+        [
+          "title",
+          "String",
+          "",
+          "",
+          "x",
+          "Tiêu đề, tối đa 160 ký tự"
+        ],
+        [
+          "message",
+          "String",
+          "",
+          "",
+          "x",
+          "Nội dung, tối đa 1000 ký tự"
+        ],
+        [
+          "actorId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Người gây ra sự kiện; tham chiếu users"
+        ],
+        [
+          "actorRole",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Vai trò người gây ra sự kiện"
+        ],
+        [
+          "entityType",
+          "String (enum)",
+          "",
+          "",
+          "x",
+          "Loại thực thể liên quan"
+        ],
+        [
+          "entityId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Mã thực thể liên quan"
+        ],
+        [
+          "bookingId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Booking liên quan; tham chiếu bookings"
+        ],
+        [
+          "carId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Xe liên quan; tham chiếu cars"
+        ],
+        [
+          "actionKey",
+          "String (enum)",
+          "",
+          "",
+          "",
+          "Hành động điều hướng từ thông báo"
+        ],
+        [
+          "actionUrl",
+          "String",
+          "",
+          "",
+          "",
+          "Đường dẫn điều hướng"
+        ],
+        [
+          "metadata",
+          "Mixed",
+          "",
+          "",
+          "",
+          "Dữ liệu bổ sung theo từng loại thông báo"
+        ],
+        [
+          "isRead",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Đã đọc hay chưa"
+        ],
+        [
+          "readAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm đọc"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Đánh dấu xóa mềm"
+        ],
+        [
+          "deletedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm xóa"
+        ],
+        [
+          "dedupeKey",
+          "String",
+          "",
+          "",
+          "x",
+          "Khóa chống tạo thông báo trùng; duy nhất khi ghép với recipientId"
+        ],
+        [
+          "createdAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm tạo bản ghi"
+        ],
+        [
+          "updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật gần nhất"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 28,
+      "style": "Normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 29,
+      "style": "Heading 4",
+      "text": "Bảng holidaycalendars"
+    },
+    {
+      "kind": "table",
+      "index": 13,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã định danh do MongoDB sinh"
+        ],
+        [
+          "name",
+          "String",
+          "",
+          "",
+          "x",
+          "Tên ngày lễ hoặc kỳ nghỉ"
+        ],
+        [
+          "date",
+          "Date",
+          "",
+          "",
+          "",
+          "Ngày lễ đơn theo cấu trúc tương thích"
+        ],
+        [
+          "startDate",
+          "Date",
+          "",
+          "",
+          "x",
+          "Ngày bắt đầu"
+        ],
+        [
+          "endDate",
+          "Date",
+          "",
+          "",
+          "x",
+          "Ngày kết thúc"
+        ],
+        [
+          "country",
+          "String",
+          "",
+          "",
+          "",
+          "Mã quốc gia, mặc định VN"
+        ],
+        [
+          "type",
+          "String",
+          "",
+          "",
+          "",
+          "Loại ngày, mặc định HOLIDAY"
+        ],
+        [
+          "isActive",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Lịch đang được áp dụng"
+        ],
+        [
+          "note",
+          "String",
+          "",
+          "",
+          "",
+          "Ghi chú"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Đánh dấu xóa mềm"
+        ],
+        [
+          "createdAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm tạo bản ghi"
+        ],
+        [
+          "updatedAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm cập nhật gần nhất"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 30,
+      "style": "Normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 31,
+      "style": "Heading 4",
+      "text": "Các chỉ mục vật lý chính"
+    },
+    {
+      "kind": "table",
+      "index": 14,
+      "style": "Table Grid",
+      "rows": [
+        [
+          "Collection",
+          "Trường chỉ mục",
+          "Loại",
+          "Mục đích"
+        ],
+        [
+          "users",
+          "email",
+          "Unique",
+          "Bảo đảm email đăng nhập duy nhất"
+        ],
+        [
+          "brands",
+          "name",
+          "Unique",
+          "Bảo đảm tên hãng xe duy nhất"
+        ],
+        [
+          "cars",
+          "plateNumberNormalized",
+          "Single",
+          "Tìm kiếm biển số đã chuẩn hóa"
+        ],
+        [
+          "cars",
+          "status, isDeleted, isHidden, createdAt(-1)",
+          "Compound",
+          "Lọc danh sách xe công khai"
+        ],
+        [
+          "cars",
+          "brandId, status, isDeleted",
+          "Compound",
+          "Lọc xe theo hãng và trạng thái"
+        ],
+        [
+          "cars",
+          "ownerId, ownerType, isDeleted, createdAt(-1)",
+          "Compound",
+          "Quản lý xe theo chủ sở hữu"
+        ],
+        [
+          "carts",
+          "userId, status, expiredAt, createdAt(-1)",
+          "Compound",
+          "Truy vấn giỏ thuê đang hoạt động của người dùng"
+        ],
+        [
+          "carts",
+          "carId, status, startDate, endDate, expiredAt",
+          "Compound",
+          "Kiểm tra xe đang được giữ trong giỏ"
+        ],
+        [
+          "bookings",
+          "userId, isDeleted, createdAt(-1)",
+          "Compound",
+          "Lịch sử booking của người thuê"
+        ],
+        [
+          "bookings",
+          "carId, status, startDate, endDate, isDeleted",
+          "Compound",
+          "Kiểm tra xung đột lịch thuê xe"
+        ],
+        [
+          "bookings",
+          "ownerId, ownerType, isDeleted, createdAt(-1)",
+          "Compound",
+          "Danh sách booking của chủ xe"
+        ],
+        [
+          "contracts",
+          "bookingId",
+          "Unique",
+          "Mỗi booking chỉ có một hợp đồng"
+        ],
+        [
+          "contracts",
+          "contractCode",
+          "Unique",
+          "Mã hợp đồng duy nhất"
+        ],
+        [
+          "payments",
+          "extraChargeId",
+          "Single",
+          "Tra cứu thanh toán theo phụ phí"
+        ],
+        [
+          "refunds",
+          "idempotencyKey",
+          "Unique",
+          "Ngăn xử lý yêu cầu hoàn tiền lặp"
+        ],
+        [
+          "refunds",
+          "bookingId, status, isDeleted",
+          "Compound",
+          "Tra cứu hoàn tiền theo booking"
+        ],
+        [
+          "refunds",
+          "requestedBy, createdAt(-1)",
+          "Compound",
+          "Lịch sử hoàn tiền của người yêu cầu"
+        ],
+        [
+          "extracharges",
+          "bookingId / carId / renterId / ownerId / status / isDeleted",
+          "Single",
+          "Các chỉ mục đơn hỗ trợ lọc phụ phí"
+        ],
+        [
+          "returninspections",
+          "bookingId",
+          "Unique",
+          "Mỗi booking chỉ có một lần kiểm tra trả xe"
+        ],
+        [
+          "returninspections",
+          "carId / renterId / ownerId / inspectionStatus / isDeleted",
+          "Single",
+          "Các chỉ mục đơn hỗ trợ truy vấn kiểm tra"
+        ],
+        [
+          "reviews",
+          "bookingId, renterId",
+          "Compound unique",
+          "Mỗi người thuê chỉ đánh giá một lần cho booking"
+        ],
+        [
+          "reviews",
+          "carId, status, createdAt(-1)",
+          "Compound",
+          "Danh sách đánh giá của xe"
+        ],
+        [
+          "reviews",
+          "ownerId, ownerType, createdAt(-1)",
+          "Compound",
+          "Danh sách đánh giá theo chủ xe"
+        ],
+        [
+          "reviews",
+          "status, report.reportedAt(-1)",
+          "Compound",
+          "Kiểm duyệt đánh giá bị báo cáo"
+        ],
+        [
+          "notifications",
+          "recipientId, dedupeKey",
+          "Compound unique",
+          "Ngăn thông báo trùng cho cùng người nhận"
+        ],
+        [
+          "notifications",
+          "recipientId, isRead, createdAt(-1)",
+          "Compound",
+          "Danh sách thông báo chưa đọc"
+        ],
+        [
+          "notifications",
+          "recipientId, createdAt(-1)",
+          "Compound",
+          "Lịch sử thông báo"
+        ],
+        [
+          "holidaycalendars",
+          "country, startDate, endDate",
+          "Compound",
+          "Tra cứu kỳ nghỉ theo khoảng ngày"
+        ],
+        [
+          "holidaycalendars",
+          "country, type, isActive, isDeleted",
+          "Compound",
+          "Lọc lịch ngày lễ đang áp dụng"
+        ]
+      ]
+    }
+  ]
+}

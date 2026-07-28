@@ -121,6 +121,7 @@ export enum ExtraChargeTypeEnum {
   DAMAGE = "DAMAGE",
   LATE_RETURN = "LATE_RETURN",
   FUEL = "FUEL",
+  OVERAGE_KM = "OVERAGE_KM",
   OTHER = "OTHER",
 }
 export enum ExtraChargeStatusEnum {
@@ -133,6 +134,11 @@ export enum ReturnInspectionStatusEnum {
   INSPECTING = "INSPECTING",
   CHARGES_PENDING = "CHARGES_PENDING",
   CLEARED = "CLEARED",
+}
+export enum MileageStatusEnum {
+  NOT_EVALUATED_KM = "NOT_EVALUATED_KM",
+  WITHIN_LIMIT_KM = "WITHIN_LIMIT_KM",
+  EXCEEDED_LIMIT_KM = "EXCEEDED_LIMIT_KM",
 }
 export enum RentalUnitEnum {
   DAY = "DAY",

@@ -30,6 +30,7 @@ import { notifyNotificationSummaryChanged } from "../../services/notification.se
 import { getBookingTimelineView } from "../../utils/bookingTimeline.util";
 import { formatVietnamDateTime } from "../../utils/date.util";
 import { normalizeImageUrl } from "../../utils/image.util";
+import { getReturnTimingState } from "../../utils/returnTiming.util";
 
 type BookingAction =
   | "confirm"
@@ -311,6 +312,11 @@ function BookingSummaryCard({
     remainingAmount: booking.remainingAmount,
   });
   const remainingCollectionAmount = getRemainingCollectionAmount(booking);
+  const returnTiming = getReturnTimingState({
+    endDate: booking.endDate,
+    actualReturnAt: booking.actualReturnAt,
+    bookingStatus: booking.status,
+  });
 
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -392,16 +398,32 @@ function BookingSummaryCard({
           </p>
           <div className="mt-2 space-y-2">
             <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
-              <span className="font-bold text-slate-500">Nhận xe</span>
+              <span className="font-bold text-slate-500">Ngày nhận dự kiến</span>
               <span className="text-right font-extrabold text-primary">
                 {formatDateTime(booking.startDate)}
               </span>
             </div>
             <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
-              <span className="font-bold text-slate-500">Trả xe</span>
+              <span className="font-bold text-slate-500">Ngày trả dự kiến</span>
               <span className="text-right font-extrabold text-primary">
                 {formatDateTime(booking.endDate)}
               </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
+              <span className="font-bold text-slate-500">Ngày trả thực tế</span>
+              <div className="flex flex-col items-end gap-1">
+                <span className="text-right font-extrabold text-primary">
+                  {booking.actualReturnAt
+                    ? formatDateTime(booking.actualReturnAt)
+                    : "Chưa ghi nhận"}
+                </span>
+                {returnTiming.label !== "Chưa ghi nhận" && (
+                  <AdminStatusBadge
+                    tone={returnTiming.tone}
+                    label={returnTiming.label}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -762,6 +784,11 @@ export default function PrivateOwnerBookingsPage() {
                     remainingCollectionAmount <= 0;
                   const canConfirmRemaining =
                     canConfirmRemainingCash(booking);
+                  const returnTiming = getReturnTimingState({
+                    endDate: booking.endDate,
+                    actualReturnAt: booking.actualReturnAt,
+                    bookingStatus: booking.status,
+                  });
 
                   return (
                     <tr key={booking._id} className="hover:bg-slate-50">
@@ -783,7 +810,21 @@ export default function PrivateOwnerBookingsPage() {
                         {formatDateTime(booking.startDate)}
                       </td>
                       <td className="px-5 py-4 text-slate-600">
-                        {formatDateTime(booking.endDate)}
+                        <p>{formatDateTime(booking.endDate)}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                          Thực tế:{" "}
+                          {booking.actualReturnAt
+                            ? formatDateTime(booking.actualReturnAt)
+                            : "Chưa ghi nhận"}
+                        </p>
+                        {returnTiming.label !== "Chưa ghi nhận" && (
+                          <div className="mt-2">
+                            <AdminStatusBadge
+                              tone={returnTiming.tone}
+                              label={returnTiming.label}
+                            />
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex flex-col items-start gap-2">

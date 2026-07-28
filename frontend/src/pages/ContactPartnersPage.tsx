@@ -33,7 +33,7 @@ const contactCards = [
   {
     icon: Mail,
     label: "Email hỗ trợ",
-    value: publicContactConfig.supportEmail || "Đang cập nhật",
+    value: publicContactConfig.supportEmail || "buiquynh497@gmail.com",
     href: publicContactConfig.supportEmail
       ? `mailto:${publicContactConfig.supportEmail}`
       : "",
@@ -41,7 +41,7 @@ const contactCards = [
   {
     icon: Handshake,
     label: "Email hợp tác",
-    value: publicContactConfig.partnershipEmail || "Đang cập nhật",
+    value: publicContactConfig.partnershipEmail || "buiquynh497@gmail.com",
     href: publicContactConfig.partnershipEmail
       ? `mailto:${publicContactConfig.partnershipEmail}?subject=Hợp tác cùng BQDrive`
       : "",
@@ -49,7 +49,7 @@ const contactCards = [
   {
     icon: Phone,
     label: "Điện thoại",
-    value: publicContactConfig.phone || "Đang cập nhật",
+    value: publicContactConfig.phone || "0387144497",
     href: publicContactConfig.phone ? `tel:${publicContactConfig.phone}` : "",
   },
   {

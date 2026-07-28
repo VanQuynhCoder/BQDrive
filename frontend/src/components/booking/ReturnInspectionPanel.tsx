@@ -41,7 +41,6 @@ type CompletionState = {
 };
 
 type ReceiveReturnPayload = {
-  actualReturnAt: string;
   returnOdometer?: number;
   returnFuelLevel?: number;
   returnPhotos?: string[];
@@ -87,13 +86,6 @@ const blockerLabels: Record<string, string> = {
   BOOKING_NOT_ACTIVE: "Booking không còn ở trạng thái có thể hoàn tất.",
 };
 
-function toDatetimeLocalValue(value?: string | Date) {
-  const date = value ? new Date(value) : new Date();
-  if (Number.isNaN(date.getTime())) return "";
-  const timezoneOffset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
-}
-
 function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -125,7 +117,6 @@ export default function ReturnInspectionPanel({
     canComplete: false,
     blockers: [],
   });
-  const [actualReturnAt, setActualReturnAt] = useState(toDatetimeLocalValue());
   const [returnOdometer, setReturnOdometer] = useState("");
   const [returnFuelLevel, setReturnFuelLevel] = useState("");
   const [conditionNotes, setConditionNotes] = useState("");
@@ -189,11 +180,6 @@ export default function ReturnInspectionPanel({
   };
 
   const handleReceiveReturn = async () => {
-    if (!actualReturnAt) {
-      toast.error("Vui lòng nhập thời gian trả xe thực tế.");
-      return;
-    }
-
     const odometer =
       returnOdometer.trim() === "" ? undefined : Number(returnOdometer);
     const fuel =
@@ -212,7 +198,6 @@ export default function ReturnInspectionPanel({
     setSubmitting(true);
     try {
       const data = await receiveReturn(bookingId, {
-        actualReturnAt: new Date(actualReturnAt).toISOString(),
         returnOdometer: odometer,
         returnFuelLevel: fuel,
         returnPhotos,
@@ -283,12 +268,9 @@ export default function ReturnInspectionPanel({
               <span className="mb-2 block text-sm font-bold text-slate-700">
                 Thời gian trả thực tế
               </span>
-              <input
-                type="datetime-local"
-                value={actualReturnAt}
-                onChange={(event) => setActualReturnAt(event.target.value)}
-                className="min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 font-semibold outline-none focus:border-secondary"
-              />
+              <div className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-600">
+                Hệ thống ghi nhận khi bạn xác nhận tiếp nhận xe
+              </div>
             </label>
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-slate-700">

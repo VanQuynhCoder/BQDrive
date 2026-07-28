@@ -18,6 +18,22 @@ export type IExtraCharge = BaseDocument & {
   amount: number;
   description: string;
   evidenceImages?: string[];
+  mileageSnapshot?: {
+    rentalMode: string;
+    includedKmPerDay?: number;
+    includedKmPerHour?: number;
+    billableUnits: number;
+    handoverOdometerKm: number;
+    returnOdometerKm: number;
+    distanceTravelledKm: number;
+    totalIncludedKm: number;
+    overageKm: number;
+    graceKm: number;
+    chargeableOverageKm: number;
+    overageFeePerKm: number;
+    suggestedOverageAmount: number;
+  };
+  adjustmentReason?: string;
   status: ExtraChargeStatusEnum;
   paymentId?: mongoose.Types.ObjectId;
   paymentMethod?: PaymentMethodEnum;
@@ -86,6 +102,65 @@ const extraChargeSchema = new mongoose.Schema(
         trim: true,
       },
     ],
+    mileageSnapshot: {
+      rentalMode: {
+        type: String,
+        trim: true,
+      },
+      includedKmPerDay: {
+        type: Number,
+        min: 1,
+      },
+      includedKmPerHour: {
+        type: Number,
+        min: 1,
+      },
+      billableUnits: {
+        type: Number,
+        min: 1,
+      },
+      handoverOdometerKm: {
+        type: Number,
+        min: 0,
+      },
+      returnOdometerKm: {
+        type: Number,
+        min: 0,
+      },
+      distanceTravelledKm: {
+        type: Number,
+        min: 0,
+      },
+      totalIncludedKm: {
+        type: Number,
+        min: 0,
+      },
+      overageKm: {
+        type: Number,
+        min: 0,
+      },
+      graceKm: {
+        type: Number,
+        min: 0,
+      },
+      chargeableOverageKm: {
+        type: Number,
+        min: 0,
+      },
+      overageFeePerKm: {
+        type: Number,
+        min: 0,
+      },
+      suggestedOverageAmount: {
+        type: Number,
+        min: 0,
+      },
+    },
+    adjustmentReason: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+    },
     status: {
       type: String,
       enum: Object.values(ExtraChargeStatusEnum),

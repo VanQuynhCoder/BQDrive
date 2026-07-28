@@ -20,6 +20,7 @@ export type OwnerBookingHistoryItem = {
   rentalMode?: string;
   startDate?: string;
   endDate?: string;
+  actualReturnAt?: string | null;
   pickupAddressSnapshot?: string;
   returnAddressSnapshot?: string;
   note?: string;

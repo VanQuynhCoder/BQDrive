@@ -1,0 +1,6449 @@
+{
+  "source": "D:\\Downloads\\BAOCAO_LVTN_demo (5).docx",
+  "sections": 1,
+  "paragraphs": 850,
+  "tables": 17,
+  "blocks": [
+    {
+      "kind": "paragraph",
+      "index": 0,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "table",
+      "index": 0,
+      "style": null,
+      "rows": [
+        [
+          "TRƯỜNG ĐẠI HỌC CÔNG NGHỆ SÀI GÒN | KHOA CÔNG NGHỆ THÔNG TIN | ---oOo--- |  |  |  |  |  | LUẬN VĂN TỐT NGHIỆP |  |  |  |  |  | Tên đề tài: |  | XÂY DỰNG WEBSITE QUẢN LÝ CHO THUÊ XE |  |  |                                                  Giảng viên hướng dẫn : ThS.TRẦN THANH TÚ |                                                  Sinh Viên Thực hiện : | BÙI VẠN QUỲNH |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | TP.HỒ CHÍ MINH - NĂM 2026_2027"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 1,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 2,
+      "style": "Heading 1",
+      "text": "MỤC LỤC "
+    },
+    {
+      "kind": "paragraph",
+      "index": 3,
+      "style": "Heading 1",
+      "text": "MỤC LỤC HÌNH VẼ"
+    },
+    {
+      "kind": "paragraph",
+      "index": 4,
+      "style": "Heading 1",
+      "text": "CHƯƠNG 1: GIỚI THIỆU"
+    },
+    {
+      "kind": "paragraph",
+      "index": 5,
+      "style": "Heading 2",
+      "text": "1.1 Đặt vấn đề, mục tiêu luận văn."
+    },
+    {
+      "kind": "paragraph",
+      "index": 6,
+      "style": "normal",
+      "text": "Trong đời sống hiện đại, nhu cầu di chuyển của cá nhân, gia đình và doanh nghiệp ngày càng tăng cao. Thay vì sở hữu phương tiện cá nhân với nhiều chi phí như bảo dưỡng, sửa chữa, bảo hiểm và khấu hao, nhiều người có xu hướng lựa chọn hình thức thuê xe tự lái để chủ động hơn trong việc đi lại, du lịch, công tác hoặc phục vụ các nhu cầu ngắn hạn."
+    },
+    {
+      "kind": "paragraph",
+      "index": 7,
+      "style": "normal",
+      "text": "Tuy nhiên, hoạt động thuê xe truyền thống hiện nay vẫn còn tồn tại nhiều hạn chế. Quy trình thuê xe thường được thực hiện thủ công thông qua điện thoại, tin nhắn hoặc gặp trực tiếp, gây mất thời gian cho cả khách hàng và chủ xe. Người thuê xe khó kiểm tra được tình trạng xe, lịch trống, giá thuê, chính sách đặt cọc, hợp đồng và phương thức thanh toán một cách rõ ràng. Đồng thời, việc quản lý lịch thuê bằng phương pháp thủ công dễ dẫn đến sai sót, trùng lịch hoặc nhầm lẫn trong quá trình xác nhận đơn thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 8,
+      "style": "normal",
+      "text": "Đối với khách hàng, hạn chế lớn nhất của mô hình truyền thống là bất cân xứng thông tin. Khi danh sách xe không được công bố tập trung, tình trạng xe không được cập nhật theo thời gian thực, giá thuê không được chuẩn hóa và các điều kiện giao dịch không được số hóa đầy đủ, khách hàng khó so sánh giữa nhiều lựa chọn, khó xác minh lịch khả dụng, khó theo dõi tiến trình booking, và khó kiểm tra trạng thái cọc, thanh toán hoặc hợp đồng. Nghiên cứu về hệ thống thuê xe trực tuyến cho thấy các nền tảng số giúp khách hàng xem xe, đặt chỗ, thanh toán và quản lý lịch sử giao dịch thuận tiện hơn, đồng thời giảm phụ thuộc vào việc phải đến trực tiếp địa điểm cung cấp dịch vụ. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 9,
+      "style": "normal",
+      "text": "Ở phía chủ xe cá nhân và doanh nghiệp cho thuê xe, việc quản lý danh sách xe, trạng thái xe, đơn đặt xe, doanh thu và thanh toán cũng gặp nhiều khó khăn nếu không có hệ thống hỗ trợ tập trung. Ngoài ra, quản trị viên hệ thống cần có công cụ để kiểm soát người dùng, doanh nghiệp, thương hiệu xe, xe đăng ký cho thuê và các yêu cầu ký gửi nhằm đảm bảo tính minh bạch, chính xác và an toàn trong quá trình vận hành."
+    },
+    {
+      "kind": "paragraph",
+      "index": 10,
+      "style": "normal",
+      "text": "Từ những vấn đề trên, việc xây dựng một nền tảng website cho thuê xe tự lái là cần thiết. Hệ thống BQDrive được đề xuất nhằm số hóa quy trình thuê xe, hỗ trợ người dùng tìm kiếm xe, xem thông tin chi tiết, đặt lịch thuê, quản lý giỏ xe, tạo booking, xác nhận từ chủ xe, lập hợp đồng và thanh toán bằng tiền mặt hoặc qua các cổng thanh toán trực tuyến như MoMo và VNPay. Bên cạnh đó, hệ thống còn hỗ trợ quản lý người dùng, xe, thương hiệu, doanh nghiệp và quy trình ký gửi xe, góp phần nâng cao hiệu quả quản lý và trải nghiệm sử dụng dịch vụ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 11,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 12,
+      "style": "Heading 2",
+      "text": "1.2 Những thách thức cần giải quyết . "
+    },
+    {
+      "kind": "paragraph",
+      "index": 13,
+      "style": "normal",
+      "text": "Trong quá trình xây dựng hệ thống website cho thuê xe tự lái BQDrive, đề tài cần giải quyết nhiều thách thức liên quan đến nghiệp vụ thuê xe, quản lý dữ liệu và trải nghiệm người dùng. Đây là những vấn đề quan trọng nhằm đảm bảo hệ thống có thể vận hành ổn định, minh bạch và phù hợp với thực tế."
+    },
+    {
+      "kind": "paragraph",
+      "index": 14,
+      "style": "normal",
+      "text": "Trước hết, thách thức lớn nhất là quản lý lịch thuê xe và kiểm tra trùng thời gian đặt xe. Một xe có thể được nhiều khách hàng quan tâm trong cùng một khoảng thời gian, do đó hệ thống cần có cơ chế kiểm tra lịch thuê chính xác để tránh tình trạng nhiều người đặt cùng một xe. Bên cạnh đó, chức năng giữ chỗ tạm thời cũng cần được xử lý hợp lý để đảm bảo công bằng giữa các khách hàng và hạn chế sai sót trong quá trình booking."
+    },
+    {
+      "kind": "paragraph",
+      "index": 15,
+      "style": "normal",
+      "text": "Thứ hai, hệ thống cần giải quyết vấn đề quản lý thông tin xe một cách rõ ràng và đáng tin cậy. Mỗi xe cho thuê cần có đầy đủ thông tin như thương hiệu, loại xe, biển số, số chỗ ngồi, loại nhiên liệu, hộp số, hình ảnh, giá thuê theo ngày hoặc theo giờ và trạng thái hoạt động. Đối với xe do cá nhân hoặc doanh nghiệp đăng tải, hệ thống cần có quy trình duyệt xe trước khi hiển thị công khai nhằm đảm bảo chất lượng dữ liệu và hạn chế thông tin không chính xác."
+    },
+    {
+      "kind": "paragraph",
+      "index": 16,
+      "style": "normal",
+      "text": "Thứ ba, BQDrive cần xây dựng cơ chế phân quyền người dùng phù hợp với từng vai trò. Hệ thống có nhiều nhóm người dùng như khách hàng, chủ xe/doanh nghiệp và quản trị viên. Mỗi vai trò có chức năng và phạm vi thao tác khác nhau. Vì vậy, việc phân quyền cần được thiết kế chặt chẽ để người dùng chỉ có thể truy cập và thực hiện đúng các chức năng thuộc quyền hạn của mình."
+    },
+    {
+      "kind": "paragraph",
+      "index": 17,
+      "style": "normal",
+      "text": "Thứ tư, quá trình xử lý booking, hợp đồng và thanh toán cũng là một thách thức quan trọng. Hệ thống cần hỗ trợ nhiều phương thức thanh toán như tiền mặt, MoMo và VNPay, đồng thời quản lý trạng thái thanh toán tiền cọc hoặc toàn bộ chi phí thuê xe. Các thông tin liên quan đến đơn đặt xe, xác nhận từ chủ xe, trạng thái hợp đồng và lịch sử giao dịch cần được lưu trữ nhất quán để thuận tiện cho việc theo dõi và đối soát."
+    },
+    {
+      "kind": "paragraph",
+      "index": 18,
+      "style": "normal",
+      "text": "Thứ năm, hệ thống cần đảm bảo trải nghiệm người dùng thân thiện và dễ sử dụng. Người thuê xe cần có thể tìm kiếm, lọc xe, xem chi tiết xe và đặt xe một cách nhanh chóng. Chủ xe và doanh nghiệp cần dễ dàng quản lý xe, đơn thuê và doanh thu. Quản trị viên cần có giao diện trực quan để theo dõi người dùng, xe, doanh nghiệp, thương hiệu và các hoạt động quan trọng của hệ thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 19,
+      "style": "normal",
+      "text": "Cuối cùng, đề tài cần quan tâm đến khả năng mở rộng và tính ổn định của hệ thống. Dữ liệu về người dùng, xe, booking, thanh toán và hợp đồng sẽ ngày càng tăng khi hệ thống phát triển. Vì vậy, việc thiết kế kiến trúc frontend, backend và cơ sở dữ liệu cần có tính tổ chức rõ ràng, dễ bảo trì và có khả năng mở rộng thêm các chức năng mới trong tương lai."
+    },
+    {
+      "kind": "paragraph",
+      "index": 20,
+      "style": "normal",
+      "text": "Tóm lại, các thách thức chính mà hệ thống BQDrive cần giải quyết bao gồm: kiểm soát lịch thuê, quản lý thông tin xe, phân quyền người dùng, xử lý booking và thanh toán, đảm bảo trải nghiệm sử dụng, đồng thời xây dựng nền tảng có khả năng mở rộng. Việc giải quyết tốt các vấn đề này sẽ giúp hệ thống nâng cao tính minh bạch, giảm thao tác thủ công và hỗ trợ hiệu quả cho hoạt động cho thuê xe tự lái."
+    },
+    {
+      "kind": "paragraph",
+      "index": 21,
+      "style": "Heading 2",
+      "text": "1.3 Nội dung và phạm vi thực hiện."
+    },
+    {
+      "kind": "paragraph",
+      "index": 22,
+      "style": "Heading 3",
+      "text": "1.3.1 Nội dung thực hiện."
+    },
+    {
+      "kind": "paragraph",
+      "index": 23,
+      "style": "normal",
+      "text": "Đề tài tập trung xây dựng hệ thống website cho thuê xe tự lái BQDrive nhằm hỗ trợ quá trình quản lý và đặt thuê xe trên nền tảng trực tuyến. Hệ thống được phát triển theo mô hình Client - Server, trong đó giao diện người dùng được xây dựng bằng React/TypeScript, phía máy chủ sử dụng Node.js/Express/TypeScript và cơ sở dữ liệu được quản lý bằng MongoDB. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 24,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 25,
+      "style": "normal",
+      "text": "Các nội dung chính được thực hiện trong đề tài bao gồm  : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 26,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "table",
+      "index": 1,
+      "style": null,
+      "rows": [
+        [
+          "Nhóm chức năng ",
+          "Nội dung thực hiện "
+        ],
+        [
+          "Quản lý tài khoản ",
+          "Đăng ký, đăng nhập, xác thực người dùng và phân quyền theo vai trò USER, BUSINESS, ADMIN. "
+        ],
+        [
+          "Quản lý xe ",
+          "Thêm, sửa, xóa, xem danh sách xe; quản lý thông tin xe như hãng xe, loại xe, biển số, số chỗ, nhiên liệu, hộp số, hình ảnh, giá thuê và trạng thái xe. "
+        ],
+        [
+          "Tìm kiếm và thuê xe ",
+          "Cho phép khách hàng tìm kiếm, lọc xe, xem chi tiết xe và đặt thuê xe theo ngày hoặc theo giờ. "
+        ],
+        [
+          "Quản lý booking ",
+          "Xử lý đặt xe, kiểm tra trùng lịch thuê, giữ chỗ tạm thời, theo dõi trạng thái đơn đặt xe và lịch sử thuê xe. "
+        ],
+        [
+          "Quản lý giỏ xe ",
+          "Hỗ trợ người dùng thêm xe vào giỏ, giữ chỗ trong thời gian giới hạn và tiến hành đặt xe từ giỏ. "
+        ],
+        [
+          "Quản lý chủ xe/doanh nghiệp ",
+          "Hỗ trợ cá nhân hoặc doanh nghiệp đăng xe cho thuê, quản lý danh sách xe, theo dõi booking và doanh thu. "
+        ],
+        [
+          "Quản trị hệ thống ",
+          "Admin quản lý người dùng, doanh nghiệp, thương hiệu xe, duyệt xe, từ chối xe và theo dõi dữ liệu tổng quan. "
+        ],
+        [
+          "Thanh toán ",
+          "Hỗ trợ hình thức thanh toán tiền mặt và định hướng tích hợp các cổng thanh toán trực tuyến như MoMo, VNPay. "
+        ],
+        [
+          "Hợp đồng thuê xe ",
+          "Quản lý thông tin hợp đồng liên quan đến đơn thuê xe, khách hàng, chủ xe, thời gian thuê và trạng thái xử lý. "
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 27,
+      "style": "Heading 3",
+      "text": "1.3.2 Phạm vi thực hiện "
+    },
+    {
+      "kind": "paragraph",
+      "index": 28,
+      "style": "Heading 3",
+      "text": "1.4 Kết quả cần đạt. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 29,
+      "style": "normal",
+      "text": "Sau khi hoàn thành đề tài “Xây dựng hệ thống website cho thuê xe tự lái BQDrive”, hệ thống cần đạt được các kết quả cơ bản về mặt chức năng, kỹ thuật và ý nghĩa ứng dụng thực tiễn."
+    },
+    {
+      "kind": "paragraph",
+      "index": 30,
+      "style": "normal",
+      "text": "Trước hết, đề tài cần xây dựng được một website cho thuê xe tự lái có giao diện thân thiện, dễ sử dụng và phù hợp với nhiều nhóm người dùng khác nhau. Người dùng có thể đăng ký, đăng nhập, tìm kiếm xe, xem thông tin chi tiết xe, lựa chọn thời gian thuê, đặt xe và theo dõi trạng thái đơn thuê. Các thao tác này cần được thực hiện trực quan, giúp giảm thời gian tìm kiếm và đặt xe so với hình thức thuê xe truyền thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 31,
+      "style": "normal",
+      "text": "Về phía chủ xe cá nhân và doanh nghiệp, hệ thống cần hỗ trợ quản lý danh sách xe, đăng tải thông tin xe cho thuê, cập nhật trạng thái xe, theo dõi đơn đặt xe và xác nhận yêu cầu thuê xe từ khách hàng. Điều này giúp chủ xe quản lý hoạt động cho thuê một cách tập trung, hạn chế sai sót khi xử lý lịch thuê, đơn thuê và thông tin thanh toán."
+    },
+    {
+      "kind": "paragraph",
+      "index": 32,
+      "style": "normal",
+      "text": "Đối với quản trị viên, hệ thống cần cung cấp các chức năng quản lý người dùng, doanh nghiệp, thương hiệu xe, danh sách xe và các yêu cầu liên quan đến việc duyệt xe. Quản trị viên có thể kiểm soát dữ liệu trong hệ thống, theo dõi tình trạng hoạt động và đảm bảo các thông tin xe được hiển thị minh bạch, chính xác trước khi đến với khách hàng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 33,
+      "style": "normal",
+      "text": "Về mặt nghiệp vụ, hệ thống cần xử lý được quy trình đặt thuê xe từ lúc người dùng chọn xe đến khi tạo booking, kiểm tra trùng lịch, giữ chỗ tạm thời, xác nhận đơn thuê, quản lý hợp đồng và cập nhật trạng thái thanh toán. Đặc biệt, cơ chế kiểm tra lịch thuê cần đảm bảo một xe không bị đặt bởi nhiều người trong cùng một khoảng thời gian, góp phần nâng cao độ tin cậy của hệ thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 34,
+      "style": "normal",
+      "text": "Về mặt kỹ thuật, hệ thống cần được xây dựng theo mô hình Client - Server, sử dụng React/TypeScript cho frontend, Node.js/Express/TypeScript cho backend và MongoDB để lưu trữ dữ liệu. Các API cần được thiết kế rõ ràng, hỗ trợ trao đổi dữ liệu giữa giao diện người dùng và máy chủ. Đồng thời, hệ thống cần có cơ chế xác thực, phân quyền theo vai trò USER, BUSINESS và ADMIN nhằm đảm bảo mỗi nhóm người dùng chỉ được truy cập đúng chức năng của mình."
+    },
+    {
+      "kind": "paragraph",
+      "index": 35,
+      "style": "normal",
+      "text": "Ngoài ra, hệ thống cần hỗ trợ các phương thức thanh toán cơ bản như tiền mặt và định hướng tích hợp các cổng thanh toán trực tuyến như MoMo và VNPay. Thông tin thanh toán, đơn đặt xe, hợp đồng, xe và người dùng cần được lưu trữ nhất quán, phục vụ cho việc tra cứu, quản lý và đối soát khi cần thiế"
+    },
+    {
+      "kind": "paragraph",
+      "index": 36,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 37,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 38,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 39,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 40,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 41,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 42,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 43,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 44,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 45,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 46,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 47,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 48,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 49,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 50,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 51,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 52,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 53,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 54,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 55,
+      "style": "normal",
+      "text": "CHƯƠNG 2: PHƯƠNG PHÁP THỰC HIỆN "
+    },
+    {
+      "kind": "paragraph",
+      "index": 56,
+      "style": "Heading 2",
+      "text": "2.1 Các hệ thống tương tự. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 57,
+      "style": "normal",
+      "text": "Nhằm xây dựng nền tảng cơ sở lý luận và thực tiễn cho việc phát triển một hệ thống trực tuyến cho thuê xe chuyên nghiệp, nghiên cứu này tiến hành khảo sát và phân tích mô hình hoạt động của hai nền tảng uy tín hàng đầu tại thị trường Việt Nam hiện nay: MIOTO (mioto.vn) và BonBonCar (bonboncar.vn). Việc đánh giá định tính kết hợp phân tích ma trận điểm mạnh, điểm yếu (SWOT) của hai đối thủ cạnh tranh này sẽ cung cấp những luận cứ quan trọng, giúp tối ưu hóa kiến trúc chức năng và nâng cao năng lực cạnh tranh cho hệ thống đề xuất. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 58,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 59,
+      "style": "normal",
+      "text": "MIOTO"
+    },
+    {
+      "kind": "paragraph",
+      "index": 60,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 61,
+      "style": "normal",
+      "text": "Tổng quan hệ thống : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 62,
+      "style": "normal",
+      "text": "Mioto là một nền tảng cho thuê xe trực tuyến tại Việt Nam, định hướng kết nối giữa người có nhu cầu thuê xe với các chủ xe cá nhân hoặc đơn vị cung cấp xe "
+    },
+    {
+      "kind": "paragraph",
+      "index": 63,
+      "style": "normal",
+      "text": "Mioto hoạt động theo mô hình trung gian: chủ xe đăng thông tin xe lên hệ thống, khách hàng tìm kiếm xe phù hợp, gửi yêu cầu thuê và thực hiện các bước xác nhận, thanh toán theo quy trình của nền tảng "
+    },
+    {
+      "kind": "paragraph",
+      "index": 64,
+      "style": "normal",
+      "text": "Điểm Mạnh : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 65,
+      "style": "normal",
+      "text": "Mô hình hoạt động : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 66,
+      "style": "normal",
+      "text": "Mioto xây dựng được mô hình kết nối trực tiếp giữa khách thuê và chủ xe "
+    },
+    {
+      "kind": "paragraph",
+      "index": 67,
+      "style": "normal",
+      "text": "Mở rộng nguồn cung xe, không chỉ phụ thuộc vào các doanh nghiệp cho thuê xe truyền thống. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 68,
+      "style": "normal",
+      "text": "Trải nghiệm người dùng : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 69,
+      "style": "normal",
+      "text": "Người dùng có thể tìm kiếm xe, xem thông tin chi tiết, so sánh giá và lựa chọn xe phù hợp với nhu cầu di chuyển. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 70,
+      "style": "normal",
+      "text": "Quy trình này thuận tiện hơn so với thuê xe bằng cách gọi điện hoặc trao đổi thủ công. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 71,
+      "style": "normal",
+      "text": "Thông tin xe : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 72,
+      "style": "normal",
+      "text": "Xe được trình bày với các thông tin quan trọng như hình ảnh, giá thuê, địa điểm nhận xe, loại xe và các điều kiện thuê. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 73,
+      "style": "normal",
+      "text": "Quy trình booking : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 74,
+      "style": "normal",
+      "text": "Hệ thống có quy trình gửi yêu cầu thuê xe và chờ chủ xe xác nhận "
+    },
+    {
+      "kind": "paragraph",
+      "index": 75,
+      "style": "normal",
+      "text": "Giúp chủ xe cần kiểm tra lịch xe , thông tin khách thuê và điều kiện giao nhận trước khi đồng ý cho thuê "
+    },
+    {
+      "kind": "paragraph",
+      "index": 76,
+      "style": "normal",
+      "text": "Thanh Toán "
+    },
+    {
+      "kind": "paragraph",
+      "index": 77,
+      "style": "normal",
+      "text": "Hỗ trợ thanh toán trực tuyến "
+    },
+    {
+      "kind": "paragraph",
+      "index": 78,
+      "style": "normal",
+      "text": "Thanh toán giữ chỗ minh bạch "
+    },
+    {
+      "kind": "paragraph",
+      "index": 79,
+      "style": "normal",
+      "text": "Độ tin cậy : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 80,
+      "style": "normal",
+      "text": "Quy trình nền tảng trung gian "
+    },
+    {
+      "kind": "paragraph",
+      "index": 81,
+      "style": "normal",
+      "text": "Giảm bớt sự phụ thuộc vào trao đổi cá nhân giữa khách thuê và chủ xe "
+    },
+    {
+      "kind": "paragraph",
+      "index": 82,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 83,
+      "style": "normal",
+      "text": "Điểm Yếu : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 84,
+      "style": "normal",
+      "text": "Phụ thuộc vào xác nhận của chủ xe "
+    },
+    {
+      "kind": "paragraph",
+      "index": 85,
+      "style": "normal",
+      "text": "Sau khi gửi yêu cầu booking , chưa chắc đã được chấp nhận ngay , phụ thuộc vào sự phản hồi của chủ xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 86,
+      "style": "normal",
+      "text": "Ảnh hưởng đến thời gian , sự kiên nhẫn của khách hàng "
+    },
+    {
+      "kind": "paragraph",
+      "index": 87,
+      "style": "normal",
+      "text": "Rủi ro thay đổi thông tin "
+    },
+    {
+      "kind": "paragraph",
+      "index": 88,
+      "style": "normal",
+      "text": "Với mô hình cho phép chủ xe đăng xe , hệ thống cần kiểm soát chặt việc chỉnh sửa giá , hình ảnh , địa chỉ nhận xe hoặc chính sách thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 89,
+      "style": "normal",
+      "text": "Không có quy trình duyệt lại, khách hàng có thể gặp tình trạng thông tin thay đổi sau khi xe đã được hiển thị."
+    },
+    {
+      "kind": "paragraph",
+      "index": 90,
+      "style": "normal",
+      "text": "Xử lý sau chuyến thuê "
+    },
+    {
+      "kind": "paragraph",
+      "index": 91,
+      "style": "normal",
+      "text": "Sau khi khách trả xe có thể phát sinh các chi phí như xe bị dơ, hư hỏng hoặc phụ phí khác. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 92,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 93,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 94,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 95,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 96,
+      "style": "normal",
+      "text": "BonbonCar"
+    },
+    {
+      "kind": "paragraph",
+      "index": 97,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 98,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 99,
+      "style": "normal",
+      "text": "Điểm mạnh : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 100,
+      "style": "normal",
+      "text": "Tiếp cận dịch vụ trực tuyến : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 101,
+      "style": "normal",
+      "text": "Bonbon Car giúp người dùng tiếp cận dịch vụ thuê xe thông qua nền tảng trực tuyến, giảm sự phụ thuộc vào hình thức liên hệ thủ công như gọi điện."
+    },
+    {
+      "kind": "paragraph",
+      "index": 102,
+      "style": "normal",
+      "text": "Tìm kiếm xe : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 103,
+      "style": "normal",
+      "text": "Người dùng có thể xem danh sách xe và lựa chọn xe phù hợp với nhu cầu di chuyển. Điều này giúp quá trình tìm xe thuận tiện hơn so với cách thuê xe truyền thống. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 104,
+      "style": "normal",
+      "text": "Thông tin xe : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 105,
+      "style": "normal",
+      "text": "Thông tin xe được trình bày rõ ràng ,cho phép hiển thị các thông tin cơ bản của xe như hình ảnh, loại xe, giá thuê, địa điểm nhận xe và điều kiện thuê. Nhờ đó, khách hàng có thêm cơ sở để so sánh và lựa chọn. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 106,
+      "style": "normal",
+      "text": "Minh bạch : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 107,
+      "style": "normal",
+      "text": "Thông tin xe, giá thuê và điều kiện thuê được đưa lên hệ thống, người dùng có thể dễ dàng theo dõi hơn, hạn chế tình trạng trao đổi thiếu rõ ràng giữa khách thuê và bên cho thuê. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 108,
+      "style": "normal",
+      "text": "Hỗ trợ quản lý đơn thuê : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 109,
+      "style": "normal",
+      "text": "Việc đặt xe qua hệ thống giúp quá trình ghi nhận yêu cầu thuê xe có tổ chức hơn, thay vì quản lý hoàn toàn bằng sổ sách hoặc tin nhắn rời rạc. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 110,
+      "style": "normal",
+      "text": "Điểm Yếu : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 111,
+      "style": "normal",
+      "text": "Mạng và phần cứng : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 112,
+      "style": "normal",
+      "text": "Hệ thống mở khóa bằng ứng dụng qua internet /bluetooth.Gặp sự cố về mạng , khách không thể mở cửa và khởi động xe "
+    },
+    {
+      "kind": "paragraph",
+      "index": 113,
+      "style": "normal",
+      "text": "Giới hạn điểm nhận và trả xe : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 114,
+      "style": "normal",
+      "text": "Do hoạt động theo mô hình không tiếp xúc xe thường được đỗ cố định tại các bãi xe, hầm chung cư được định vị sẵn."
+    },
+    {
+      "kind": "paragraph",
+      "index": 115,
+      "style": "normal",
+      "text": "Chi phí vận hành và bảo trì hệ thống cao: "
+    },
+    {
+      "kind": "paragraph",
+      "index": 116,
+      "style": "normal",
+      "text": "Việc phải duy trì đội ngũ kỹ thuật lắp đặt thiết bị, tổng đài xử lý sự cố 24/7 và chi phí bảo trì phần cứng khiến biên lợi nhuận của nền tảng bị ép chặt, gián tiếp ảnh hưởng đến các chương trình ưu đãi dài hạn cho người dùng nếu so với các mô hình thuần kết nối P2P. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 117,
+      "style": "Heading 2",
+      "text": "2.2 Bài học rút ra và những điểm cần tránh khi xây dựng hệ thống "
+    },
+    {
+      "kind": "paragraph",
+      "index": 118,
+      "style": "normal",
+      "text": "Thông qua việc khảo sát hai hệ thống cho thuê xe trực tuyến là MIOTO và BonbonCar, có thể nhận thấy rằng các nền tảng cho thuê xe hiện đại đều hướng đến mục tiêu số hóa quy trình thuê xe, giúp khách hàng dễ dàng tìm kiếm xe, xem thông tin chi tiết, gửi yêu cầu thuê và thực hiện thanh toán một cách thuận tiện hơn. Đồng thời, các hệ thống này cũng hỗ trợ chủ xe hoặc đơn vị kinh doanh quản lý xe, quản lý đơn thuê và tăng khả năng tiếp cận khách hàng. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 119,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 120,
+      "style": "normal",
+      "text": "Bài học rút ra cho hệ thống BQDrive"
+    },
+    {
+      "kind": "paragraph",
+      "index": 121,
+      "style": "normal",
+      "text": "Xây dựng quy trình thuê xe rõ ràng : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 122,
+      "style": "normal",
+      "text": " Xây dựng quy trình thuê có sự phân tách giữa các bước như tìm kiếm xe, xem chi tiết xe, gửi yêu cầu thuê, chủ xe xác nhận, người thuê thanh toán, bàn giao xe và hoàn tất chuyến thuê. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 123,
+      "style": "normal",
+      "text": "Thông tin xe "
+    },
+    {
+      "kind": "paragraph",
+      "index": 124,
+      "style": "normal",
+      "text": "Xây dựng hệ thống hiển thị thông tin xe đầy đủ và minh bạch "
+    },
+    {
+      "kind": "paragraph",
+      "index": 125,
+      "style": "normal",
+      "text": "Một xe khi hiển thị trên hệ thống cần có các thông tin quan trọng như hình ảnh, biển số, thương hiệu, loại xe, số chỗ ngồi, loại nhiên liệu, hộp số, địa chỉ nhận xe, giá thuê ngày thường, giá cuối tuần, giá ngày lễ và các chính sách phí phát sinh. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 126,
+      "style": "normal",
+      "text": "Kiểm Soát booking : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 127,
+      "style": "normal",
+      "text": "Xây dựng hệ thống có kiểm tra trùng lịch trước khi tạo booking. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 128,
+      "style": "normal",
+      "text": "Thể hiện rõ trạng thái tránh nhầm lẫn giữa yêu cầu thuê và trạng thái được xác nhận "
+    },
+    {
+      "kind": "paragraph",
+      "index": 129,
+      "style": "normal",
+      "text": "Quản Lý thanh toán : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 130,
+      "style": "normal",
+      "text": "Xây dựng hệ thống hỗ trợ các hình thức thanh toán tiền cọc, thanh toán toàn bộ và thanh toán phần còn lại "
+    },
+    {
+      "kind": "paragraph",
+      "index": 131,
+      "style": "normal",
+      "text": "Mỗi Booking sẽ lưu chính xác tổng tiền , số tiền thanh toán và số tiền còn lại "
+    },
+    {
+      "kind": "paragraph",
+      "index": 132,
+      "style": "normal",
+      "text": "Xây dựng hệ thống lưu trữ và hiển thị các hình thức thanh toán."
+    },
+    {
+      "kind": "paragraph",
+      "index": 133,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 134,
+      "style": "normal",
+      "text": "Những điểm cần tránh khi xây dựng hệ thống BQ Drive"
+    },
+    {
+      "kind": "paragraph",
+      "index": 135,
+      "style": "normal",
+      "text": "Quy trình booking : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 136,
+      "style": "normal",
+      "text": "Xây dựng hệ thống cần thể hiện rõ từng trạng thái của booking như chờ duyệt, đã duyệt, đã thanh toán, đang thực hiện, hoàn tất hoặc không nhận xe. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 137,
+      "style": "normal",
+      "text": "Thông tin xe : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 138,
+      "style": "normal",
+      "text": "Tránh trường hợp chủ xe hay doanh nghiệp có thể tự ý đổi thông tin , tự ý chỉnh sửa giá , hình ảnh , địa chỉ nhận xe , biển số , chính sách phụ phí v.v.v."
+    },
+    {
+      "kind": "paragraph",
+      "index": 139,
+      "style": "normal",
+      "text": "Quản lý thanh toán : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 140,
+      "style": "normal",
+      "text": "Tránh sai trạng thái hiển thị , cần đồng bộ chặt chẽ về tổng tiền, số tiền đã thanh toán, số tiền còn lại và trạng thái xử lý. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 141,
+      "style": "normal",
+      "text": "Quy trình booking : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 142,
+      "style": "normal",
+      "text": "Tránh tình trạng một xe bị đặt trùng lịch "
+    },
+    {
+      "kind": "paragraph",
+      "index": 143,
+      "style": "normal",
+      "text": "Hệ thống phải kiểm tra lịch thuê trước khi cho phép tạo hoặc xác nhận booking nhằm đảm bảo một xe chỉ phục vụ một đơn thuê hợp lệ tại cùng một thời điểm. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 144,
+      "style": "normal",
+      "text": "⇒Từ việc phân tích bài học rút ra và những điểm cần tránh, có thể thấy hệ thống BQDrive cần được xây dựng theo hướng minh bạch, chặt chẽ và nhất quán trong toàn bộ quy trình thuê xe. Các chức năng như tìm kiếm xe, quản lý thông tin xe, kiểm tra trùng lịch, xử lý booking, thanh toán, hợp đồng và phân quyền người dùng cần được thiết kế rõ ràng để hạn chế sai sót trong quá trình vận hành."
+    },
+    {
+      "kind": "paragraph",
+      "index": 145,
+      "style": "normal",
+      "text": "BQDrive cần kế thừa các ưu điểm của những hệ thống tương tự như số hóa quy trình thuê xe, hiển thị thông tin xe đầy đủ, hỗ trợ đặt xe trực tuyến và giúp chủ xe quản lý đơn thuê thuận tiện hơn. Đồng thời, hệ thống cần tránh các hạn chế như đặt trùng lịch, thay đổi thông tin xe thiếu kiểm soát, thanh toán không đồng bộ với booking và hợp đồng, hoặc phân quyền sai trách nhiệm giữa ADMIN, BUSINESS và USER."
+    },
+    {
+      "kind": "paragraph",
+      "index": 146,
+      "style": "normal",
+      "text": "Những nội dung trên là cơ sở quan trọng để định hướng thiết kế và phát triển BQDrive, giúp hệ thống đáp ứng tốt hơn nhu cầu thuê xe trực tuyến, nâng cao tính minh bạch, giảm thao tác thủ công và tạo nền tảng mở rộng trong tương lai."
+    },
+    {
+      "kind": "paragraph",
+      "index": 147,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 148,
+      "style": "Heading 2",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 149,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 150,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 151,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 152,
+      "style": "Heading 2",
+      "text": "2.3 Công Nghệ sử dụng"
+    },
+    {
+      "kind": "paragraph",
+      "index": 153,
+      "style": "normal",
+      "text": "Trong quá trình xây dựng hệ thống BQDrive, nhóm sử dụng các công nghệ hiện đại phục vụ cho việc phát triển ứng dụng web, bao gồm ReactJS, Node.js, ExpressJS, MongoDB, TypeScript và một số thư viện hỗ trợ khác. Việc lựa chọn các công nghệ này giúp hệ thống có khả năng xử lý dữ liệu linh hoạt, giao diện thân thiện, dễ mở rộng và phù hợp với mô hình website đặt thuê xe trực tuyến. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 154,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 155,
+      "style": "normal",
+      "text": "ReactJS "
+    },
+    {
+      "kind": "paragraph",
+      "index": 156,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 157,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 158,
+      "style": "normal",
+      "text": "\t\t\t\t"
+    },
+    {
+      "kind": "paragraph",
+      "index": 159,
+      "style": "Heading 4",
+      "text": " Hình 2-1 : Môi trường lập trình ReactJs "
+    },
+    {
+      "kind": "paragraph",
+      "index": 160,
+      "style": "normal",
+      "text": "ReactJS là thư viện JavaScript được sử dụng để xây dựng giao diện người dùng cho hệ thống BQDrive. Với cơ chế component, ReactJS giúp chia nhỏ giao diện thành các thành phần độc lập như trang chủ, danh sách xe, chi tiết xe, giỏ hàng, đặt xe, thanh toán, trang quản trị và các trang dành cho chủ xe/doanh nghiệp."
+    },
+    {
+      "kind": "paragraph",
+      "index": 161,
+      "style": "normal",
+      "text": "Trong hệ thống BQDrive, ReactJS kết hợp với TypeScript giúp mã nguồn rõ ràng, dễ kiểm soát kiểu dữ liệu và hạn chế lỗi trong quá trình phát triển. Ngoài ra, hệ thống còn sử dụng React Router DOM để điều hướng giữa các trang, Axios để giao tiếp với API backend, React Hot Toast để hiển thị thông báo và Lucide React để xây dựng hệ thống biểu tượng giao diện."
+    },
+    {
+      "kind": "paragraph",
+      "index": 162,
+      "style": "normal",
+      "text": "Lợi ích : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 163,
+      "style": "normal",
+      "text": "Tái sử dụng giao diện: Các thành phần như thẻ xe, form đặt xe, bảng quản lý, nút thao tác có thể được xây dựng thành component và tái sử dụng ở nhiều nơi trong hệ thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 164,
+      "style": "normal",
+      "text": "Tăng tốc độ phát triển frontend: ReactJS giúp xây dựng giao diện nhanh, dễ tổ chức mã nguồn và thuận tiện khi mở rộng thêm chức năng mới."
+    },
+    {
+      "kind": "paragraph",
+      "index": 165,
+      "style": "normal",
+      "text": "Trải nghiệm người dùng tốt hơn: ReactJS giúp giao diện được cập nhật linh hoạt khi người dùng tìm kiếm xe, lọc xe, xem chi tiết, đặt xe hoặc thanh toán."
+    },
+    {
+      "kind": "paragraph",
+      "index": 166,
+      "style": "normal",
+      "text": "Dễ bảo trì và mở rộng: Cấu trúc component giúp việc chỉnh sửa giao diện, thêm trang mới hoặc cập nhật chức năng trở nên dễ dàng hơn."
+    },
+    {
+      "kind": "paragraph",
+      "index": 167,
+      "style": "normal",
+      "text": "NodeJS và ExpressJS "
+    },
+    {
+      "kind": "paragraph",
+      "index": 168,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 169,
+      "style": "Heading 4",
+      "text": "Hình 2-2: Môi trường lập trình NodeJS"
+    },
+    {
+      "kind": "paragraph",
+      "index": 170,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 171,
+      "style": "normal",
+      "text": "Node.js được sử dụng làm môi trường chạy phía server cho hệ thống BQDrive. Đây là nền tảng cho phép xây dựng ứng dụng backend bằng JavaScript/TypeScript, có khả năng xử lý nhiều yêu cầu đồng thời và phù hợp với các hệ thống web hiện đại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 172,
+      "style": "normal",
+      "text": "ExpressJS là framework backend được sử dụng để xây dựng các API cho hệ thống. Các chức năng như đăng ký, đăng nhập, quản lý người dùng, quản lý xe, đặt xe, hợp đồng, thanh toán và quản lý doanh nghiệp đều được tổ chức thông qua các route API. Việc sử dụng ExpressJS giúp hệ thống backend có cấu trúc rõ ràng, dễ bảo trì và dễ mở rộng khi cần bổ sung thêm chức năng mới."
+    },
+    {
+      "kind": "paragraph",
+      "index": 173,
+      "style": "normal",
+      "text": "Lợi ích : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 174,
+      "style": "normal",
+      "text": "Xử lý tốt các yêu cầu web:NodeJS phù hợp với các hệ thống web cần xử lý nhiều yêu cầu bất đồng bộ như đăng nhập, tìm kiếm xe, đặt xe, cập nhật thanh toán và thay đổi trạng thái booking."
+    },
+    {
+      "kind": "paragraph",
+      "index": 175,
+      "style": "normal",
+      "text": "Đồng bộ công nghệ frontend và backend: Cả frontend và backend đều sử dụng JavaScript/TypeScript, giúp quá trình phát triển thống nhất và dễ quản lý hơn."
+    },
+    {
+      "kind": "paragraph",
+      "index": 176,
+      "style": "normal",
+      "text": "Xây dựng API nhanh chóng: ExpressJS hỗ trợ tạo route, middleware và controller rõ ràng, phù hợp với mô hình RESTful API."
+    },
+    {
+      "kind": "paragraph",
+      "index": 177,
+      "style": "normal",
+      "text": "Dễ mở rộng chức năng: Backend có thể chia thành nhiều module như auth, user, car, booking, payment, contract, business, giúp hệ thống dễ bảo trì và phát triển thêm."
+    },
+    {
+      "kind": "paragraph",
+      "index": 178,
+      "style": "normal",
+      "text": "TypeScript "
+    },
+    {
+      "kind": "paragraph",
+      "index": 179,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 180,
+      "style": "Heading 4",
+      "text": "Hình 2-3 : Ngôn ngữ sử dụng TypeScript"
+    },
+    {
+      "kind": "paragraph",
+      "index": 181,
+      "style": "normal",
+      "text": "TypeScript là ngôn ngữ được sử dụng ở cả frontend và backend của hệ thống BQDrive. TypeScript mở rộng từ JavaScript và bổ sung cơ chế kiểm tra kiểu dữ liệu tĩnh, giúp lập trình viên phát hiện lỗi sớm hơn trong quá trình phát triển."
+    },
+    {
+      "kind": "paragraph",
+      "index": 182,
+      "style": "normal",
+      "text": "Việc sử dụng TypeScript giúp mã nguồn của hệ thống có tính chặt chẽ hơn, đặc biệt trong các phần xử lý dữ liệu người dùng, thông tin xe, đơn đặt xe, thanh toán và hợp đồng. Điều này góp phần nâng cao độ ổn định và khả năng bảo trì của hệ thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 183,
+      "style": "normal",
+      "text": "Lợi ích : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 184,
+      "style": "normal",
+      "text": "Kiểm soát kiểu dữ liệu tốt hơn: Giúp hạn chế lỗi khi xử lý các dữ liệu như thông tin xe, trạng thái booking, số tiền thanh toán và vai trò người dùng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 185,
+      "style": "normal",
+      "text": "Phát hiện lỗi sớm: Nhiều lỗi có thể được phát hiện ngay trong quá trình viết code thay vì chỉ phát hiện khi chạy chương trình."
+    },
+    {
+      "kind": "paragraph",
+      "index": 186,
+      "style": "normal",
+      "text": "Mã nguồn rõ ràng hơn: Việc định nghĩa interface, type, request và response giúp lập trình viên dễ hiểu cấu trúc dữ liệu của hệ thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 187,
+      "style": "normal",
+      "text": "Dễ bảo trì: Khi hệ thống mở rộng, TypeScript giúp việc chỉnh sửa và nâng cấp mã nguồn an toàn hơn."
+    },
+    {
+      "kind": "paragraph",
+      "index": 188,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 189,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 190,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 191,
+      "style": "normal",
+      "text": "Mô hình kiến trúc RESTful API."
+    },
+    {
+      "kind": "paragraph",
+      "index": 192,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 193,
+      "style": "Heading 4",
+      "text": "Hình 2-4: Mô hình kiến trúc Restful API"
+    },
+    {
+      "kind": "paragraph",
+      "index": 194,
+      "style": "normal",
+      "text": "Hệ thống BQDrive sử dụng RESTful API làm phương thức giao tiếp giữa frontend và backend. Frontend được xây dựng bằng ReactJS sử dụng thư viện Axios để gửi các yêu cầu HTTP đến backend. Backend được xây dựng bằng Node.js và ExpressJS, cung cấp các endpoint API để xử lý các chức năng như đăng nhập, quản lý xe, đặt xe, thanh toán và quản lý người dùng. Dữ liệu giữa hai phía được trao đổi dưới định dạng JSON. Ngoài ra, hệ thống sử dụng JWT để xác thực và phân quyền người dùng khi truy cập các API cần bảo vệ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 195,
+      "style": "normal",
+      "text": "RESTful API kết hợp Axios và ExpressJS để giao tiếp giữa frontend và backend. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 196,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 197,
+      "style": "normal",
+      "text": "Lợi ích : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 198,
+      "style": "normal",
+      "text": "Tách biệt frontend và backend: Frontend chỉ tập trung vào giao diện, backend tập trung xử lý nghiệp vụ và dữ liệu."
+    },
+    {
+      "kind": "paragraph",
+      "index": 199,
+      "style": "normal",
+      "text": "Dễ kiểm thử API: Các chức năng có thể được kiểm tra riêng thông qua công cụ như Postman trước khi tích hợp lên giao diện."
+    },
+    {
+      "kind": "paragraph",
+      "index": 200,
+      "style": "normal",
+      "text": "Dễ mở rộng sang nền tảng khác: Nếu sau này phát triển ứng dụng di động, hệ thống có thể tái sử dụng các API đã xây dựng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 201,
+      "style": "normal",
+      "text": "Hỗ trợ phân quyền rõ ràng: Kết hợp với JWT giúp kiểm soát quyền truy cập của USER, BUSINESS và ADMIN vào từng nhóm chức năng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 202,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 203,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 204,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 205,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 206,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 207,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 208,
+      "style": "normal",
+      "text": "MongoDB và Mongoose "
+    },
+    {
+      "kind": "paragraph",
+      "index": 209,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 210,
+      "style": "Heading 4",
+      "text": "Hình 2-5: MongoDB và Mongoose "
+    },
+    {
+      "kind": "paragraph",
+      "index": 211,
+      "style": "normal",
+      "text": "MongoDB là hệ quản trị cơ sở dữ liệu NoSQL được sử dụng để lưu trữ dữ liệu của hệ thống BQDrive. Các dữ liệu như tài khoản người dùng, thông tin xe, thương hiệu xe, giỏ hàng, đơn đặt xe, hợp đồng, thanh toán và thông tin doanh nghiệp được lưu trữ dưới dạng document linh hoạt."
+    },
+    {
+      "kind": "paragraph",
+      "index": 212,
+      "style": "normal",
+      "text": "Mongoose được sử dụng để kết nối và thao tác với MongoDB trong backend. Thông qua Mongoose, hệ thống có thể định nghĩa các model, schema và ràng buộc dữ liệu, giúp việc truy vấn và quản lý dữ liệu trở nên thuận tiện hơn. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 213,
+      "style": "normal",
+      "text": "Lợi Ích : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 214,
+      "style": "normal",
+      "text": "Lưu trữ dữ liệu linh hoạt: Phù hợp với các dữ liệu có cấu trúc đa dạng như xe, hình ảnh, giá thuê, booking, thanh toán và hợp đồng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 215,
+      "style": "normal",
+      "text": "Dễ mở rộng dữ liệu: Khi hệ thống cần bổ sung thêm trường mới như giá ngày lễ, phí phát sinh hoặc tọa độ nhận xe, MongoDB có thể thích nghi tốt."
+    },
+    {
+      "kind": "paragraph",
+      "index": 216,
+      "style": "normal",
+      "text": "Quản lý dữ liệu có cấu trúc bằng Mongoose: Mongoose giúp định nghĩa rõ schema cho User, Car, Booking, Payment, Contract và Business."
+    },
+    {
+      "kind": "paragraph",
+      "index": 217,
+      "style": "normal",
+      "text": "Hỗ trợ kiểm soát dữ liệu thông qua Mongoose : Có thể kiểm tra các dữ liệu quan trọng như biển số xe không trùng, số điện thoại đúng định dạng, CCCD và bằng lái hợp lệ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 218,
+      "style": "normal",
+      "text": "Phù hợp với hệ thống booking: Thông qua thiết kế pricingSnapshot trong từng booking, hệ thống có thể lưu lại đơn giá tại thời điểm đặt xe, giúp dữ liệu booking cũ không bị ảnh hưởng khi chủ xe cập nhật giá mới."
+    },
+    {
+      "kind": "paragraph",
+      "index": 219,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 220,
+      "style": "Heading 2",
+      "text": "2.4 Phân tích yêu cầu : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 221,
+      "style": "Heading 3",
+      "text": "2.4.1 Các quy trình nghiệp vụ "
+    },
+    {
+      "kind": "paragraph",
+      "index": 222,
+      "style": "normal",
+      "text": "Nguyên tắc thiết kế:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 223,
+      "style": "normal",
+      "text": "Mỗi yêu cầu thuê xe đều tạo một Booking riêng biệt để theo dõi toàn bộ quá trình thuê xe từ lúc đặt xe, duyệt booking, thanh toán, bàn giao đến khi hoàn tất chuyến thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 224,
+      "style": "normal",
+      "text": "Mỗi xe chỉ có thể thuộc một chủ sở hữu chính tại một thời điểm, có thể là BUSINESS hoặc USER ký gửi. BUSINESS chỉ quản lý xe doanh nghiệp của mình, USER ký gửi chỉ quản lý xe do chính mình đăng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 225,
+      "style": "normal",
+      "text": "Mỗi booking chỉ gắn với một xe, một người thuê và một chủ xe cụ thể nhằm đảm bảo rõ trách nhiệm giữa người thuê và bên cho thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 226,
+      "style": "normal",
+      "text": "Hệ thống phân quyền rõ ràng theo vai trò ADMIN, BUSINESS và USER. ADMIN thực hiện kiểm duyệt và quản lý hệ thống, BUSINESS quản lý xe doanh nghiệp và booking của mình, USER có thể thuê xe hoặc ký gửi xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 227,
+      "style": "normal",
+      "text": "Mọi thay đổi trạng thái quan trọng như duyệt xe, từ chối xe, duyệt booking, thanh toán, bàn giao xe, hoàn tất booking và cập nhật vị trí xe đều cần được ghi nhận để có thể truy vết khi cần."
+    },
+    {
+      "kind": "paragraph",
+      "index": 228,
+      "style": "normal",
+      "text": "Booking là nguồn dữ liệu trung tâm để xác định trạng thái của một lượt thuê xe. Các thông tin liên quan đến thanh toán, hợp đồng, trạng thái xe và lịch sử giao dịch cần được đồng bộ theo booking."
+    },
+    {
+      "kind": "paragraph",
+      "index": 229,
+      "style": "normal",
+      "text": "Hệ thống phân biệt rõ giữa thanh toán cọc và thanh toán đủ. Trạng thái “Đã cọc” không được xem là “Đã thanh toán đủ”. Booking chỉ được hoàn tất khi số tiền còn lại bằng 0."
+    },
+    {
+      "kind": "paragraph",
+      "index": 230,
+      "style": "normal",
+      "text": "Khi người thuê thanh toán cọc, phần tiền còn lại có thể được xử lý bằng hai cách: thanh toán trực tuyến trên hệ thống hoặc thanh toán trực tiếp cho chủ xe khi nhận xe. Nếu thanh toán trực tiếp, chủ xe phải xác nhận đã thu trên hệ thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 231,
+      "style": "normal",
+      "text": "Hệ thống sử dụng cơ chế tính toán lại tổng tiền đã thanh toán từ các payment hợp lệ để tránh sai lệch dữ liệu và tránh cộng trùng tiền khi callback thanh toán hoặc thao tác xác nhận bị gọi nhiều lần."
+    },
+    {
+      "kind": "paragraph",
+      "index": 232,
+      "style": "normal",
+      "text": "Hệ thống cần đảm bảo tính idempotency trong các nghiệp vụ thanh toán, xác nhận đã thu tiền, cập nhật trạng thái booking và hoàn tất booking nhằm tránh xử lý trùng giao dịch."
+    },
+    {
+      "kind": "paragraph",
+      "index": 233,
+      "style": "normal",
+      "text": "Hệ thống áp dụng cơ chế giữ xe tạm thời trong giỏ hàng để hạn chế trường hợp nhiều người dùng cùng đặt một xe trong cùng thời điểm."
+    },
+    {
+      "kind": "paragraph",
+      "index": 234,
+      "style": "normal",
+      "text": "Không cho phép một xe đang được thuê hoặc đang có booking hợp lệ bị đặt trùng trong cùng khoảng thời gian thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 235,
+      "style": "normal",
+      "text": "Khi tạo booking, hệ thống lưu lại pricingSnapshot để ghi nhận giá thuê tại thời điểm đặt xe. Nhờ đó, booking, thanh toán và hợp đồng cũ không bị thay đổi khi chủ xe cập nhật giá xe sau này."
+    },
+    {
+      "kind": "paragraph",
+      "index": 236,
+      "style": "normal",
+      "text": "Xe đã được duyệt nếu chỉ cập nhật vị trí nhận xe trên bản đồ thì không cần chuyển lại trạng thái chờ duyệt. Tuy nhiên, hệ thống cần lưu lại người cập nhật, thời gian cập nhật và thông tin vị trí mới để phục vụ quản lý."
+    },
+    {
+      "kind": "paragraph",
+      "index": 237,
+      "style": "normal",
+      "text": "Nếu chủ xe thay đổi các thông tin quan trọng như giá thuê, biển số, hình ảnh, thông tin kỹ thuật hoặc chính sách phí phát sinh, xe cần được đưa về trạng thái chờ admin duyệt lại để đảm bảo tính kiểm soát."
+    },
+    {
+      "kind": "paragraph",
+      "index": 238,
+      "style": "normal",
+      "text": "ADMIN không can thiệp trực tiếp vào quá trình thanh toán, bàn giao xe, hoàn tất booking hoặc hợp đồng giữa người thuê và chủ xe. ADMIN chỉ đóng vai trò quản lý và kiểm duyệt hệ thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 239,
+      "style": "normal",
+      "text": "Không cho phép xóa cứng các dữ liệu quan trọng đã phát sinh nghiệp vụ như booking, payment, contract hoặc xe đã có giao dịch. Thay vào đó, hệ thống nên chuyển trạng thái như hủy, từ chối, hoàn tất hoặc ẩn để giữ lịch sử dữ liệu."
+    },
+    {
+      "kind": "paragraph",
+      "index": 240,
+      "style": "normal",
+      "text": "Hệ thống ưu tiên hiển thị trạng thái rõ ràng cho từng vai trò nhằm tránh hiểu nhầm trong quá trình sử dụng, ví dụ: đã cọc, còn lại cần thu, đã thanh toán đủ, chờ bàn giao, đang thuê và đã hoàn tất."
+    },
+    {
+      "kind": "paragraph",
+      "index": 241,
+      "style": "normal",
+      "text": "Các API quan trọng đều phải kiểm tra quyền ở backend, không chỉ ẩn nút trên frontend. BUSINESS A không được xem hoặc thao tác dữ liệu của BUSINESS B, USER ký gửi không được quản lý xe của USER khác."
+    },
+    {
+      "kind": "paragraph",
+      "index": 242,
+      "style": "normal",
+      "text": "Hệ thống sử dụng dữ liệu bản đồ để hỗ trợ hiển thị vị trí nhận xe, quản lý vị trí xe và tìm đường đến điểm nhận xe. Tuy nhiên, vị trí người dùng chỉ được lấy khi người dùng chủ động cho phép hoặc tự chọn điểm bắt đầu trên bản đồ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 243,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 244,
+      "style": "normal",
+      "text": "Booking Status "
+    },
+    {
+      "kind": "paragraph",
+      "index": 245,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "table",
+      "index": 2,
+      "style": null,
+      "rows": [
+        [
+          "Trạng thái",
+          "Ý nghĩa"
+        ],
+        [
+          "REQUESTED",
+          "Khách đã gửi yêu cầu thuê xe, đang chờ chủ xe duyệt"
+        ],
+        [
+          "OWNER_APPROVED",
+          "Chủ xe đã đồng ý cho thuê, khách có thể tạo hợp đồng/thanh toán"
+        ],
+        [
+          "PAYMENT_PENDING",
+          "Khách đã bắt đầu thanh toán, hệ thống đang chờ kết quả hoặc ghi nhận"
+        ],
+        [
+          "PAID",
+          "Khách đã thanh toán khoản cần trả trước, lịch thuê được giữ chính thức"
+        ],
+        [
+          "IN_PROGRESS",
+          "Chủ xe đã bàn giao xe, chuyến thuê đang diễn ra"
+        ],
+        [
+          "COMPLETED",
+          "Chuyến thuê đã hoàn tất"
+        ],
+        [
+          "CANCELLED",
+          "Booking đã bị hủy bởi khách hoặc hệ thống"
+        ],
+        [
+          "REJECTED",
+          "Chủ xe từ chối yêu cầu thuê"
+        ],
+        [
+          "NO_SHOW",
+          "Khách không đến nhận xe đúng lịch"
+        ],
+        [
+          "PENDING",
+          "Trạng thái cũ, tương đương REQUESTED, giữ để đọc dữ liệu cũ"
+        ],
+        [
+          "WAITING_PAYMENT",
+          "Trạng thái cũ, tương đương PAYMENT_PENDING"
+        ],
+        [
+          "CONFIRMED",
+          "Trạng thái cũ, tương đương OWNER_APPROVED hoặc PAID tùy ngữ cảnh"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 246,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 247,
+      "style": "normal",
+      "text": "Payment Status "
+    },
+    {
+      "kind": "table",
+      "index": 3,
+      "style": null,
+      "rows": [
+        [
+          "Trạng thái",
+          "Ý nghĩa"
+        ],
+        [
+          "PENDING",
+          "Đang chờ thanh toán/xác nhận thanh toán"
+        ],
+        [
+          "PAID",
+          "Đã thanh toán thành công"
+        ],
+        [
+          "FAILED",
+          "Thanh toán thất bại"
+        ],
+        [
+          "REFUNDED",
+          "Đã hoàn tiền"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 248,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 249,
+      "style": "normal",
+      "text": "Car Status "
+    },
+    {
+      "kind": "paragraph",
+      "index": 250,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "table",
+      "index": 4,
+      "style": null,
+      "rows": [
+        [
+          "Trạng thái",
+          "Ý nghĩa"
+        ],
+        [
+          "PENDING",
+          "Xe mới đăng, đang chờ admin duyệt"
+        ],
+        [
+          "APPROVED",
+          "Xe đã được duyệt, có thể hiển thị/cho thuê"
+        ],
+        [
+          "RENTED",
+          "Xe đang được thuê hoặc có booking đã thanh toán/đang diễn ra"
+        ],
+        [
+          "REJECTED",
+          "Xe bị từ chối duyệt"
+        ],
+        [
+          "HIDDEN",
+          "Xe bị ẩn khỏi hệ thống/khỏi danh sách hiển thị"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 251,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 252,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 253,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 254,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 255,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 256,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 257,
+      "style": "normal",
+      "text": "Cart Status "
+    },
+    {
+      "kind": "table",
+      "index": 5,
+      "style": null,
+      "rows": [
+        [
+          "Trạng thái",
+          "Ý nghĩa"
+        ],
+        [
+          "ACTIVE",
+          "Giỏ đang còn hiệu lực"
+        ],
+        [
+          "EXPIRED",
+          "Giỏ đã hết hạn"
+        ],
+        [
+          "BOOKED",
+          "Đã chuyển thành booking"
+        ],
+        [
+          "CANCELLED",
+          "Đã hủy"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 258,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 259,
+      "style": "normal",
+      "text": "Contract Status "
+    },
+    {
+      "kind": "table",
+      "index": 6,
+      "style": null,
+      "rows": [
+        [
+          "Trạng thái",
+          "Ý nghĩa"
+        ],
+        [
+          "DRAFT",
+          "Hợp đồng nháp"
+        ],
+        [
+          "ACTIVE",
+          "Hợp đồng đang có hiệu lực"
+        ],
+        [
+          "COMPLETED",
+          "Hợp đồng đã hoàn tất"
+        ],
+        [
+          "CANCELLED",
+          "Hợp đồng đã hủy"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 260,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 261,
+      "style": "Heading 4",
+      "text": "2.4.1.1 Nghiệp vụ tài khoản và phân quyền"
+    },
+    {
+      "kind": "paragraph",
+      "index": 262,
+      "style": "normal",
+      "text": "Trong hệ thống BQDrive, tài khoản người dùng và phân quyền đóng vai trò quan trọng trong việc kiểm soát truy cập, quản lý chức năng và đảm bảo mỗi nhóm người dùng chỉ được thực hiện các thao tác phù hợp với vai trò của mình. Hệ thống được thiết kế với ba vai trò chính gồm: ADMIN, BUSINESS và USER."
+    },
+    {
+      "kind": "paragraph",
+      "index": 263,
+      "style": "normal",
+      "text": "Cơ chế phân quyền giúp hệ thống tổ chức rõ trách nhiệm của từng nhóm người dùng, hạn chế việc truy cập sai chức năng, đồng thời đảm bảo tính an toàn và nhất quán trong quá trình vận hành. Sau khi đăng nhập, hệ thống sẽ xác định vai trò của tài khoản và điều hướng người dùng đến các chức năng tương ứng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 264,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "table",
+      "index": 7,
+      "style": null,
+      "rows": [
+        [
+          "Vai Trò ",
+          "Mô tả nghiệp vụ "
+        ],
+        [
+          "ADMIN",
+          "là người quản trị hệ thống , có quyền quản lý tài khoản người dùng , quản lý doanh nghiệp và theo dõi dữ liệu tổng quan và cung cấp tài khoản cho doanh nghiệp . ADMIN không trực tiếp xử lý booking , thanh toán hoặc hợp đồng thay cho chủ xe "
+        ],
+        [
+          "BUSINESS",
+          "Là tài khoản dành cho doanh nghiệp cho thuê xe. BUSINESS có thể quản lý hồ sơ doanh nghiệp, đăng xe thuộc doanh nghiệp, chỉnh sửa thông tin xe, theo dõi booking phát sinh từ xe của mình, duyệt hoặc từ chối yêu cầu thuê xe, bàn giao xe và hoàn tất chuyến thuê. "
+        ],
+        [
+          "USER",
+          "Là người dùng thông thường của hệ thống. USER có thể tìm kiếm xe, xem chi tiết xe, gửi yêu cầu thuê xe, thanh toán, theo dõi booking và hợp đồng. Ngoài ra, USER có thể đăng xe ký gửi lên hệ thống. Nếu xe ký gửi được duyệt, USER có quyền quản lý xe ký gửi và xử lý booking phát sinh từ xe đó. "
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 265,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 266,
+      "style": "normal",
+      "text": " Quy trình đăng ký và xác thực tài khoản USER"
+    },
+    {
+      "kind": "paragraph",
+      "index": 267,
+      "style": "normal",
+      "text": "Quy trình đăng ký tài khoản trong hệ thống BQDrive được xây dựng nhằm đảm bảo người dùng truy cập hệ thống bằng thông tin hợp lệ, đồng thời hỗ trợ phân quyền đúng vai trò giữa các nhóm tài khoản. Hệ thống có ba vai trò chính gồm ADMIN, BUSINESS và USER. Tuy nhiên, tùy theo từng vai trò, quy trình tạo tài khoản sẽ có sự khác nhau."
+    },
+    {
+      "kind": "paragraph",
+      "index": 268,
+      "style": "normal",
+      "text": "Đối với tài khoản USER, người dùng có thể tự đăng ký tài khoản trực tiếp trên hệ thống. Khi đăng ký, người dùng cần nhập các thông tin cơ bản như họ tên, email, số điện thoại và mật khẩu. Hệ thống sẽ kiểm tra tính hợp lệ của dữ liệu đầu vào, bao gồm định dạng email, số điện thoại, độ mạnh của mật khẩu và tình trạng tồn tại của email trong hệ thống. Nếu dữ liệu không hợp lệ hoặc email đã được sử dụng, hệ thống sẽ hiển thị thông báo lỗi để người dùng điều chỉnh."
+    },
+    {
+      "kind": "paragraph",
+      "index": 269,
+      "style": "normal",
+      "text": "Sau khi thông tin đăng ký hợp lệ, hệ thống sử dụng cơ chế xác thực email thông qua SMTP để gửi email xác nhận đến địa chỉ email của người dùng. Tài khoản chỉ được kích hoạt sau khi người dùng hoàn tất bước xác nhận email. Cơ chế này giúp đảm bảo email đăng ký là có thật, hạn chế tình trạng tạo tài khoản giả mạo và tăng độ tin cậy cho dữ liệu người dùng trong hệ thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 270,
+      "style": "normal",
+      "text": "Đối với tài khoản BUSINESS, hệ thống không cho phép doanh nghiệp tự đăng ký công khai như tài khoản USER. Thay vào đó, tài khoản BUSINESS do ADMIN tạo và cấp quyền thông qua chức năng quản lý doanh nghiệp. Quy trình này phù hợp với mô hình vận hành của BQDrive vì doanh nghiệp cho thuê xe cần được kiểm tra thông tin trước khi tham gia đăng xe và xử lý booking trên hệ thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 271,
+      "style": "normal",
+      "text": "Khi tạo tài khoản BUSINESS, ADMIN nhập các thông tin cần thiết của doanh nghiệp như tên doanh nghiệp, email, số điện thoại, địa chỉ và mô tả hoạt động. Hệ thống kiểm tra dữ liệu đầu vào, bao gồm định dạng email, số điện thoại và tình trạng trùng lặp email. Nếu thông tin hợp lệ, hệ thống tạo tài khoản BUSINESS và gửi email thông báo tài khoản đến doanh nghiệp thông qua SMTP. Doanh nghiệp sau đó có thể đăng nhập vào hệ thống để quản lý hồ sơ, đăng xe, quản lý booking và xử lý các nghiệp vụ liên quan đến xe của mình."
+    },
+    {
+      "kind": "paragraph",
+      "index": 272,
+      "style": "normal",
+      "text": "Đối với tài khoản ADMIN, tài khoản này không được đăng ký tự do trên giao diện người dùng. Tài khoản ADMIN được tạo sẵn hoặc cấp trực tiếp trong hệ thống nhằm đảm bảo quyền quản trị không bị lạm dụng. ADMIN có nhiệm vụ quản lý người dùng, doanh nghiệp, thương hiệu, ngày lễ, duyệt hoặc từ chối xe và theo dõi dữ liệu hệ thống"
+    },
+    {
+      "kind": "paragraph",
+      "index": 273,
+      "style": "normal",
+      "text": "Các bước thực hiện : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 274,
+      "style": "normal",
+      "text": "ROLE : USER"
+    },
+    {
+      "kind": "paragraph",
+      "index": 275,
+      "style": "normal",
+      "text": "Người dùng đăng ký cung cấp họ tên, email, mật khẩu và các thông tin bắt buộc của tài khoản USER."
+    },
+    {
+      "kind": "paragraph",
+      "index": 276,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra định dạng email, độ đầy đủ của dữ liệu và việc email đã được sử dụng hay chưa."
+    },
+    {
+      "kind": "paragraph",
+      "index": 277,
+      "style": "normal",
+      "text": "Nếu email trùng hoặc dữ liệu không hợp lệ, hệ thống từ chối tạo tài khoản và nêu nội dung cần điều chỉnh."
+    },
+    {
+      "kind": "paragraph",
+      "index": 278,
+      "style": "normal",
+      "text": "Nếu dữ liệu hợp lệ, hệ thống tạo tài khoản USER ở trạng thái chờ xác thực email."
+    },
+    {
+      "kind": "paragraph",
+      "index": 279,
+      "style": "normal",
+      "text": " Hệ thống tạo mã OTP có thời hạn và gửi mã đến email đã đăng ký."
+    },
+    {
+      "kind": "paragraph",
+      "index": 280,
+      "style": "normal",
+      "text": " Người đăng ký nhập OTP để xác nhận quyền sử dụng email."
+    },
+    {
+      "kind": "paragraph",
+      "index": 281,
+      "style": "normal",
+      "text": " Hệ thống kiểm tra OTP có thuộc đúng tài khoản, còn hiệu lực và chưa vượt quá số lần thử hay không."
+    },
+    {
+      "kind": "paragraph",
+      "index": 282,
+      "style": "normal",
+      "text": "Nếu OTP sai hoặc hết hạn, tài khoản vẫn chưa được kích hoạt; người đăng ký có thể yêu cầu gửi lại mã theo giới hạn của hệ thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 283,
+      "style": "normal",
+      "text": "Nếu OTP hợp lệ, hệ thống đánh dấu email đã xác thực và kích hoạt tài khoản."
+    },
+    {
+      "kind": "paragraph",
+      "index": 284,
+      "style": "normal",
+      "text": " Hệ thống thông báo kết quả xác thực và cho phép USER đăng nhập bằng thông tin đã đăng ký."
+    },
+    {
+      "kind": "paragraph",
+      "index": 285,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 286,
+      "style": "Heading 5",
+      "text": "Hình 2-6  : Quy trình đăng ký tài khoản USER"
+    },
+    {
+      "kind": "paragraph",
+      "index": 287,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 288,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 289,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 290,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 291,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 292,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 293,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 294,
+      "style": "normal",
+      "text": "\t"
+    },
+    {
+      "kind": "paragraph",
+      "index": 295,
+      "style": "normal",
+      "text": "Quy trình đăng nhập và khôi phục tài khoản"
+    },
+    {
+      "kind": "paragraph",
+      "index": 296,
+      "style": "normal",
+      "text": "Quy trình cho phép người dùng đăng nhập bằng email và mật khẩu hoặc Google OAuth, đồng thời hỗ trợ khôi phục khi quên mật khẩu. Mọi phương thức đều phải kiểm tra trạng thái tài khoản để ngăn tài khoản bị khóa hoặc xóa mềm tiếp tục truy cập."
+    },
+    {
+      "kind": "paragraph",
+      "index": 297,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 298,
+      "style": "normal",
+      "text": "Người dùng chọn đăng nhập bằng email và mật khẩu hoặc chọn Google OAuth."
+    },
+    {
+      "kind": "paragraph",
+      "index": 299,
+      "style": "normal",
+      "text": "Với email và mật khẩu, hệ thống đối chiếu thông tin xác thực và trạng thái xác thực email."
+    },
+    {
+      "kind": "paragraph",
+      "index": 300,
+      "style": "normal",
+      "text": "Với Google OAuth, hệ thống xác minh thông tin Google; nếu email chưa tồn tại thì có thể tạo tài khoản USER từ email đã được Google xác thực."
+    },
+    {
+      "kind": "paragraph",
+      "index": 301,
+      "style": "normal",
+      "text": " Hệ thống kiểm tra tài khoản không bị khóa, không bị xóa mềm và đáp ứng điều kiện xác thực."
+    },
+    {
+      "kind": "paragraph",
+      "index": 302,
+      "style": "normal",
+      "text": "Nếu thông tin sai hoặc tài khoản không đủ điều kiện, hệ thống từ chối đăng nhập và không tạo phiên sử dụng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 303,
+      "style": "normal",
+      "text": "Nếu hợp lệ, hệ thống tạo phiên theo đúng vai trò ADMIN, BUSINESS hoặc USER."
+    },
+    {
+      "kind": "paragraph",
+      "index": 304,
+      "style": "normal",
+      "text": " Khi quên mật khẩu, người dùng yêu cầu khôi phục bằng email của tài khoản đang hoạt động."
+    },
+    {
+      "kind": "paragraph",
+      "index": 305,
+      "style": "normal",
+      "text": " Hệ thống gửi thông tin khôi phục; người dùng xác nhận mã hợp lệ và thiết lập mật khẩu mới."
+    },
+    {
+      "kind": "paragraph",
+      "index": 306,
+      "style": "normal",
+      "text": "Nếu mã khôi phục sai hoặc hết hạn, mật khẩu không thay đổi và người dùng phải yêu cầu lại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 307,
+      "style": "normal",
+      "text": "Sau khi đặt lại thành công, thông tin khôi phục cũ bị vô hiệu hóa và người dùng đăng nhập lại bằng mật khẩu mới."
+    },
+    {
+      "kind": "paragraph",
+      "index": 308,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 309,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 310,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 311,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 312,
+      "style": "normal",
+      "text": " Quy trình ADMIN quản lý tài khoản và doanh nghiệp"
+    },
+    {
+      "kind": "paragraph",
+      "index": 313,
+      "style": "normal",
+      "text": "ADMIN quản lý vòng đời tài khoản và việc cấp quyền cho doanh nghiệp từ một quy trình chung. Các thao tác tìm kiếm, tạo BUSINESS, khóa, mở khóa và xóa mềm đều phải tuân theo quyền quản trị và không làm phát sinh vai trò ngoài ADMIN, BUSINESS và USER."
+    },
+    {
+      "kind": "paragraph",
+      "index": 314,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 315,
+      "style": "normal",
+      "text": " ADMIN xem hoặc tìm kiếm tài khoản theo thông tin nhận diện, vai trò và trạng thái."
+    },
+    {
+      "kind": "paragraph",
+      "index": 316,
+      "style": "normal",
+      "text": "Khi cấp tài khoản BUSINESS, ADMIN nhập thông tin doanh nghiệp và người đại diện cần sử dụng tài khoản."
+    },
+    {
+      "kind": "paragraph",
+      "index": 317,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra email không trùng, hồ sơ doanh nghiệp hợp lệ và quyền được cấp phù hợp chính sách."
+    },
+    {
+      "kind": "paragraph",
+      "index": 318,
+      "style": "normal",
+      "text": "Nếu dữ liệu hoặc quyền không hợp lệ, hệ thống từ chối tạo BUSINESS và nêu nguyên nhân."
+    },
+    {
+      "kind": "paragraph",
+      "index": 319,
+      "style": "normal",
+      "text": "Hệ thống tạo hoặc liên kết tài khoản với hồ sơ doanh nghiệp, sau đó gán vai trò BUSINESS."
+    },
+    {
+      "kind": "paragraph",
+      "index": 320,
+      "style": "normal",
+      "text": "Khi cần kiểm soát truy cập, ADMIN chọn khóa, mở khóa hoặc xóa mềm tài khoản phù hợp."
+    },
+    {
+      "kind": "paragraph",
+      "index": 321,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra ADMIN có quyền thao tác và không cho phép cấp quyền trái chính sách hệ thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 322,
+      "style": "normal",
+      "text": "Tài khoản bị khóa hoặc xóa mềm không được đăng nhập; mở khóa chỉ khôi phục truy cập khi các điều kiện khác vẫn hợp lệ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 323,
+      "style": "normal",
+      "text": "Hệ thống lưu trạng thái mới và thông báo thay đổi cho tài khoản chịu tác động."
+    },
+    {
+      "kind": "paragraph",
+      "index": 324,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 325,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 326,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 327,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 328,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 329,
+      "style": "Heading 4",
+      "text": "2.4.1.2 Nghiệp vụ quản quản lý xe và kiểm duyệt xe "
+    },
+    {
+      "kind": "paragraph",
+      "index": 330,
+      "style": "normal",
+      "text": "Nhóm nghiệp vụ này quản lý toàn bộ hồ sơ xe do BUSINESS hoặc USER chủ xe ký gửi sở hữu. Hồ sơ bao gồm thông tin nhận diện, thương hiệu, biển số, thông số kỹ thuật, hình ảnh, cấu hình giá và trạng thái hiển thị; chủ xe chỉ được thao tác trên xe thuộc phạm vi quản lý của mình."
+    },
+    {
+      "kind": "paragraph",
+      "index": 331,
+      "style": "normal",
+      "text": "Xe mới hoặc xe thay đổi thông tin quan trọng phải được ADMIN kiểm duyệt trước khi công khai. Vị trí nhận xe được quản lý riêng bằng địa chỉ và tọa độ bản đồ; việc chỉ cập nhật vị trí có thể giữ trạng thái đã duyệt của xe theo nghiệp vụ hiện tại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 332,
+      "style": "normal",
+      "text": "Quy trình chủ xe quản lý thông tin xe và thêm xe"
+    },
+    {
+      "kind": "paragraph",
+      "index": 333,
+      "style": "normal",
+      "text": "Quy trình gộp các thao tác tạo, cập nhật, quản lý hình ảnh, cấu hình giá, ẩn, hiện và xóa mềm xe. Mọi thay đổi đều gắn với quyền sở hữu và phải bảo vệ các booking, hợp đồng hoặc lượt giữ đang còn hiệu lực."
+    },
+    {
+      "kind": "paragraph",
+      "index": 334,
+      "style": "normal",
+      "text": "Các bước thực hiện : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 335,
+      "style": "normal",
+      "text": "Chủ xe mở phạm vi quản lý xe của BUSINESS hoặc USER chủ xe ký gửi tương ứng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 336,
+      "style": "normal",
+      "text": "Khi tạo xe, chủ xe nhập biển số, thương hiệu, thông số kỹ thuật, hình ảnh, chính sách thuê và cấu hình giá."
+    },
+    {
+      "kind": "paragraph",
+      "index": 337,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra quyền sở hữu, biển số, dữ liệu bắt buộc, hình ảnh và các mức giá hợp lệ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 338,
+      "style": "normal",
+      "text": "Nếu dữ liệu không hợp lệ hoặc biển số bị trùng, hệ thống từ chối lưu và yêu cầu điều chỉnh."
+    },
+    {
+      "kind": "paragraph",
+      "index": 339,
+      "style": "normal",
+      "text": "Hệ thống tạo hồ sơ xe và chuyển xe sang trạng thái chờ duyệt (PENDING)."
+    },
+    {
+      "kind": "paragraph",
+      "index": 340,
+      "style": "normal",
+      "text": "Khi cập nhật, chủ xe chỉ được sửa xe thuộc quyền quản lý; thay đổi quan trọng làm xe quay lại PENDING để kiểm duyệt."
+    },
+    {
+      "kind": "paragraph",
+      "index": 341,
+      "style": "normal",
+      "text": "Chủ xe có thể thêm, thay đổi hình ảnh và điều chỉnh cấu hình giá trong cùng hồ sơ xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 342,
+      "style": "normal",
+      "text": " Khi ẩn, hiển thị hoặc xóa mềm, hệ thống kiểm tra xe không có booking, hợp đồng hoặc lượt giữ đang hoạt động."
+    },
+    {
+      "kind": "paragraph",
+      "index": 343,
+      "style": "normal",
+      "text": "Nếu còn công việc thuê có hiệu lực, hệ thống từ chối ẩn, hiện hoặc xóa để không phá vỡ giao dịch đang xử lý."
+    },
+    {
+      "kind": "paragraph",
+      "index": 344,
+      "style": "normal",
+      "text": "Nếu đủ điều kiện, hệ thống cập nhật trạng thái hiển thị hoặc cờ xóa mềm và loại xe khỏi phạm vi công khai khi cần."
+    },
+    {
+      "kind": "paragraph",
+      "index": 345,
+      "style": "normal",
+      "text": "Quy trình quản lý vị trí nhận xe"
+    },
+    {
+      "kind": "paragraph",
+      "index": 346,
+      "style": "normal",
+      "text": "Vị trí nhận xe hỗ trợ người thuê xem địa điểm và lập kế hoạch nhận xe trên bản đồ. Hệ thống lưu đồng thời địa chỉ mô tả, vĩ độ và kinh độ để bảo đảm thông tin vị trí có thể tái sử dụng trong tìm kiếm, booking và hợp đồng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 347,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 348,
+      "style": "normal",
+      "text": "Chủ xe chọn xe thuộc quyền quản lý và nhập hoặc tìm kiếm địa chỉ nhận xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 349,
+      "style": "normal",
+      "text": "Hệ thống hiển thị kết quả địa chỉ để chủ xe chọn điểm phù hợp trên bản đồ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 350,
+      "style": "normal",
+      "text": "Chủ xe điều chỉnh ghim bản đồ khi vị trí tự động chưa chính xác."
+    },
+    {
+      "kind": "paragraph",
+      "index": 351,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra vĩ độ nằm trong khoảng từ -90 đến 90, kinh độ nằm trong khoảng từ -180 đến 180 và quyền quản lý xe hợp lệ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 352,
+      "style": "normal",
+      "text": "Nếu địa chỉ hoặc tọa độ không hợp lệ, hệ thống không lưu và yêu cầu chọn lại vị trí."
+    },
+    {
+      "kind": "paragraph",
+      "index": 353,
+      "style": "normal",
+      "text": "Nếu hợp lệ, hệ thống lưu địa chỉ, tọa độ, ghi chú và lịch sử vị trí nhận xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 354,
+      "style": "normal",
+      "text": "Hệ thống dùng vị trí đã lưu để hiển thị bản đồ và tạo bản chụp địa điểm khi phát sinh booking."
+    },
+    {
+      "kind": "paragraph",
+      "index": 355,
+      "style": "normal",
+      "text": "Nếu xe đã được duyệt và chỉ thay đổi vị trí nhận xe, xe có thể giữ trạng thái đã duyệt (APPROVED)."
+    },
+    {
+      "kind": "paragraph",
+      "index": 356,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 357,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 358,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 359,
+      "style": "Heading 5",
+      "text": "Hình 2- : Quy trình quản lý vị trí nhận xe"
+    },
+    {
+      "kind": "paragraph",
+      "index": 360,
+      "style": "normal",
+      "text": " Quy trình ADMIN kiểm duyệt xe"
+    },
+    {
+      "kind": "paragraph",
+      "index": 361,
+      "style": "normal",
+      "text": "ADMIN kiểm soát chất lượng hồ sơ trước khi xe được công khai. Quy trình bao gồm duyệt, từ chối, lưu lý do và xử lý yêu cầu duyệt lại sau khi chủ xe đã chỉnh sửa nội dung bị từ chối."
+    },
+    {
+      "kind": "paragraph",
+      "index": 362,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 363,
+      "style": "normal",
+      "text": "ADMIN xem danh sách xe đang chờ duyệt (PENDING) và mở hồ sơ cần kiểm tra."
+    },
+    {
+      "kind": "paragraph",
+      "index": 364,
+      "style": "normal",
+      "text": "Hệ thống cung cấp thông tin xe, thương hiệu, hình ảnh, biển số, cấu hình giá, vị trí và chủ sở hữu."
+    },
+    {
+      "kind": "paragraph",
+      "index": 365,
+      "style": "normal",
+      "text": "ADMIN kiểm tra tính đầy đủ, hợp lệ và sự phù hợp của hồ sơ với chính sách hệ thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 366,
+      "style": "normal",
+      "text": "Nếu hồ sơ đạt yêu cầu, ADMIN chọn duyệt xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 367,
+      "style": "normal",
+      "text": "Nếu hồ sơ chưa đạt, ADMIN chọn từ chối và bắt buộc nhập lý do cụ thể."
+    },
+    {
+      "kind": "paragraph",
+      "index": 368,
+      "style": "normal",
+      "text": "Xe được duyệt chuyển sang APPROVED; xe bị từ chối chuyển sang trạng thái bị từ chối (REJECTED) và lưu lý do."
+    },
+    {
+      "kind": "paragraph",
+      "index": 369,
+      "style": "normal",
+      "text": "Chủ xe chỉnh sửa nội dung theo lý do từ chối và gửi lại để xe quay về PENDING."
+    },
+    {
+      "kind": "paragraph",
+      "index": 370,
+      "style": "normal",
+      "text": "Hệ thống chỉ công khai xe APPROVED, không bị ẩn và không bị xóa mềm; xe chưa duyệt không xuất hiện trong kết quả thuê công khai."
+    },
+    {
+      "kind": "paragraph",
+      "index": 371,
+      "style": "normal",
+      "text": "Kết quả kiểm duyệt được gửi đến chủ xe để tiếp tục quản lý hồ sơ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 372,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 373,
+      "style": "Heading 5",
+      "text": "Hình 2-: Quy trình ADMIN kiểm duyệt xe"
+    },
+    {
+      "kind": "paragraph",
+      "index": 374,
+      "style": "Heading 4",
+      "text": "2.4.1.3 Nghiệp vụ tìm kiếm, giỏ xe và vòng đời booking"
+    },
+    {
+      "kind": "paragraph",
+      "index": 375,
+      "style": "normal",
+      "text": "Nhóm nghiệp vụ này bao quát giai đoạn từ lúc người thuê tìm xe đến khi booking được chủ xe quyết định có tiếp tục hay không. Người thuê có thể giữ xe tạm thời trong giỏ hoặc tạo booking trực tiếp; cả hai cách đều phải kiểm tra quyền đặt, thời gian thuê và khả năng đáp ứng của xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 376,
+      "style": "normal",
+      "text": "Booking mới gắn với đúng người thuê, xe và chủ xe là BUSINESS hoặc USER chủ xe ký gửi. Nhóm này chỉ mô tả từ chối và NO_SHOW ở mức vòng đời; luồng chủ động hủy booking và hoàn tiền được trình bày duy nhất tại quy trình tạo booking trực tiếp và tạo booking từ giỏ "
+    },
+    {
+      "kind": "paragraph",
+      "index": 377,
+      "style": "normal",
+      "text": " Quy trình tìm kiếm và xem chi tiết xe"
+    },
+    {
+      "kind": "paragraph",
+      "index": 378,
+      "style": "normal",
+      "text": "Quy trình tìm kiếm và xem chi tiết xe được thực hiện khi người thuê muốn tra cứu và lựa chọn phương tiện phù hợp trên hệ thống BQDrive. Người thuê có thể tìm kiếm xe theo địa điểm nhận xe và sử dụng các tiêu chí lọc như thương hiệu, số ghế, khoảng giá, nhiên liệu, hộp số và thời gian thuê. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 379,
+      "style": "normal",
+      "text": "Sau khi lựa chọn một xe, người thuê có thể mở trang chi tiết để xem các thông tin gồm tên xe, thương hiệu, biển số, hình ảnh, số ghế, nhiên liệu, hộp số, giá thuê, mô tả, địa chỉ nhận xe và vị trí nhận xe trên bản đồ nếu có dữ liệu tọa độ. "
+    },
+    {
+      "kind": "paragraph",
+      "index": 380,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 381,
+      "style": "normal",
+      "text": "Người thuê nhập địa điểm, thời gian bắt đầu, thời gian kết thúc và các tiêu chí tìm kiếm."
+    },
+    {
+      "kind": "paragraph",
+      "index": 382,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra thời gian bắt đầu phải trước thời gian kết thúc và dữ liệu tìm kiếm hợp lệ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 383,
+      "style": "normal",
+      "text": "Nếu khoảng thời gian không hợp lệ, hệ thống từ chối tìm kiếm theo thời gian và yêu cầu điều chỉnh."
+    },
+    {
+      "kind": "paragraph",
+      "index": 384,
+      "style": "normal",
+      "text": "Hệ thống lọc theo thương hiệu, mức giá, số ghế, nhiên liệu, hộp số và các tiêu chí đang được hỗ trợ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 385,
+      "style": "normal",
+      "text": "Hệ thống chỉ lấy xe đã APPROVED, không bị ẩn, không bị xóa mềm và không thuộc chính người thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 386,
+      "style": "normal",
+      "text": "Hệ thống loại các xe trùng lịch hoặc không khả dụng trong khoảng thời gian đã chọn."
+    },
+    {
+      "kind": "paragraph",
+      "index": 387,
+      "style": "normal",
+      "text": "Nếu không có kết quả, hệ thống thông báo và cho phép thay đổi địa điểm, thời gian hoặc bộ lọc."
+    },
+    {
+      "kind": "paragraph",
+      "index": 388,
+      "style": "normal",
+      "text": "Người thuê mở chi tiết để xem hình ảnh, đặc điểm xe, giá dự kiến, đánh giá và vị trí nhận xe trên bản đồ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 389,
+      "style": "normal",
+      "text": "Người thuê chọn xe phù hợp để giữ tạm thời hoặc tạo booking trực tiếp."
+    },
+    {
+      "kind": "paragraph",
+      "index": 390,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 391,
+      "style": "Heading 5",
+      "text": "Hình 2-: Quy trình tìm kiếm và xem chi tiết xe"
+    },
+    {
+      "kind": "paragraph",
+      "index": 392,
+      "style": "normal",
+      "text": "Quy trình thêm xe vào giỏ và giữ xe tạm thời"
+    },
+    {
+      "kind": "paragraph",
+      "index": 393,
+      "style": "normal",
+      "text": "Giỏ xe tạo một khoảng giữ có thời hạn khoảng 10 phút để người thuê hoàn thiện quyết định trước khi tạo booking. Lượt giữ có bản chụp giá riêng và không được dùng sau khi hết hạn hoặc khi quyền sở hữu không khớp."
+    },
+    {
+      "kind": "paragraph",
+      "index": 394,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 395,
+      "style": "normal",
+      "text": "Người thuê chọn xe và khoảng thời gian cần thuê để thêm vào giỏ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 396,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra xe còn hợp lệ, người thuê không phải chủ xe và khoảng thời gian không trùng lịch."
+    },
+    {
+      "kind": "paragraph",
+      "index": 397,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra không có lượt giữ đang hoạt động khác xung đột theo điều kiện khóa lịch hiện tại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 398,
+      "style": "normal",
+      "text": "Nếu xe hoặc thời gian không khả dụng, hệ thống không tạo mục giỏ và nêu nguyên nhân."
+    },
+    {
+      "kind": "paragraph",
+      "index": 399,
+      "style": "normal",
+      "text": "Hệ thống tính giá dự kiến theo quy trình giá và lưu pricing snapshot tại thời điểm giữ xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 400,
+      "style": "normal",
+      "text": "Hệ thống tạo mục giỏ ở trạng thái đang hoạt động (ACTIVE) và thiết lập thời điểm hết hạn."
+    },
+    {
+      "kind": "paragraph",
+      "index": 401,
+      "style": "normal",
+      "text": "Trong thời hạn giữ, khoảng thời gian được bảo vệ để hạn chế phát sinh lượt giữ hoặc booking xung đột."
+    },
+    {
+      "kind": "paragraph",
+      "index": 402,
+      "style": "normal",
+      "text": "Nếu người thuê tiếp tục đúng hạn, hệ thống cho phép chuyển mục giỏ thành booking."
+    },
+    {
+      "kind": "paragraph",
+      "index": 403,
+      "style": "normal",
+      "text": "Nếu hết hạn, hệ thống chuyển lượt giữ sang hết hiệu lực, giải phóng khoảng thời gian và không cho tạo booking từ mục giỏ đó."
+    },
+    {
+      "kind": "paragraph",
+      "index": 404,
+      "style": "normal",
+      "text": "Người thuê có thể chủ động hủy mục giỏ chưa sử dụng để giải phóng lượt giữ sớm."
+    },
+    {
+      "kind": "paragraph",
+      "index": 405,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 406,
+      "style": "Heading 5",
+      "text": "Hình 2- : Quy trình thêm xe vào giỏ và giữ xe tạm thời"
+    },
+    {
+      "kind": "paragraph",
+      "index": 407,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 408,
+      "style": "normal",
+      "text": "Quy trình tạo booking trực tiếp hoặc từ giỏ"
+    },
+    {
+      "kind": "paragraph",
+      "index": 409,
+      "style": "normal",
+      "text": "Booking có thể được tạo trực tiếp từ chi tiết xe hoặc từ một mục giỏ còn hiệu lực. Hai nguồn sử dụng cùng các quy tắc cốt lõi về người thuê, xe, thời gian, chủ sở hữu và bản chụp giá."
+    },
+    {
+      "kind": "paragraph",
+      "index": 410,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 411,
+      "style": "normal",
+      "text": "Người thuê chọn tạo booking trực tiếp hoặc tiếp tục từ mục giỏ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 412,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra tài khoản người thuê hoạt động và thông tin người thuê đã được cung cấp đầy đủ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 413,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra xe tồn tại, APPROVED, không bị ẩn, không bị xóa mềm và không thuộc chính người thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 414,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra thời gian bắt đầu trước thời gian kết thúc và không trùng booking hoặc lượt giữ có hiệu lực."
+    },
+    {
+      "kind": "paragraph",
+      "index": 415,
+      "style": "normal",
+      "text": "Nếu tạo từ giỏ, hệ thống kiểm tra mục giỏ thuộc đúng người thuê, còn ACTIVE và chưa hết hạn."
+    },
+    {
+      "kind": "paragraph",
+      "index": 416,
+      "style": "normal",
+      "text": "Nếu bất kỳ điều kiện nào không đạt, hệ thống từ chối tạo booking và giữ nguyên dữ liệu hiện có."
+    },
+    {
+      "kind": "paragraph",
+      "index": 417,
+      "style": "normal",
+      "text": "Hệ thống xác định chủ xe là BUSINESS hoặc USER chủ xe ký gửi theo hồ sơ sở hữu xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 418,
+      "style": "normal",
+      "text": " Hệ thống lưu người thuê, xe, chủ xe, thời gian, thông tin nhận xe và pricing snapshot."
+    },
+    {
+      "kind": "paragraph",
+      "index": 419,
+      "style": "normal",
+      "text": "Hệ thống tạo booking ở trạng thái chờ chủ xe duyệt (REQUESTED)."
+    },
+    {
+      "kind": "paragraph",
+      "index": 420,
+      "style": "normal",
+      "text": "Nếu booking được tạo từ giỏ, hệ thống đánh dấu mục giỏ đã được sử dụng và không cho tái sử dụng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 421,
+      "style": "normal",
+      "text": "Hệ thống tạo việc cần làm và gửi thông báo cho đúng chủ xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 422,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 423,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 424,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 425,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 426,
+      "style": "normal",
+      "text": "Quy trình chủ xe duyệt hoặc từ chối booking"
+    },
+    {
+      "kind": "paragraph",
+      "index": 427,
+      "style": "normal",
+      "text": "Chủ xe quyết định yêu cầu thuê có thể tiếp tục dựa trên quyền quản lý xe, thời gian và khả năng bàn giao. Quy trình kết thúc bằng một trong hai nhánh rõ ràng: duyệt để chuyển sang hợp đồng và thanh toán, hoặc từ chối kèm lý do."
+    },
+    {
+      "kind": "paragraph",
+      "index": 428,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 429,
+      "style": "normal",
+      "text": "Chủ xe mở booking đang chờ xử lý liên quan đến xe thuộc quyền quản lý."
+    },
+    {
+      "kind": "paragraph",
+      "index": 430,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra booking đang REQUESTED và chủ xe đúng là BUSINESS hoặc USER chủ xe ký gửi của xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 431,
+      "style": "normal",
+      "text": "Nếu không đúng quyền hoặc trạng thái, hệ thống từ chối thao tác."
+    },
+    {
+      "kind": "paragraph",
+      "index": 432,
+      "style": "normal",
+      "text": " Chủ xe kiểm tra thời gian thuê, thông tin người thuê, lịch xe và khả năng bàn giao."
+    },
+    {
+      "kind": "paragraph",
+      "index": 433,
+      "style": "normal",
+      "text": "Nếu chấp nhận, chủ xe duyệt booking; booking chuyển sang trạng thái chủ xe đã duyệt (OWNER_APPROVED)."
+    },
+    {
+      "kind": "paragraph",
+      "index": 434,
+      "style": "normal",
+      "text": "Nếu không chấp nhận, chủ xe nhập lý do; booking chuyển sang REJECTED và không tiếp tục thực hiện."
+    },
+    {
+      "kind": "paragraph",
+      "index": 435,
+      "style": "normal",
+      "text": "Hệ thống cập nhật Task Center và gửi kết quả đến người thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 436,
+      "style": "normal",
+      "text": "Booking OWNER_APPROVED được chuyển sang giai đoạn tạo hoặc hoàn thiện hợp đồng và thực hiện nghĩa vụ thanh toán."
+    },
+    {
+      "kind": "paragraph",
+      "index": 437,
+      "style": "normal",
+      "text": "Nếu việc từ chối phát sinh vấn đề tài chính, hệ thống dẫn chiếu xử lý theo quy trình hủy booking và hoàn tiền "
+    },
+    {
+      "kind": "paragraph",
+      "index": 438,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 439,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 440,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 441,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 442,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 443,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 444,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 445,
+      "style": "normal",
+      "text": "Quy trình xử lý booking không được thực hiện và trường hợp NO_SHOW"
+    },
+    {
+      "kind": "paragraph",
+      "index": 446,
+      "style": "normal",
+      "text": "Quy trình xử lý booking không tiếp tục do bị từ chối, mất điều kiện thực hiện hoặc người thuê không đến nhận xe. Nội dung không lặp lại luồng người thuê hoặc chủ xe chủ động hủy booking; vấn đề hoàn tiền, nếu có, được chuyển sang nhóm tài chính."
+    },
+    {
+      "kind": "paragraph",
+      "index": 447,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 448,
+      "style": "normal",
+      "text": "Bước 1: Hệ thống xác định booking không thể tiếp tục do bị từ chối hoặc không còn đáp ứng điều kiện thực hiện."
+    },
+    {
+      "kind": "paragraph",
+      "index": 449,
+      "style": "normal",
+      "text": "Bước 2: Đối với trường hợp người thuê không đến nhận xe, chủ xe mở booking thuộc quyền quản lý và yêu cầu ghi nhận NO_SHOW."
+    },
+    {
+      "kind": "paragraph",
+      "index": 450,
+      "style": "normal",
+      "text": "Bước 3: Hệ thống kiểm tra booking thuộc trạng thái cho phép, xe chưa được bàn giao và thời điểm hiện tại đã qua giờ nhận xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 451,
+      "style": "normal",
+      "text": "Bước 4: Hệ thống tính thời điểm được phép ghi nhận bằng giờ nhận xe cộng khoảng chờ 30 phút."
+    },
+    {
+      "kind": "paragraph",
+      "index": 452,
+      "style": "normal",
+      "text": "Nếu chưa đủ 30 phút, hệ thống từ chối thao tác NO_SHOW và booking giữ nguyên."
+    },
+    {
+      "kind": "paragraph",
+      "index": 453,
+      "style": "normal",
+      "text": "Nếu đã đủ thời gian và các điều kiện còn hợp lệ, chủ xe nhập lý do người thuê không đến."
+    },
+    {
+      "kind": "paragraph",
+      "index": 454,
+      "style": "normal",
+      "text": "Bước 5: Hệ thống chuyển booking sang trạng thái khách không đến nhận xe (NO_SHOW) và ghi nhận thời điểm xử lý."
+    },
+    {
+      "kind": "paragraph",
+      "index": 455,
+      "style": "normal",
+      "text": "Bước 6: Hệ thống giải phóng lịch hoặc cập nhật khả năng sử dụng xe theo trạng thái nghiệp vụ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 456,
+      "style": "normal",
+      "text": "Bước 7: Hệ thống cập nhật việc cần làm và thông báo cho các bên liên quan."
+    },
+    {
+      "kind": "paragraph",
+      "index": 457,
+      "style": "normal",
+      "text": "Bước 8: Nếu booking có payment cần xử lý, nghiệp vụ tài chính được chuyển sang quy trình hủy booking và hoàn tiền ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 458,
+      "style": "Heading 4",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 459,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 460,
+      "style": "Heading 4",
+      "text": "2.4.1.4 Nghiệp vụ tính giá, thanh toán và hoàn tiền"
+    },
+    {
+      "kind": "paragraph",
+      "index": 461,
+      "style": "normal",
+      "text": "Nhóm nghiệp vụ tài chính xác định số tiền thuê, ghi nhận các khoản thanh toán và xử lý hoàn tiền khi booking bị hủy hợp lệ. Giá được tính theo chế độ thuê giờ hoặc ngày, theo từng khoảng thời gian và ưu tiên ngày lễ trước cuối tuần, cuối tuần trước ngày thường."
+    },
+    {
+      "kind": "paragraph",
+      "index": 462,
+      "style": "normal",
+      "text": "Payment và Refund có vòng đời độc lập với booking. Chỉ payment đã thanh toán thành công mới được cộng vào số tiền đã thanh toán; hoàn tiền hiện được thực hiện thủ công theo hồ sơ Refund, có thông tin người nhận, xác nhận gửi tiền của chủ xe và xác nhận đã nhận của người thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 463,
+      "style": "normal",
+      "text": " Quy trình tính và lưu giá thuê"
+    },
+    {
+      "kind": "paragraph",
+      "index": 464,
+      "style": "normal",
+      "text": "Quy trình tạo kết quả giá nhất quán cho giỏ và booking mà không phụ thuộc vào thay đổi giá về sau. Hệ thống sử dụng cấu hình giá của xe và dữ liệu ngày lễ hiện hành, nhưng không tự áp dụng công thức ngoài các quy tắc đã triển khai."
+    },
+    {
+      "kind": "paragraph",
+      "index": 465,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 466,
+      "style": "normal",
+      "text": "Hệ thống nhận xe, thời gian bắt đầu, thời gian kết thúc và chế độ thuê theo giờ hoặc theo ngày."
+    },
+    {
+      "kind": "paragraph",
+      "index": 467,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra chế độ thuê được xe cho phép và khoảng thời gian có giá trị."
+    },
+    {
+      "kind": "paragraph",
+      "index": 468,
+      "style": "normal",
+      "text": "Nếu dữ liệu hoặc chế độ thuê không hợp lệ, hệ thống không tính giá và yêu cầu điều chỉnh."
+    },
+    {
+      "kind": "paragraph",
+      "index": 469,
+      "style": "normal",
+      "text": "Hệ thống chia thời gian thuê thành các khoảng cần tính theo logic hiện tại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 470,
+      "style": "normal",
+      "text": "Với mỗi khoảng, hệ thống xác định có thuộc ngày lễ, cuối tuần hay ngày thường."
+    },
+    {
+      "kind": "paragraph",
+      "index": 471,
+      "style": "normal",
+      "text": "Hệ thống ưu tiên giá ngày lễ; nếu không phải ngày lễ thì ưu tiên giá cuối tuần; còn lại dùng giá ngày thường."
+    },
+    {
+      "kind": "paragraph",
+      "index": 472,
+      "style": "normal",
+      "text": "Hệ thống áp dụng đơn giá theo giờ hoặc theo ngày tương ứng và cộng thành tổng giá thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 473,
+      "style": "normal",
+      "text": "Hệ thống tạo pricing snapshot gồm đơn giá, loại ngày, các thành phần tính giá và tổng tiền."
+    },
+    {
+      "kind": "paragraph",
+      "index": 474,
+      "style": "normal",
+      "text": "Snapshot được lưu cùng lượt giữ hoặc booking để không thay đổi khi chủ xe cập nhật giá sau đó."
+    },
+    {
+      "kind": "paragraph",
+      "index": 475,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 476,
+      "style": "normal",
+      "text": "Quy trình thanh toán booking"
+    },
+    {
+      "kind": "paragraph",
+      "index": 477,
+      "style": "normal",
+      "text": "Quy trình hợp nhất thanh toán cọc, toàn bộ và phần còn lại bằng CASH, MOMO hoặc VNPAY. Payment được theo dõi riêng, chống ghi nhận lặp và chỉ ảnh hưởng số tiền đã trả khi đạt trạng thái thành công."
+    },
+    {
+      "kind": "paragraph",
+      "index": 478,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 479,
+      "style": "normal",
+      "text": "Người thuê mở booking đã được chủ xe duyệt và chọn thanh toán cọc, toàn bộ hoặc phần còn lại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 480,
+      "style": "normal",
+      "text": "Người thuê chọn phương thức CASH, MOMO hoặc VNPAY theo lựa chọn đang được hỗ trợ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 481,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra booking còn cho phép thanh toán, số tiền hợp lệ và khoản tương ứng chưa được ghi nhận trùng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 482,
+      "style": "normal",
+      "text": "Nếu điều kiện không hợp lệ, hệ thống không tạo giao dịch mới và nêu lý do."
+    },
+    {
+      "kind": "paragraph",
+      "index": 483,
+      "style": "normal",
+      "text": "Hệ thống tạo payment ở trạng thái chờ xử lý (PENDING) và liên kết với booking."
+    },
+    {
+      "kind": "paragraph",
+      "index": 484,
+      "style": "normal",
+      "text": "Với MOMO hoặc VNPAY, người thuê thực hiện giao dịch và hệ thống chờ kết quả callback; với CASH, chủ xe xác nhận sau khi thực tế đã thu tiền."
+    },
+    {
+      "kind": "paragraph",
+      "index": 485,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra mã giao dịch, số tiền, booking và dữ liệu xác thực trước khi cập nhật payment."
+    },
+    {
+      "kind": "paragraph",
+      "index": 486,
+      "style": "normal",
+      "text": "Nếu thất bại, payment chuyển sang FAILED và không được cộng vào số tiền đã thanh toán."
+    },
+    {
+      "kind": "paragraph",
+      "index": 487,
+      "style": "normal",
+      "text": "Nếu thành công, payment chuyển sang đã thanh toán (PAID) và chỉ được ghi nhận một lần."
+    },
+    {
+      "kind": "paragraph",
+      "index": 488,
+      "style": "normal",
+      "text": "Hệ thống tính paidAmount từ các payment PAID và tính remainingAmount bằng phần nghĩa vụ còn lại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 489,
+      "style": "normal",
+      "text": "Thanh toán cọc không đồng nghĩa thanh toán đủ; chỉ khi remainingAmount bằng 0 mới được xem là hoàn tất nghĩa vụ thanh toán."
+    },
+    {
+      "kind": "paragraph",
+      "index": 490,
+      "style": "normal",
+      "text": "Nếu callback đến sau khi booking đã CANCELLED, hệ thống ghi nhận payment và tạo xử lý hoàn phù hợp nhưng không kích hoạt lại booking."
+    },
+    {
+      "kind": "paragraph",
+      "index": 491,
+      "style": "normal",
+      "text": "Kết quả payment được phản ánh vào booking, Task Center và thông báo liên quan."
+    },
+    {
+      "kind": "paragraph",
+      "index": 492,
+      "style": "normal",
+      "text": "Quy trình hủy booking và hoàn tiền"
+    },
+    {
+      "kind": "paragraph",
+      "index": 493,
+      "style": "normal",
+      "text": "Đây là vị trí duy nhất mô tả đầy đủ việc người thuê hoặc chủ xe chủ động hủy booking và xử lý số tiền cần hoàn. Booking chuyển sang đã hủy, còn Refund tiếp tục vòng đời thủ công riêng cho đến khi người thuê xác nhận đã nhận tiền."
+    },
+    {
+      "kind": "paragraph",
+      "index": 494,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 495,
+      "style": "normal",
+      "text": "Người thuê hoặc chủ xe có quyền mở booking, xem trước chính sách và nhập lý do hủy."
+    },
+    {
+      "kind": "paragraph",
+      "index": 496,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra quyền của người yêu cầu và booking còn ở REQUESTED, OWNER_APPROVED, PAYMENT_PENDING, PAID hoặc trạng thái cũ tương ứng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 497,
+      "style": "normal",
+      "text": "Booking đã IN_PROGRESS, RETURN_INSPECTION, AWAITING_EXTRA_CHARGE, COMPLETED, REJECTED hoặc NO_SHOW không được hủy theo luồng thông thường."
+    },
+    {
+      "kind": "paragraph",
+      "index": 498,
+      "style": "normal",
+      "text": "Hệ thống tính trước phí hủy và số tiền dự kiến hoàn theo thời điểm, bên hủy và bản chụp chính sách của booking."
+    },
+    {
+      "kind": "paragraph",
+      "index": 499,
+      "style": "normal",
+      "text": "Người yêu cầu xác nhận hủy sau khi xem thông tin tài chính."
+    },
+    {
+      "kind": "paragraph",
+      "index": 500,
+      "style": "normal",
+      "text": "Hệ thống chuyển booking sang trạng thái đã hủy (CANCELLED), lưu lý do và giải phóng lịch xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 501,
+      "style": "normal",
+      "text": "Hệ thống truy xuất các payment PAID hoặc đã hoàn một phần và loại trừ số tiền đã hoàn trước đó."
+    },
+    {
+      "kind": "paragraph",
+      "index": 502,
+      "style": "normal",
+      "text": "Hệ thống áp dụng chính sách hủy, đồng thời giới hạn tổng tiền hoàn không vượt quá số tiền đã thanh toán hợp lệ còn lại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 503,
+      "style": "normal",
+      "text": "Nếu refundAmount bằng 0, hệ thống không tạo Refund và kết thúc phần hoàn tiền."
+    },
+    {
+      "kind": "paragraph",
+      "index": 504,
+      "style": "normal",
+      "text": "Nếu refundAmount lớn hơn 0, hệ thống tạo một hồ sơ Refund chống trùng và liên kết booking cùng các payment liên quan."
+    },
+    {
+      "kind": "paragraph",
+      "index": 505,
+      "style": "normal",
+      "text": "Refund bắt đầu ở trạng thái chờ thông tin nhận tiền (WAITING_FOR_REFUND_INFO); người thuê cung cấp tài khoản ngân hàng, ví điện tử hoặc thông tin nhận tiền mặt hợp lệ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 506,
+      "style": "normal",
+      "text": "Sau khi có thông tin người nhận, Refund chuyển sang yêu cầu xử lý thủ công (MANUAL_REQUIRED)."
+    },
+    {
+      "kind": "paragraph",
+      "index": 507,
+      "style": "normal",
+      "text": "Chủ xe chuyển tiền ngoài hệ thống, ghi phương thức, mã tham chiếu, ghi chú hoặc minh chứng; Refund chuyển sang đang xử lý (PROCESSING)."
+    },
+    {
+      "kind": "paragraph",
+      "index": 508,
+      "style": "normal",
+      "text": "Người thuê kiểm tra và xác nhận đã nhận tiền; khi đó hệ thống cập nhật payment liên quan và chuyển Refund sang hoàn tất (SUCCEEDED)."
+    },
+    {
+      "kind": "paragraph",
+      "index": 509,
+      "style": "normal",
+      "text": " Hệ thống không cho xác nhận hoặc hoàn trùng; callback payment đến muộn vẫn không làm booking CANCELLED hoạt động trở lại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 510,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 511,
+      "style": "Heading 4",
+      "text": "2.4.1.5 Nghiệp vụ bàn giao, trả xe và hoàn tất chuyến thuê"
+    },
+    {
+      "kind": "paragraph",
+      "index": 512,
+      "style": "normal",
+      "text": "Nhóm nghiệp vụ này quản lý giai đoạn thực hiện chuyến thuê từ trước lúc bàn giao đến khi xe được trả và mọi nghĩa vụ phát sinh đã được xử lý. Chỉ chủ xe quản lý xe trong booking mới có quyền bàn giao, nhận lại xe và xác nhận hoàn tất."
+    },
+    {
+      "kind": "paragraph",
+      "index": 513,
+      "style": "normal",
+      "text": "Hợp đồng, danh tính người thuê và nghĩa vụ thanh toán phải đáp ứng điều kiện trước khi xe được giao. Sau khi xe trả, biên bản kiểm tra là căn cứ xác định phụ phí; booking chỉ hoàn tất khi không còn kiểm tra hoặc khoản thanh toán bắt buộc đang chờ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 514,
+      "style": "normal",
+      "text": "Quy trình kiểm tra và bàn giao xe"
+    },
+    {
+      "kind": "paragraph",
+      "index": 515,
+      "style": "normal",
+      "text": "Quy trình kết hợp kiểm tra booking, người thuê, hợp đồng, thanh toán và việc bàn giao thực tế. Booking chỉ chuyển sang giai đoạn thuê sau khi chủ xe xác nhận đầy đủ các điều kiện."
+    },
+    {
+      "kind": "paragraph",
+      "index": 516,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 517,
+      "style": "normal",
+      "text": "Chủ xe mở booking đến thời điểm nhận xe và thuộc xe mình quản lý."
+    },
+    {
+      "kind": "paragraph",
+      "index": 518,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra chủ xe đúng quyền và booking đã được duyệt."
+    },
+    {
+      "kind": "paragraph",
+      "index": 519,
+      "style": "normal",
+      "text": "Chủ xe đối chiếu người nhận xe với thông tin người thuê đã lưu trong booking và hợp đồng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 520,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra hợp đồng đã được tạo hoặc hoàn thiện theo yêu cầu."
+    },
+    {
+      "kind": "paragraph",
+      "index": 521,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra payment PAID, paidAmount và remainingAmount theo điều kiện bàn giao."
+    },
+    {
+      "kind": "paragraph",
+      "index": 522,
+      "style": "normal",
+      "text": "Nếu còn khoản bắt buộc, chủ xe yêu cầu người thuê thanh toán hoặc xác nhận tiền mặt thực tế đã thu."
+    },
+    {
+      "kind": "paragraph",
+      "index": 523,
+      "style": "normal",
+      "text": "Chủ xe kiểm tra thời gian nhận xe và tình trạng xe trước khi bàn giao."
+    },
+    {
+      "kind": "paragraph",
+      "index": 524,
+      "style": "normal",
+      "text": "Nếu danh tính, hợp đồng, thanh toán hoặc thời gian chưa hợp lệ, hệ thống từ chối bàn giao và giữ nguyên trạng thái booking."
+    },
+    {
+      "kind": "paragraph",
+      "index": 525,
+      "style": "normal",
+      "text": "Nếu đủ điều kiện, chủ xe xác nhận giao xe và hệ thống ghi thời điểm bàn giao."
+    },
+    {
+      "kind": "paragraph",
+      "index": 526,
+      "style": "normal",
+      "text": "Booking chuyển sang trạng thái đang thuê (IN_PROGRESS), xe được đánh dấu đang được thuê và các bên nhận thông báo."
+    },
+    {
+      "kind": "paragraph",
+      "index": 527,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 528,
+      "style": "normal",
+      "text": " Quy trình nhận xe trả và kiểm tra sau thuê"
+    },
+    {
+      "kind": "paragraph",
+      "index": 529,
+      "style": "normal",
+      "text": "Quy trình ghi nhận đầy đủ tình trạng xe tại thời điểm kết thúc chuyến thuê. Dữ liệu kiểm tra được so sánh với thời điểm bàn giao để xác định xe có thể hoàn tất ngay hay cần xử lý khoản phát sinh."
+    },
+    {
+      "kind": "paragraph",
+      "index": 530,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 531,
+      "style": "normal",
+      "text": "Người thuê trả xe tại địa điểm và thời gian được thống nhất."
+    },
+    {
+      "kind": "paragraph",
+      "index": 532,
+      "style": "normal",
+      "text": "Chủ xe tiếp nhận xe của booking đang IN_PROGRESS và thuộc quyền quản lý."
+    },
+    {
+      "kind": "paragraph",
+      "index": 533,
+      "style": "normal",
+      "text": "Hệ thống ghi nhận thời điểm trả xe thực tế."
+    },
+    {
+      "kind": "paragraph",
+      "index": 534,
+      "style": "normal",
+      "text": "Chủ xe nhập số kilomet và mức nhiên liệu tại thời điểm nhận lại xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 535,
+      "style": "normal",
+      "text": "Chủ xe chụp hoặc tải hình ảnh xe khi trả và mô tả tình trạng thực tế."
+    },
+    {
+      "kind": "paragraph",
+      "index": 536,
+      "style": "normal",
+      "text": " Hệ thống kiểm tra dữ liệu kilomet, nhiên liệu, hình ảnh và nội dung tình trạng có đầy đủ, hợp lệ hay không."
+    },
+    {
+      "kind": "paragraph",
+      "index": 537,
+      "style": "normal",
+      "text": "Nếu dữ liệu chưa đầy đủ, hệ thống chưa cho kết thúc kiểm tra và yêu cầu bổ sung."
+    },
+    {
+      "kind": "paragraph",
+      "index": 538,
+      "style": "normal",
+      "text": "Chủ xe so sánh tình trạng xe trả với tình trạng tại thời điểm bàn giao."
+    },
+    {
+      "kind": "paragraph",
+      "index": 539,
+      "style": "normal",
+      "text": "Hệ thống lưu biên bản và chuyển booking sang giai đoạn kiểm tra sau thuê (RETURN_INSPECTION)."
+    },
+    {
+      "kind": "paragraph",
+      "index": 540,
+      "style": "normal",
+      "text": "Nếu không có phát sinh, biên bản có thể được xác nhận đã xử lý; nếu có phát sinh, booking chuyển sang bước xử lý phụ phí."
+    },
+    {
+      "kind": "paragraph",
+      "index": 541,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 542,
+      "style": "normal",
+      "text": "Quy trình xử lý phụ phí và hoàn tất chuyến thuê "
+    },
+    {
+      "kind": "paragraph",
+      "index": 543,
+      "style": "normal",
+      "text": "Quy trình gộp việc tạo, thanh toán, hủy phụ phí và kiểm tra điều kiện hoàn tất booking. Phụ phí phải dựa trên biên bản sau thuê và không được tạo ngoài giai đoạn kiểm tra phù hợp."
+    },
+    {
+      "kind": "paragraph",
+      "index": 544,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 545,
+      "style": "normal",
+      "text": "Chủ xe xác định khoản phát sinh từ biên bản kiểm tra sau thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 546,
+      "style": "normal",
+      "text": "Chủ xe chọn loại phụ phí, nhập số tiền, mô tả lý do và thêm minh chứng nếu có."
+    },
+    {
+      "kind": "paragraph",
+      "index": 547,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra booking đang ở giai đoạn kiểm tra, khoản tiền hợp lệ và chủ xe đúng quyền."
+    },
+    {
+      "kind": "paragraph",
+      "index": 548,
+      "style": "normal",
+      "text": "Nếu thiếu lý do, sai số tiền hoặc sai giai đoạn, hệ thống từ chối tạo phụ phí."
+    },
+    {
+      "kind": "paragraph",
+      "index": 549,
+      "style": "normal",
+      "text": "Hệ thống tạo phụ phí gắn với booking và chuyển booking sang chờ xử lý phụ phí (AWAITING_EXTRA_CHARGE)."
+    },
+    {
+      "kind": "paragraph",
+      "index": 550,
+      "style": "normal",
+      "text": "Người thuê xem khoản phí và thực hiện thanh toán bằng phương thức được hỗ trợ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 551,
+      "style": "normal",
+      "text": "Hệ thống tạo payment loại phụ phí và chỉ ghi nhận đã trả khi payment đạt PAID."
+    },
+    {
+      "kind": "paragraph",
+      "index": 552,
+      "style": "normal",
+      "text": "Chủ xe có thể xác nhận tiền mặt thực tế đã thu hoặc hủy khoản phí không còn hợp lệ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 553,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra tất cả phụ phí đã được thanh toán hoặc hủy, biên bản đã xử lý và không còn khoản thuê bắt buộc."
+    },
+    {
+      "kind": "paragraph",
+      "index": 554,
+      "style": "normal",
+      "text": "Nếu còn kiểm tra, remainingAmount hoặc phụ phí chờ, hệ thống chưa cho hoàn tất booking."
+    },
+    {
+      "kind": "paragraph",
+      "index": 555,
+      "style": "normal",
+      "text": "Nếu mọi nghĩa vụ đã xử lý, chủ xe xác nhận hoàn tất chuyến thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 556,
+      "style": "normal",
+      "text": "Booking chuyển sang trạng thái hoàn tất (COMPLETED), xe trở lại trạng thái phù hợp và hợp đồng được đồng bộ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 557,
+      "style": "normal",
+      "text": "Hệ thống cập nhật lịch sử, Task Center và thông báo kết quả cho các bên."
+    },
+    {
+      "kind": "paragraph",
+      "index": 558,
+      "style": "Heading 4",
+      "text": "2.4.1.6 Nghiệp vụ hợp đồng và lịch sử "
+    },
+    {
+      "kind": "paragraph",
+      "index": 559,
+      "style": "normal",
+      "text": "Nhóm nghiệp vụ này lưu giữ căn cứ giao dịch và lịch sử sau khi booking được hình thành. Hợp đồng gắn với booking, lưu các bản chụp cần thiết và có thể được tạo sau khi chủ xe duyệt, trước hoặc trong quá trình người thuê thực hiện thanh toán."
+    },
+    {
+      "kind": "paragraph",
+      "index": 560,
+      "style": "normal",
+      "text": "Lịch sử được lọc theo vai trò và quyền sở hữu. Sau khi booking COMPLETED, người thuê được đánh giá một lần; chủ xe có thể phản hồi, còn ADMIN xử lý nội dung bị báo cáo theo quyền kiểm duyệt"
+    },
+    {
+      "kind": "paragraph",
+      "index": 561,
+      "style": "normal",
+      "text": "Quy trình tạo và xem hợp đồng "
+    },
+    {
+      "kind": "paragraph",
+      "index": 562,
+      "style": "normal",
+      "text": "Hợp đồng có thể được tạo ngay sau khi booking được chủ xe duyệt, không bắt buộc phải chờ thanh toán hoàn tất. Tuy nhiên, hợp đồng và nghĩa vụ thanh toán đều phải được hoàn thiện trước khi xe được bàn giao."
+    },
+    {
+      "kind": "paragraph",
+      "index": 563,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 564,
+      "style": "normal",
+      "text": " Booking chuyển sang OWNER_APPROVED sau khi chủ xe chấp nhận yêu cầu thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 565,
+      "style": "normal",
+      "text": "Người thuê yêu cầu tạo hoặc hoàn thiện hợp đồng trong giai đoạn trước hoặc trong quá trình thanh toán."
+    },
+    {
+      "kind": "paragraph",
+      "index": 566,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra booking thuộc người thuê, đã được duyệt và chưa ở trạng thái hủy, hoàn tất hoặc NO_SHOW."
+    },
+    {
+      "kind": "paragraph",
+      "index": 567,
+      "style": "normal",
+      "text": "Nếu booking không đúng quyền hoặc trạng thái, hệ thống từ chối tạo hợp đồng và không làm thay đổi booking."
+    },
+    {
+      "kind": "paragraph",
+      "index": 568,
+      "style": "normal",
+      "text": "Nếu hợp lệ, hệ thống tiếp tục chuẩn bị nội dung hợp đồng từ dữ liệu đã chốt của booking."
+    },
+    {
+      "kind": "paragraph",
+      "index": 569,
+      "style": "normal",
+      "text": "Hệ thống chuẩn bị snapshot người thuê, chủ xe, xe, thời gian, địa điểm, giá, tiền cọc và số tiền còn lại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 570,
+      "style": "normal",
+      "text": "Hệ thống tạo mã hợp đồng và bảo đảm mỗi booking không phát sinh hợp đồng trùng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 571,
+      "style": "normal",
+      "text": "Người thuê và chủ xe xem hợp đồng theo quyền; người không liên quan không được truy cập."
+    },
+    {
+      "kind": "paragraph",
+      "index": 572,
+      "style": "normal",
+      "text": "Hệ thống cập nhật trạng thái hợp đồng theo tiến trình nghiệp vụ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 573,
+      "style": "normal",
+      "text": "Trước khi bàn giao, hệ thống kiểm tra hợp đồng và nghĩa vụ thanh toán đã đáp ứng điều kiện nhận xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 574,
+      "style": "normal",
+      "text": "Quy trình xem lịch sử booking và thanh toán "
+    },
+    {
+      "kind": "paragraph",
+      "index": 575,
+      "style": "normal",
+      "text": "Lịch sử cung cấp dòng thời gian giao dịch theo đúng phạm vi của từng người sử dụng. Các thao tác lọc, tìm kiếm và mở chi tiết chỉ là bước giao diện trong quy trình này, không được tách thành nghiệp vụ riêng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 576,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 577,
+      "style": "normal",
+      "text": "Người dùng mở lịch sử booking và thanh toán."
+    },
+    {
+      "kind": "paragraph",
+      "index": 578,
+      "style": "normal",
+      "text": "Hệ thống xác định vai trò, danh tính và phạm vi sở hữu dữ liệu."
+    },
+    {
+      "kind": "paragraph",
+      "index": 579,
+      "style": "normal",
+      "text": "Người thuê chỉ xem booking và payment của mình."
+    },
+    {
+      "kind": "paragraph",
+      "index": 580,
+      "style": "normal",
+      "text": "Chủ xe chỉ xem booking liên quan đến xe mình; BUSINESS chỉ xem dữ liệu thuộc doanh nghiệp."
+    },
+    {
+      "kind": "paragraph",
+      "index": 581,
+      "style": "normal",
+      "text": "Hệ thống tổng hợp trạng thái booking, payment, Refund, hợp đồng và phụ phí có liên quan."
+    },
+    {
+      "kind": "paragraph",
+      "index": 582,
+      "style": "normal",
+      "text": "Người dùng lọc danh sách hoặc mở chi tiết một giao dịch trong phạm vi được phép."
+    },
+    {
+      "kind": "paragraph",
+      "index": 583,
+      "style": "normal",
+      "text": "Hệ thống che hoặc không trả dữ liệu nhạy cảm của người khác."
+    },
+    {
+      "kind": "paragraph",
+      "index": 584,
+      "style": "normal",
+      "text": "Nếu yêu cầu vượt quyền, hệ thống từ chối truy cập và không tiết lộ dữ liệu."
+    },
+    {
+      "kind": "paragraph",
+      "index": 585,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 586,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 587,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 588,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 589,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 590,
+      "style": "normal",
+      "text": "Quy trình đánh giá, phản hồi và xử lý vi phạm"
+    },
+    {
+      "kind": "paragraph",
+      "index": 591,
+      "style": "normal",
+      "text": "Quy trình hợp nhất việc người thuê đánh giá, chủ xe phản hồi và ADMIN xử lý nội dung vi phạm. Đánh giá chỉ phát sinh sau chuyến thuê hoàn tất và không được tạo lặp cho cùng một booking."
+    },
+    {
+      "kind": "paragraph",
+      "index": 592,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 593,
+      "style": "normal",
+      "text": "Người thuê mở booking thuộc mình đã COMPLETED và chọn thực hiện đánh giá."
+    },
+    {
+      "kind": "paragraph",
+      "index": 594,
+      "style": "normal",
+      "text": " Người thuê nhập điểm, nhận xét và hình ảnh nếu chức năng hình ảnh được sử dụng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 595,
+      "style": "normal",
+      "text": " Hệ thống kiểm tra booking đúng người thuê, đã hoàn tất và chưa có review của người thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 596,
+      "style": "normal",
+      "text": "Nếu booking chưa đủ điều kiện hoặc đã có review, hệ thống từ chối tạo trùng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 597,
+      "style": "normal",
+      "text": " Hệ thống tạo review gắn với booking và xe, đồng thời chỉ công khai dữ liệu phù hợp."
+    },
+    {
+      "kind": "paragraph",
+      "index": 598,
+      "style": "normal",
+      "text": "Chủ xe xem review thuộc xe mình và gửi một phản hồi theo quyền."
+    },
+    {
+      "kind": "paragraph",
+      "index": 599,
+      "style": "normal",
+      "text": "Chủ xe hoặc người có quyền báo cáo nội dung có dấu hiệu vi phạm."
+    },
+    {
+      "kind": "paragraph",
+      "index": 600,
+      "style": "normal",
+      "text": "ADMIN xem báo cáo, kiểm tra nội dung và quyết định giữ, ẩn hoặc hiển thị lại review."
+    },
+    {
+      "kind": "paragraph",
+      "index": 601,
+      "style": "normal",
+      "text": "Nếu báo cáo không có căn cứ, review giữ trạng thái hiện tại; nếu vi phạm, hệ thống áp dụng trạng thái kiểm duyệt phù hợp."
+    },
+    {
+      "kind": "paragraph",
+      "index": 602,
+      "style": "normal",
+      "text": "Hệ thống không công khai dữ liệu nhạy cảm và thông báo kết quả xử lý cho các bên liên quan."
+    },
+    {
+      "kind": "paragraph",
+      "index": 603,
+      "style": "Heading 4",
+      "text": "2.4.1.7 Nghiệp vụ thông báo và theo dõi hệ thống "
+    },
+    {
+      "kind": "paragraph",
+      "index": 604,
+      "style": "normal",
+      "text": "Nhóm nghiệp vụ này hỗ trợ người sử dụng theo dõi sự kiện và công việc phát sinh từ các quy trình chính. Notification Center tập hợp thông báo theo người nhận; Task Center phản ánh các việc cần làm dựa trên trạng thái booking, payment, Refund, kiểm duyệt và các đối tượng liên quan."
+    },
+    {
+      "kind": "paragraph",
+      "index": 605,
+      "style": "normal",
+      "text": "Dashboard tổng hợp dữ liệu theo vai trò mà không thay thế các nghiệp vụ nguồn. ADMIN xem phạm vi toàn hệ thống, BUSINESS và USER chủ xe ký gửi xem dữ liệu thuộc sở hữu, còn USER người thuê chỉ xem dữ liệu cá nhân khi màn hình tương ứng hỗ trợ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 606,
+      "style": "normal",
+      "text": "Quy trình xem thông báo và việc cần làm "
+    },
+    {
+      "kind": "paragraph",
+      "index": 607,
+      "style": "normal",
+      "text": "Thông báo không được tạo thành một nghiệp vụ độc lập cho từng sự kiện; nó là kết quả của quy trình đã phát sinh sự kiện. Quy trình này tập trung vào việc người nhận đọc, quản lý thông báo và điều hướng đến công việc đang chờ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 608,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 609,
+      "style": "normal",
+      "text": "Hệ thống tạo thông báo khi quy trình nghiệp vụ phát sinh sự kiện cần gửi đến một vai trò hoặc người nhận cụ thể."
+    },
+    {
+      "kind": "paragraph",
+      "index": 610,
+      "style": "normal",
+      "text": "Người dùng mở Notification Center để xem danh sách và trạng thái chưa đọc."
+    },
+    {
+      "kind": "paragraph",
+      "index": 611,
+      "style": "normal",
+      "text": "Hệ thống chỉ trả thông báo thuộc đúng người nhận và phạm vi dữ liệu liên quan."
+    },
+    {
+      "kind": "paragraph",
+      "index": 612,
+      "style": "normal",
+      "text": "Người dùng mở chi tiết; hệ thống đánh dấu đã đọc và điều hướng đến booking, payment, Refund hoặc đối tượng tương ứng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 613,
+      "style": "normal",
+      "text": "Người dùng có thể đánh dấu một thông báo hoặc tất cả thông báo là đã đọc."
+    },
+    {
+      "kind": "paragraph",
+      "index": 614,
+      "style": "normal",
+      "text": "Khi người dùng xóa thông báo, hệ thống thực hiện xóa mềm trong phạm vi tài khoản."
+    },
+    {
+      "kind": "paragraph",
+      "index": 615,
+      "style": "normal",
+      "text": "Người dùng mở Task Center để xem các việc cần làm được suy ra từ trạng thái nghiệp vụ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 616,
+      "style": "normal",
+      "text": "Khi trạng thái nguồn thay đổi, hệ thống cập nhật hoặc loại bỏ task tương ứng thay vì tạo một quy trình mới."
+    },
+    {
+      "kind": "paragraph",
+      "index": 617,
+      "style": "normal",
+      "text": "Nếu người dùng không có quyền với đối tượng đích, hệ thống không cho điều hướng hoặc xem dữ liệu chi tiết."
+    },
+    {
+      "kind": "paragraph",
+      "index": 618,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 619,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 620,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 621,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 622,
+      "style": "normal",
+      "text": "Quy trình xem dashboard theo vai trò "
+    },
+    {
+      "kind": "paragraph",
+      "index": 623,
+      "style": "normal",
+      "text": "Dashboard cung cấp số liệu tổng hợp nhằm hỗ trợ theo dõi vận hành. Mọi chỉ số phải được lọc theo quyền, trạng thái hợp lệ và phạm vi sở hữu trước khi hiển thị."
+    },
+    {
+      "kind": "paragraph",
+      "index": 624,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 625,
+      "style": "normal",
+      "text": "Người dùng mở dashboard và hệ thống xác định vai trò hiện tại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 626,
+      "style": "normal",
+      "text": "ADMIN được tổng hợp xe, booking, payment, Refund, đánh giá và tài khoản trong phạm vi toàn hệ thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 627,
+      "style": "normal",
+      "text": "BUSINESS chỉ xem doanh nghiệp, xe, booking và dữ liệu tài chính thuộc doanh nghiệp."
+    },
+    {
+      "kind": "paragraph",
+      "index": 628,
+      "style": "normal",
+      "text": "USER chủ xe ký gửi chỉ xem xe và giao dịch thuộc sở hữu; USER người thuê xem dữ liệu cá nhân nếu dashboard hỗ trợ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 629,
+      "style": "normal",
+      "text": "Hệ thống đồng bộ các trạng thái hết hạn hoặc trạng thái xe cần cập nhật trước khi tổng hợp."
+    },
+    {
+      "kind": "paragraph",
+      "index": 630,
+      "style": "normal",
+      "text": "Hệ thống chỉ tính payment PAID vào doanh thu và trừ các Refund SUCCEEDED để phản ánh doanh thu thuần theo logic dashboard hiện tại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 631,
+      "style": "normal",
+      "text": "Hệ thống tổng hợp số lượng xe, booking theo trạng thái, thanh toán, doanh thu, hoàn tiền và đánh giá trong phạm vi cho phép."
+    },
+    {
+      "kind": "paragraph",
+      "index": 632,
+      "style": "normal",
+      "text": "Nếu vai trò yêu cầu dữ liệu ngoài phạm vi, hệ thống loại dữ liệu đó khỏi kết quả."
+    },
+    {
+      "kind": "paragraph",
+      "index": 633,
+      "style": "normal",
+      "text": "Dashboard hiển thị số liệu và liên kết đến danh sách chi tiết mà người dùng có quyền truy cập."
+    },
+    {
+      "kind": "paragraph",
+      "index": 634,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 635,
+      "style": "normal",
+      "text": "2.4.1.8 Nghiệp vụ thuê xe tổng thể "
+    },
+    {
+      "kind": "paragraph",
+      "index": 636,
+      "style": "normal",
+      "text": "Quy trình thuê xe tổng thể liên kết nhiều nhóm nghiệp vụ trước thành một vòng đời thống nhất từ tìm kiếm đến đánh giá. Người thuê có thể giữ xe trong giỏ hoặc tạo booking trực tiếp, sau đó chờ chủ xe quyết định và hoàn thiện hợp đồng cùng nghĩa vụ thanh toán."
+    },
+    {
+      "kind": "paragraph",
+      "index": 637,
+      "style": "normal",
+      "text": "Khi đủ điều kiện, chủ xe bàn giao xe và booking bước vào giai đoạn đang thuê. Cuối chuyến, xe được tiếp nhận, kiểm tra và xử lý phụ phí nếu có; chỉ khi mọi nghĩa vụ đã hoàn tất thì booking mới chuyển COMPLETED."
+    },
+    {
+      "kind": "paragraph",
+      "index": 638,
+      "style": "normal",
+      "text": "Các nhánh hủy, thanh toán thất bại, callback đến muộn, NO_SHOW và hoàn tiền chỉ được tóm tắt trong quy trình tổng thể. Nội dung chi tiết vẫn thuộc các quy trình chuyên trách để tránh lặp lại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 639,
+      "style": "normal",
+      "text": "Quy Trình thuê xe tổng thể \t"
+    },
+    {
+      "kind": "paragraph",
+      "index": 640,
+      "style": "normal",
+      "text": "Quy trình thể hiện chuỗi nghiệp vụ chính và các điểm quyết định quan trọng của một chuyến thuê. Mỗi bước dẫn chiếu đến nhóm chuyên trách thay vì chép lại toàn bộ quy tắc chi tiết."
+    },
+    {
+      "kind": "paragraph",
+      "index": 641,
+      "style": "normal",
+      "text": "Các bước thực hiện:"
+    },
+    {
+      "kind": "paragraph",
+      "index": 642,
+      "style": "normal",
+      "text": "Người thuê tìm kiếm xe theo địa điểm, thời gian và tiêu chí; hệ thống chỉ trả xe hợp lệ và khả dụng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 643,
+      "style": "normal",
+      "text": "Nếu xe hoặc khoảng thời gian không hợp lệ, người thuê phải điều chỉnh điều kiện tìm kiếm."
+    },
+    {
+      "kind": "paragraph",
+      "index": 644,
+      "style": "normal",
+      "text": "Người thuê xem chi tiết, giá dự kiến, đánh giá và vị trí nhận xe trên bản đồ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 645,
+      "style": "normal",
+      "text": "Người thuê thêm xe vào giỏ để giữ tạm thời hoặc chọn tạo booking trực tiếp."
+    },
+    {
+      "kind": "paragraph",
+      "index": 646,
+      "style": "normal",
+      "text": "Nếu giỏ hết hạn, hệ thống giải phóng lượt giữ và yêu cầu kiểm tra khả dụng lại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 647,
+      "style": "normal",
+      "text": "Hệ thống kiểm tra quyền đặt, lịch xe, thông tin người thuê và tạo booking gắn đúng chủ xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 648,
+      "style": "normal",
+      "text": "Chủ xe duyệt hoặc từ chối booking; booking bị từ chối không tiếp tục và vấn đề tài chính được chuyển sang quy trình chuyên trách."
+    },
+    {
+      "kind": "paragraph",
+      "index": 649,
+      "style": "normal",
+      "text": "Khi được duyệt, người thuê tạo hoặc hoàn thiện hợp đồng và thực hiện thanh toán theo lựa chọn."
+    },
+    {
+      "kind": "paragraph",
+      "index": 650,
+      "style": "normal",
+      "text": "Nếu payment thất bại, nghĩa vụ chưa được ghi nhận; nếu callback đến sau khi booking đã hủy, booking không được kích hoạt lại."
+    },
+    {
+      "kind": "paragraph",
+      "index": 651,
+      "style": "normal",
+      "text": "Nếu người có quyền hủy booking, hệ thống xử lý CANCELLED và hoàn tiền thủ công theo quy trình hủy booking và hoàn tiền "
+    },
+    {
+      "kind": "paragraph",
+      "index": 652,
+      "style": "normal",
+      "text": "Chủ xe kiểm tra người thuê, hợp đồng, thanh toán và thời gian trước khi bàn giao xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 653,
+      "style": "normal",
+      "text": "Nếu người thuê không đến sau giờ nhận xe và đủ khoảng chờ 30 phút, chủ xe có thể ghi nhận NO_SHOW."
+    },
+    {
+      "kind": "paragraph",
+      "index": 654,
+      "style": "normal",
+      "text": "Khi bàn giao thành công, booking chuyển IN_PROGRESS và chuyến thuê diễn ra."
+    },
+    {
+      "kind": "paragraph",
+      "index": 655,
+      "style": "normal",
+      "text": "Người thuê trả xe; chủ xe ghi thời điểm, kilomet, nhiên liệu, hình ảnh và tình trạng xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 656,
+      "style": "normal",
+      "text": "Nếu xe có hư hỏng hoặc khoản phát sinh, chủ xe tạo phụ phí và người thuê xử lý payment liên quan."
+    },
+    {
+      "kind": "paragraph",
+      "index": 657,
+      "style": "normal",
+      "text": "Nếu còn remainingAmount, phụ phí hoặc kiểm tra chưa hoàn tất, hệ thống chưa cho kết thúc booking."
+    },
+    {
+      "kind": "paragraph",
+      "index": 658,
+      "style": "normal",
+      "text": "Khi mọi nghĩa vụ đã xử lý, chủ xe hoàn tất booking; booking chuyển COMPLETED và xe trở lại trạng thái phù hợp."
+    },
+    {
+      "kind": "paragraph",
+      "index": 659,
+      "style": "normal",
+      "text": "Người thuê thực hiện đánh giá; lịch sử, dashboard, Task Center và Notification Center được cập nhật theo quyền."
+    },
+    {
+      "kind": "paragraph",
+      "index": 660,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 661,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 662,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 663,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 664,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 665,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 666,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 667,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 668,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 669,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 670,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 671,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 672,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 673,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 674,
+      "style": "Heading 3",
+      "text": "2.4.2 Sơ đồ chức năng "
+    },
+    {
+      "kind": "paragraph",
+      "index": 675,
+      "style": "normal",
+      "text": "Sơ đồ chức năng thể hiện các nhóm chức năng chính của hệ thống BQDrive. Hệ thống được chia theo vai trò sử dụng và theo các nghiệp vụ cốt lõi như quản lý tài khoản, quản lý xe, đặt xe, thanh toán, hoàn tiền, đánh giá, thông báo và thống kê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 676,
+      "style": "normal",
+      "text": "Sơ đồ chức năng tổng quát"
+    },
+    {
+      "kind": "paragraph",
+      "index": 677,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 678,
+      "style": "Heading 4",
+      "text": "Hình 2- :  Sơ đồ phân rã chức năng "
+    },
+    {
+      "kind": "paragraph",
+      "index": 679,
+      "style": "normal",
+      "text": "Chia sơ đồ chức năng "
+    },
+    {
+      "kind": "paragraph",
+      "index": 680,
+      "style": "normal",
+      "text": "Quản lý tài khoản, người dùng và doanh nghiệp "
+    },
+    {
+      "kind": "paragraph",
+      "index": 681,
+      "style": "Heading 4",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 682,
+      "style": "Heading 4",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 683,
+      "style": "Heading 4",
+      "text": "Hình 2- : Sơ đồ chức năng quản lý tài khoản, người dùng và doanh nghiệp "
+    },
+    {
+      "kind": "paragraph",
+      "index": 684,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 685,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 686,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 687,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 688,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 689,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 690,
+      "style": "normal",
+      "text": "Quản lý xe và tìm kiếm xe "
+    },
+    {
+      "kind": "paragraph",
+      "index": 691,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 692,
+      "style": "normal",
+      "text": "Hình 2- : Sơ đồ chức năng quản lý và tìm kiếm xe "
+    },
+    {
+      "kind": "paragraph",
+      "index": 693,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 694,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 695,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 696,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 697,
+      "style": "normal",
+      "text": "Giỏ xe và quản lý booking "
+    },
+    {
+      "kind": "paragraph",
+      "index": 698,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 699,
+      "style": "Heading 4",
+      "text": "Hình 2-: Sơ đồ chức năng giỏ xe và quản lý booking"
+    },
+    {
+      "kind": "paragraph",
+      "index": 700,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 701,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 702,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 703,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 704,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 705,
+      "style": "normal",
+      "text": "Thanh toán và hoàn tiền "
+    },
+    {
+      "kind": "paragraph",
+      "index": 706,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 707,
+      "style": "Heading 4",
+      "text": "Hình 2-: Sơ đồ chức năng thanh toán và hoàn tiền "
+    },
+    {
+      "kind": "paragraph",
+      "index": 708,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 709,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 710,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 711,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 712,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 713,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 714,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 715,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 716,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 717,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 718,
+      "style": "normal",
+      "text": "Bàn giao, trả xe, hợp đồng và đánh giá "
+    },
+    {
+      "kind": "paragraph",
+      "index": 719,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 720,
+      "style": "Heading 4",
+      "text": "Hình 2-: Sơ đồ chức năng xử lý sau khi đặt xe "
+    },
+    {
+      "kind": "paragraph",
+      "index": 721,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 722,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 723,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 724,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 725,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 726,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 727,
+      "style": "normal",
+      "text": "Thông báo và thống kê "
+    },
+    {
+      "kind": "paragraph",
+      "index": 728,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 729,
+      "style": "Heading 4",
+      "text": "Hình 2-: Sơ đồ chức năng thông báo, dashboard và thống kê "
+    },
+    {
+      "kind": "paragraph",
+      "index": 730,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 731,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 732,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 733,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 734,
+      "style": "Heading 3",
+      "text": "2.4.3 Sơ đồ Use case tổng quát"
+    },
+    {
+      "kind": "paragraph",
+      "index": 735,
+      "style": "normal",
+      "text": "Sơ đồ Use case tổng quát mô tả các tác nhân tham gia vào hệ thống và các chức năng chính mà từng tác nhân có thể thực hiện. Hệ thống BQDrive có các nhóm tác nhân chính gồm ADMIN, người thuê xe, chủ xe cá nhân, doanh nghiệp cho thuê xe và các hệ thống bên ngoài."
+    },
+    {
+      "kind": "paragraph",
+      "index": 736,
+      "style": "Heading 4",
+      "text": "2.4.3.1 Mô tả các Actor"
+    },
+    {
+      "kind": "paragraph",
+      "index": 737,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "table",
+      "index": 8,
+      "style": null,
+      "rows": [
+        [
+          "Actor",
+          "Mô tả"
+        ],
+        [
+          "ADMIN",
+          "Là người quản trị hệ thống. ADMIN có quyền quản lý tài khoản, doanh nghiệp, thương hiệu xe, duyệt xe, quản lý đánh giá, theo dõi dashboard và kiểm soát dữ liệu tổng quan của hệ thống."
+        ],
+        [
+          "Người thuê xe",
+          "Là người dùng có nhu cầu tìm kiếm và thuê xe. Người thuê có thể đăng ký, đăng nhập, tìm kiếm xe, xem chi tiết xe, thêm xe vào giỏ, tạo booking, thanh toán, hủy booking, xem hợp đồng, xem lịch sử và đánh giá sau khi hoàn tất chuyến thuê."
+        ],
+        [
+          "Chủ xe cá nhân",
+          "Là USER có xe ký gửi hoặc xe cá nhân cho thuê trên hệ thống. Chủ xe cá nhân có thể đăng xe, quản lý xe, duyệt booking phát sinh từ xe của mình, bàn giao xe, nhận xe trả, tạo phụ phí, xem lịch sử booking và theo dõi dashboard cá nhân."
+        ],
+        [
+          "BUSINESS",
+          "Là tài khoản doanh nghiệp cho thuê xe. BUSINESS có thể quản lý hồ sơ doanh nghiệp, quản lý danh sách xe, duyệt booking, theo dõi thanh toán, xử lý bàn giao/trả xe, quản lý phụ phí, phản hồi đánh giá và xem dashboard doanh nghiệp."
+        ],
+        [
+          "Cổng thanh toán",
+          "Là hệ thống bên ngoài hỗ trợ xử lý giao dịch thanh toán trực tuyến như MoMo hoặc VNPAY. Cổng thanh toán trả kết quả giao dịch để hệ thống cập nhật trạng thái payment."
+        ],
+        [
+          "Dịch vụ email/thông báo",
+          "Là hệ thống hỗ trợ gửi OTP, email đặt lại mật khẩu, email thông báo booking, thanh toán, hủy booking và các thông báo nghiệp vụ khác."
+        ],
+        [
+          "Dịch vụ bản đồ",
+          "Là hệ thống hỗ trợ xử lý địa chỉ, tọa độ, vị trí nhận xe và hiển thị bản đồ cho người dùng."
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 738,
+      "style": "Heading 4",
+      "text": "2.4.3.2 Sơ đồ Use case tổng quát : "
+    },
+    {
+      "kind": "paragraph",
+      "index": 739,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 740,
+      "style": "Heading 4",
+      "text": "Hình 2-: Sơ dồ Use case tổng quát"
+    },
+    {
+      "kind": "paragraph",
+      "index": 741,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 742,
+      "style": "Heading 4",
+      "text": "2.4.3.3 Mô tả sơ lược các Use case"
+    },
+    {
+      "kind": "table",
+      "index": 9,
+      "style": null,
+      "rows": [
+        [
+          "Use case",
+          "Actor chính",
+          "Mô tả sơ lược"
+        ],
+        [
+          "Đăng ký tài khoản",
+          "Người thuê xe",
+          "Người dùng nhập thông tin cá nhân để tạo tài khoản USER trên hệ thống."
+        ],
+        [
+          "Đăng nhập",
+          "Tất cả người dùng",
+          "Người dùng đăng nhập bằng email/mật khẩu hoặc Google OAuth để sử dụng hệ thống theo quyền được cấp."
+        ],
+        [
+          "Quên mật khẩu",
+          "Tất cả người dùng",
+          "Người dùng yêu cầu OTP qua email để xác minh và đặt lại mật khẩu mới."
+        ],
+        [
+          "Quản lý tài khoản",
+          "ADMIN",
+          "ADMIN xem danh sách tài khoản, tra cứu, khóa, mở khóa hoặc xóa mềm tài khoản."
+        ],
+        [
+          "Quản lý doanh nghiệp",
+          "ADMIN, BUSINESS",
+          "ADMIN duyệt hoặc cấp tài khoản doanh nghiệp; BUSINESS cập nhật hồ sơ doanh nghiệp."
+        ],
+        [
+          "Quản lý thương hiệu xe",
+          "ADMIN",
+          "ADMIN thêm, sửa, xóa mềm thương hiệu xe dùng chung trong hệ thống."
+        ],
+        [
+          "Quản lý xe",
+          "BUSINESS, Chủ xe cá nhân",
+          "Chủ xe thêm xe, cập nhật thông tin xe, ẩn/hiển thị xe, cập nhật vị trí nhận xe và theo dõi trạng thái duyệt."
+        ],
+        [
+          "Duyệt xe",
+          "ADMIN",
+          "ADMIN kiểm tra thông tin xe và quyết định duyệt hoặc từ chối xe trước khi xe được hiển thị công khai."
+        ],
+        [
+          "Tìm kiếm và lọc xe",
+          "Người thuê xe",
+          "Người thuê tìm kiếm xe theo địa điểm, thời gian thuê, thương hiệu, số ghế, giá, nhiên liệu và các tiêu chí khác."
+        ],
+        [
+          "Xem chi tiết xe",
+          "Người thuê xe",
+          "Người thuê xem thông tin xe, hình ảnh, giá thuê, vị trí nhận xe, đánh giá và điều kiện thuê."
+        ],
+        [
+          "Quản lý giỏ xe",
+          "Người thuê xe",
+          "Người thuê thêm xe vào giỏ, giữ xe tạm thời và tạo booking từ giỏ."
+        ],
+        [
+          "Tạo booking",
+          "Người thuê xe",
+          "Người thuê chọn xe, thời gian thuê, thông tin nhận xe và gửi yêu cầu đặt xe."
+        ],
+        [
+          "Duyệt booking",
+          "BUSINESS, Chủ xe cá nhân",
+          "Chủ xe xem booking mới và quyết định chấp nhận hoặc từ chối yêu cầu thuê xe."
+        ],
+        [
+          "Hủy booking",
+          "Người thuê xe, Chủ xe",
+          "Người thuê hoặc chủ xe hủy booking khi booking còn ở trạng thái cho phép hủy; hệ thống tính chính sách hủy và hoàn tiền nếu có."
+        ],
+        [
+          "Thanh toán",
+          "Người thuê xe, Cổng thanh toán",
+          "Người thuê thanh toán cọc, toàn bộ, phần còn lại hoặc phụ phí bằng CASH, MoMo hoặc VNPAY."
+        ],
+        [
+          "Hoàn tiền",
+          "Người thuê xe, Chủ xe",
+          "Khi booking bị hủy và có số tiền cần hoàn, hệ thống tạo hồ sơ Refund để chủ xe xử lý hoàn thủ công và người thuê xác nhận đã nhận tiền."
+        ],
+        [
+          "Bàn giao xe",
+          "BUSINESS, Chủ xe cá nhân",
+          "Chủ xe xác nhận bàn giao xe cho người thuê khi booking đủ điều kiện thanh toán và nhận xe."
+        ],
+        [
+          "Trả xe và kiểm tra sau thuê",
+          "BUSINESS, Chủ xe cá nhân",
+          "Chủ xe nhận xe trả, ghi nhận tình trạng xe sau thuê, hình ảnh, nhiên liệu, số km và kết quả kiểm tra."
+        ],
+        [
+          "Quản lý phụ phí",
+          "BUSINESS, Chủ xe cá nhân, Người thuê xe",
+          "Chủ xe tạo phụ phí nếu phát sinh chi phí sau thuê; người thuê thanh toán phụ phí; chủ xe có thể xác nhận hoặc hủy phụ phí."
+        ],
+        [
+          "Hoàn tất chuyến thuê",
+          "BUSINESS, Chủ xe cá nhân",
+          "Chủ xe hoàn tất booking sau khi xe đã được trả, kiểm tra xong và các khoản thanh toán/phụ phí đã được xử lý."
+        ],
+        [
+          "Xử lý khách không nhận xe",
+          "BUSINESS, Chủ xe cá nhân",
+          "Chủ xe xác nhận trường hợp người thuê không đến nhận xe đúng lịch, hệ thống chuyển booking sang NO_SHOW."
+        ],
+        [
+          "Xem hợp đồng",
+          "Người thuê xe, BUSINESS, Chủ xe cá nhân",
+          "Các bên liên quan xem hợp đồng thuê xe tương ứng với booking."
+        ],
+        [
+          "Xem lịch sử booking",
+          "Người thuê xe, BUSINESS, Chủ xe cá nhân",
+          "Người dùng xem lại các booking đã tạo hoặc các booking phát sinh từ xe thuộc quyền quản lý."
+        ],
+        [
+          "Xem lịch sử thanh toán",
+          "Người thuê xe, BUSINESS, Chủ xe cá nhân",
+          "Người dùng xem danh sách payment, chi tiết giao dịch và trạng thái thanh toán."
+        ],
+        [
+          "Đánh giá xe",
+          "Người thuê xe",
+          "Sau khi chuyến thuê hoàn tất, người thuê gửi đánh giá, số sao, nhận xét và hình ảnh nếu có."
+        ],
+        [
+          "Phản hồi đánh giá",
+          "BUSINESS, Chủ xe cá nhân",
+          "Chủ xe phản hồi đánh giá của người thuê đối với xe thuộc quyền quản lý."
+        ],
+        [
+          "Xử lý đánh giá vi phạm",
+          "ADMIN",
+          "ADMIN xem các đánh giá bị báo cáo và quyết định ẩn hoặc hiển thị lại đánh giá."
+        ],
+        [
+          "Xem thông báo",
+          "Tất cả người dùng",
+          "Người dùng xem thông báo nghiệp vụ, đánh dấu đã đọc hoặc xóa thông báo."
+        ],
+        [
+          "Xem trung tâm việc cần làm",
+          "ADMIN, BUSINESS, Chủ xe cá nhân, Người thuê xe",
+          "Hệ thống hiển thị các tác vụ cần xử lý theo vai trò như duyệt xe, duyệt booking, thanh toán, bàn giao, trả xe, xử lý phụ phí."
+        ],
+        [
+          "Xem dashboard",
+          "ADMIN, BUSINESS, Chủ xe cá nhân",
+          "Người dùng xem số liệu tổng quan về xe, booking, thanh toán, doanh thu, đánh giá và các trạng thái cần theo dõi."
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 743,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 744,
+      "style": "Heading 1",
+      "text": "CHƯƠNG 3 : THIẾT KẾ"
+    },
+    {
+      "kind": "paragraph",
+      "index": 745,
+      "style": "Heading 2",
+      "text": "3.1 Sơ đồ mức ý niệm"
+    },
+    {
+      "kind": "paragraph",
+      "index": 746,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 747,
+      "style": "Heading 5",
+      "text": "Hình 3-1  :Sơ đồ thực thể mức quan niệm"
+    },
+    {
+      "kind": "paragraph",
+      "index": 748,
+      "style": "Heading 3",
+      "text": "3.1.1 Sơ đồ thực thể quan niệm"
+    },
+    {
+      "kind": "paragraph",
+      "index": 749,
+      "style": "Heading 4",
+      "text": "3.1.1.1\t\t Mô tả loài thực thể "
+    },
+    {
+      "kind": "paragraph",
+      "index": 750,
+      "style": "Heading 3",
+      "text": "□ Loại thực thể USER"
+    },
+    {
+      "kind": "paragraph",
+      "index": 751,
+      "style": "normal",
+      "text": "Mô tả: Người dùng trong hệ thống BQDrive, có thể là ADMIN, BUSINESS hoặc USER. Thực thể này dùng để lưu thông tin đăng nhập, hồ sơ cá nhân, trạng thái xác thực và phân quyền."
+    },
+    {
+      "kind": "paragraph",
+      "index": 752,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 753,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 754,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "table",
+      "index": 10,
+      "style": null,
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã người dùng"
+        ],
+        [
+          "name",
+          "Chuỗi(100)",
+          "",
+          "",
+          "x",
+          "Họ tên người dùng"
+        ],
+        [
+          "email",
+          "Chuỗi(100)",
+          "",
+          "x",
+          "x",
+          "Email đăng nhập"
+        ],
+        [
+          "password",
+          "Chuỗi",
+          "",
+          "",
+          "x",
+          "Mật khẩu đã mã hóa"
+        ],
+        [
+          "phone",
+          "Chuỗi(20)",
+          "",
+          "",
+          "",
+          "Số điện thoại"
+        ],
+        [
+          "address",
+          "Chuỗi",
+          "",
+          "",
+          "",
+          "Địa chỉ người dùng"
+        ],
+        [
+          "avatar",
+          "Chuỗi",
+          "",
+          "",
+          "",
+          "Ảnh đại diện"
+        ],
+        [
+          "role",
+          "Enum",
+          "",
+          "",
+          "x",
+          "Vai trò: ADMIN, BUSINESS, USER"
+        ],
+        [
+          "isBlocked",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trạng thái khóa tài khoản"
+        ],
+        [
+          "isVerified",
+          "Boolean",
+          "",
+          "",
+          "x",
+          "Trạng thái xác thực tài khoản"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trạng thái xóa mềm"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 755,
+      "style": "Heading 3",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 756,
+      "style": "Heading 3",
+      "text": "□ Loại thực thể BUSINESS"
+    },
+    {
+      "kind": "paragraph",
+      "index": 757,
+      "style": "normal",
+      "text": "Mô tả: Doanh nghiệp hoặc cá nhân kinh doanh cho thuê xe. Một BUSINESS được liên kết với một tài khoản USER và có thể quản lý nhiều xe cho thuê."
+    },
+    {
+      "kind": "table",
+      "index": 11,
+      "style": null,
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã doanh nghiệp"
+        ],
+        [
+          "userId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Mã tài khoản đại diện"
+        ],
+        [
+          "businessName",
+          "Chuỗi(150)",
+          "",
+          "",
+          "x",
+          "Tên doanh nghiệp"
+        ],
+        [
+          "businessType",
+          "Enum",
+          "",
+          "",
+          "x",
+          "Loại hình: COMPANY, INDIVIDUAL"
+        ],
+        [
+          "phone",
+          "Chuỗi(20)",
+          "",
+          "",
+          "",
+          "Số điện thoại doanh nghiệp"
+        ],
+        [
+          "address",
+          "Chuỗi",
+          "",
+          "",
+          "",
+          "Địa chỉ doanh nghiệp"
+        ],
+        [
+          "description",
+          "Chuỗi",
+          "",
+          "",
+          "",
+          "Mô tả doanh nghiệp"
+        ],
+        [
+          "logo",
+          "Chuỗi",
+          "",
+          "",
+          "",
+          "Logo doanh nghiệp"
+        ],
+        [
+          "isApproved",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trạng thái được duyệt"
+        ],
+        [
+          "isRejected",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trạng thái bị từ chối"
+        ],
+        [
+          "rejectReason",
+          "Chuỗi",
+          "",
+          "",
+          "",
+          "Lý do từ chối"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trạng thái xóa mềm"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 758,
+      "style": "Heading 3",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 759,
+      "style": "Heading 3",
+      "text": "□ Loại thực thể BRAND"
+    },
+    {
+      "kind": "paragraph",
+      "index": 760,
+      "style": "normal",
+      "text": "Mô tả: Thương hiệu xe dùng chung trong hệ thống. Thực thể này giúp chuẩn hóa dữ liệu khi chủ xe thêm hoặc cập nhật xe."
+    },
+    {
+      "kind": "table",
+      "index": 12,
+      "style": null,
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã thương hiệu xe"
+        ],
+        [
+          "name",
+          "Chuỗi(100)",
+          "",
+          "x",
+          "x",
+          "Tên thương hiệu"
+        ],
+        [
+          "logo",
+          "Chuỗi",
+          "",
+          "",
+          "",
+          "Logo thương hiệu"
+        ],
+        [
+          "description",
+          "Chuỗi",
+          "",
+          "",
+          "",
+          "Mô tả thương hiệu"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trạng thái xóa mềm"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 761,
+      "style": "Heading 3",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 762,
+      "style": "Heading 3",
+      "text": "□ Loại thực thể CAR"
+    },
+    {
+      "kind": "paragraph",
+      "index": 763,
+      "style": "normal",
+      "text": "Mô tả: Xe được đăng lên hệ thống để cho thuê. Xe có thể thuộc doanh nghiệp hoặc chủ xe cá nhân, có thông tin giá thuê, vị trí nhận xe, hình ảnh và trạng thái duyệt."
+    },
+    {
+      "kind": "table",
+      "index": 13,
+      "style": null,
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã xe"
+        ],
+        [
+          "ownerId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Mã chủ sở hữu xe"
+        ],
+        [
+          "ownerType",
+          "Enum",
+          "",
+          "",
+          "x",
+          "Loại chủ sở hữu: BUSINESS, USER"
+        ],
+        [
+          "businessId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Mã doanh nghiệp nếu có"
+        ],
+        [
+          "brandId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Mã thương hiệu xe"
+        ],
+        [
+          "name",
+          "Chuỗi(150)",
+          "",
+          "",
+          "x",
+          "Tên xe"
+        ],
+        [
+          "type",
+          "Enum",
+          "",
+          "",
+          "x",
+          "Loại xe"
+        ],
+        [
+          "licensePlate",
+          "Chuỗi(20)",
+          "",
+          "",
+          "",
+          "Biển số xe"
+        ],
+        [
+          "pricing",
+          "Object",
+          "",
+          "",
+          "",
+          "Thông tin giá thuê"
+        ],
+        [
+          "seats",
+          "Số nguyên",
+          "",
+          "",
+          "x",
+          "Số ghế"
+        ],
+        [
+          "fuelType",
+          "Enum",
+          "",
+          "",
+          "",
+          "Loại nhiên liệu"
+        ],
+        [
+          "transmission",
+          "Enum",
+          "",
+          "",
+          "",
+          "Loại hộp số"
+        ],
+        [
+          "images",
+          "Mảng",
+          "",
+          "",
+          "",
+          "Danh sách hình ảnh xe"
+        ],
+        [
+          "pickupAddress",
+          "Chuỗi",
+          "",
+          "",
+          "",
+          "Địa chỉ nhận xe"
+        ],
+        [
+          "pickupLat",
+          "Số thực",
+          "",
+          "",
+          "",
+          "Vĩ độ vị trí nhận xe"
+        ],
+        [
+          "pickupLng",
+          "Số thực",
+          "",
+          "",
+          "",
+          "Kinh độ vị trí nhận xe"
+        ],
+        [
+          "status",
+          "Enum",
+          "",
+          "",
+          "x",
+          "Trạng thái xe"
+        ],
+        [
+          "rejectReason",
+          "Chuỗi",
+          "",
+          "",
+          "",
+          "Lý do từ chối duyệt xe"
+        ],
+        [
+          "isHidden",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trạng thái ẩn xe"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trạng thái xóa mềm"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 764,
+      "style": "Heading 3",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 765,
+      "style": "Heading 3",
+      "text": "□ Loại thực thể BOOKING"
+    },
+    {
+      "kind": "paragraph",
+      "index": 766,
+      "style": "normal",
+      "text": "Mô tả: Yêu cầu đặt thuê xe của người dùng. Đây là thực thể trung tâm, liên kết người thuê, xe, chủ xe, thanh toán, hợp đồng, hoàn tiền và kiểm tra xe sau thuê."
+    },
+    {
+      "kind": "table",
+      "index": 14,
+      "style": null,
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã booking"
+        ],
+        [
+          "userId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Mã người thuê xe"
+        ],
+        [
+          "ownerId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Mã chủ xe"
+        ],
+        [
+          "ownerType",
+          "Enum",
+          "",
+          "",
+          "x",
+          "Loại chủ xe: BUSINESS, USER"
+        ],
+        [
+          "businessId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Mã doanh nghiệp nếu có"
+        ],
+        [
+          "carId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Mã xe được thuê"
+        ],
+        [
+          "cartId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Mã giỏ xe nếu tạo từ giỏ"
+        ],
+        [
+          "startDate",
+          "Date",
+          "",
+          "",
+          "x",
+          "Thời gian bắt đầu thuê"
+        ],
+        [
+          "endDate",
+          "Date",
+          "",
+          "",
+          "x",
+          "Thời gian kết thúc thuê"
+        ],
+        [
+          "rentalMode",
+          "Enum",
+          "",
+          "",
+          "x",
+          "Hình thức thuê: DAILY, HOURLY"
+        ],
+        [
+          "totalPrice",
+          "Số thực",
+          "",
+          "",
+          "x",
+          "Tổng tiền thuê"
+        ],
+        [
+          "paymentOption",
+          "Enum",
+          "",
+          "",
+          "x",
+          "Hình thức thanh toán"
+        ],
+        [
+          "depositAmount",
+          "Số thực",
+          "",
+          "",
+          "",
+          "Số tiền cọc"
+        ],
+        [
+          "remainingAmount",
+          "Số thực",
+          "",
+          "",
+          "",
+          "Số tiền còn lại"
+        ],
+        [
+          "paidAmount",
+          "Số thực",
+          "",
+          "",
+          "",
+          "Số tiền đã thanh toán"
+        ],
+        [
+          "renterInfo",
+          "Object",
+          "",
+          "",
+          "",
+          "Thông tin người thuê"
+        ],
+        [
+          "status",
+          "Enum",
+          "",
+          "",
+          "x",
+          "Trạng thái booking"
+        ],
+        [
+          "cancellationSummary",
+          "Object",
+          "",
+          "",
+          "",
+          "Thông tin hủy và hoàn tiền"
+        ],
+        [
+          "cancelReason",
+          "Chuỗi",
+          "",
+          "",
+          "",
+          "Lý do hủy booking"
+        ],
+        [
+          "noShowReason",
+          "Chuỗi",
+          "",
+          "",
+          "",
+          "Lý do khách không nhận xe"
+        ],
+        [
+          "isDeleted",
+          "Boolean",
+          "",
+          "",
+          "",
+          "Trạng thái xóa mềm"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 767,
+      "style": "Heading 3",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 768,
+      "style": "Heading 3",
+      "text": "□ Loại thực thể PAYMENT"
+    },
+    {
+      "kind": "paragraph",
+      "index": 769,
+      "style": "normal",
+      "text": "Mô tả: Giao dịch thanh toán phát sinh từ booking hoặc phụ phí. Payment dùng để ghi nhận số tiền, phương thức, loại thanh toán và trạng thái giao dịch."
+    },
+    {
+      "kind": "table",
+      "index": 15,
+      "style": null,
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã thanh toán"
+        ],
+        [
+          "bookingId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Mã booking liên quan"
+        ],
+        [
+          "extraChargeId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Mã phụ phí nếu có"
+        ],
+        [
+          "userId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Người thực hiện thanh toán"
+        ],
+        [
+          "amount",
+          "Số thực",
+          "",
+          "",
+          "x",
+          "Số tiền thanh toán"
+        ],
+        [
+          "method",
+          "Enum",
+          "",
+          "",
+          "x",
+          "Phương thức: CASH, MOMO, VNPAY"
+        ],
+        [
+          "status",
+          "Enum",
+          "",
+          "",
+          "x",
+          "Trạng thái: PENDING, PAID, FAILED, REFUNDED"
+        ],
+        [
+          "paymentType",
+          "Enum",
+          "",
+          "",
+          "x",
+          "Loại thanh toán"
+        ],
+        [
+          "paidAt",
+          "Date",
+          "",
+          "",
+          "",
+          "Thời điểm thanh toán thành công"
+        ],
+        [
+          "transactionCode",
+          "Chuỗi",
+          "",
+          "",
+          "",
+          "Mã giao dịch"
+        ],
+        [
+          "refundedAmount",
+          "Số thực",
+          "",
+          "",
+          "",
+          "Số tiền đã hoàn"
+        ],
+        [
+          "refundStatus",
+          "Chuỗi",
+          "",
+          "",
+          "",
+          "Trạng thái hoàn tiền"
+        ],
+        [
+          "confirmedBy",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Người xác nhận thanh toán thủ công"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 770,
+      "style": "Heading 3",
+      "text": "□ Loại thực thể CONTRACT"
+    },
+    {
+      "kind": "paragraph",
+      "index": 771,
+      "style": "normal",
+      "text": "Mô tả: Hợp đồng thuê xe được tạo từ booking. Mỗi booking có tối đa một hợp đồng, lưu thông tin người thuê, xe, thời gian thuê và giá trị thanh toán."
+    },
+    {
+      "kind": "table",
+      "index": 16,
+      "style": null,
+      "rows": [
+        [
+          "Thuộc tính",
+          "Kiểu",
+          "K",
+          "U",
+          "M",
+          "Diễn giải"
+        ],
+        [
+          "_id",
+          "ObjectId",
+          "x",
+          "x",
+          "x",
+          "Mã hợp đồng"
+        ],
+        [
+          "bookingId",
+          "ObjectId",
+          "",
+          "x",
+          "x",
+          "Mã booking tương ứng"
+        ],
+        [
+          "userId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Mã người thuê"
+        ],
+        [
+          "carId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Mã xe"
+        ],
+        [
+          "ownerId",
+          "ObjectId",
+          "",
+          "",
+          "x",
+          "Mã chủ xe"
+        ],
+        [
+          "ownerType",
+          "Enum",
+          "",
+          "",
+          "x",
+          "Loại chủ xe"
+        ],
+        [
+          "businessId",
+          "ObjectId",
+          "",
+          "",
+          "",
+          "Mã doanh nghiệp nếu có"
+        ],
+        [
+          "renterName",
+          "Chuỗi(100)",
+          "",
+          "",
+          "x",
+          "Tên người thuê"
+        ],
+        [
+          "renterPhone",
+          "Chuỗi(20)",
+          "",
+          "",
+          "x",
+          "Số điện thoại người thuê"
+        ],
+        [
+          "renterIdentityNumber",
+          "Chuỗi(20)",
+          "",
+          "",
+          "x",
+          "Số CCCD người thuê"
+        ],
+        [
+          "renterAddress",
+          "Chuỗi",
+          "",
+          "",
+          "x",
+          "Địa chỉ người thuê"
+        ],
+        [
+          "startDate",
+          "Date",
+          "",
+          "",
+          "x",
+          "Thời gian bắt đầu thuê"
+        ],
+        [
+          "endDate",
+          "Date",
+          "",
+          "",
+          "x",
+          "Thời gian kết thúc thuê"
+        ],
+        [
+          "totalPrice",
+          "Số thực",
+          "",
+          "",
+          "x",
+          "Tổng tiền thuê"
+        ],
+        [
+          "status",
+          "Enum",
+          "",
+          "",
+          "x",
+          "Trạng thái hợp đồng"
+        ],
+        [
+          "contractCode",
+          "Chuỗi(50)",
+          "",
+          "x",
+          "x",
+          "Mã hợp đồng"
+        ]
+      ]
+    },
+    {
+      "kind": "paragraph",
+      "index": 772,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 773,
+      "style": "Heading 4",
+      "text": "3.1.1.2 \tMô tả các ràng buộc nghiệp vụ "
+    },
+    {
+      "kind": "paragraph",
+      "index": 774,
+      "style": "normal",
+      "text": "[1]. Ràng buộc tài khoản người dùng: Email của USER không được trùng trong hệ thống và phải đúng định dạng email. Người dùng chỉ có thể đăng nhập khi tài khoản tồn tại, chưa bị khóa, chưa bị xóa mềm và đã đáp ứng điều kiện xác thực theo quy định của hệ thống."
+    },
+    {
+      "kind": "paragraph",
+      "index": 775,
+      "style": "normal",
+      "text": "[2]. Ràng buộc phân quyền người dùng: Mỗi USER trong hệ thống được gán một vai trò cụ thể gồm ADMIN, BUSINESS hoặc USER. Người dùng chỉ được truy cập và thực hiện các chức năng phù hợp với vai trò của mình. ADMIN quản trị hệ thống, BUSINESS quản lý xe của doanh nghiệp, USER có thể thuê xe hoặc tham gia ký gửi xe theo phạm vi được cấp quyền."
+    },
+    {
+      "kind": "paragraph",
+      "index": 776,
+      "style": "normal",
+      "text": "[3]. Ràng buộc duyệt doanh nghiệp: Tài khoản doanh nghiệp hoặc hồ sơ BUSINESS phải được ADMIN duyệt trước khi hoạt động chính thức. Nếu hồ sơ doanh nghiệp bị từ chối, hệ thống phải lưu lý do từ chối và không cho phép doanh nghiệp sử dụng các chức năng cần quyền BUSINESS hợp lệ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 777,
+      "style": "normal",
+      "text": "[4]. Ràng buộc duyệt xe: Xe mới đăng hoặc xe cập nhật các thông tin quan trọng như biển số, hình ảnh, giá thuê, thông tin kỹ thuật hoặc loại xe phải chờ ADMIN kiểm tra và duyệt. Xe chỉ được phép hiển thị công khai khi đã được duyệt hợp lệ."
+    },
+    {
+      "kind": "paragraph",
+      "index": 778,
+      "style": "normal",
+      "text": "[5]. Ràng buộc hiển thị xe: Xe chỉ được hiển thị cho người thuê khi xe ở trạng thái APPROVED, không bị ẩn và không bị xóa mềm. Các xe ở trạng thái PENDING, REJECTED, HIDDEN hoặc đã bị xóa mềm không được xuất hiện trong danh sách tìm kiếm và đặt thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 779,
+      "style": "normal",
+      "text": "[6]. Ràng buộc đặt xe của chính mình: Người thuê không được đặt booking đối với xe do chính mình sở hữu hoặc quản lý. Ràng buộc này giúp tránh phát sinh booking không hợp lệ và đảm bảo dữ liệu thuê xe phản ánh đúng giao dịch giữa người thuê và chủ xe."
+    },
+    {
+      "kind": "paragraph",
+      "index": 780,
+      "style": "normal",
+      "text": "[7]. Ràng buộc thông tin booking: Một booking bắt buộc phải gắn với một người thuê, một xe và một chủ xe. Booking phải có thời gian bắt đầu, thời gian kết thúc, hình thức thuê, tổng tiền thuê và trạng thái xử lý rõ ràng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 781,
+      "style": "normal",
+      "text": "[8]. Ràng buộc trùng lịch thuê xe: Hệ thống không cho phép tạo booking nếu khoảng thời gian thuê bị trùng với booking hợp lệ khác của cùng một xe. Các booking đang giữ lịch như REQUESTED, OWNER_APPROVED, PAYMENT_PENDING, PAID, IN_PROGRESS, RETURN_INSPECTION hoặc AWAITING_EXTRA_CHARGE phải được tính khi kiểm tra trùng lịch."
+    },
+    {
+      "kind": "paragraph",
+      "index": 782,
+      "style": "normal",
+      "text": "[9]. Ràng buộc thanh toán booking: Booking chỉ được thanh toán sau khi chủ xe đã duyệt yêu cầu thuê. Nếu booking chưa được duyệt, đã bị từ chối, đã bị hủy hoặc không thuộc người thuê hiện tại, hệ thống không cho phép tạo payment."
+    },
+    {
+      "kind": "paragraph",
+      "index": 783,
+      "style": "normal",
+      "text": "[10]. Ràng buộc ghi nhận số tiền đã thanh toán: Payment chỉ được tính vào tổng số tiền đã thanh toán của booking khi payment có trạng thái PAID. Các payment ở trạng thái PENDING, FAILED hoặc REFUNDED không được cộng vào số tiền đã thanh toán."
+    },
+    {
+      "kind": "paragraph",
+      "index": 784,
+      "style": "normal",
+      "text": "[11]. Ràng buộc hủy booking: Booking chỉ được hủy theo luồng thông thường khi còn ở các trạng thái cho phép hủy như REQUESTED, OWNER_APPROVED, PAYMENT_PENDING, PAID hoặc các trạng thái cũ tương ứng. Booking đã chuyển sang IN_PROGRESS, RETURN_INSPECTION, AWAITING_EXTRA_CHARGE, COMPLETED, REJECTED hoặc NO_SHOW không được hủy theo luồng thông thường."
+    },
+    {
+      "kind": "paragraph",
+      "index": 785,
+      "style": "normal",
+      "text": "[12]. Ràng buộc hoàn tiền: Refund chỉ được tạo khi booking đã bị hủy hợp lệ và số tiền cần hoàn lớn hơn 0. Hồ sơ hoàn tiền phải liên kết với booking, các payment liên quan, số tiền đã thanh toán tại thời điểm hủy, phí hủy và số tiền dự kiến hoàn."
+    },
+    {
+      "kind": "paragraph",
+      "index": 786,
+      "style": "normal",
+      "text": "[13]. Ràng buộc bàn giao xe: Chủ xe chỉ được bàn giao xe khi booking đã được duyệt và đáp ứng điều kiện thanh toán theo quy định. Sau khi bàn giao thành công, booking chuyển sang trạng thái IN_PROGRESS và xe được ghi nhận là đang được thuê."
+    },
+    {
+      "kind": "paragraph",
+      "index": 787,
+      "style": "normal",
+      "text": "[14]. Ràng buộc trả xe và kiểm tra sau thuê: Booking chỉ được chuyển sang giai đoạn kiểm tra xe sau thuê khi xe đã được chủ xe nhận lại. Biên bản kiểm tra phải gắn với booking, xe, người thuê, chủ xe và ghi nhận thời điểm trả xe thực tế cùng tình trạng xe khi trả."
+    },
+    {
+      "kind": "paragraph",
+      "index": 788,
+      "style": "normal",
+      "text": "[15]. Ràng buộc phụ phí phát sinh: Chủ xe chỉ được tạo phụ phí khi booking đang ở giai đoạn kiểm tra xe sau thuê hoặc đang chờ xử lý phụ phí. Phụ phí phải có loại phụ phí, số tiền, mô tả lý do và có thể kèm hình ảnh minh chứng."
+    },
+    {
+      "kind": "paragraph",
+      "index": 789,
+      "style": "normal",
+      "text": "[16]. Ràng buộc hoàn tất booking: Booking chỉ được hoàn tất khi xe đã được trả, biên bản kiểm tra sau thuê đã được xác nhận, không còn phụ phí đang chờ xử lý và không còn khoản thanh toán bắt buộc chưa hoàn tất. Khi hoàn tất, booking chuyển sang COMPLETED."
+    },
+    {
+      "kind": "paragraph",
+      "index": 790,
+      "style": "normal",
+      "text": "[17]. Ràng buộc khách không nhận xe: Chủ xe chỉ được xác nhận khách không nhận xe khi booking đã đến hoặc quá thời gian nhận xe, xe chưa được bàn giao và booking chưa bị hủy, từ chối hoặc hoàn tất. Sau khi xử lý, booking chuyển sang trạng thái NO_SHOW."
+    },
+    {
+      "kind": "paragraph",
+      "index": 791,
+      "style": "normal",
+      "text": "[18]. Ràng buộc đánh giá chuyến thuê: Người thuê chỉ được đánh giá sau khi booking đã COMPLETED. Mỗi booking chỉ có tối đa một review từ người thuê nhằm đảm bảo đánh giá phản ánh đúng một chuyến thuê cụ thể."
+    },
+    {
+      "kind": "paragraph",
+      "index": 792,
+      "style": "normal",
+      "text": "[19]. Ràng buộc phản hồi và xử lý đánh giá: Chủ xe chỉ được phản hồi các đánh giá thuộc xe của mình. ADMIN có quyền ẩn hoặc hiển thị lại đánh giá khi đánh giá bị báo cáo vi phạm nội dung."
+    },
+    {
+      "kind": "paragraph",
+      "index": 793,
+      "style": "normal",
+      "text": "[20]. Ràng buộc thông báo: Notification chỉ hiển thị cho đúng người nhận tương ứng với vai trò và dữ liệu liên quan. Mỗi thông báo phải có người nhận, loại thông báo, tiêu đề, nội dung và đối tượng nghiệp vụ liên quan nếu có."
+    },
+    {
+      "kind": "paragraph",
+      "index": 794,
+      "style": "Heading 3",
+      "text": "3.1.2 Sơ đồ Logic dữ liệu "
+    },
+    {
+      "kind": "paragraph",
+      "index": 795,
+      "style": "normal",
+      "text": "users(_id, name, email, password, phone, address, role, isBlocked, isVerified, isDeleted, createdAt, updatedAt)"
+    },
+    {
+      "kind": "paragraph",
+      "index": 796,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 797,
+      "style": "normal",
+      "text": "businesses(_id, userId, businessName, businessType, phone, address, description, logo, isApproved, isRejected, isDeleted, createdAt, updatedAt)"
+    },
+    {
+      "kind": "paragraph",
+      "index": 798,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 799,
+      "style": "normal",
+      "text": "brands(_id, name, logo, description, isDeleted, createdAt, updatedAt)"
+    },
+    {
+      "kind": "paragraph",
+      "index": 800,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 801,
+      "style": "normal",
+      "text": "cars(_id, ownerId, ownerType, businessId, brandId, name, type, licensePlate, pricing, seats, fuelType, transmission, images, pickupAddress, pickupLat, pickupLng, status, isHidden, isDeleted, createdAt, updatedAt)"
+    },
+    {
+      "kind": "paragraph",
+      "index": 802,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 803,
+      "style": "normal",
+      "text": "carts(_id, userId, carId, startDate, endDate, rentalMode, totalPrice, pricingSnapshot, expiredAt, status, createdAt, updatedAt)"
+    },
+    {
+      "kind": "paragraph",
+      "index": 804,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 805,
+      "style": "normal",
+      "text": "bookings(_id, userId, ownerId, ownerType, businessId, carId, cartId, startDate, endDate, rentalMode, totalPrice, paymentOption, depositAmount, remainingAmount, paidAmount, renterInfo, status, cancellationSummary, createdAt, updatedAt)"
+    },
+    {
+      "kind": "paragraph",
+      "index": 806,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 807,
+      "style": "normal",
+      "text": "payments(_id, bookingId, extraChargeId, userId, amount, method, status, paymentType, paidAt, transactionCode, refundedAmount, refundStatus, createdAt, updatedAt)"
+    },
+    {
+      "kind": "paragraph",
+      "index": 808,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 809,
+      "style": "normal",
+      "text": "refunds(_id, bookingId, requestedBy, cancelledBy, reasonCode, reasonText, paidAmountAtCancellation, cancellationFee, refundAmount, method, status, paymentIds, recipientInfo, manualRefundEvidence, createdAt, updatedAt)"
+    },
+    {
+      "kind": "paragraph",
+      "index": 810,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 811,
+      "style": "normal",
+      "text": "contracts(_id, bookingId, userId, carId, ownerId, ownerType, businessId, renterName, renterPhone, renterIdentityNumber, startDate, endDate, totalPrice, status, contractCode, createdAt, updatedAt)"
+    },
+    {
+      "kind": "paragraph",
+      "index": 812,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 813,
+      "style": "normal",
+      "text": "returninspections(_id, bookingId, carId, renterId, ownerId, ownerType, receivedAt, actualReturnAt, returnOdometer, returnFuelLevel, returnPhotos, conditionNotes, inspectionStatus, createdAt, updatedAt)"
+    },
+    {
+      "kind": "paragraph",
+      "index": 814,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 815,
+      "style": "normal",
+      "text": "extracharges(_id, bookingId, carId, renterId, ownerId, ownerType, type, amount, description, evidenceImages, status, paymentId, paidAt, cancelReason, createdAt, updatedAt)"
+    },
+    {
+      "kind": "paragraph",
+      "index": 816,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 817,
+      "style": "normal",
+      "text": "reviews(_id, bookingId, carId, renterId, ownerId, ownerType, rating, criteria, comment, images, ownerReply, status, report, helpfulCount, createdAt, updatedAt)"
+    },
+    {
+      "kind": "paragraph",
+      "index": 818,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 819,
+      "style": "normal",
+      "text": "notifications(_id, recipientId, recipientRole, type, title, message, actorId, entityType, entityId, bookingId, carId, actionUrl, isRead, isDeleted, createdAt, updatedAt)"
+    },
+    {
+      "kind": "paragraph",
+      "index": 820,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 821,
+      "style": "normal",
+      "text": "holidaycalendars(_id, name, startDate, endDate, country, type, isActive, note, isDeleted, createdAt, updatedAt)"
+    },
+    {
+      "kind": "paragraph",
+      "index": 822,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 823,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 824,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 825,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 826,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 827,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 828,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 829,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 830,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 831,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 832,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 833,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 834,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 835,
+      "style": "Heading 3",
+      "text": "3.1.3 Dữ liệu ở mức vật lý "
+    },
+    {
+      "kind": "paragraph",
+      "index": 836,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 837,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 838,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 839,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 840,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 841,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 842,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 843,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 844,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 845,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 846,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 847,
+      "style": "normal",
+      "text": ""
+    },
+    {
+      "kind": "paragraph",
+      "index": 848,
+      "style": "normal",
+      "text": " "
+    },
+    {
+      "kind": "paragraph",
+      "index": 849,
+      "style": "normal",
+      "text": ""
+    }
+  ]
+}

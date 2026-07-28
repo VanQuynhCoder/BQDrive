@@ -1,0 +1,9 @@
+paragraphs=1058
+tables=32
+has_comments=False
+has_footnotes=False
+has_endnotes=False
+tracked_insertions=64
+tracked_deletions=0
+explicit_page_breaks=4
+last_rendered_page_breaks=0

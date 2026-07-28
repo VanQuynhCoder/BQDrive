@@ -20,7 +20,25 @@ export type IBooking = BaseDocument & {
   cartId?: mongoose.Types.ObjectId;
   startDate: Date;
   endDate: Date;
+  actualPickupAt?: Date;
+  actualReturnAt?: Date;
   rentalMode: string;
+  mileagePolicySnapshot?: {
+    rentalMode: string;
+    includedKmPerDay?: number;
+    includedKmPerHour?: number;
+    overageFeePerKm: number;
+    graceKm: number;
+    billableUnits: number;
+    totalIncludedKm: number;
+  };
+  handoverSnapshot?: {
+    handoverOdometerKm: number;
+    handoverEnergyLevelPercent: number;
+    handoverDashboardImage?: string;
+    handoverRecordedAt: Date;
+    handoverRecordedBy: mongoose.Types.ObjectId;
+  };
   totalPrice: number;
   pricingSnapshot?: {
     rentalMode: string;
@@ -153,11 +171,76 @@ const bookingSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    actualPickupAt: {
+      type: Date,
+      default: null,
+    },
+    actualReturnAt: {
+      type: Date,
+      default: null,
+    },
     rentalMode: {
       type: String,
       enum: Object.values(RentalModeEnum),
       required: true,
       default: RentalModeEnum.DAILY,
+    },
+    mileagePolicySnapshot: {
+      rentalMode: {
+        type: String,
+        enum: Object.values(RentalModeEnum),
+      },
+      includedKmPerDay: {
+        type: Number,
+        min: 1,
+      },
+      includedKmPerHour: {
+        type: Number,
+        min: 1,
+      },
+      overageFeePerKm: {
+        type: Number,
+        min: 0,
+      },
+      graceKm: {
+        type: Number,
+        min: 0,
+      },
+      billableUnits: {
+        type: Number,
+        min: 1,
+      },
+      totalIncludedKm: {
+        type: Number,
+        min: 0,
+      },
+    },
+    handoverSnapshot: {
+      handoverOdometerKm: {
+        type: Number,
+        min: 0,
+        validate: {
+          validator: (value: number | undefined) =>
+            value === undefined || Number.isInteger(value),
+          message: "ODO bàn giao phải là số nguyên không âm",
+        },
+      },
+      handoverEnergyLevelPercent: {
+        type: Number,
+        min: 0,
+        max: 100,
+      },
+      handoverDashboardImage: {
+        type: String,
+        trim: true,
+      },
+      handoverRecordedAt: {
+        type: Date,
+      },
+      handoverRecordedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
     },
     totalPrice: {
       type: Number,

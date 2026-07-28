@@ -1,0 +1,1631 @@
+P0002	STYLE='Heading 1'	MỤC LỤC
+P0003	STYLE='Heading 1'	MỤC LỤC HÌNH VẼ
+P0004	STYLE='Heading 1'	CHƯƠNG 1: GIỚI THIỆU
+P0005	STYLE='Heading 2'	1.1 Đặt vấn đề, mục tiêu luận văn.
+P0006	STYLE='normal'	Trong đời sống hiện đại, nhu cầu di chuyển của cá nhân, gia đình và doanh nghiệp ngày càng tăng cao. Thay vì sở hữu phương tiện cá nhân với nhiều chi phí như bảo dưỡng, sửa chữa, bảo hiểm và khấu hao, nhiều người có xu hướng lựa chọn hình thức thuê xe tự lái để chủ động hơn trong việc đi lại, du lịch, công tác hoặc phục vụ các nhu cầu ngắn hạn.
+P0007	STYLE='normal'	Tuy nhiên, hoạt động thuê xe truyền thống hiện nay vẫn còn tồn tại nhiều hạn chế. Quy trình thuê xe thường được thực hiện thủ công thông qua điện thoại, tin nhắn hoặc gặp trực tiếp, gây mất thời gian cho cả khách hàng và chủ xe. Người thuê xe khó kiểm tra được tình trạng xe, lịch trống, giá thuê, chính sách đặt cọc, hợp đồng và phương thức thanh toán một cách rõ ràng. Đồng thời, việc quản lý lịch thuê bằng phương pháp thủ công dễ dẫn đến sai sót, trùng lịch hoặc nhầm lẫn trong quá trình xác nhận đơn thuê.
+P0008	STYLE='normal'	Đối với khách hàng, hạn chế lớn nhất của mô hình truyền thống là bất cân xứng thông tin. Khi danh sách xe không được công bố tập trung, tình trạng xe không được cập nhật theo thời gian thực, giá thuê không được chuẩn hóa và các điều kiện giao dịch không được số hóa đầy đủ, khách hàng khó so sánh giữa nhiều lựa chọn, khó xác minh lịch khả dụng, khó theo dõi tiến trình booking, và khó kiểm tra trạng thái cọc, thanh toán hoặc hợp đồng. Nghiên cứu về hệ thống thuê xe trực tuyến cho thấy các nền tảng số giúp khách hàng xem xe, đặt chỗ, thanh toán và quản lý lịch sử giao dịch thuận tiện hơn, đồng thời giảm phụ thuộc vào việc phải đến trực tiếp địa điểm cung cấp dịch vụ.
+P0009	STYLE='normal'	Ở phía chủ xe cá nhân và doanh nghiệp cho thuê xe, việc quản lý danh sách xe, trạng thái xe, đơn đặt xe, doanh thu và thanh toán cũng gặp nhiều khó khăn nếu không có hệ thống hỗ trợ tập trung. Ngoài ra, quản trị viên hệ thống cần có công cụ để kiểm soát người dùng, doanh nghiệp, thương hiệu xe, xe đăng ký cho thuê và các yêu cầu ký gửi nhằm đảm bảo tính minh bạch, chính xác và an toàn trong quá trình vận hành.
+P0010	STYLE='normal'	Từ những vấn đề trên, việc xây dựng một nền tảng website cho thuê xe tự lái là cần thiết. Hệ thống BQDrive được đề xuất nhằm số hóa quy trình thuê xe, hỗ trợ người dùng tìm kiếm xe, xem thông tin chi tiết, đặt lịch thuê, quản lý giỏ xe, tạo booking, xác nhận từ chủ xe, lập hợp đồng và thanh toán bằng tiền mặt hoặc qua các cổng thanh toán trực tuyến như MoMo và VNPay. Bên cạnh đó, hệ thống còn hỗ trợ quản lý người dùng, xe, thương hiệu, doanh nghiệp và quy trình ký gửi xe, góp phần nâng cao hiệu quả quản lý và trải nghiệm sử dụng dịch vụ.
+P0012	STYLE='Heading 2'	1.2 Những thách thức cần giải quyết .
+P0013	STYLE='normal'	Trong quá trình xây dựng hệ thống website cho thuê xe tự lái BQDrive, đề tài cần giải quyết nhiều thách thức liên quan đến nghiệp vụ thuê xe, quản lý dữ liệu và trải nghiệm người dùng. Đây là những vấn đề quan trọng nhằm đảm bảo hệ thống có thể vận hành ổn định, minh bạch và phù hợp với thực tế.
+P0014	STYLE='normal'	Trước hết, thách thức lớn nhất là quản lý lịch thuê xe và kiểm tra trùng thời gian đặt xe. Một xe có thể được nhiều khách hàng quan tâm trong cùng một khoảng thời gian, do đó hệ thống cần có cơ chế kiểm tra lịch thuê chính xác để tránh tình trạng nhiều người đặt cùng một xe. Bên cạnh đó, chức năng giữ chỗ tạm thời cũng cần được xử lý hợp lý để đảm bảo công bằng giữa các khách hàng và hạn chế sai sót trong quá trình booking.
+P0015	STYLE='normal'	Thứ hai, hệ thống cần giải quyết vấn đề quản lý thông tin xe một cách rõ ràng và đáng tin cậy. Mỗi xe cho thuê cần có đầy đủ thông tin như thương hiệu, loại xe, biển số, số chỗ ngồi, loại nhiên liệu, hộp số, hình ảnh, giá thuê theo ngày hoặc theo giờ và trạng thái hoạt động. Đối với xe do cá nhân hoặc doanh nghiệp đăng tải, hệ thống cần có quy trình duyệt xe trước khi hiển thị công khai nhằm đảm bảo chất lượng dữ liệu và hạn chế thông tin không chính xác.
+P0016	STYLE='normal'	Thứ ba, BQDrive cần xây dựng cơ chế phân quyền người dùng phù hợp với từng vai trò. Hệ thống có nhiều nhóm người dùng như khách hàng, chủ xe/doanh nghiệp và quản trị viên. Mỗi vai trò có chức năng và phạm vi thao tác khác nhau. Vì vậy, việc phân quyền cần được thiết kế chặt chẽ để người dùng chỉ có thể truy cập và thực hiện đúng các chức năng thuộc quyền hạn của mình.
+P0017	STYLE='normal'	Thứ tư, quá trình xử lý booking, hợp đồng và thanh toán cũng là một thách thức quan trọng. Hệ thống cần hỗ trợ nhiều phương thức thanh toán như tiền mặt, MoMo và VNPay, đồng thời quản lý trạng thái thanh toán tiền cọc hoặc toàn bộ chi phí thuê xe. Các thông tin liên quan đến đơn đặt xe, xác nhận từ chủ xe, trạng thái hợp đồng và lịch sử giao dịch cần được lưu trữ nhất quán để thuận tiện cho việc theo dõi và đối soát.
+P0018	STYLE='normal'	Thứ năm, hệ thống cần đảm bảo trải nghiệm người dùng thân thiện và dễ sử dụng. Người thuê xe cần có thể tìm kiếm, lọc xe, xem chi tiết xe và đặt xe một cách nhanh chóng. Chủ xe và doanh nghiệp cần dễ dàng quản lý xe, đơn thuê và doanh thu. Quản trị viên cần có giao diện trực quan để theo dõi người dùng, xe, doanh nghiệp, thương hiệu và các hoạt động quan trọng của hệ thống.
+P0019	STYLE='normal'	Cuối cùng, đề tài cần quan tâm đến khả năng mở rộng và tính ổn định của hệ thống. Dữ liệu về người dùng, xe, booking, thanh toán và hợp đồng sẽ ngày càng tăng khi hệ thống phát triển. Vì vậy, việc thiết kế kiến trúc frontend, backend và cơ sở dữ liệu cần có tính tổ chức rõ ràng, dễ bảo trì và có khả năng mở rộng thêm các chức năng mới trong tương lai.
+P0020	STYLE='normal'	Tóm lại, các thách thức chính mà hệ thống BQDrive cần giải quyết bao gồm: kiểm soát lịch thuê, quản lý thông tin xe, phân quyền người dùng, xử lý booking và thanh toán, đảm bảo trải nghiệm sử dụng, đồng thời xây dựng nền tảng có khả năng mở rộng. Việc giải quyết tốt các vấn đề này sẽ giúp hệ thống nâng cao tính minh bạch, giảm thao tác thủ công và hỗ trợ hiệu quả cho hoạt động cho thuê xe tự lái.
+P0021	STYLE='Heading 2'	1.3 Nội dung và phạm vi thực hiện.
+P0022	STYLE='Heading 3'	1.3.1 Nội dung thực hiện.
+P0023	STYLE='normal'	Đề tài tập trung xây dựng hệ thống website cho thuê xe tự lái BQDrive nhằm hỗ trợ quá trình quản lý và đặt thuê xe trên nền tảng trực tuyến. Hệ thống được phát triển theo mô hình Client - Server, trong đó giao diện người dùng được xây dựng bằng React/TypeScript, phía máy chủ sử dụng Node.js/Express/TypeScript và cơ sở dữ liệu được quản lý bằng MongoDB.
+P0024	STYLE='normal'	Các nội dung chính được thực hiện trong đề tài bao gồm  :
+P0026	STYLE='Heading 3'	1.3.2 Phạm vi thực hiện
+P0027	STYLE='Heading 3'	1.4 Kết quả cần đạt.
+P0028	STYLE='normal'	Sau khi hoàn thành đề tài “Xây dựng hệ thống website cho thuê xe tự lái BQDrive”, hệ thống cần đạt được các kết quả cơ bản về mặt chức năng, kỹ thuật và ý nghĩa ứng dụng thực tiễn.
+P0029	STYLE='normal'	Trước hết, đề tài cần xây dựng được một website cho thuê xe tự lái có giao diện thân thiện, dễ sử dụng và phù hợp với nhiều nhóm người dùng khác nhau. Người dùng có thể đăng ký, đăng nhập, tìm kiếm xe, xem thông tin chi tiết xe, lựa chọn thời gian thuê, đặt xe và theo dõi trạng thái đơn thuê. Các thao tác này cần được thực hiện trực quan, giúp giảm thời gian tìm kiếm và đặt xe so với hình thức thuê xe truyền thống.
+P0030	STYLE='normal'	Về phía chủ xe cá nhân và doanh nghiệp, hệ thống cần hỗ trợ quản lý danh sách xe, đăng tải thông tin xe cho thuê, cập nhật trạng thái xe, theo dõi đơn đặt xe và xác nhận yêu cầu thuê xe từ khách hàng. Điều này giúp chủ xe quản lý hoạt động cho thuê một cách tập trung, hạn chế sai sót khi xử lý lịch thuê, đơn thuê và thông tin thanh toán.
+P0031	STYLE='normal'	Đối với quản trị viên, hệ thống cần cung cấp các chức năng quản lý người dùng, doanh nghiệp, thương hiệu xe, danh sách xe và các yêu cầu liên quan đến việc duyệt xe. Quản trị viên có thể kiểm soát dữ liệu trong hệ thống, theo dõi tình trạng hoạt động và đảm bảo các thông tin xe được hiển thị minh bạch, chính xác trước khi đến với khách hàng.
+P0032	STYLE='normal'	Về mặt nghiệp vụ, hệ thống cần xử lý được quy trình đặt thuê xe từ lúc người dùng chọn xe đến khi tạo booking, kiểm tra trùng lịch, giữ chỗ tạm thời, xác nhận đơn thuê, quản lý hợp đồng và cập nhật trạng thái thanh toán. Đặc biệt, cơ chế kiểm tra lịch thuê cần đảm bảo một xe không bị đặt bởi nhiều người trong cùng một khoảng thời gian, góp phần nâng cao độ tin cậy của hệ thống.
+P0033	STYLE='normal'	Về mặt kỹ thuật, hệ thống cần được xây dựng theo mô hình Client - Server, sử dụng React/TypeScript cho frontend, Node.js/Express/TypeScript cho backend và MongoDB để lưu trữ dữ liệu. Các API cần được thiết kế rõ ràng, hỗ trợ trao đổi dữ liệu giữa giao diện người dùng và máy chủ. Đồng thời, hệ thống cần có cơ chế xác thực, phân quyền theo vai trò USER, BUSINESS và ADMIN nhằm đảm bảo mỗi nhóm người dùng chỉ được truy cập đúng chức năng của mình.
+P0034	STYLE='normal'	Ngoài ra, hệ thống cần hỗ trợ các phương thức thanh toán cơ bản như tiền mặt và định hướng tích hợp các cổng thanh toán trực tuyến như MoMo và VNPay. Thông tin thanh toán, đơn đặt xe, hợp đồng, xe và người dùng cần được lưu trữ nhất quán, phục vụ cho việc tra cứu, quản lý và đối soát khi cần thiết
+P0036	STYLE='normal'	CHƯƠNG 2: PHƯƠNG PHÁP THỰC HIỆN
+P0037	STYLE='Heading 2'	2.1 Các hệ thống tương tự.
+P0038	STYLE='normal'	Nhằm xây dựng nền tảng cơ sở lý luận và thực tiễn cho việc phát triển một hệ thống trực tuyến cho thuê xe chuyên nghiệp, nghiên cứu này tiến hành khảo sát và phân tích mô hình hoạt động của hai nền tảng uy tín hàng đầu tại thị trường Việt Nam hiện nay: MIOTO (mioto.vn) và BonBonCar (bonboncar.vn). Việc đánh giá định tính kết hợp phân tích ma trận điểm mạnh, điểm yếu (SWOT) của hai đối thủ cạnh tranh này sẽ cung cấp những luận cứ quan trọng, giúp tối ưu hóa kiến trúc chức năng và nâng cao năng lực cạnh tranh cho hệ thống đề xuất.
+P0040	STYLE='normal'	MIOTO
+P0042	STYLE='normal'	Tổng quan hệ thống :
+P0043	STYLE='normal'	Mioto là một nền tảng cho thuê xe trực tuyến tại Việt Nam, định hướng kết nối giữa người có nhu cầu thuê xe với các chủ xe cá nhân hoặc đơn vị cung cấp xe
+P0044	STYLE='normal'	Mioto hoạt động theo mô hình trung gian: chủ xe đăng thông tin xe lên hệ thống, khách hàng tìm kiếm xe phù hợp, gửi yêu cầu thuê và thực hiện các bước xác nhận, thanh toán theo quy trình của nền tảng
+P0045	STYLE='normal'	Điểm Mạnh :
+P0046	STYLE='normal'	Mô hình hoạt động :
+P0047	STYLE='normal'	Mioto xây dựng được mô hình kết nối trực tiếp giữa khách thuê và chủ xe
+P0048	STYLE='normal'	Mở rộng nguồn cung xe, không chỉ phụ thuộc vào các doanh nghiệp cho thuê xe truyền thống.
+P0049	STYLE='normal'	Trải nghiệm người dùng :
+P0050	STYLE='normal'	Người dùng có thể tìm kiếm xe, xem thông tin chi tiết, so sánh giá và lựa chọn xe phù hợp với nhu cầu di chuyển.
+P0051	STYLE='normal'	Quy trình này thuận tiện hơn so với thuê xe bằng cách gọi điện hoặc trao đổi thủ công.
+P0052	STYLE='normal'	Thông tin xe :
+P0053	STYLE='normal'	Xe được trình bày với các thông tin quan trọng như hình ảnh, giá thuê, địa điểm nhận xe, loại xe và các điều kiện thuê.
+P0054	STYLE='normal'	Quy trình booking :
+P0055	STYLE='normal'	Hệ thống có quy trình gửi yêu cầu thuê xe và chờ chủ xe xác nhận
+P0056	STYLE='normal'	Giúp chủ xe cần kiểm tra lịch xe , thông tin khách thuê và điều kiện giao nhận trước khi đồng ý cho thuê
+P0057	STYLE='normal'	Thanh Toán
+P0058	STYLE='normal'	Hỗ trợ thanh toán trực tuyến
+P0059	STYLE='normal'	Thanh toán giữ chỗ minh bạch
+P0060	STYLE='normal'	Độ tin cậy :
+P0061	STYLE='normal'	Quy trình nền tảng trung gian
+P0062	STYLE='normal'	Giảm bớt sự phụ thuộc vào trao đổi cá nhân giữa khách thuê và chủ xe
+P0064	STYLE='normal'	Điểm Yếu :
+P0065	STYLE='normal'	Phụ thuộc vào xác nhận của chủ xe
+P0066	STYLE='normal'	Sau khi gửi yêu cầu booking , chưa chắc đã được chấp nhận ngay , phụ thuộc vào sự phản hồi của chủ xe.
+P0067	STYLE='normal'	Ảnh hưởng đến thời gian , sự kiên nhẫn của khách hàng
+P0068	STYLE='normal'	Rủi ro thay đổi thông tin
+P0069	STYLE='normal'	Với mô hình cho phép chủ xe đăng xe , hệ thống cần kiểm soát chặt việc chỉnh sửa giá , hình ảnh , địa chỉ nhận xe hoặc chính sách thuê.
+P0070	STYLE='normal'	Không có quy trình duyệt lại, khách hàng có thể gặp tình trạng thông tin thay đổi sau khi xe đã được hiển thị.
+P0071	STYLE='normal'	Xử lý sau chuyến thuê
+P0072	STYLE='normal'	Sau khi khách trả xe có thể phát sinh các chi phí như xe bị dơ, hư hỏng hoặc phụ phí khác.
+P0081	STYLE='normal'	BonbonCar
+P0084	STYLE='normal'	Điểm mạnh :
+P0085	STYLE='normal'	Tiếp cận dịch vụ trực tuyến :
+P0086	STYLE='normal'	Bonbon Car giúp người dùng tiếp cận dịch vụ thuê xe thông qua nền tảng trực tuyến, giảm sự phụ thuộc vào hình thức liên hệ thủ công như gọi điện.
+P0087	STYLE='normal'	Tìm kiếm xe :
+P0088	STYLE='normal'	Người dùng có thể xem danh sách xe và lựa chọn xe phù hợp với nhu cầu di chuyển. Điều này giúp quá trình tìm xe thuận tiện hơn so với cách thuê xe truyền thống.
+P0089	STYLE='normal'	Thông tin xe :
+P0090	STYLE='normal'	Thông tin xe được trình bày rõ ràng ,cho phép hiển thị các thông tin cơ bản của xe như hình ảnh, loại xe, giá thuê, địa điểm nhận xe và điều kiện thuê. Nhờ đó, khách hàng có thêm cơ sở để so sánh và lựa chọn.
+P0091	STYLE='normal'	Minh bạch :
+P0092	STYLE='normal'	Thông tin xe, giá thuê và điều kiện thuê được đưa lên hệ thống, người dùng có thể dễ dàng theo dõi hơn, hạn chế tình trạng trao đổi thiếu rõ ràng giữa khách thuê và bên cho thuê.
+P0093	STYLE='normal'	Hỗ trợ quản lý đơn thuê :
+P0094	STYLE='normal'	Việc đặt xe qua hệ thống giúp quá trình ghi nhận yêu cầu thuê xe có tổ chức hơn, thay vì quản lý hoàn toàn bằng sổ sách hoặc tin nhắn rời rạc.
+P0095	STYLE='normal'	Điểm Yếu :
+P0096	STYLE='normal'	Mạng và phần cứng :
+P0097	STYLE='normal'	Hệ thống mở khóa bằng ứng dụng qua internet /bluetooth.Gặp sự cố về mạng , khách không thể mở cửa và khởi động xe
+P0098	STYLE='normal'	Giới hạn điểm nhận và trả xe :
+P0099	STYLE='normal'	Do hoạt động theo mô hình không tiếp xúc xe thường được đỗ cố định tại các bãi xe, hầm chung cư được định vị sẵn.
+P0100	STYLE='normal'	Chi phí vận hành và bảo trì hệ thống cao:
+P0101	STYLE='normal'	Việc phải duy trì đội ngũ kỹ thuật lắp đặt thiết bị, tổng đài xử lý sự cố 24/7 và chi phí bảo trì phần cứng khiến biên lợi nhuận của nền tảng bị ép chặt, gián tiếp ảnh hưởng đến các chương trình ưu đãi dài hạn cho người dùng nếu so với các mô hình thuần kết nối P2P.
+P0102	STYLE='Heading 2'	2.2 Bài học rút ra và những điểm cần tránh khi xây dựng hệ thống
+P0103	STYLE='normal'	Thông qua việc khảo sát hai hệ thống cho thuê xe trực tuyến là MIOTO và BonbonCar, có thể nhận thấy rằng các nền tảng cho thuê xe hiện đại đều hướng đến mục tiêu số hóa quy trình thuê xe, giúp khách hàng dễ dàng tìm kiếm xe, xem thông tin chi tiết, gửi yêu cầu thuê và thực hiện thanh toán một cách thuận tiện hơn. Đồng thời, các hệ thống này cũng hỗ trợ chủ xe hoặc đơn vị kinh doanh quản lý xe, quản lý đơn thuê và tăng khả năng tiếp cận khách hàng.
+P0105	STYLE='normal'	Bài học rút ra cho hệ thống BQDrive
+P0106	STYLE='normal'	Xây dựng quy trình thuê xe rõ ràng :
+P0107	STYLE='normal'	Xây dựng quy trình thuê có sự phân tách giữa các bước như tìm kiếm xe, xem chi tiết xe, gửi yêu cầu thuê, chủ xe xác nhận, người thuê thanh toán, bàn giao xe và hoàn tất chuyến thuê.
+P0108	STYLE='normal'	Thông tin xe
+P0109	STYLE='normal'	Xây dựng hệ thống hiển thị thông tin xe đầy đủ và minh bạch
+P0110	STYLE='normal'	Một xe khi hiển thị trên hệ thống cần có các thông tin quan trọng như hình ảnh, biển số, thương hiệu, loại xe, số chỗ ngồi, loại nhiên liệu, hộp số, địa chỉ nhận xe, giá thuê ngày thường, giá cuối tuần, giá ngày lễ và các chính sách phí phát sinh.
+P0111	STYLE='normal'	Kiểm Soát booking :
+P0112	STYLE='normal'	Xây dựng hệ thống có kiểm tra trùng lịch trước khi tạo booking.
+P0113	STYLE='normal'	Thể hiện rõ trạng thái tránh nhầm lẫn giữa yêu cầu thuê và trạng thái được xác nhận
+P0114	STYLE='normal'	Quản Lý thanh toán :
+P0115	STYLE='normal'	Xây dựng hệ thống hỗ trợ các hình thức thanh toán tiền cọc, thanh toán toàn bộ và thanh toán phần còn lại
+P0116	STYLE='normal'	Mỗi Booking sẽ lưu chính xác tổng tiền , số tiền thanh toán và số tiền còn lại
+P0117	STYLE='normal'	Xây dựng hệ thống lưu trữ và hiển thị các hình thức thanh toán.
+P0119	STYLE='normal'	Những điểm cần tránh khi xây dựng hệ thống BQ Drive
+P0120	STYLE='normal'	Quy trình booking :
+P0121	STYLE='normal'	Xây dựng hệ thống cần thể hiện rõ từng trạng thái của booking như chờ duyệt, đã duyệt, đã thanh toán, đang thực hiện, hoàn tất hoặc không nhận xe.
+P0122	STYLE='normal'	Thông tin xe :
+P0123	STYLE='normal'	Tránh trường hợp chủ xe hay doanh nghiệp có thể tự ý đổi thông tin , tự ý chỉnh sửa giá , hình ảnh , địa chỉ nhận xe , biển số , chính sách phụ phí v.v.v.
+P0124	STYLE='normal'	Quản lý thanh toán :
+P0125	STYLE='normal'	Tránh sai trạng thái hiển thị , cần đồng bộ chặt chẽ về tổng tiền, số tiền đã thanh toán, số tiền còn lại và trạng thái xử lý.
+P0126	STYLE='normal'	Quy trình booking :
+P0127	STYLE='normal'	Tránh tình trạng một xe bị đặt trùng lịch
+P0128	STYLE='normal'	Hệ thống phải kiểm tra lịch thuê trước khi cho phép tạo hoặc xác nhận booking nhằm đảm bảo một xe chỉ phục vụ một đơn thuê hợp lệ tại cùng một thời điểm.
+P0129	STYLE='normal'	⇒Từ việc phân tích bài học rút ra và những điểm cần tránh, có thể thấy hệ thống BQDrive cần được xây dựng theo hướng minh bạch, chặt chẽ và nhất quán trong toàn bộ quy trình thuê xe. Các chức năng như tìm kiếm xe, quản lý thông tin xe, kiểm tra trùng lịch, xử lý booking, thanh toán, hợp đồng và phân quyền người dùng cần được thiết kế rõ ràng để hạn chế sai sót trong quá trình vận hành.
+P0130	STYLE='normal'	BQDrive cần kế thừa các ưu điểm của những hệ thống tương tự như số hóa quy trình thuê xe, hiển thị thông tin xe đầy đủ, hỗ trợ đặt xe trực tuyến và giúp chủ xe quản lý đơn thuê thuận tiện hơn. Đồng thời, hệ thống cần tránh các hạn chế như đặt trùng lịch, thay đổi thông tin xe thiếu kiểm soát, thanh toán không đồng bộ với booking và hợp đồng, hoặc phân quyền sai trách nhiệm giữa ADMIN, BUSINESS và USER.
+P0131	STYLE='normal'	Những nội dung trên là cơ sở quan trọng để định hướng thiết kế và phát triển BQDrive, giúp hệ thống đáp ứng tốt hơn nhu cầu thuê xe trực tuyến, nâng cao tính minh bạch, giảm thao tác thủ công và tạo nền tảng mở rộng trong tương lai.
+P0137	STYLE='Heading 2'	2.3 Công Nghệ sử dụng
+P0138	STYLE='normal'	Trong quá trình xây dựng hệ thống BQDrive, nhóm sử dụng các công nghệ hiện đại phục vụ cho việc phát triển ứng dụng web, bao gồm ReactJS, Node.js, ExpressJS, MongoDB, TypeScript và một số thư viện hỗ trợ khác. Việc lựa chọn các công nghệ này giúp hệ thống có khả năng xử lý dữ liệu linh hoạt, giao diện thân thiện, dễ mở rộng và phù hợp với mô hình website đặt thuê xe trực tuyến.
+P0140	STYLE='normal'	ReactJS
+P0144	STYLE='Heading 4'	Hình 2-1 : Môi trường lập trình ReactJs
+P0145	STYLE='normal'	ReactJS là thư viện JavaScript được sử dụng để xây dựng giao diện người dùng cho hệ thống BQDrive. Với cơ chế component, ReactJS giúp chia nhỏ giao diện thành các thành phần độc lập như trang chủ, danh sách xe, chi tiết xe, giỏ hàng, đặt xe, thanh toán, trang quản trị và các trang dành cho chủ xe/doanh nghiệp.
+P0146	STYLE='normal'	Trong hệ thống BQDrive, ReactJS kết hợp với TypeScript giúp mã nguồn rõ ràng, dễ kiểm soát kiểu dữ liệu và hạn chế lỗi trong quá trình phát triển. Ngoài ra, hệ thống còn sử dụng React Router DOM để điều hướng giữa các trang, Axios để giao tiếp với API backend, React Hot Toast để hiển thị thông báo và Lucide React để xây dựng hệ thống biểu tượng giao diện.
+P0147	STYLE='normal'	Lợi ích :
+P0148	STYLE='normal'	Tái sử dụng giao diện: Các thành phần như thẻ xe, form đặt xe, bảng quản lý, nút thao tác có thể được xây dựng thành component và tái sử dụng ở nhiều nơi trong hệ thống.
+P0149	STYLE='normal'	Tăng tốc độ phát triển frontend: ReactJS giúp xây dựng giao diện nhanh, dễ tổ chức mã nguồn và thuận tiện khi mở rộng thêm chức năng mới.
+P0150	STYLE='normal'	Trải nghiệm người dùng tốt hơn: ReactJS giúp giao diện được cập nhật linh hoạt khi người dùng tìm kiếm xe, lọc xe, xem chi tiết, đặt xe hoặc thanh toán.
+P0151	STYLE='normal'	Dễ bảo trì và mở rộng: Cấu trúc component giúp việc chỉnh sửa giao diện, thêm trang mới hoặc cập nhật chức năng trở nên dễ dàng hơn.
+P0152	STYLE='normal'	NodeJS và ExpressJS
+P0154	STYLE='Heading 4'	Hình 2-2: Môi trường lập trình NodeJS
+P0156	STYLE='normal'	Node.js được sử dụng làm môi trường chạy phía server cho hệ thống BQDrive. Đây là nền tảng cho phép xây dựng ứng dụng backend bằng JavaScript/TypeScript, có khả năng xử lý nhiều yêu cầu đồng thời và phù hợp với các hệ thống web hiện đại.
+P0157	STYLE='normal'	ExpressJS là framework backend được sử dụng để xây dựng các API cho hệ thống. Các chức năng như đăng ký, đăng nhập, quản lý người dùng, quản lý xe, đặt xe, hợp đồng, thanh toán và quản lý doanh nghiệp đều được tổ chức thông qua các route API. Việc sử dụng ExpressJS giúp hệ thống backend có cấu trúc rõ ràng, dễ bảo trì và dễ mở rộng khi cần bổ sung thêm chức năng mới.
+P0158	STYLE='normal'	Lợi ích :
+P0159	STYLE='normal'	Xử lý tốt các yêu cầu web:NodeJS phù hợp với các hệ thống web cần xử lý nhiều yêu cầu bất đồng bộ như đăng nhập, tìm kiếm xe, đặt xe, cập nhật thanh toán và thay đổi trạng thái booking.
+P0160	STYLE='normal'	Đồng bộ công nghệ frontend và backend: Cả frontend và backend đều sử dụng JavaScript/TypeScript, giúp quá trình phát triển thống nhất và dễ quản lý hơn.
+P0161	STYLE='normal'	Xây dựng API nhanh chóng: ExpressJS hỗ trợ tạo route, middleware và controller rõ ràng, phù hợp với mô hình RESTful API.
+P0162	STYLE='normal'	Dễ mở rộng chức năng: Backend có thể chia thành nhiều module như auth, user, car, booking, payment, contract, business, giúp hệ thống dễ bảo trì và phát triển thêm.
+P0163	STYLE='normal'	TypeScript
+P0165	STYLE='Heading 4'	Hình 2-3 : Ngôn ngữ sử dụng TypeScript
+P0166	STYLE='normal'	TypeScript là ngôn ngữ được sử dụng ở cả frontend và backend của hệ thống BQDrive. TypeScript mở rộng từ JavaScript và bổ sung cơ chế kiểm tra kiểu dữ liệu tĩnh, giúp lập trình viên phát hiện lỗi sớm hơn trong quá trình phát triển.
+P0167	STYLE='normal'	Việc sử dụng TypeScript giúp mã nguồn của hệ thống có tính chặt chẽ hơn, đặc biệt trong các phần xử lý dữ liệu người dùng, thông tin xe, đơn đặt xe, thanh toán và hợp đồng. Điều này góp phần nâng cao độ ổn định và khả năng bảo trì của hệ thống.
+P0168	STYLE='normal'	Lợi ích :
+P0169	STYLE='normal'	Kiểm soát kiểu dữ liệu tốt hơn: Giúp hạn chế lỗi khi xử lý các dữ liệu như thông tin xe, trạng thái booking, số tiền thanh toán và vai trò người dùng.
+P0170	STYLE='normal'	Phát hiện lỗi sớm: Nhiều lỗi có thể được phát hiện ngay trong quá trình viết code thay vì chỉ phát hiện khi chạy chương trình.
+P0171	STYLE='normal'	Mã nguồn rõ ràng hơn: Việc định nghĩa interface, type, request và response giúp lập trình viên dễ hiểu cấu trúc dữ liệu của hệ thống.
+P0172	STYLE='normal'	Dễ bảo trì: Khi hệ thống mở rộng, TypeScript giúp việc chỉnh sửa và nâng cấp mã nguồn an toàn hơn.
+P0176	STYLE='normal'	Mô hình kiến trúc RESTful API.
+P0178	STYLE='Heading 4'	Hình 2-4: Mô hình kiến trúc Restful API
+P0179	STYLE='normal'	Hệ thống BQDrive sử dụng RESTful API làm phương thức giao tiếp giữa frontend và backend. Frontend được xây dựng bằng ReactJS sử dụng thư viện Axios để gửi các yêu cầu HTTP đến backend. Backend được xây dựng bằng Node.js và ExpressJS, cung cấp các endpoint API để xử lý các chức năng như đăng nhập, quản lý xe, đặt xe, thanh toán và quản lý người dùng. Dữ liệu giữa hai phía được trao đổi dưới định dạng JSON. Ngoài ra, hệ thống sử dụng JWT để xác thực và phân quyền người dùng khi truy cập các API cần bảo vệ.
+P0180	STYLE='normal'	RESTful API kết hợp Axios và ExpressJS để giao tiếp giữa frontend và backend.
+P0182	STYLE='normal'	Lợi ích :
+P0183	STYLE='normal'	Tách biệt frontend và backend: Frontend chỉ tập trung vào giao diện, backend tập trung xử lý nghiệp vụ và dữ liệu.
+P0184	STYLE='normal'	Dễ kiểm thử API: Các chức năng có thể được kiểm tra riêng thông qua công cụ như Postman trước khi tích hợp lên giao diện.
+P0185	STYLE='normal'	Dễ mở rộng sang nền tảng khác: Nếu sau này phát triển ứng dụng di động, hệ thống có thể tái sử dụng các API đã xây dựng.
+P0186	STYLE='normal'	Hỗ trợ phân quyền rõ ràng: Kết hợp với JWT giúp kiểm soát quyền truy cập của USER, BUSINESS và ADMIN vào từng nhóm chức năng.
+P0193	STYLE='normal'	MongoDB và Mongoose
+P0195	STYLE='Heading 4'	Hình 2-5: MongoDB và Mongoose
+P0196	STYLE='normal'	MongoDB là hệ quản trị cơ sở dữ liệu NoSQL được sử dụng để lưu trữ dữ liệu của hệ thống BQDrive. Các dữ liệu như tài khoản người dùng, thông tin xe, thương hiệu xe, giỏ hàng, đơn đặt xe, hợp đồng, thanh toán và thông tin doanh nghiệp được lưu trữ dưới dạng document linh hoạt.
+P0197	STYLE='normal'	Mongoose được sử dụng để kết nối và thao tác với MongoDB trong backend. Thông qua Mongoose, hệ thống có thể định nghĩa các model, schema và ràng buộc dữ liệu, giúp việc truy vấn và quản lý dữ liệu trở nên thuận tiện hơn.
+P0198	STYLE='normal'	Lợi Ích :
+P0199	STYLE='normal'	Lưu trữ dữ liệu linh hoạt: Phù hợp với các dữ liệu có cấu trúc đa dạng như xe, hình ảnh, giá thuê, booking, thanh toán và hợp đồng.
+P0200	STYLE='normal'	Dễ mở rộng dữ liệu: Khi hệ thống cần bổ sung thêm trường mới như giá ngày lễ, phí phát sinh hoặc tọa độ nhận xe, MongoDB có thể thích nghi tốt.
+P0201	STYLE='normal'	Quản lý dữ liệu có cấu trúc bằng Mongoose: Mongoose giúp định nghĩa rõ schema cho User, Car, Booking, Payment, Contract và Business.
+P0202	STYLE='normal'	Hỗ trợ kiểm soát dữ liệu thông qua Mongoose : Có thể kiểm tra các dữ liệu quan trọng như biển số xe không trùng, số điện thoại đúng định dạng, CCCD và bằng lái hợp lệ.
+P0203	STYLE='normal'	Phù hợp với hệ thống booking: Thông qua thiết kế pricingSnapshot trong từng booking, hệ thống có thể lưu lại đơn giá tại thời điểm đặt xe, giúp dữ liệu booking cũ không bị ảnh hưởng khi chủ xe cập nhật giá mới.
+P0205	STYLE='Heading 2'	2.4 Phân tích yêu cầu :
+P0206	STYLE='Heading 3'	2.4.1 Các quy trình nghiệp vụ
+P0207	STYLE='normal'	Nguyên tắc thiết kế:
+P0208	STYLE='normal'	Mỗi yêu cầu thuê xe đều tạo một Booking riêng biệt để theo dõi toàn bộ quá trình thuê xe từ lúc đặt xe, duyệt booking, thanh toán, bàn giao đến khi hoàn tất chuyến thuê.
+P0209	STYLE='normal'	Mỗi xe chỉ có thể thuộc một chủ sở hữu chính tại một thời điểm, có thể là BUSINESS hoặc USER ký gửi. BUSINESS chỉ quản lý xe doanh nghiệp của mình, USER ký gửi chỉ quản lý xe do chính mình đăng.
+P0210	STYLE='normal'	Mỗi booking chỉ gắn với một xe, một người thuê và một chủ xe cụ thể nhằm đảm bảo rõ trách nhiệm giữa người thuê và bên cho thuê.
+P0211	STYLE='normal'	Hệ thống phân quyền rõ ràng theo vai trò ADMIN, BUSINESS và USER. ADMIN thực hiện kiểm duyệt và quản lý hệ thống, BUSINESS quản lý xe doanh nghiệp và booking của mình, USER có thể thuê xe hoặc ký gửi xe.
+P0212	STYLE='normal'	Mọi thay đổi trạng thái quan trọng như duyệt xe, từ chối xe, duyệt booking, thanh toán, bàn giao xe, hoàn tất booking và cập nhật vị trí xe đều cần được ghi nhận để có thể truy vết khi cần.
+P0213	STYLE='normal'	Booking là nguồn dữ liệu trung tâm để xác định trạng thái của một lượt thuê xe. Các thông tin liên quan đến thanh toán, hợp đồng, trạng thái xe và lịch sử giao dịch cần được đồng bộ theo booking.
+P0214	STYLE='normal'	Hệ thống phân biệt rõ giữa thanh toán cọc và thanh toán đủ. Trạng thái “Đã cọc” không được xem là “Đã thanh toán đủ”. Booking chỉ được hoàn tất khi số tiền còn lại bằng 0.
+P0215	STYLE='normal'	Khi người thuê thanh toán cọc, phần tiền còn lại có thể được xử lý bằng hai cách: thanh toán trực tuyến trên hệ thống hoặc thanh toán trực tiếp cho chủ xe khi nhận xe. Nếu thanh toán trực tiếp, chủ xe phải xác nhận đã thu trên hệ thống.
+P0216	STYLE='normal'	Hệ thống sử dụng cơ chế tính toán lại tổng tiền đã thanh toán từ các payment hợp lệ để tránh sai lệch dữ liệu và tránh cộng trùng tiền khi callback thanh toán hoặc thao tác xác nhận bị gọi nhiều lần.
+P0217	STYLE='normal'	Hệ thống cần đảm bảo tính idempotency trong các nghiệp vụ thanh toán, xác nhận đã thu tiền, cập nhật trạng thái booking và hoàn tất booking nhằm tránh xử lý trùng giao dịch.
+P0218	STYLE='normal'	Hệ thống áp dụng cơ chế giữ xe tạm thời trong giỏ hàng để hạn chế trường hợp nhiều người dùng cùng đặt một xe trong cùng thời điểm.
+P0219	STYLE='normal'	Không cho phép một xe đang được thuê hoặc đang có booking hợp lệ bị đặt trùng trong cùng khoảng thời gian thuê.
+P0220	STYLE='normal'	Khi tạo booking, hệ thống lưu lại pricingSnapshot để ghi nhận giá thuê tại thời điểm đặt xe. Nhờ đó, booking, thanh toán và hợp đồng cũ không bị thay đổi khi chủ xe cập nhật giá xe sau này.
+P0221	STYLE='normal'	Xe đã được duyệt nếu chỉ cập nhật vị trí nhận xe trên bản đồ thì không cần chuyển lại trạng thái chờ duyệt. Tuy nhiên, hệ thống cần lưu lại người cập nhật, thời gian cập nhật và thông tin vị trí mới để phục vụ quản lý.
+P0222	STYLE='normal'	Nếu chủ xe thay đổi các thông tin quan trọng như giá thuê, biển số, hình ảnh, thông tin kỹ thuật hoặc chính sách phí phát sinh, xe cần được đưa về trạng thái chờ admin duyệt lại để đảm bảo tính kiểm soát.
+P0223	STYLE='normal'	ADMIN không can thiệp trực tiếp vào quá trình thanh toán, bàn giao xe, hoàn tất booking hoặc hợp đồng giữa người thuê và chủ xe. ADMIN chỉ đóng vai trò quản lý và kiểm duyệt hệ thống.
+P0224	STYLE='normal'	Không cho phép xóa cứng các dữ liệu quan trọng đã phát sinh nghiệp vụ như booking, payment, contract hoặc xe đã có giao dịch. Thay vào đó, hệ thống nên chuyển trạng thái như hủy, từ chối, hoàn tất hoặc ẩn để giữ lịch sử dữ liệu.
+P0225	STYLE='normal'	Hệ thống ưu tiên hiển thị trạng thái rõ ràng cho từng vai trò nhằm tránh hiểu nhầm trong quá trình sử dụng, ví dụ: đã cọc, còn lại cần thu, đã thanh toán đủ, chờ bàn giao, đang thuê và đã hoàn tất.
+P0226	STYLE='normal'	Các API quan trọng đều phải kiểm tra quyền ở backend, không chỉ ẩn nút trên frontend. BUSINESS A không được xem hoặc thao tác dữ liệu của BUSINESS B, USER ký gửi không được quản lý xe của USER khác.
+P0227	STYLE='normal'	Hệ thống sử dụng dữ liệu bản đồ để hỗ trợ hiển thị vị trí nhận xe, quản lý vị trí xe và tìm đường đến điểm nhận xe. Tuy nhiên, vị trí người dùng chỉ được lấy khi người dùng chủ động cho phép hoặc tự chọn điểm bắt đầu trên bản đồ.
+P0229	STYLE='normal'	Booking Status
+P0232	STYLE='normal'	Payment Status
+P0234	STYLE='normal'	Car Status
+P0242	STYLE='normal'	Cart Status
+P0244	STYLE='normal'	Contract Status
+P0246	STYLE='Heading 4'	2.4.1.1 Nghiệp vụ tài khoản và phân quyền
+P0247	STYLE='normal'	Trong hệ thống BQDrive, tài khoản người dùng và phân quyền đóng vai trò quan trọng trong việc kiểm soát truy cập, quản lý chức năng và đảm bảo mỗi nhóm người dùng chỉ được thực hiện các thao tác phù hợp với vai trò của mình. Hệ thống được thiết kế với ba vai trò chính gồm: ADMIN, BUSINESS và USER.
+P0248	STYLE='normal'	Cơ chế phân quyền giúp hệ thống tổ chức rõ trách nhiệm của từng nhóm người dùng, hạn chế việc truy cập sai chức năng, đồng thời đảm bảo tính an toàn và nhất quán trong quá trình vận hành. Sau khi đăng nhập, hệ thống sẽ xác định vai trò của tài khoản và điều hướng người dùng đến các chức năng tương ứng.
+P0251	STYLE='normal'	Quy trình đăng ký và xác thực tài khoản USER
+P0252	STYLE='normal'	Quy trình đăng ký tài khoản trong hệ thống BQDrive được xây dựng nhằm đảm bảo người dùng truy cập hệ thống bằng thông tin hợp lệ, đồng thời hỗ trợ phân quyền đúng vai trò giữa các nhóm tài khoản. Hệ thống có ba vai trò chính gồm ADMIN, BUSINESS và USER. Tuy nhiên, tùy theo từng vai trò, quy trình tạo tài khoản sẽ có sự khác nhau.
+P0253	STYLE='normal'	Đối với tài khoản USER, người dùng có thể tự đăng ký tài khoản trực tiếp trên hệ thống. Khi đăng ký, người dùng cần nhập các thông tin cơ bản như họ tên, email, số điện thoại và mật khẩu. Hệ thống sẽ kiểm tra tính hợp lệ của dữ liệu đầu vào, bao gồm định dạng email, số điện thoại, độ mạnh của mật khẩu và tình trạng tồn tại của email trong hệ thống. Nếu dữ liệu không hợp lệ hoặc email đã được sử dụng, hệ thống sẽ hiển thị thông báo lỗi để người dùng điều chỉnh.
+P0254	STYLE='normal'	Sau khi thông tin đăng ký hợp lệ, hệ thống sử dụng cơ chế xác thực email thông qua SMTP để gửi email xác nhận đến địa chỉ email của người dùng. Tài khoản chỉ được kích hoạt sau khi người dùng hoàn tất bước xác nhận email. Cơ chế này giúp đảm bảo email đăng ký là có thật, hạn chế tình trạng tạo tài khoản giả mạo và tăng độ tin cậy cho dữ liệu người dùng trong hệ thống.
+P0255	STYLE='normal'	Đối với tài khoản BUSINESS, hệ thống không cho phép doanh nghiệp tự đăng ký công khai như tài khoản USER. Thay vào đó, tài khoản BUSINESS do ADMIN tạo và cấp quyền thông qua chức năng quản lý doanh nghiệp. Quy trình này phù hợp với mô hình vận hành của BQDrive vì doanh nghiệp cho thuê xe cần được kiểm tra thông tin trước khi tham gia đăng xe và xử lý booking trên hệ thống.
+P0256	STYLE='normal'	Khi tạo tài khoản BUSINESS, ADMIN nhập các thông tin cần thiết của doanh nghiệp như tên doanh nghiệp, email, số điện thoại, địa chỉ và mô tả hoạt động. Hệ thống kiểm tra dữ liệu đầu vào, bao gồm định dạng email, số điện thoại và tình trạng trùng lặp email. Nếu thông tin hợp lệ, hệ thống tạo tài khoản BUSINESS và gửi email thông báo tài khoản đến doanh nghiệp thông qua SMTP. Doanh nghiệp sau đó có thể đăng nhập vào hệ thống để quản lý hồ sơ, đăng xe, quản lý booking và xử lý các nghiệp vụ liên quan đến xe của mình.
+P0257	STYLE='normal'	Đối với tài khoản ADMIN, tài khoản này không được đăng ký tự do trên giao diện người dùng. Tài khoản ADMIN được tạo sẵn hoặc cấp trực tiếp trong hệ thống nhằm đảm bảo quyền quản trị không bị lạm dụng. ADMIN có nhiệm vụ quản lý người dùng, doanh nghiệp, thương hiệu, ngày lễ, duyệt hoặc từ chối xe và theo dõi dữ liệu hệ thống
+P0258	STYLE='normal'	Các bước thực hiện :
+P0259	STYLE='normal'	ROLE : USER
+P0260	STYLE='normal'	Người dùng đăng ký cung cấp họ tên, email, mật khẩu và các thông tin bắt buộc của tài khoản USER.
+P0261	STYLE='normal'	Hệ thống kiểm tra định dạng email, độ đầy đủ của dữ liệu và việc email đã được sử dụng hay chưa.
+P0262	STYLE='normal'	Nếu email trùng hoặc dữ liệu không hợp lệ, hệ thống từ chối tạo tài khoản và nêu nội dung cần điều chỉnh.
+P0263	STYLE='normal'	Nếu dữ liệu hợp lệ, hệ thống tạo tài khoản USER ở trạng thái chờ xác thực email.
+P0264	STYLE='normal'	Hệ thống tạo mã OTP có thời hạn và gửi mã đến email đã đăng ký.
+P0265	STYLE='normal'	Người đăng ký nhập OTP để xác nhận quyền sử dụng email.
+P0266	STYLE='normal'	Hệ thống kiểm tra OTP có thuộc đúng tài khoản, còn hiệu lực và chưa vượt quá số lần thử hay không.
+P0267	STYLE='normal'	Nếu OTP sai hoặc hết hạn, tài khoản vẫn chưa được kích hoạt; người đăng ký có thể yêu cầu gửi lại mã theo giới hạn của hệ thống.
+P0268	STYLE='normal'	Nếu OTP hợp lệ, hệ thống đánh dấu email đã xác thực và kích hoạt tài khoản.
+P0269	STYLE='normal'	Hệ thống thông báo kết quả xác thực và cho phép USER đăng nhập bằng thông tin đã đăng ký.
+P0271	STYLE='Heading 5'	Hình 2-6  : Quy trình đăng ký tài khoản USER
+P0280	STYLE='normal'	Quy trình đăng nhập và khôi phục tài khoản
+P0281	STYLE='normal'	Quy trình cho phép người dùng đăng nhập bằng email và mật khẩu hoặc Google OAuth, đồng thời hỗ trợ khôi phục khi quên mật khẩu. Mọi phương thức đều phải kiểm tra trạng thái tài khoản để ngăn tài khoản bị khóa hoặc xóa mềm tiếp tục truy cập.
+P0282	STYLE='normal'	Các bước thực hiện:
+P0283	STYLE='normal'	Người dùng chọn đăng nhập bằng email và mật khẩu hoặc chọn Google OAuth.
+P0284	STYLE='normal'	Với email và mật khẩu, hệ thống đối chiếu thông tin xác thực và trạng thái xác thực email.
+P0285	STYLE='normal'	Với Google OAuth, hệ thống xác minh thông tin Google; nếu email chưa tồn tại thì có thể tạo tài khoản USER từ email đã được Google xác thực.
+P0286	STYLE='normal'	Hệ thống kiểm tra tài khoản không bị khóa, không bị xóa mềm và đáp ứng điều kiện xác thực.
+P0287	STYLE='normal'	Nếu thông tin sai hoặc tài khoản không đủ điều kiện, hệ thống từ chối đăng nhập và không tạo phiên sử dụng.
+P0288	STYLE='normal'	Nếu hợp lệ, hệ thống tạo phiên theo đúng vai trò ADMIN, BUSINESS hoặc USER.
+P0289	STYLE='normal'	Khi quên mật khẩu, người dùng yêu cầu khôi phục bằng email của tài khoản đang hoạt động.
+P0290	STYLE='normal'	Hệ thống gửi thông tin khôi phục; người dùng xác nhận mã hợp lệ và thiết lập mật khẩu mới.
+P0291	STYLE='normal'	Nếu mã khôi phục sai hoặc hết hạn, mật khẩu không thay đổi và người dùng phải yêu cầu lại.
+P0292	STYLE='normal'	Sau khi đặt lại thành công, thông tin khôi phục cũ bị vô hiệu hóa và người dùng đăng nhập lại bằng mật khẩu mới.
+P0297	STYLE='normal'	Quy trình ADMIN quản lý tài khoản và doanh nghiệp
+P0298	STYLE='normal'	ADMIN quản lý vòng đời tài khoản và việc cấp quyền cho doanh nghiệp từ một quy trình chung. Các thao tác tìm kiếm, tạo BUSINESS, khóa, mở khóa và xóa mềm đều phải tuân theo quyền quản trị và không làm phát sinh vai trò ngoài ADMIN, BUSINESS và USER.
+P0299	STYLE='normal'	Các bước thực hiện:
+P0300	STYLE='normal'	ADMIN xem hoặc tìm kiếm tài khoản theo thông tin nhận diện, vai trò và trạng thái.
+P0301	STYLE='normal'	Khi cấp tài khoản BUSINESS, ADMIN nhập thông tin doanh nghiệp và người đại diện cần sử dụng tài khoản.
+P0302	STYLE='normal'	Hệ thống kiểm tra email không trùng, hồ sơ doanh nghiệp hợp lệ và quyền được cấp phù hợp chính sách.
+P0303	STYLE='normal'	Nếu dữ liệu hoặc quyền không hợp lệ, hệ thống từ chối tạo BUSINESS và nêu nguyên nhân.
+P0304	STYLE='normal'	Hệ thống tạo hoặc liên kết tài khoản với hồ sơ doanh nghiệp, sau đó gán vai trò BUSINESS.
+P0305	STYLE='normal'	Khi cần kiểm soát truy cập, ADMIN chọn khóa, mở khóa hoặc xóa mềm tài khoản phù hợp.
+P0306	STYLE='normal'	Hệ thống kiểm tra ADMIN có quyền thao tác và không cho phép cấp quyền trái chính sách hệ thống.
+P0307	STYLE='normal'	Tài khoản bị khóa hoặc xóa mềm không được đăng nhập; mở khóa chỉ khôi phục truy cập khi các điều kiện khác vẫn hợp lệ.
+P0308	STYLE='normal'	Hệ thống lưu trạng thái mới và thông báo thay đổi cho tài khoản chịu tác động.
+P0314	STYLE='Heading 4'	2.4.1.2 Nghiệp vụ quản quản lý xe và kiểm duyệt xe
+P0315	STYLE='normal'	Nhóm nghiệp vụ này quản lý toàn bộ hồ sơ xe do BUSINESS hoặc USER chủ xe ký gửi sở hữu. Hồ sơ bao gồm thông tin nhận diện, thương hiệu, biển số, thông số kỹ thuật, hình ảnh, cấu hình giá và trạng thái hiển thị; chủ xe chỉ được thao tác trên xe thuộc phạm vi quản lý của mình.
+P0316	STYLE='normal'	Xe mới hoặc xe thay đổi thông tin quan trọng phải được ADMIN kiểm duyệt trước khi công khai. Vị trí nhận xe được quản lý riêng bằng địa chỉ và tọa độ bản đồ; việc chỉ cập nhật vị trí có thể giữ trạng thái đã duyệt của xe theo nghiệp vụ hiện tại.
+P0317	STYLE='normal'	Quy trình chủ xe quản lý thông tin xe và thêm xe
+P0318	STYLE='normal'	Quy trình gộp các thao tác tạo, cập nhật, quản lý hình ảnh, cấu hình giá, ẩn, hiện và xóa mềm xe. Mọi thay đổi đều gắn với quyền sở hữu và phải bảo vệ các booking, hợp đồng hoặc lượt giữ đang còn hiệu lực.
+P0319	STYLE='normal'	Các bước thực hiện :
+P0320	STYLE='normal'	Chủ xe mở phạm vi quản lý xe của BUSINESS hoặc USER chủ xe ký gửi tương ứng.
+P0321	STYLE='normal'	Khi tạo xe, chủ xe nhập biển số, thương hiệu, thông số kỹ thuật, hình ảnh, chính sách thuê và cấu hình giá.
+P0322	STYLE='normal'	Hệ thống kiểm tra quyền sở hữu, biển số, dữ liệu bắt buộc, hình ảnh và các mức giá hợp lệ.
+P0323	STYLE='normal'	Nếu dữ liệu không hợp lệ hoặc biển số bị trùng, hệ thống từ chối lưu và yêu cầu điều chỉnh.
+P0324	STYLE='normal'	Hệ thống tạo hồ sơ xe và chuyển xe sang trạng thái chờ duyệt (PENDING).
+P0325	STYLE='normal'	Khi cập nhật, chủ xe chỉ được sửa xe thuộc quyền quản lý; thay đổi quan trọng làm xe quay lại PENDING để kiểm duyệt.
+P0326	STYLE='normal'	Chủ xe có thể thêm, thay đổi hình ảnh và điều chỉnh cấu hình giá trong cùng hồ sơ xe.
+P0327	STYLE='normal'	Khi ẩn, hiển thị hoặc xóa mềm, hệ thống kiểm tra xe không có booking, hợp đồng hoặc lượt giữ đang hoạt động.
+P0328	STYLE='normal'	Nếu còn công việc thuê có hiệu lực, hệ thống từ chối ẩn, hiện hoặc xóa để không phá vỡ giao dịch đang xử lý.
+P0329	STYLE='normal'	Nếu đủ điều kiện, hệ thống cập nhật trạng thái hiển thị hoặc cờ xóa mềm và loại xe khỏi phạm vi công khai khi cần.
+P0330	STYLE='normal'	Quy trình quản lý vị trí nhận xe
+P0331	STYLE='normal'	Vị trí nhận xe hỗ trợ người thuê xem địa điểm và lập kế hoạch nhận xe trên bản đồ. Hệ thống lưu đồng thời địa chỉ mô tả, vĩ độ và kinh độ để bảo đảm thông tin vị trí có thể tái sử dụng trong tìm kiếm, booking và hợp đồng.
+P0332	STYLE='normal'	Các bước thực hiện:
+P0333	STYLE='normal'	Chủ xe chọn xe thuộc quyền quản lý và nhập hoặc tìm kiếm địa chỉ nhận xe.
+P0334	STYLE='normal'	Hệ thống hiển thị kết quả địa chỉ để chủ xe chọn điểm phù hợp trên bản đồ.
+P0335	STYLE='normal'	Chủ xe điều chỉnh ghim bản đồ khi vị trí tự động chưa chính xác.
+P0336	STYLE='normal'	Hệ thống kiểm tra vĩ độ nằm trong khoảng từ -90 đến 90, kinh độ nằm trong khoảng từ -180 đến 180 và quyền quản lý xe hợp lệ.
+P0337	STYLE='normal'	Nếu địa chỉ hoặc tọa độ không hợp lệ, hệ thống không lưu và yêu cầu chọn lại vị trí.
+P0338	STYLE='normal'	Nếu hợp lệ, hệ thống lưu địa chỉ, tọa độ, ghi chú và lịch sử vị trí nhận xe.
+P0339	STYLE='normal'	Hệ thống dùng vị trí đã lưu để hiển thị bản đồ và tạo bản chụp địa điểm khi phát sinh booking.
+P0340	STYLE='normal'	Nếu xe đã được duyệt và chỉ thay đổi vị trí nhận xe, xe có thể giữ trạng thái đã duyệt (APPROVED).
+P0344	STYLE='Heading 5'	Hình 2- : Quy trình quản lý vị trí nhận xe
+P0345	STYLE='normal'	Quy trình ADMIN kiểm duyệt xe
+P0346	STYLE='normal'	ADMIN kiểm soát chất lượng hồ sơ trước khi xe được công khai. Quy trình bao gồm duyệt, từ chối, lưu lý do và xử lý yêu cầu duyệt lại sau khi chủ xe đã chỉnh sửa nội dung bị từ chối.
+P0347	STYLE='normal'	Các bước thực hiện:
+P0348	STYLE='normal'	ADMIN xem danh sách xe đang chờ duyệt (PENDING) và mở hồ sơ cần kiểm tra.
+P0349	STYLE='normal'	Hệ thống cung cấp thông tin xe, thương hiệu, hình ảnh, biển số, cấu hình giá, vị trí và chủ sở hữu.
+P0350	STYLE='normal'	ADMIN kiểm tra tính đầy đủ, hợp lệ và sự phù hợp của hồ sơ với chính sách hệ thống.
+P0351	STYLE='normal'	Nếu hồ sơ đạt yêu cầu, ADMIN chọn duyệt xe.
+P0352	STYLE='normal'	Nếu hồ sơ chưa đạt, ADMIN chọn từ chối và bắt buộc nhập lý do cụ thể.
+P0353	STYLE='normal'	Xe được duyệt chuyển sang APPROVED; xe bị từ chối chuyển sang trạng thái bị từ chối (REJECTED) và lưu lý do.
+P0354	STYLE='normal'	Chủ xe chỉnh sửa nội dung theo lý do từ chối và gửi lại để xe quay về PENDING.
+P0355	STYLE='normal'	Hệ thống chỉ công khai xe APPROVED, không bị ẩn và không bị xóa mềm; xe chưa duyệt không xuất hiện trong kết quả thuê công khai.
+P0356	STYLE='normal'	Kết quả kiểm duyệt được gửi đến chủ xe để tiếp tục quản lý hồ sơ.
+P0358	STYLE='Heading 5'	Hình 2-: Quy trình ADMIN kiểm duyệt xe
+P0359	STYLE='Heading 4'	2.4.1.3 Nghiệp vụ tìm kiếm, giỏ xe và vòng đời booking
+P0360	STYLE='normal'	Nhóm nghiệp vụ này bao quát giai đoạn từ lúc người thuê tìm xe đến khi booking được chủ xe quyết định có tiếp tục hay không. Người thuê có thể giữ xe tạm thời trong giỏ hoặc tạo booking trực tiếp; cả hai cách đều phải kiểm tra quyền đặt, thời gian thuê và khả năng đáp ứng của xe.
+P0361	STYLE='normal'	Booking mới gắn với đúng người thuê, xe và chủ xe là BUSINESS hoặc USER chủ xe ký gửi. Nhóm này chỉ mô tả từ chối và NO_SHOW ở mức vòng đời; luồng chủ động hủy booking và hoàn tiền được trình bày duy nhất tại quy trình tạo booking trực tiếp và tạo booking từ giỏ
+P0362	STYLE='normal'	Quy trình tìm kiếm và xem chi tiết xe
+P0363	STYLE='normal'	Quy trình tìm kiếm và xem chi tiết xe được thực hiện khi người thuê muốn tra cứu và lựa chọn phương tiện phù hợp trên hệ thống BQDrive. Người thuê có thể tìm kiếm xe theo địa điểm nhận xe và sử dụng các tiêu chí lọc như thương hiệu, số ghế, khoảng giá, nhiên liệu, hộp số và thời gian thuê.
+P0364	STYLE='normal'	Sau khi lựa chọn một xe, người thuê có thể mở trang chi tiết để xem các thông tin gồm tên xe, thương hiệu, biển số, hình ảnh, số ghế, nhiên liệu, hộp số, giá thuê, mô tả, địa chỉ nhận xe và vị trí nhận xe trên bản đồ nếu có dữ liệu tọa độ.
+P0365	STYLE='normal'	Các bước thực hiện:
+P0366	STYLE='normal'	Người thuê nhập địa điểm, thời gian bắt đầu, thời gian kết thúc và các tiêu chí tìm kiếm.
+P0367	STYLE='normal'	Hệ thống kiểm tra thời gian bắt đầu phải trước thời gian kết thúc và dữ liệu tìm kiếm hợp lệ.
+P0368	STYLE='normal'	Nếu khoảng thời gian không hợp lệ, hệ thống từ chối tìm kiếm theo thời gian và yêu cầu điều chỉnh.
+P0369	STYLE='normal'	Hệ thống lọc theo thương hiệu, mức giá, số ghế, nhiên liệu, hộp số và các tiêu chí đang được hỗ trợ.
+P0370	STYLE='normal'	Hệ thống chỉ lấy xe đã APPROVED, không bị ẩn, không bị xóa mềm và không thuộc chính người thuê.
+P0371	STYLE='normal'	Hệ thống loại các xe trùng lịch hoặc không khả dụng trong khoảng thời gian đã chọn.
+P0372	STYLE='normal'	Nếu không có kết quả, hệ thống thông báo và cho phép thay đổi địa điểm, thời gian hoặc bộ lọc.
+P0373	STYLE='normal'	Người thuê mở chi tiết để xem hình ảnh, đặc điểm xe, giá dự kiến, đánh giá và vị trí nhận xe trên bản đồ.
+P0374	STYLE='normal'	Người thuê chọn xe phù hợp để giữ tạm thời hoặc tạo booking trực tiếp.
+P0376	STYLE='Heading 5'	Hình 2-: Quy trình tìm kiếm và xem chi tiết xe
+P0377	STYLE='normal'	Quy trình thêm xe vào giỏ và giữ xe tạm thời
+P0378	STYLE='normal'	Giỏ xe tạo một khoảng giữ có thời hạn khoảng 10 phút để người thuê hoàn thiện quyết định trước khi tạo booking. Lượt giữ có bản chụp giá riêng và không được dùng sau khi hết hạn hoặc khi quyền sở hữu không khớp.
+P0379	STYLE='normal'	Các bước thực hiện:
+P0380	STYLE='normal'	Người thuê chọn xe và khoảng thời gian cần thuê để thêm vào giỏ.
+P0381	STYLE='normal'	Hệ thống kiểm tra xe còn hợp lệ, người thuê không phải chủ xe và khoảng thời gian không trùng lịch.
+P0382	STYLE='normal'	Hệ thống kiểm tra không có lượt giữ đang hoạt động khác xung đột theo điều kiện khóa lịch hiện tại.
+P0383	STYLE='normal'	Nếu xe hoặc thời gian không khả dụng, hệ thống không tạo mục giỏ và nêu nguyên nhân.
+P0384	STYLE='normal'	Hệ thống tính giá dự kiến theo quy trình giá và lưu pricing snapshot tại thời điểm giữ xe.
+P0385	STYLE='normal'	Hệ thống tạo mục giỏ ở trạng thái đang hoạt động (ACTIVE) và thiết lập thời điểm hết hạn.
+P0386	STYLE='normal'	Trong thời hạn giữ, khoảng thời gian được bảo vệ để hạn chế phát sinh lượt giữ hoặc booking xung đột.
+P0387	STYLE='normal'	Nếu người thuê tiếp tục đúng hạn, hệ thống cho phép chuyển mục giỏ thành booking.
+P0388	STYLE='normal'	Nếu hết hạn, hệ thống chuyển lượt giữ sang hết hiệu lực, giải phóng khoảng thời gian và không cho tạo booking từ mục giỏ đó.
+P0389	STYLE='normal'	Người thuê có thể chủ động hủy mục giỏ chưa sử dụng để giải phóng lượt giữ sớm.
+P0391	STYLE='Heading 5'	Hình 2- : Quy trình thêm xe vào giỏ và giữ xe tạm thời
+P0393	STYLE='normal'	Quy trình tạo booking trực tiếp hoặc từ giỏ
+P0394	STYLE='normal'	Booking có thể được tạo trực tiếp từ chi tiết xe hoặc từ một mục giỏ còn hiệu lực. Hai nguồn sử dụng cùng các quy tắc cốt lõi về người thuê, xe, thời gian, chủ sở hữu và bản chụp giá.
+P0395	STYLE='normal'	Các bước thực hiện:
+P0396	STYLE='normal'	Người thuê chọn tạo booking trực tiếp hoặc tiếp tục từ mục giỏ.
+P0397	STYLE='normal'	Hệ thống kiểm tra tài khoản người thuê hoạt động và thông tin người thuê đã được cung cấp đầy đủ.
+P0398	STYLE='normal'	Hệ thống kiểm tra xe tồn tại, APPROVED, không bị ẩn, không bị xóa mềm và không thuộc chính người thuê.
+P0399	STYLE='normal'	Hệ thống kiểm tra thời gian bắt đầu trước thời gian kết thúc và không trùng booking hoặc lượt giữ có hiệu lực.
+P0400	STYLE='normal'	Nếu tạo từ giỏ, hệ thống kiểm tra mục giỏ thuộc đúng người thuê, còn ACTIVE và chưa hết hạn.
+P0401	STYLE='normal'	Nếu bất kỳ điều kiện nào không đạt, hệ thống từ chối tạo booking và giữ nguyên dữ liệu hiện có.
+P0402	STYLE='normal'	Hệ thống xác định chủ xe là BUSINESS hoặc USER chủ xe ký gửi theo hồ sơ sở hữu xe.
+P0403	STYLE='normal'	Hệ thống lưu người thuê, xe, chủ xe, thời gian, thông tin nhận xe và pricing snapshot.
+P0404	STYLE='normal'	Hệ thống tạo booking ở trạng thái chờ chủ xe duyệt (REQUESTED).
+P0405	STYLE='normal'	Nếu booking được tạo từ giỏ, hệ thống đánh dấu mục giỏ đã được sử dụng và không cho tái sử dụng.
+P0406	STYLE='normal'	Hệ thống tạo việc cần làm và gửi thông báo cho đúng chủ xe.
+P0411	STYLE='normal'	Quy trình chủ xe duyệt hoặc từ chối booking
+P0412	STYLE='normal'	Chủ xe quyết định yêu cầu thuê có thể tiếp tục dựa trên quyền quản lý xe, thời gian và khả năng bàn giao. Quy trình kết thúc bằng một trong hai nhánh rõ ràng: duyệt để chuyển sang hợp đồng và thanh toán, hoặc từ chối kèm lý do.
+P0413	STYLE='normal'	Các bước thực hiện:
+P0414	STYLE='normal'	Chủ xe mở booking đang chờ xử lý liên quan đến xe thuộc quyền quản lý.
+P0415	STYLE='normal'	Hệ thống kiểm tra booking đang REQUESTED và chủ xe đúng là BUSINESS hoặc USER chủ xe ký gửi của xe.
+P0416	STYLE='normal'	Nếu không đúng quyền hoặc trạng thái, hệ thống từ chối thao tác.
+P0417	STYLE='normal'	Chủ xe kiểm tra thời gian thuê, thông tin người thuê, lịch xe và khả năng bàn giao.
+P0418	STYLE='normal'	Nếu chấp nhận, chủ xe duyệt booking; booking chuyển sang trạng thái chủ xe đã duyệt (OWNER_APPROVED).
+P0419	STYLE='normal'	Nếu không chấp nhận, chủ xe nhập lý do; booking chuyển sang REJECTED và không tiếp tục thực hiện.
+P0420	STYLE='normal'	Hệ thống cập nhật Task Center và gửi kết quả đến người thuê.
+P0421	STYLE='normal'	Booking OWNER_APPROVED được chuyển sang giai đoạn tạo hoặc hoàn thiện hợp đồng và thực hiện nghĩa vụ thanh toán.
+P0422	STYLE='normal'	Nếu việc từ chối phát sinh vấn đề tài chính, hệ thống dẫn chiếu xử lý theo quy trình hủy booking và hoàn tiền
+P0430	STYLE='normal'	Quy trình xử lý booking không được thực hiện và trường hợp NO_SHOW
+P0431	STYLE='normal'	Quy trình xử lý booking không tiếp tục do bị từ chối, mất điều kiện thực hiện hoặc người thuê không đến nhận xe. Nội dung không lặp lại luồng người thuê hoặc chủ xe chủ động hủy booking; vấn đề hoàn tiền, nếu có, được chuyển sang nhóm tài chính.
+P0432	STYLE='normal'	Các bước thực hiện:
+P0433	STYLE='normal'	Bước 1: Hệ thống xác định booking không thể tiếp tục do bị từ chối hoặc không còn đáp ứng điều kiện thực hiện.
+P0434	STYLE='normal'	Bước 2: Đối với trường hợp người thuê không đến nhận xe, chủ xe mở booking thuộc quyền quản lý và yêu cầu ghi nhận NO_SHOW.
+P0435	STYLE='normal'	Bước 3: Hệ thống kiểm tra booking thuộc trạng thái cho phép, xe chưa được bàn giao và thời điểm hiện tại đã qua giờ nhận xe.
+P0436	STYLE='normal'	Bước 4: Hệ thống tính thời điểm được phép ghi nhận bằng giờ nhận xe cộng khoảng chờ 30 phút.
+P0437	STYLE='normal'	Nếu chưa đủ 30 phút, hệ thống từ chối thao tác NO_SHOW và booking giữ nguyên.
+P0438	STYLE='normal'	Nếu đã đủ thời gian và các điều kiện còn hợp lệ, chủ xe nhập lý do người thuê không đến.
+P0439	STYLE='normal'	Bước 5: Hệ thống chuyển booking sang trạng thái khách không đến nhận xe (NO_SHOW) và ghi nhận thời điểm xử lý.
+P0440	STYLE='normal'	Bước 6: Hệ thống giải phóng lịch hoặc cập nhật khả năng sử dụng xe theo trạng thái nghiệp vụ.
+P0441	STYLE='normal'	Bước 7: Hệ thống cập nhật việc cần làm và thông báo cho các bên liên quan.
+P0442	STYLE='normal'	Bước 8: Nếu booking có payment cần xử lý, nghiệp vụ tài chính được chuyển sang quy trình hủy booking và hoàn tiền .
+P0445	STYLE='Heading 4'	2.4.1.4 Nghiệp vụ tính giá, thanh toán và hoàn tiền
+P0446	STYLE='normal'	Nhóm nghiệp vụ tài chính xác định số tiền thuê, ghi nhận các khoản thanh toán và xử lý hoàn tiền khi booking bị hủy hợp lệ. Giá được tính theo chế độ thuê giờ hoặc ngày, theo từng khoảng thời gian và ưu tiên ngày lễ trước cuối tuần, cuối tuần trước ngày thường.
+P0447	STYLE='normal'	Payment và Refund có vòng đời độc lập với booking. Chỉ payment đã thanh toán thành công mới được cộng vào số tiền đã thanh toán; hoàn tiền hiện được thực hiện thủ công theo hồ sơ Refund, có thông tin người nhận, xác nhận gửi tiền của chủ xe và xác nhận đã nhận của người thuê.
+P0448	STYLE='normal'	Quy trình tính và lưu giá thuê
+P0449	STYLE='normal'	Quy trình tạo kết quả giá nhất quán cho giỏ và booking mà không phụ thuộc vào thay đổi giá về sau. Hệ thống sử dụng cấu hình giá của xe và dữ liệu ngày lễ hiện hành, nhưng không tự áp dụng công thức ngoài các quy tắc đã triển khai.
+P0450	STYLE='normal'	Các bước thực hiện:
+P0451	STYLE='normal'	Hệ thống nhận xe, thời gian bắt đầu, thời gian kết thúc và chế độ thuê theo giờ hoặc theo ngày.
+P0452	STYLE='normal'	Hệ thống kiểm tra chế độ thuê được xe cho phép và khoảng thời gian có giá trị.
+P0453	STYLE='normal'	Nếu dữ liệu hoặc chế độ thuê không hợp lệ, hệ thống không tính giá và yêu cầu điều chỉnh.
+P0454	STYLE='normal'	Hệ thống chia thời gian thuê thành các khoảng cần tính theo logic hiện tại.
+P0455	STYLE='normal'	Với mỗi khoảng, hệ thống xác định có thuộc ngày lễ, cuối tuần hay ngày thường.
+P0456	STYLE='normal'	Hệ thống ưu tiên giá ngày lễ; nếu không phải ngày lễ thì ưu tiên giá cuối tuần; còn lại dùng giá ngày thường.
+P0457	STYLE='normal'	Hệ thống áp dụng đơn giá theo giờ hoặc theo ngày tương ứng và cộng thành tổng giá thuê.
+P0458	STYLE='normal'	Hệ thống tạo pricing snapshot gồm đơn giá, loại ngày, các thành phần tính giá và tổng tiền.
+P0459	STYLE='normal'	Snapshot được lưu cùng lượt giữ hoặc booking để không thay đổi khi chủ xe cập nhật giá sau đó.
+P0461	STYLE='normal'	Quy trình thanh toán booking
+P0462	STYLE='normal'	Quy trình hợp nhất thanh toán cọc, toàn bộ và phần còn lại bằng CASH, MOMO hoặc VNPAY. Payment được theo dõi riêng, chống ghi nhận lặp và chỉ ảnh hưởng số tiền đã trả khi đạt trạng thái thành công.
+P0463	STYLE='normal'	Các bước thực hiện:
+P0464	STYLE='normal'	Người thuê mở booking đã được chủ xe duyệt và chọn thanh toán cọc, toàn bộ hoặc phần còn lại.
+P0465	STYLE='normal'	Người thuê chọn phương thức CASH, MOMO hoặc VNPAY theo lựa chọn đang được hỗ trợ.
+P0466	STYLE='normal'	Hệ thống kiểm tra booking còn cho phép thanh toán, số tiền hợp lệ và khoản tương ứng chưa được ghi nhận trùng.
+P0467	STYLE='normal'	Nếu điều kiện không hợp lệ, hệ thống không tạo giao dịch mới và nêu lý do.
+P0468	STYLE='normal'	Hệ thống tạo payment ở trạng thái chờ xử lý (PENDING) và liên kết với booking.
+P0469	STYLE='normal'	Với MOMO hoặc VNPAY, người thuê thực hiện giao dịch và hệ thống chờ kết quả callback; với CASH, chủ xe xác nhận sau khi thực tế đã thu tiền.
+P0470	STYLE='normal'	Hệ thống kiểm tra mã giao dịch, số tiền, booking và dữ liệu xác thực trước khi cập nhật payment.
+P0471	STYLE='normal'	Nếu thất bại, payment chuyển sang FAILED và không được cộng vào số tiền đã thanh toán.
+P0472	STYLE='normal'	Nếu thành công, payment chuyển sang đã thanh toán (PAID) và chỉ được ghi nhận một lần.
+P0473	STYLE='normal'	Hệ thống tính paidAmount từ các payment PAID và tính remainingAmount bằng phần nghĩa vụ còn lại.
+P0474	STYLE='normal'	Thanh toán cọc không đồng nghĩa thanh toán đủ; chỉ khi remainingAmount bằng 0 mới được xem là hoàn tất nghĩa vụ thanh toán.
+P0475	STYLE='normal'	Nếu callback đến sau khi booking đã CANCELLED, hệ thống ghi nhận payment và tạo xử lý hoàn phù hợp nhưng không kích hoạt lại booking.
+P0476	STYLE='normal'	Kết quả payment được phản ánh vào booking, Task Center và thông báo liên quan.
+P0477	STYLE='normal'	Quy trình hủy booking và hoàn tiền
+P0478	STYLE='normal'	Đây là vị trí duy nhất mô tả đầy đủ việc người thuê hoặc chủ xe chủ động hủy booking và xử lý số tiền cần hoàn. Booking chuyển sang đã hủy, còn Refund tiếp tục vòng đời thủ công riêng cho đến khi người thuê xác nhận đã nhận tiền.
+P0479	STYLE='normal'	Các bước thực hiện:
+P0480	STYLE='normal'	Người thuê hoặc chủ xe có quyền mở booking, xem trước chính sách và nhập lý do hủy.
+P0481	STYLE='normal'	Hệ thống kiểm tra quyền của người yêu cầu và booking còn ở REQUESTED, OWNER_APPROVED, PAYMENT_PENDING, PAID hoặc trạng thái cũ tương ứng.
+P0482	STYLE='normal'	Booking đã IN_PROGRESS, RETURN_INSPECTION, AWAITING_EXTRA_CHARGE, COMPLETED, REJECTED hoặc NO_SHOW không được hủy theo luồng thông thường.
+P0483	STYLE='normal'	Hệ thống tính trước phí hủy và số tiền dự kiến hoàn theo thời điểm, bên hủy và bản chụp chính sách của booking.
+P0484	STYLE='normal'	Người yêu cầu xác nhận hủy sau khi xem thông tin tài chính.
+P0485	STYLE='normal'	Hệ thống chuyển booking sang trạng thái đã hủy (CANCELLED), lưu lý do và giải phóng lịch xe.
+P0486	STYLE='normal'	Hệ thống truy xuất các payment PAID hoặc đã hoàn một phần và loại trừ số tiền đã hoàn trước đó.
+P0487	STYLE='normal'	Hệ thống áp dụng chính sách hủy, đồng thời giới hạn tổng tiền hoàn không vượt quá số tiền đã thanh toán hợp lệ còn lại.
+P0488	STYLE='normal'	Nếu refundAmount bằng 0, hệ thống không tạo Refund và kết thúc phần hoàn tiền.
+P0489	STYLE='normal'	Nếu refundAmount lớn hơn 0, hệ thống tạo một hồ sơ Refund chống trùng và liên kết booking cùng các payment liên quan.
+P0490	STYLE='normal'	Refund bắt đầu ở trạng thái chờ thông tin nhận tiền (WAITING_FOR_REFUND_INFO); người thuê cung cấp tài khoản ngân hàng, ví điện tử hoặc thông tin nhận tiền mặt hợp lệ.
+P0491	STYLE='normal'	Sau khi có thông tin người nhận, Refund chuyển sang yêu cầu xử lý thủ công (MANUAL_REQUIRED).
+P0492	STYLE='normal'	Chủ xe chuyển tiền ngoài hệ thống, ghi phương thức, mã tham chiếu, ghi chú hoặc minh chứng; Refund chuyển sang đang xử lý (PROCESSING).
+P0493	STYLE='normal'	Người thuê kiểm tra và xác nhận đã nhận tiền; khi đó hệ thống cập nhật payment liên quan và chuyển Refund sang hoàn tất (SUCCEEDED).
+P0494	STYLE='normal'	Hệ thống không cho xác nhận hoặc hoàn trùng; callback payment đến muộn vẫn không làm booking CANCELLED hoạt động trở lại.
+P0496	STYLE='Heading 4'	2.4.1.5 Nghiệp vụ bàn giao, trả xe và hoàn tất chuyến thuê
+P0497	STYLE='normal'	Nhóm nghiệp vụ này quản lý giai đoạn thực hiện chuyến thuê từ trước lúc bàn giao đến khi xe được trả và mọi nghĩa vụ phát sinh đã được xử lý. Chỉ chủ xe quản lý xe trong booking mới có quyền bàn giao, nhận lại xe và xác nhận hoàn tất.
+P0498	STYLE='normal'	Hợp đồng, danh tính người thuê và nghĩa vụ thanh toán phải đáp ứng điều kiện trước khi xe được giao. Sau khi xe trả, biên bản kiểm tra là căn cứ xác định phụ phí; booking chỉ hoàn tất khi không còn kiểm tra hoặc khoản thanh toán bắt buộc đang chờ.
+P0499	STYLE='normal'	Quy trình kiểm tra và bàn giao xe
+P0500	STYLE='normal'	Quy trình kết hợp kiểm tra booking, người thuê, hợp đồng, thanh toán và việc bàn giao thực tế. Booking chỉ chuyển sang giai đoạn thuê sau khi chủ xe xác nhận đầy đủ các điều kiện.
+P0501	STYLE='normal'	Các bước thực hiện:
+P0502	STYLE='normal'	Chủ xe mở booking đến thời điểm nhận xe và thuộc xe mình quản lý.
+P0503	STYLE='normal'	Hệ thống kiểm tra chủ xe đúng quyền và booking đã được duyệt.
+P0504	STYLE='normal'	Chủ xe đối chiếu người nhận xe với thông tin người thuê đã lưu trong booking và hợp đồng.
+P0505	STYLE='normal'	Hệ thống kiểm tra hợp đồng đã được tạo hoặc hoàn thiện theo yêu cầu.
+P0506	STYLE='normal'	Hệ thống kiểm tra payment PAID, paidAmount và remainingAmount theo điều kiện bàn giao.
+P0507	STYLE='normal'	Nếu còn khoản bắt buộc, chủ xe yêu cầu người thuê thanh toán hoặc xác nhận tiền mặt thực tế đã thu.
+P0508	STYLE='normal'	Chủ xe kiểm tra thời gian nhận xe và tình trạng xe trước khi bàn giao.
+P0509	STYLE='normal'	Nếu danh tính, hợp đồng, thanh toán hoặc thời gian chưa hợp lệ, hệ thống từ chối bàn giao và giữ nguyên trạng thái booking.
+P0510	STYLE='normal'	Nếu đủ điều kiện, chủ xe xác nhận giao xe và hệ thống ghi thời điểm bàn giao.
+P0511	STYLE='normal'	Booking chuyển sang trạng thái đang thuê (IN_PROGRESS), xe được đánh dấu đang được thuê và các bên nhận thông báo.
+P0513	STYLE='normal'	Quy trình nhận xe trả và kiểm tra sau thuê
+P0514	STYLE='normal'	Quy trình ghi nhận đầy đủ tình trạng xe tại thời điểm kết thúc chuyến thuê. Dữ liệu kiểm tra được so sánh với thời điểm bàn giao để xác định xe có thể hoàn tất ngay hay cần xử lý khoản phát sinh.
+P0515	STYLE='normal'	Các bước thực hiện:
+P0516	STYLE='normal'	Người thuê trả xe tại địa điểm và thời gian được thống nhất.
+P0517	STYLE='normal'	Chủ xe tiếp nhận xe của booking đang IN_PROGRESS và thuộc quyền quản lý.
+P0518	STYLE='normal'	Hệ thống ghi nhận thời điểm trả xe thực tế.
+P0519	STYLE='normal'	Chủ xe nhập số kilomet và mức nhiên liệu tại thời điểm nhận lại xe.
+P0520	STYLE='normal'	Chủ xe chụp hoặc tải hình ảnh xe khi trả và mô tả tình trạng thực tế.
+P0521	STYLE='normal'	Hệ thống kiểm tra dữ liệu kilomet, nhiên liệu, hình ảnh và nội dung tình trạng có đầy đủ, hợp lệ hay không.
+P0522	STYLE='normal'	Nếu dữ liệu chưa đầy đủ, hệ thống chưa cho kết thúc kiểm tra và yêu cầu bổ sung.
+P0523	STYLE='normal'	Chủ xe so sánh tình trạng xe trả với tình trạng tại thời điểm bàn giao.
+P0524	STYLE='normal'	Hệ thống lưu biên bản và chuyển booking sang giai đoạn kiểm tra sau thuê (RETURN_INSPECTION).
+P0525	STYLE='normal'	Nếu không có phát sinh, biên bản có thể được xác nhận đã xử lý; nếu có phát sinh, booking chuyển sang bước xử lý phụ phí.
+P0527	STYLE='normal'	Quy trình xử lý phụ phí và hoàn tất chuyến thuê
+P0528	STYLE='normal'	Quy trình gộp việc tạo, thanh toán, hủy phụ phí và kiểm tra điều kiện hoàn tất booking. Phụ phí phải dựa trên biên bản sau thuê và không được tạo ngoài giai đoạn kiểm tra phù hợp.
+P0529	STYLE='normal'	Các bước thực hiện:
+P0530	STYLE='normal'	Chủ xe xác định khoản phát sinh từ biên bản kiểm tra sau thuê.
+P0531	STYLE='normal'	Chủ xe chọn loại phụ phí, nhập số tiền, mô tả lý do và thêm minh chứng nếu có.
+P0532	STYLE='normal'	Hệ thống kiểm tra booking đang ở giai đoạn kiểm tra, khoản tiền hợp lệ và chủ xe đúng quyền.
+P0533	STYLE='normal'	Nếu thiếu lý do, sai số tiền hoặc sai giai đoạn, hệ thống từ chối tạo phụ phí.
+P0534	STYLE='normal'	Hệ thống tạo phụ phí gắn với booking và chuyển booking sang chờ xử lý phụ phí (AWAITING_EXTRA_CHARGE).
+P0535	STYLE='normal'	Người thuê xem khoản phí và thực hiện thanh toán bằng phương thức được hỗ trợ.
+P0536	STYLE='normal'	Hệ thống tạo payment loại phụ phí và chỉ ghi nhận đã trả khi payment đạt PAID.
+P0537	STYLE='normal'	Chủ xe có thể xác nhận tiền mặt thực tế đã thu hoặc hủy khoản phí không còn hợp lệ.
+P0538	STYLE='normal'	Hệ thống kiểm tra tất cả phụ phí đã được thanh toán hoặc hủy, biên bản đã xử lý và không còn khoản thuê bắt buộc.
+P0539	STYLE='normal'	Nếu còn kiểm tra, remainingAmount hoặc phụ phí chờ, hệ thống chưa cho hoàn tất booking.
+P0540	STYLE='normal'	Nếu mọi nghĩa vụ đã xử lý, chủ xe xác nhận hoàn tất chuyến thuê.
+P0541	STYLE='normal'	Booking chuyển sang trạng thái hoàn tất (COMPLETED), xe trở lại trạng thái phù hợp và hợp đồng được đồng bộ.
+P0542	STYLE='normal'	Hệ thống cập nhật lịch sử, Task Center và thông báo kết quả cho các bên.
+P0543	STYLE='Heading 4'	2.4.1.6 Nghiệp vụ hợp đồng và lịch sử
+P0544	STYLE='normal'	Nhóm nghiệp vụ này lưu giữ căn cứ giao dịch và lịch sử sau khi booking được hình thành. Hợp đồng gắn với booking, lưu các bản chụp cần thiết và có thể được tạo sau khi chủ xe duyệt, trước hoặc trong quá trình người thuê thực hiện thanh toán.
+P0545	STYLE='normal'	Lịch sử được lọc theo vai trò và quyền sở hữu. Sau khi booking COMPLETED, người thuê được đánh giá một lần; chủ xe có thể phản hồi, còn ADMIN xử lý nội dung bị báo cáo theo quyền kiểm duyệt
+P0546	STYLE='normal'	Quy trình tạo và xem hợp đồng
+P0547	STYLE='normal'	Hợp đồng có thể được tạo ngay sau khi booking được chủ xe duyệt, không bắt buộc phải chờ thanh toán hoàn tất. Tuy nhiên, hợp đồng và nghĩa vụ thanh toán đều phải được hoàn thiện trước khi xe được bàn giao.
+P0548	STYLE='normal'	Các bước thực hiện:
+P0549	STYLE='normal'	Booking chuyển sang OWNER_APPROVED sau khi chủ xe chấp nhận yêu cầu thuê.
+P0550	STYLE='normal'	Người thuê yêu cầu tạo hoặc hoàn thiện hợp đồng trong giai đoạn trước hoặc trong quá trình thanh toán.
+P0551	STYLE='normal'	Hệ thống kiểm tra booking thuộc người thuê, đã được duyệt và chưa ở trạng thái hủy, hoàn tất hoặc NO_SHOW.
+P0552	STYLE='normal'	Nếu booking không đúng quyền hoặc trạng thái, hệ thống từ chối tạo hợp đồng và không làm thay đổi booking.
+P0553	STYLE='normal'	Nếu hợp lệ, hệ thống tiếp tục chuẩn bị nội dung hợp đồng từ dữ liệu đã chốt của booking.
+P0554	STYLE='normal'	Hệ thống chuẩn bị snapshot người thuê, chủ xe, xe, thời gian, địa điểm, giá, tiền cọc và số tiền còn lại.
+P0555	STYLE='normal'	Hệ thống tạo mã hợp đồng và bảo đảm mỗi booking không phát sinh hợp đồng trùng.
+P0556	STYLE='normal'	Người thuê và chủ xe xem hợp đồng theo quyền; người không liên quan không được truy cập.
+P0557	STYLE='normal'	Hệ thống cập nhật trạng thái hợp đồng theo tiến trình nghiệp vụ.
+P0558	STYLE='normal'	Trước khi bàn giao, hệ thống kiểm tra hợp đồng và nghĩa vụ thanh toán đã đáp ứng điều kiện nhận xe.
+P0559	STYLE='normal'	Quy trình xem lịch sử booking và thanh toán
+P0560	STYLE='normal'	Lịch sử cung cấp dòng thời gian giao dịch theo đúng phạm vi của từng người sử dụng. Các thao tác lọc, tìm kiếm và mở chi tiết chỉ là bước giao diện trong quy trình này, không được tách thành nghiệp vụ riêng.
+P0561	STYLE='normal'	Các bước thực hiện:
+P0562	STYLE='normal'	Người dùng mở lịch sử booking và thanh toán.
+P0563	STYLE='normal'	Hệ thống xác định vai trò, danh tính và phạm vi sở hữu dữ liệu.
+P0564	STYLE='normal'	Người thuê chỉ xem booking và payment của mình.
+P0565	STYLE='normal'	Chủ xe chỉ xem booking liên quan đến xe mình; BUSINESS chỉ xem dữ liệu thuộc doanh nghiệp.
+P0566	STYLE='normal'	Hệ thống tổng hợp trạng thái booking, payment, Refund, hợp đồng và phụ phí có liên quan.
+P0567	STYLE='normal'	Người dùng lọc danh sách hoặc mở chi tiết một giao dịch trong phạm vi được phép.
+P0568	STYLE='normal'	Hệ thống che hoặc không trả dữ liệu nhạy cảm của người khác.
+P0569	STYLE='normal'	Nếu yêu cầu vượt quyền, hệ thống từ chối truy cập và không tiết lộ dữ liệu.
+P0575	STYLE='normal'	Quy trình đánh giá, phản hồi và xử lý vi phạm
+P0576	STYLE='normal'	Quy trình hợp nhất việc người thuê đánh giá, chủ xe phản hồi và ADMIN xử lý nội dung vi phạm. Đánh giá chỉ phát sinh sau chuyến thuê hoàn tất và không được tạo lặp cho cùng một booking.
+P0577	STYLE='normal'	Các bước thực hiện:
+P0578	STYLE='normal'	Người thuê mở booking thuộc mình đã COMPLETED và chọn thực hiện đánh giá.
+P0579	STYLE='normal'	Người thuê nhập điểm, nhận xét và hình ảnh nếu chức năng hình ảnh được sử dụng.
+P0580	STYLE='normal'	Hệ thống kiểm tra booking đúng người thuê, đã hoàn tất và chưa có review của người thuê.
+P0581	STYLE='normal'	Nếu booking chưa đủ điều kiện hoặc đã có review, hệ thống từ chối tạo trùng.
+P0582	STYLE='normal'	Hệ thống tạo review gắn với booking và xe, đồng thời chỉ công khai dữ liệu phù hợp.
+P0583	STYLE='normal'	Chủ xe xem review thuộc xe mình và gửi một phản hồi theo quyền.
+P0584	STYLE='normal'	Chủ xe hoặc người có quyền báo cáo nội dung có dấu hiệu vi phạm.
+P0585	STYLE='normal'	ADMIN xem báo cáo, kiểm tra nội dung và quyết định giữ, ẩn hoặc hiển thị lại review.
+P0586	STYLE='normal'	Nếu báo cáo không có căn cứ, review giữ trạng thái hiện tại; nếu vi phạm, hệ thống áp dụng trạng thái kiểm duyệt phù hợp.
+P0587	STYLE='normal'	Hệ thống không công khai dữ liệu nhạy cảm và thông báo kết quả xử lý cho các bên liên quan.
+P0588	STYLE='Heading 4'	2.4.1.7 Nghiệp vụ thông báo và theo dõi hệ thống
+P0589	STYLE='normal'	Nhóm nghiệp vụ này hỗ trợ người sử dụng theo dõi sự kiện và công việc phát sinh từ các quy trình chính. Notification Center tập hợp thông báo theo người nhận; Task Center phản ánh các việc cần làm dựa trên trạng thái booking, payment, Refund, kiểm duyệt và các đối tượng liên quan.
+P0590	STYLE='normal'	Dashboard tổng hợp dữ liệu theo vai trò mà không thay thế các nghiệp vụ nguồn. ADMIN xem phạm vi toàn hệ thống, BUSINESS và USER chủ xe ký gửi xem dữ liệu thuộc sở hữu, còn USER người thuê chỉ xem dữ liệu cá nhân khi màn hình tương ứng hỗ trợ.
+P0591	STYLE='normal'	Quy trình xem thông báo và việc cần làm
+P0592	STYLE='normal'	Thông báo không được tạo thành một nghiệp vụ độc lập cho từng sự kiện; nó là kết quả của quy trình đã phát sinh sự kiện. Quy trình này tập trung vào việc người nhận đọc, quản lý thông báo và điều hướng đến công việc đang chờ.
+P0593	STYLE='normal'	Các bước thực hiện:
+P0594	STYLE='normal'	Hệ thống tạo thông báo khi quy trình nghiệp vụ phát sinh sự kiện cần gửi đến một vai trò hoặc người nhận cụ thể.
+P0595	STYLE='normal'	Người dùng mở Notification Center để xem danh sách và trạng thái chưa đọc.
+P0596	STYLE='normal'	Hệ thống chỉ trả thông báo thuộc đúng người nhận và phạm vi dữ liệu liên quan.
+P0597	STYLE='normal'	Người dùng mở chi tiết; hệ thống đánh dấu đã đọc và điều hướng đến booking, payment, Refund hoặc đối tượng tương ứng.
+P0598	STYLE='normal'	Người dùng có thể đánh dấu một thông báo hoặc tất cả thông báo là đã đọc.
+P0599	STYLE='normal'	Khi người dùng xóa thông báo, hệ thống thực hiện xóa mềm trong phạm vi tài khoản.
+P0600	STYLE='normal'	Người dùng mở Task Center để xem các việc cần làm được suy ra từ trạng thái nghiệp vụ.
+P0601	STYLE='normal'	Khi trạng thái nguồn thay đổi, hệ thống cập nhật hoặc loại bỏ task tương ứng thay vì tạo một quy trình mới.
+P0602	STYLE='normal'	Nếu người dùng không có quyền với đối tượng đích, hệ thống không cho điều hướng hoặc xem dữ liệu chi tiết.
+P0607	STYLE='normal'	Quy trình xem dashboard theo vai trò
+P0608	STYLE='normal'	Dashboard cung cấp số liệu tổng hợp nhằm hỗ trợ theo dõi vận hành. Mọi chỉ số phải được lọc theo quyền, trạng thái hợp lệ và phạm vi sở hữu trước khi hiển thị.
+P0609	STYLE='normal'	Các bước thực hiện:
+P0610	STYLE='normal'	Người dùng mở dashboard và hệ thống xác định vai trò hiện tại.
+P0611	STYLE='normal'	ADMIN được tổng hợp xe, booking, payment, Refund, đánh giá và tài khoản trong phạm vi toàn hệ thống.
+P0612	STYLE='normal'	BUSINESS chỉ xem doanh nghiệp, xe, booking và dữ liệu tài chính thuộc doanh nghiệp.
+P0613	STYLE='normal'	USER chủ xe ký gửi chỉ xem xe và giao dịch thuộc sở hữu; USER người thuê xem dữ liệu cá nhân nếu dashboard hỗ trợ.
+P0614	STYLE='normal'	Hệ thống đồng bộ các trạng thái hết hạn hoặc trạng thái xe cần cập nhật trước khi tổng hợp.
+P0615	STYLE='normal'	Hệ thống chỉ tính payment PAID vào doanh thu và trừ các Refund SUCCEEDED để phản ánh doanh thu thuần theo logic dashboard hiện tại.
+P0616	STYLE='normal'	Hệ thống tổng hợp số lượng xe, booking theo trạng thái, thanh toán, doanh thu, hoàn tiền và đánh giá trong phạm vi cho phép.
+P0617	STYLE='normal'	Nếu vai trò yêu cầu dữ liệu ngoài phạm vi, hệ thống loại dữ liệu đó khỏi kết quả.
+P0618	STYLE='normal'	Dashboard hiển thị số liệu và liên kết đến danh sách chi tiết mà người dùng có quyền truy cập.
+P0620	STYLE='normal'	2.4.1.8 Nghiệp vụ thuê xe tổng thể
+P0621	STYLE='normal'	Quy trình thuê xe tổng thể liên kết nhiều nhóm nghiệp vụ trước thành một vòng đời thống nhất từ tìm kiếm đến đánh giá. Người thuê có thể giữ xe trong giỏ hoặc tạo booking trực tiếp, sau đó chờ chủ xe quyết định và hoàn thiện hợp đồng cùng nghĩa vụ thanh toán.
+P0622	STYLE='normal'	Khi đủ điều kiện, chủ xe bàn giao xe và booking bước vào giai đoạn đang thuê. Cuối chuyến, xe được tiếp nhận, kiểm tra và xử lý phụ phí nếu có; chỉ khi mọi nghĩa vụ đã hoàn tất thì booking mới chuyển COMPLETED.
+P0623	STYLE='normal'	Các nhánh hủy, thanh toán thất bại, callback đến muộn, NO_SHOW và hoàn tiền chỉ được tóm tắt trong quy trình tổng thể. Nội dung chi tiết vẫn thuộc các quy trình chuyên trách để tránh lặp lại.
+P0624	STYLE='normal'	Quy Trình thuê xe tổng thể
+P0625	STYLE='normal'	Quy trình thể hiện chuỗi nghiệp vụ chính và các điểm quyết định quan trọng của một chuyến thuê. Mỗi bước dẫn chiếu đến nhóm chuyên trách thay vì chép lại toàn bộ quy tắc chi tiết.
+P0626	STYLE='normal'	Các bước thực hiện:
+P0627	STYLE='normal'	Người thuê tìm kiếm xe theo địa điểm, thời gian và tiêu chí; hệ thống chỉ trả xe hợp lệ và khả dụng.
+P0628	STYLE='normal'	Nếu xe hoặc khoảng thời gian không hợp lệ, người thuê phải điều chỉnh điều kiện tìm kiếm.
+P0629	STYLE='normal'	Người thuê xem chi tiết, giá dự kiến, đánh giá và vị trí nhận xe trên bản đồ.
+P0630	STYLE='normal'	Người thuê thêm xe vào giỏ để giữ tạm thời hoặc chọn tạo booking trực tiếp.
+P0631	STYLE='normal'	Nếu giỏ hết hạn, hệ thống giải phóng lượt giữ và yêu cầu kiểm tra khả dụng lại.
+P0632	STYLE='normal'	Hệ thống kiểm tra quyền đặt, lịch xe, thông tin người thuê và tạo booking gắn đúng chủ xe.
+P0633	STYLE='normal'	Chủ xe duyệt hoặc từ chối booking; booking bị từ chối không tiếp tục và vấn đề tài chính được chuyển sang quy trình chuyên trách.
+P0634	STYLE='normal'	Khi được duyệt, người thuê tạo hoặc hoàn thiện hợp đồng và thực hiện thanh toán theo lựa chọn.
+P0635	STYLE='normal'	Nếu payment thất bại, nghĩa vụ chưa được ghi nhận; nếu callback đến sau khi booking đã hủy, booking không được kích hoạt lại.
+P0636	STYLE='normal'	Nếu người có quyền hủy booking, hệ thống xử lý CANCELLED và hoàn tiền thủ công theo quy trình hủy booking và hoàn tiền
+P0637	STYLE='normal'	Chủ xe kiểm tra người thuê, hợp đồng, thanh toán và thời gian trước khi bàn giao xe.
+P0638	STYLE='normal'	Nếu người thuê không đến sau giờ nhận xe và đủ khoảng chờ 30 phút, chủ xe có thể ghi nhận NO_SHOW.
+P0639	STYLE='normal'	Khi bàn giao thành công, booking chuyển IN_PROGRESS và chuyến thuê diễn ra.
+P0640	STYLE='normal'	Người thuê trả xe; chủ xe ghi thời điểm, kilomet, nhiên liệu, hình ảnh và tình trạng xe.
+P0641	STYLE='normal'	Nếu xe có hư hỏng hoặc khoản phát sinh, chủ xe tạo phụ phí và người thuê xử lý payment liên quan.
+P0642	STYLE='normal'	Nếu còn remainingAmount, phụ phí hoặc kiểm tra chưa hoàn tất, hệ thống chưa cho kết thúc booking.
+P0643	STYLE='normal'	Khi mọi nghĩa vụ đã xử lý, chủ xe hoàn tất booking; booking chuyển COMPLETED và xe trở lại trạng thái phù hợp.
+P0644	STYLE='normal'	Người thuê thực hiện đánh giá; lịch sử, dashboard, Task Center và Notification Center được cập nhật theo quyền.
+P0659	STYLE='Heading 3'	2.4.2 Sơ đồ chức năng
+P0660	STYLE='normal'	Sơ đồ chức năng thể hiện các nhóm chức năng chính của hệ thống BQDrive. Hệ thống được chia theo vai trò sử dụng và theo các nghiệp vụ cốt lõi như quản lý tài khoản, quản lý xe, đặt xe, thanh toán, hoàn tiền, đánh giá, thông báo và thống kê.
+P0661	STYLE='normal'	Sơ đồ chức năng tổng quát
+P0663	STYLE='Heading 4'	Hình 2- :  Sơ đồ phân rã chức năng
+P0664	STYLE='normal'	Chia sơ đồ chức năng
+P0665	STYLE='normal'	Quản lý tài khoản, người dùng và doanh nghiệp
+P0668	STYLE='Heading 4'	Hình 2- : Sơ đồ chức năng quản lý tài khoản, người dùng và doanh nghiệp
+P0675	STYLE='normal'	Quản lý xe và tìm kiếm xe
+P0677	STYLE='normal'	Hình 2- : Sơ đồ chức năng quản lý và tìm kiếm xe
+P0682	STYLE='normal'	Giỏ xe và quản lý booking
+P0684	STYLE='Heading 4'	Hình 2-: Sơ đồ chức năng giỏ xe và quản lý booking
+P0690	STYLE='normal'	Thanh toán và hoàn tiền
+P0692	STYLE='Heading 4'	Hình 2-: Sơ đồ chức năng thanh toán và hoàn tiền
+P0703	STYLE='normal'	Bàn giao, trả xe, hợp đồng và đánh giá
+P0705	STYLE='Heading 4'	Hình 2-: Sơ đồ chức năng xử lý sau khi đặt xe
+P0712	STYLE='normal'	Thông báo và thống kê
+P0714	STYLE='Heading 4'	Hình 2-: Sơ đồ chức năng thông báo, dashboard và thống kê
+P0719	STYLE='Heading 3'	2.4.3 Sơ đồ Use case tổng quát
+P0720	STYLE='normal'	Sơ đồ Use case tổng quát mô tả các tác nhân tham gia vào hệ thống và các chức năng chính mà từng tác nhân có thể thực hiện. Hệ thống BQDrive có các nhóm tác nhân chính gồm ADMIN, người thuê xe, chủ xe cá nhân, doanh nghiệp cho thuê xe và các hệ thống bên ngoài.
+P0721	STYLE='Heading 4'	2.4.3.1 Mô tả các Actor
+P0723	STYLE='Heading 4'	2.4.3.2 Sơ đồ Use case tổng quát :
+P0725	STYLE='Heading 4'	Hình 2-: Sơ dồ Use case tổng quát
+P0727	STYLE='Heading 4'	2.4.3.3 Mô tả sơ lược các Use case
+P0729	STYLE='Heading 1'	CHƯƠNG 3 : THIẾT KẾ
+P0730	STYLE='Heading 2'	3.1 Sơ đồ mức ý niệm
+P0732	STYLE='Heading 5'	Hình 3-1  :Sơ đồ thực thể mức quan niệm
+P0733	STYLE='Heading 3'	3.1.1 Sơ đồ thực thể quan niệm
+P0734	STYLE='Heading 4'	3.1.1.1		 Mô tả loại thực thể
+P0735	STYLE='Heading 3'	□ Loại thực thể USER
+P0736	STYLE='normal'	Mô tả: Người dùng trong hệ thống BQDrive, có thể là ADMIN, BUSINESS hoặc USER. Thực thể này dùng để lưu thông tin đăng nhập, hồ sơ cá nhân, trạng thái xác thực và phân quyền.
+P0741	STYLE='Heading 3'	□ Loại thực thể BUSINESS
+P0742	STYLE='normal'	Mô tả: Doanh nghiệp hoặc cá nhân kinh doanh cho thuê xe. Một BUSINESS được liên kết với một tài khoản USER và có thể quản lý nhiều xe cho thuê.
+P0744	STYLE='Heading 3'	□ Loại thực thể BRAND
+P0745	STYLE='normal'	Mô tả: Thương hiệu xe dùng chung trong hệ thống. Thực thể này giúp chuẩn hóa dữ liệu khi chủ xe thêm hoặc cập nhật xe.
+P0747	STYLE='Heading 3'	□ Loại thực thể CAR
+P0748	STYLE='normal'	Mô tả: Xe được đăng lên hệ thống để cho thuê. Xe có thể thuộc doanh nghiệp hoặc chủ xe cá nhân, có thông tin giá thuê, vị trí nhận xe, hình ảnh và trạng thái duyệt.
+P0756	STYLE='normal'	□ Loại thực thể BOOKING
+P0757	STYLE='normal'	Mô tả: Yêu cầu đặt thuê xe của người dùng. Đây là thực thể trung tâm, liên kết người thuê, xe, chủ xe, thanh toán, hợp đồng, hoàn tiền và kiểm tra xe sau thuê.
+P0759	STYLE='Heading 3'	□ Loại thực thể PAYMENT
+P0760	STYLE='normal'	Mô tả: Giao dịch thanh toán phát sinh từ booking hoặc phụ phí. Payment dùng để ghi nhận số tiền, phương thức, loại thanh toán và trạng thái giao dịch.
+P0765	STYLE='normal'	□ Loại thực thể CONTRACT
+P0766	STYLE='normal'	Mô tả: Hợp đồng thuê xe được tạo từ booking. Mỗi booking có tối đa một hợp đồng, lưu thông tin người thuê, xe, thời gian thuê và giá trị thanh toán.
+P0769	STYLE='Heading 4'	3.1.1.2 	Mô tả các ràng buộc nghiệp vụ
+P0770	STYLE='normal'	[1]. Ràng buộc tài khoản người dùng: Email của USER không được trùng trong hệ thống và phải đúng định dạng email. Người dùng chỉ có thể đăng nhập khi tài khoản tồn tại, chưa bị khóa, chưa bị xóa mềm và đã đáp ứng điều kiện xác thực theo quy định của hệ thống.
+P0771	STYLE='normal'	[2]. Ràng buộc phân quyền người dùng: Mỗi USER trong hệ thống được gán một vai trò cụ thể gồm ADMIN, BUSINESS hoặc USER. Người dùng chỉ được truy cập và thực hiện các chức năng phù hợp với vai trò của mình. ADMIN quản trị hệ thống, BUSINESS quản lý xe của doanh nghiệp, USER có thể thuê xe hoặc tham gia ký gửi xe theo phạm vi được cấp quyền.
+P0772	STYLE='normal'	[3]. Ràng buộc duyệt doanh nghiệp: Tài khoản doanh nghiệp hoặc hồ sơ BUSINESS phải được ADMIN duyệt trước khi hoạt động chính thức. Nếu hồ sơ doanh nghiệp bị từ chối, hệ thống phải lưu lý do từ chối và không cho phép doanh nghiệp sử dụng các chức năng cần quyền BUSINESS hợp lệ.
+P0773	STYLE='normal'	[4]. Ràng buộc duyệt xe: Xe mới đăng hoặc xe cập nhật các thông tin quan trọng như biển số, hình ảnh, giá thuê, thông tin kỹ thuật hoặc loại xe phải chờ ADMIN kiểm tra và duyệt. Xe chỉ được phép hiển thị công khai khi đã được duyệt hợp lệ.
+P0774	STYLE='normal'	[5]. Ràng buộc hiển thị xe: Xe chỉ được hiển thị cho người thuê khi xe ở trạng thái APPROVED, không bị ẩn và không bị xóa mềm. Các xe ở trạng thái PENDING, REJECTED, HIDDEN hoặc đã bị xóa mềm không được xuất hiện trong danh sách tìm kiếm và đặt thuê.
+P0775	STYLE='normal'	[6]. Ràng buộc đặt xe của chính mình: Người thuê không được đặt booking đối với xe do chính mình sở hữu hoặc quản lý. Ràng buộc này giúp tránh phát sinh booking không hợp lệ và đảm bảo dữ liệu thuê xe phản ánh đúng giao dịch giữa người thuê và chủ xe.
+P0776	STYLE='normal'	[7]. Ràng buộc thông tin booking: Một booking bắt buộc phải gắn với một người thuê, một xe và một chủ xe. Booking phải có thời gian bắt đầu, thời gian kết thúc, hình thức thuê, tổng tiền thuê và trạng thái xử lý rõ ràng.
+P0777	STYLE='normal'	[8]. Ràng buộc trùng lịch thuê xe: Hệ thống không cho phép tạo booking nếu khoảng thời gian thuê bị trùng với booking hợp lệ khác của cùng một xe. Các booking đang giữ lịch như REQUESTED, OWNER_APPROVED, PAYMENT_PENDING, PAID, IN_PROGRESS, RETURN_INSPECTION hoặc AWAITING_EXTRA_CHARGE phải được tính khi kiểm tra trùng lịch.
+P0778	STYLE='normal'	[9]. Ràng buộc thanh toán booking: Booking chỉ được thanh toán sau khi chủ xe đã duyệt yêu cầu thuê. Nếu booking chưa được duyệt, đã bị từ chối, đã bị hủy hoặc không thuộc người thuê hiện tại, hệ thống không cho phép tạo payment.
+P0779	STYLE='normal'	[10]. Ràng buộc ghi nhận số tiền đã thanh toán: Payment chỉ được tính vào tổng số tiền đã thanh toán của booking khi payment có trạng thái PAID. Các payment ở trạng thái PENDING, FAILED hoặc REFUNDED không được cộng vào số tiền đã thanh toán.
+P0780	STYLE='normal'	[11]. Ràng buộc hủy booking: Booking chỉ được hủy theo luồng thông thường khi còn ở các trạng thái cho phép hủy như REQUESTED, OWNER_APPROVED, PAYMENT_PENDING, PAID hoặc các trạng thái cũ tương ứng. Booking đã chuyển sang IN_PROGRESS, RETURN_INSPECTION, AWAITING_EXTRA_CHARGE, COMPLETED, REJECTED hoặc NO_SHOW không được hủy theo luồng thông thường.
+P0781	STYLE='normal'	[12]. Ràng buộc hoàn tiền: Refund chỉ được tạo khi booking đã bị hủy hợp lệ và số tiền cần hoàn lớn hơn 0. Hồ sơ hoàn tiền phải liên kết với booking, các payment liên quan, số tiền đã thanh toán tại thời điểm hủy, phí hủy và số tiền dự kiến hoàn.
+P0782	STYLE='normal'	[13]. Ràng buộc bàn giao xe: Chủ xe chỉ được bàn giao xe khi booking đã được duyệt và đáp ứng điều kiện thanh toán theo quy định. Sau khi bàn giao thành công, booking chuyển sang trạng thái IN_PROGRESS và xe được ghi nhận là đang được thuê.
+P0783	STYLE='normal'	[14]. Ràng buộc trả xe và kiểm tra sau thuê: Booking chỉ được chuyển sang giai đoạn kiểm tra xe sau thuê khi xe đã được chủ xe nhận lại. Biên bản kiểm tra phải gắn với booking, xe, người thuê, chủ xe và ghi nhận thời điểm trả xe thực tế cùng tình trạng xe khi trả.
+P0784	STYLE='normal'	[15]. Ràng buộc phụ phí phát sinh: Chủ xe chỉ được tạo phụ phí khi booking đang ở giai đoạn kiểm tra xe sau thuê hoặc đang chờ xử lý phụ phí. Phụ phí phải có loại phụ phí, số tiền, mô tả lý do và có thể kèm hình ảnh minh chứng.
+P0785	STYLE='normal'	[16]. Ràng buộc hoàn tất booking: Booking chỉ được hoàn tất khi xe đã được trả, biên bản kiểm tra sau thuê đã được xác nhận, không còn phụ phí đang chờ xử lý và không còn khoản thanh toán bắt buộc chưa hoàn tất. Khi hoàn tất, booking chuyển sang COMPLETED.
+P0786	STYLE='normal'	[17]. Ràng buộc khách không nhận xe: Chủ xe chỉ được xác nhận khách không nhận xe khi booking đã đến hoặc quá thời gian nhận xe, xe chưa được bàn giao và booking chưa bị hủy, từ chối hoặc hoàn tất. Sau khi xử lý, booking chuyển sang trạng thái NO_SHOW.
+P0787	STYLE='normal'	[18]. Ràng buộc đánh giá chuyến thuê: Người thuê chỉ được đánh giá sau khi booking đã COMPLETED. Mỗi booking chỉ có tối đa một review từ người thuê nhằm đảm bảo đánh giá phản ánh đúng một chuyến thuê cụ thể.
+P0788	STYLE='normal'	[19]. Ràng buộc phản hồi và xử lý đánh giá: Chủ xe chỉ được phản hồi các đánh giá thuộc xe của mình. ADMIN có quyền ẩn hoặc hiển thị lại đánh giá khi đánh giá bị báo cáo vi phạm nội dung.
+P0789	STYLE='normal'	[20]. Ràng buộc thông báo: Notification chỉ hiển thị cho đúng người nhận tương ứng với vai trò và dữ liệu liên quan. Mỗi thông báo phải có người nhận, loại thông báo, tiêu đề, nội dung và đối tượng nghiệp vụ liên quan nếu có.
+P0794	STYLE='Heading 3'	3.1.2 Sơ đồ Logic dữ liệu
+P0795	STYLE='normal'	users(_id, name, email, password, phone, address, role, isBlocked, isVerified, isDeleted, createdAt, updatedAt)
+P0797	STYLE='normal'	businesses(_id, userId, businessName, businessType, phone, address, description, logo, isApproved, isRejected, isDeleted, createdAt, updatedAt)
+P0799	STYLE='normal'	brands(_id, name, logo, description, isDeleted, createdAt, updatedAt)
+P0801	STYLE='normal'	cars(_id, ownerId, ownerType, businessId, brandId, name, type, licensePlate, pricing, seats, fuelType, transmission, images, pickupAddress, pickupLat, pickupLng, status, isHidden, isDeleted, createdAt, updatedAt)
+P0803	STYLE='normal'	carts(_id, userId, carId, startDate, endDate, rentalMode, totalPrice, pricingSnapshot, expiredAt, status, createdAt, updatedAt)
+P0805	STYLE='normal'	bookings(_id, userId, ownerId, ownerType, businessId, carId, cartId, startDate, endDate, rentalMode, totalPrice, paymentOption, depositAmount, remainingAmount, paidAmount, renterInfo, status, cancellationSummary, createdAt, updatedAt)
+P0807	STYLE='normal'	payments(_id, bookingId, extraChargeId, userId, amount, method, status, paymentType, paidAt, transactionCode, refundedAmount, refundStatus, createdAt, updatedAt)
+P0809	STYLE='normal'	refunds(_id, bookingId, requestedBy, cancelledBy, reasonCode, reasonText, paidAmountAtCancellation, cancellationFee, refundAmount, method, status, paymentIds, recipientInfo, manualRefundEvidence, createdAt, updatedAt)
+P0811	STYLE='normal'	contracts(_id, bookingId, userId, carId, ownerId, ownerType, businessId, renterName, renterPhone, renterIdentityNumber, startDate, endDate, totalPrice, status, contractCode, createdAt, updatedAt)
+P0813	STYLE='normal'	returninspections(_id, bookingId, carId, renterId, ownerId, ownerType, receivedAt, actualReturnAt, returnOdometer, returnFuelLevel, returnPhotos, conditionNotes, inspectionStatus, createdAt, updatedAt)
+P0815	STYLE='normal'	extracharges(_id, bookingId, carId, renterId, ownerId, ownerType, type, amount, description, evidenceImages, status, paymentId, paidAt, cancelReason, createdAt, updatedAt)
+P0817	STYLE='normal'	reviews(_id, bookingId, carId, renterId, ownerId, ownerType, rating, criteria, comment, images, ownerReply, status, report, helpfulCount, createdAt, updatedAt)
+P0819	STYLE='normal'	notifications(_id, recipientId, recipientRole, type, title, message, actorId, entityType, entityId, bookingId, carId, actionUrl, isRead, isDeleted, createdAt, updatedAt)
+P0821	STYLE='normal'	holidaycalendars(_id, name, startDate, endDate, country, type, isActive, note, isDeleted, createdAt, updatedAt)
+P0835	STYLE='Heading 3'	3.1.3 Dữ liệu ở mức vật lý
+P0836	STYLE='Heading 4'	3.1.3.1 Bảng USER
+P0838	STYLE='Heading 4'	3.1.3.2 Bảng businesses
+P0840	STYLE='Heading 4'	3.1.3.3Bảng brands
+P0842	STYLE='Heading 4'	3.1.3.4 Bảng cars
+P0844	STYLE='Heading 4'	3.1.3.5 Bảng carts
+P0846	STYLE='Heading 4'	3.1.3.6 Bảng bookings
+P0848	STYLE='Heading 4'	3.1.3.7 Bảng contracts
+P0850	STYLE='Heading 4'	3.1.3.8 Bảng payments
+P0852	STYLE='Heading 4'	3.1.3.9 Bảng refunds
+P0854	STYLE='Heading 4'	3.1.3.10 Bảng extracharges
+P0856	STYLE='Heading 4'	3.1.3.11 Bảng returninspections
+P0858	STYLE='Heading 4'	3.1.3.12 Bảng reviews
+P0860	STYLE='Heading 4'	3.1.3.13 Bảng notifications
+P0862	STYLE='Heading 4'	3.1.3.14 Bảng holidaycalendars
+P0864	STYLE='Heading 4'	3.1.3.15 Các chỉ mục vật lý chính
+P0877	STYLE='Heading 2'	3.2 Mô hình xử lý
+P0878	STYLE='Heading 3'	3.2.1 Use case chi tiết
+P0879	STYLE='Heading 4'	3.2.1.1 Use case đăng nhập
+P0881	STYLE='Heading 3'	3.2.2 Sơ đồ tuần tự
+P0882	STYLE='Heading 3'	3.2.3 Sơ đồ Activity
+P0884	STYLE='Heading 2'	3.3 Hệ thống màn hình
+P0885	STYLE='Heading 3'	3.3.1 Hệ thống màn hình phía USER
+P0886	STYLE='Heading 4'	3.3.1.1 Hệ thống đăng nhập
+P0891	STYLE='normal'	Mô tả trang đăng nhập
+P0892	STYLE='normal'	Email: Trường nhập địa chỉ email.
+P0893	STYLE='normal'	Mật khẩu: Trường nhập mật khẩu.
+P0894	STYLE='normal'	Biểu tượng con mắt: Cho phép người dùng hiển thị hoặc ẩn nội dung mật khẩu.
+P0895	STYLE='normal'	Quên mật khẩu?: Liên kết đến trang khôi phục mật khẩu.
+P0896	STYLE='normal'	Nút Đăng nhập: Nút gửi thông tin đăng nhập đến hệ thống.
+P0897	STYLE='normal'	Đăng nhập bằng Google: Cho phép người dùng đăng nhập bằng tài khoản Google.
+P0898	STYLE='normal'	Đăng ký ngay: Liên kết đến trang đăng ký tài khoản mới.
+P0899	STYLE='normal'	Khu vực giới thiệu: Hiển thị hình ảnh xe, logo BQDrive và các thông tin giới thiệu về lợi ích khi sử dụng hệ thống.
+P0900	STYLE='normal'	Giải thích chức năng
+P0901	STYLE='normal'	Email: Trường này yêu cầu người dùng nhập địa chỉ email đã đăng ký trước đó để hệ thống xác định tài khoản cần đăng nhập.
+P0902	STYLE='normal'	Mật khẩu: Trường này yêu cầu người dùng nhập mật khẩu tương ứng với địa chỉ email để xác thực danh tính. Nội dung mật khẩu được che nhằm bảo đảm tính riêng tư.
+P0903	STYLE='normal'	Biểu tượng con mắt: Cho phép người dùng kiểm tra mật khẩu đã nhập bằng cách chuyển đổi giữa trạng thái hiển thị và ẩn mật khẩu.
+P0904	STYLE='normal'	Nút Đăng nhập: Gửi yêu cầu đăng nhập đến hệ thống. Nếu email và mật khẩu hợp lệ, tài khoản không bị khóa, không bị xóa và đáp ứng các điều kiện xác thực, hệ thống sẽ tạo phiên đăng nhập và chuyển người dùng đến trang phù hợp với vai trò của tài khoản.
+P0905	STYLE='normal'	Đăng nhập bằng Google: Cho phép người dùng đăng nhập nhanh bằng tài khoản Google mà không cần nhập mật khẩu của hệ thống. Nếu thông tin Google hợp lệ, hệ thống tiến hành xác thực và cấp quyền truy cập cho người dùng.
+P0906	STYLE='normal'	Quên mật khẩu?: Điều hướng người dùng đến trang khôi phục mật khẩu. Chức năng này được sử dụng khi người dùng quên mật khẩu và muốn thiết lập mật khẩu mới thông qua địa chỉ email đã đăng ký.
+P0907	STYLE='normal'	Đăng ký ngay: Điều hướng người dùng đến trang đăng ký khi chưa có tài khoản trong hệ thống.
+P0908	STYLE='normal'	Khu vực giới thiệu: Cung cấp thông tin khái quát về các lợi ích của BQDrive như quản lý lịch thuê xe, theo dõi trạng thái booking, thực hiện thanh toán và tiếp cận các xe đã được kiểm duyệt.
+P0910	STYLE='Heading 4'	3.3.1.2 Hệ thống đăng ký
+P0913	STYLE='normal'	Mô tả trang đăng ký
+P0914	STYLE='normal'	Họ tên: Trường nhập họ và tên của người dùng.
+P0915	STYLE='normal'	Email: Trường nhập địa chỉ email dùng để đăng ký tài khoản.
+P0916	STYLE='normal'	Nút Gửi OTP: Gửi mã xác thực đến địa chỉ email mà người dùng đã nhập.
+P0917	STYLE='normal'	Mã OTP: Trường nhập mã xác thực được gửi đến email.
+P0918	STYLE='normal'	Số điện thoại: Trường nhập số điện thoại liên hệ của người dùng.
+P0919	STYLE='normal'	Mật khẩu: Trường nhập mật khẩu cho tài khoản mới.
+P0920	STYLE='normal'	Biểu tượng con mắt: Cho phép người dùng hiển thị hoặc ẩn mật khẩu đã nhập.
+P0921	STYLE='normal'	Xác nhận mật khẩu: Trường nhập lại mật khẩu để kiểm tra sự trùng khớp.
+P0922	STYLE='normal'	Điều khoản dịch vụ và Chính sách bảo mật: Ô xác nhận người dùng đồng ý với các điều khoản sử dụng của hệ thống.
+P0923	STYLE='normal'	Nút Tạo tài khoản: Gửi thông tin đăng ký đến hệ thống để tạo tài khoản mới.
+P0924	STYLE='normal'	Đăng nhập ngay: Liên kết chuyển đến trang đăng nhập dành cho người dùng đã có tài khoản.
+P0925	STYLE='normal'	Khu vực giới thiệu: Hiển thị hình ảnh xe, logo BQDrive và các lợi ích nổi bật khi sử dụng hệ thống.
+P0926	STYLE='normal'	Giải thích chức năng
+P0927	STYLE='normal'	Họ tên: Yêu cầu người dùng nhập tên đầy đủ để hệ thống lưu trữ thông tin cá nhân và sử dụng trong quá trình đặt xe, lập hợp đồng hoặc hiển thị thông tin tài khoản.
+P0928	STYLE='normal'	Email: Yêu cầu người dùng cung cấp một địa chỉ email hợp lệ. Email được sử dụng làm thông tin đăng nhập, nhận mã OTP và nhận các thông báo liên quan đến tài khoản hoặc chuyến thuê xe.
+P0929	STYLE='normal'	Nút Gửi OTP: Gửi mã xác thực một lần đến địa chỉ email đã nhập. Chức năng này giúp hệ thống kiểm tra email có tồn tại và thuộc quyền sử dụng của người đăng ký hay không.
+P0930	STYLE='normal'	Mã OTP: Yêu cầu người dùng nhập chính xác mã xác thực nhận được qua email. Mã OTP chỉ có hiệu lực trong một khoảng thời gian nhất định và được sử dụng để hoàn tất bước xác minh email.
+P0931	STYLE='normal'	Số điện thoại: Thu thập số điện thoại của người dùng để hỗ trợ liên hệ, xác nhận booking và trao đổi trong quá trình thuê xe.
+P0932	STYLE='normal'	Mật khẩu: Yêu cầu người dùng tạo mật khẩu cho tài khoản. Mật khẩu cần đáp ứng các điều kiện bảo mật do hệ thống quy định.
+P0933	STYLE='normal'	Biểu tượng con mắt: Cho phép chuyển đổi giữa trạng thái hiển thị và ẩn nội dung mật khẩu, giúp người dùng kiểm tra thông tin đã nhập.
+P0934	STYLE='normal'	Xác nhận mật khẩu: Yêu cầu người dùng nhập lại mật khẩu một lần nữa. Hệ thống chỉ chấp nhận đăng ký khi mật khẩu xác nhận trùng khớp với mật khẩu đã nhập trước đó.
+P0935	STYLE='normal'	Điều khoản dịch vụ và Chính sách bảo mật: Người dùng phải đánh dấu đồng ý trước khi tạo tài khoản, nhằm xác nhận đã đọc và chấp nhận các quy định sử dụng cũng như chính sách bảo vệ dữ liệu của BQDrive.
+P0936	STYLE='normal'	Nút Tạo tài khoản: Gửi toàn bộ thông tin đăng ký đến hệ thống. Nếu dữ liệu hợp lệ, email đã được xác thực, mật khẩu trùng khớp và người dùng đồng ý với điều khoản, hệ thống sẽ tạo tài khoản mới. Nếu thông tin không hợp lệ, hệ thống sẽ hiển thị thông báo yêu cầu người dùng điều chỉnh.
+P0937	STYLE='normal'	Đăng nhập ngay: Điều hướng người dùng đến trang đăng nhập khi đã có tài khoản trong hệ thống.
+P0938	STYLE='normal'	Khu vực giới thiệu: Cung cấp thông tin khái quát về những lợi ích của BQDrive như quản lý booking, theo dõi lịch trình, thanh toán tại một nơi và sử dụng các xe đã được kiểm duyệt
+P0946	STYLE='Heading 4'	3.3.1.3 Hệ thống trang chủ
+P0950	STYLE='normal'	Mô tả trang chủ
+P0951	STYLE='normal'	Tìm kiếm xe: Cho phép người dùng nhập địa điểm, ngày nhận, giờ nhận, ngày trả và giờ trả. Nút Tìm xe phù hợp dùng để hiển thị các xe còn trống trong thời gian đã chọn.
+P0952	STYLE='normal'	Bộ lọc tìm kiếm: Cho phép lọc xe theo khu vực nhận xe, thời gian thuê, hãng xe và cách sắp xếp. Nút Áp dụng cập nhật danh sách xe, còn nút Xóa lọc đưa bộ lọc về trạng thái ban đầu.
+P0953	STYLE='normal'	Danh sách xe: Hiển thị hình ảnh, tên xe, hãng xe, giá thuê, địa điểm, số chỗ, loại nhiên liệu và hộp số. Nút Xem chi tiết điều hướng người dùng đến trang thông tin chi tiết của xe.
+P0954	STYLE='normal'	Giải thích chức năng
+P0955	STYLE='normal'	Chức năng tìm kiếm và bộ lọc giúp người dùng nhanh chóng tìm được xe phù hợp với địa điểm, thời gian và nhu cầu sử dụng. Danh sách xe cung cấp các thông tin cơ bản để người dùng so sánh, lựa chọn và xem chi tiết trước khi thực hiện đặt xe.
+P0980	STYLE='Heading 4'	3.3.1.4 Hệ thống trang chi tiết xe
+P0986	STYLE='normal'	Mô tả trang chi tiết xe :
+P0987	STYLE='normal'	Thuê theo ngày : người dùng chọn ngày
+P0988	STYLE='normal'	Thuê theo giờ : người dùng chọn giờ
+P0989	STYLE='normal'	Thời gian thuê : người dùng chọ ngày nhận và trả
+P0990	STYLE='normal'	Đặt ngay : gửi yêu cầu tới bên cho thuê
+P0991	STYLE='normal'	thêm vào giỏ : nút thêm vào giỏ
+P0992	STYLE='normal'	bản đồ : hiển thị vị trí xe
+P0993	STYLE='normal'	Giải thích chức năng :
+P0994	STYLE='normal'	thuê theo ngày : khi người dùng có nhu cầu thuê , người dùng chọn ngày
+P0995	STYLE='normal'	thuê theo giờ : khi người dùng có nhu cầu thuê , theo giờ , giờ thuê từ 4 tiếng trở lên
+P0996	STYLE='normal'	thời gian thuê : người dùng chọn thời gian thuê , ngày nhận và ngày trả kèm theo đó là phương thức thuê
+P0997	STYLE='normal'	Đặt ngay : khi người dùng chọn thời gian thuê và có nhu cầu ngay thì bấm đặt ngay , hệ thống lập tức gửi yêu cầu thuê xe đến người dùng
+P0998	STYLE='normal'	Thêm vào giỏ : khi người dùng gặp ít vấn đề về quyết định có nên thuê hay không thì thêm vào giỏ , giỏ xe sẽ giữ xe trong khoản 10 phút , sau 10 phút tự động giải phóng
+P0999	STYLE='Heading 4'	3.3.1.5 Trang giỏ hàng
+P1002	STYLE='normal'	Mô tả trang giỏ hàng
+P1003	STYLE='normal'	Danh sách xe đã chọn: Hiển thị các xe người dùng đã thêm vào giỏ hàng cùng thời gian thuê và chi phí tương ứng.
+P1004	STYLE='normal'	Thời gian giữ xe: Xe được giữ tạm trong 10 phút. Nếu người dùng không hoàn tất thao tác trong thời gian này, xe có thể tự động hết hạn giữ chỗ.
+P1005	STYLE='normal'	Tóm tắt chi phí: Hiển thị số lượng xe, tiền thuê tạm tính và tổng số tiền cần thanh toán.
+P1006	STYLE='normal'	Nút Gửi yêu cầu đặt xe: Gửi thông tin các xe đã chọn đến hệ thống để tạo yêu cầu đặt xe.
+P1007	STYLE='normal'	Nút Tìm xe ngay: Điều hướng người dùng đến trang tìm kiếm xe khi giỏ hàng đang trống.
+P1008	STYLE='normal'	Giải thích chức năng
+P1009	STYLE='normal'	Trang giỏ hàng cho phép người dùng kiểm tra lại xe, lịch nhận trả và chi phí trước khi gửi yêu cầu đặt xe. Hệ thống chỉ giữ xe trong một khoảng thời gian nhất định nhằm hạn chế việc chiếm giữ xe quá lâu. Khi giỏ hàng chưa có xe, hệ thống hiển thị trạng thái trống và hỗ trợ người dùng quay lại trang tìm kiếm.
+P1014	STYLE='Heading 3'	3.3.2 Hệ thống màn hình BUSINESS và USER có ký gửi
+P1015	STYLE='Heading 4'	3.3.2.1 Trang quản lý của BUSINESS và USER có ký gửi
+P1025	STYLE='normal'	Mô tả trang bảng điều khiển chủ xe
+P1026	STYLE='normal'	Trang bảng điều khiển được sử dụng chung cho doanh nghiệp cho thuê xe và người dùng có xe ký gửi. Dữ liệu hiển thị được giới hạn theo các xe thuộc quyền quản lý của từng tài khoản.
+P1027	STYLE='normal'	Thanh menu: Cho phép truy cập các chức năng như quản lý xe, booking, thanh toán, hoàn tiền, đánh giá và hồ sơ.
+P1028	STYLE='normal'	Thống kê tổng quan: Hiển thị tổng số xe, xe chờ duyệt, xe đang thuê, số booking, doanh thu đã thanh toán và số lượt đánh giá.
+P1029	STYLE='normal'	Dòng tiền: Tổng hợp số tiền đã thanh toán, đang chờ, đã hoàn tiền và các giao dịch lỗi.
+P1030	STYLE='normal'	Booking đang xử lý: Hiển thị số booking chờ xác nhận và số booking đang trong quá trình thuê.
+P1031	STYLE='normal'	Thống kê đánh giá xe: Hiển thị xe được đánh giá cao, xe cần cải thiện và xe nhận được nhiều đánh giá nhất.
+P1032	STYLE='normal'	Giải thích chức năng
+P1033	STYLE='normal'	Trang bảng điều khiển giúp doanh nghiệp hoặc người dùng ký gửi theo dõi nhanh tình hình hoạt động của các xe do mình quản lý. Thông qua các số liệu về xe, booking, doanh thu và đánh giá, chủ xe có thể xử lý yêu cầu thuê, theo dõi dòng tiền và cải thiện chất lượng dịch vụ. Doanh nghiệp chỉ xem được dữ liệu của doanh nghiệp, còn người dùng ký gửi chỉ xem được dữ liệu liên quan đến các xe của mình.
+P1047	STYLE='Heading 3'	3.3.3 Hệ thống màn hình phía ADMIN
+P1048	STYLE='Heading 4'	3.3.3.1 Trang quản lý hệ thống của admin
+P1050	STYLE='normal'	Mô tả trang bảng điều khiển quản trị
+P1051	STYLE='normal'	Thanh menu quản trị: Cho phép Admin truy cập các chức năng như quản lý người dùng, doanh nghiệp, hãng xe, xe, bản đồ xe và ngày lễ.
+P1052	STYLE='normal'	Thống kê tổng quan: Hiển thị tổng số người dùng, doanh nghiệp, người dùng có xe ký gửi, tổng số xe, xe chờ duyệt, booking và lượt đánh giá trên toàn hệ thống.
+P1053	STYLE='normal'	Hàng đợi xử lý: Tổng hợp số lượng xe chờ duyệt và các nội dung cần Admin kiểm tra, giúp ưu tiên những công việc chưa được xử lý.
+P1054	STYLE='normal'	Thống kê đánh giá: Hiển thị xe được đánh giá cao, xe cần cải thiện và xe nhận được nhiều lượt đánh giá nhất.
+P1055	STYLE='normal'	Giải thích chức năng
+P1056	STYLE='normal'	Trang bảng điều khiển giúp Admin theo dõi tình hình hoạt động chung của BQDrive. Thông qua các số liệu tổng hợp, Admin có thể quản lý tài khoản, doanh nghiệp, xe, booking và đánh giá; đồng thời nhanh chóng phát hiện các nội dung đang chờ xử lý. Admin chỉ theo dõi và quản lý hoạt động của hệ thống, không trực tiếp can thiệp vào dòng tiền của chủ xe.
+
+TABLE 0
+R000	TRƯỜNG ĐẠI HỌC CÔNG NGHỆ SÀI GÒN KHOA CÔNG NGHỆ THÔNG TIN ---oOo--- LUẬN VĂN TỐT NGHIỆP Tên đề tài: XÂY DỰNG WEBSITE QUẢN LÝ CHO THUÊ XE Giảng viên hướng dẫn : ThS.TRẦN THANH TÚ Sinh Viên Thực hiện : BÙI VẠN QUỲNH TP.HỒ CHÍ MINH - NĂM 2026_2027
+
+TABLE 1
+R000	Nhóm chức năng || Nội dung thực hiện
+R001	Quản lý tài khoản || Đăng ký, đăng nhập, xác thực người dùng và phân quyền theo vai trò USER, BUSINESS, ADMIN.
+R002	Quản lý xe || Thêm, sửa, xóa, xem danh sách xe; quản lý thông tin xe như hãng xe, loại xe, biển số, số chỗ, nhiên liệu, hộp số, hình ảnh, giá thuê và trạng thái xe.
+R003	Tìm kiếm và thuê xe || Cho phép khách hàng tìm kiếm, lọc xe, xem chi tiết xe và đặt thuê xe theo ngày hoặc theo giờ.
+R004	Quản lý booking || Xử lý đặt xe, kiểm tra trùng lịch thuê, giữ chỗ tạm thời, theo dõi trạng thái đơn đặt xe và lịch sử thuê xe.
+R005	Quản lý giỏ xe || Hỗ trợ người dùng thêm xe vào giỏ, giữ chỗ trong thời gian giới hạn và tiến hành đặt xe từ giỏ.
+R006	Quản lý chủ xe/doanh nghiệp || Hỗ trợ cá nhân hoặc doanh nghiệp đăng xe cho thuê, quản lý danh sách xe, theo dõi booking và doanh thu.
+R007	Quản trị hệ thống || Admin quản lý người dùng, doanh nghiệp, thương hiệu xe, duyệt xe, từ chối xe và theo dõi dữ liệu tổng quan.
+R008	Thanh toán || Hỗ trợ hình thức thanh toán tiền mặt và định hướng tích hợp các cổng thanh toán trực tuyến như MoMo, VNPay.
+R009	Hợp đồng thuê xe || Quản lý thông tin hợp đồng liên quan đến đơn thuê xe, khách hàng, chủ xe, thời gian thuê và trạng thái xử lý.
+
+TABLE 2
+R000	Trạng thái || Ý nghĩa
+R001	REQUESTED || Khách đã gửi yêu cầu thuê xe, đang chờ chủ xe duyệt
+R002	OWNER_APPROVED || Chủ xe đã đồng ý cho thuê, khách có thể tạo hợp đồng/thanh toán
+R003	PAYMENT_PENDING || Khách đã bắt đầu thanh toán, hệ thống đang chờ kết quả hoặc ghi nhận
+R004	PAID || Khách đã thanh toán khoản cần trả trước, lịch thuê được giữ chính thức
+R005	IN_PROGRESS || Chủ xe đã bàn giao xe, chuyến thuê đang diễn ra
+R006	COMPLETED || Chuyến thuê đã hoàn tất
+R007	CANCELLED || Booking đã bị hủy bởi khách hoặc hệ thống
+R008	REJECTED || Chủ xe từ chối yêu cầu thuê
+R009	NO_SHOW || Khách không đến nhận xe đúng lịch
+R010	PENDING || Trạng thái cũ, tương đương REQUESTED, giữ để đọc dữ liệu cũ
+R011	WAITING_PAYMENT || Trạng thái cũ, tương đương PAYMENT_PENDING
+R012	CONFIRMED || Trạng thái cũ, tương đương OWNER_APPROVED hoặc PAID tùy ngữ cảnh
+
+TABLE 3
+R000	Trạng thái || Ý nghĩa
+R001	PENDING || Đang chờ thanh toán/xác nhận thanh toán
+R002	PAID || Đã thanh toán thành công
+R003	FAILED || Thanh toán thất bại
+R004	REFUNDED || Đã hoàn tiền
+
+TABLE 4
+R000	Trạng thái || Ý nghĩa
+R001	PENDING || Xe mới đăng, đang chờ admin duyệt
+R002	APPROVED || Xe đã được duyệt, có thể hiển thị/cho thuê
+R003	RENTED || Xe đang được thuê hoặc có booking đã thanh toán/đang diễn ra
+R004	REJECTED || Xe bị từ chối duyệt
+R005	HIDDEN || Xe bị ẩn khỏi hệ thống/khỏi danh sách hiển thị
+
+TABLE 5
+R000	Trạng thái || Ý nghĩa
+R001	ACTIVE || Giỏ đang còn hiệu lực
+R002	EXPIRED || Giỏ đã hết hạn
+R003	BOOKED || Đã chuyển thành booking
+R004	CANCELLED || Đã hủy
+
+TABLE 6
+R000	Trạng thái || Ý nghĩa
+R001	DRAFT || Hợp đồng nháp
+R002	ACTIVE || Hợp đồng đang có hiệu lực
+R003	COMPLETED || Hợp đồng đã hoàn tất
+R004	CANCELLED || Hợp đồng đã hủy
+
+TABLE 7
+R000	Vai Trò || Mô tả nghiệp vụ
+R001	ADMIN || là người quản trị hệ thống , có quyền quản lý tài khoản người dùng , quản lý doanh nghiệp và theo dõi dữ liệu tổng quan và cung cấp tài khoản cho doanh nghiệp . ADMIN không trực tiếp xử lý booking , thanh toán hoặc hợp đồng thay cho chủ xe
+R002	BUSINESS || Là tài khoản dành cho doanh nghiệp cho thuê xe. BUSINESS có thể quản lý hồ sơ doanh nghiệp, đăng xe thuộc doanh nghiệp, chỉnh sửa thông tin xe, theo dõi booking phát sinh từ xe của mình, duyệt hoặc từ chối yêu cầu thuê xe, bàn giao xe và hoàn tất chuyến thuê.
+R003	USER || Là người dùng thông thường của hệ thống. USER có thể tìm kiếm xe, xem chi tiết xe, gửi yêu cầu thuê xe, thanh toán, theo dõi booking và hợp đồng. Ngoài ra, USER có thể đăng xe ký gửi lên hệ thống. Nếu xe ký gửi được duyệt, USER có quyền quản lý xe ký gửi và xử lý booking phát sinh từ xe đó.
+
+TABLE 8
+R000	Actor || Mô tả
+R001	ADMIN || Là người quản trị hệ thống. ADMIN có quyền quản lý tài khoản, doanh nghiệp, thương hiệu xe, duyệt xe, quản lý đánh giá, theo dõi dashboard và kiểm soát dữ liệu tổng quan của hệ thống.
+R002	Người thuê xe || Là người dùng có nhu cầu tìm kiếm và thuê xe. Người thuê có thể đăng ký, đăng nhập, tìm kiếm xe, xem chi tiết xe, thêm xe vào giỏ, tạo booking, thanh toán, hủy booking, xem hợp đồng, xem lịch sử và đánh giá sau khi hoàn tất chuyến thuê.
+R003	Chủ xe cá nhân || Là USER có xe ký gửi hoặc xe cá nhân cho thuê trên hệ thống. Chủ xe cá nhân có thể đăng xe, quản lý xe, duyệt booking phát sinh từ xe của mình, bàn giao xe, nhận xe trả, tạo phụ phí, xem lịch sử booking và theo dõi dashboard cá nhân.
+R004	BUSINESS || Là tài khoản doanh nghiệp cho thuê xe. BUSINESS có thể quản lý hồ sơ doanh nghiệp, quản lý danh sách xe, duyệt booking, theo dõi thanh toán, xử lý bàn giao/trả xe, quản lý phụ phí, phản hồi đánh giá và xem dashboard doanh nghiệp.
+R005	Cổng thanh toán || Là hệ thống bên ngoài hỗ trợ xử lý giao dịch thanh toán trực tuyến như MoMo hoặc VNPAY. Cổng thanh toán trả kết quả giao dịch để hệ thống cập nhật trạng thái payment.
+R006	Dịch vụ email/thông báo || Là hệ thống hỗ trợ gửi OTP, email đặt lại mật khẩu, email thông báo booking, thanh toán, hủy booking và các thông báo nghiệp vụ khác.
+R007	Dịch vụ bản đồ || Là hệ thống hỗ trợ xử lý địa chỉ, tọa độ, vị trí nhận xe và hiển thị bản đồ cho người dùng.
+
+TABLE 9
+R000	Use case || Actor chính || Mô tả sơ lược
+R001	Đăng ký tài khoản || Người thuê xe || Người dùng nhập thông tin cá nhân để tạo tài khoản USER trên hệ thống.
+R002	Đăng nhập || Tất cả người dùng || Người dùng đăng nhập bằng email/mật khẩu hoặc Google OAuth để sử dụng hệ thống theo quyền được cấp.
+R003	Quên mật khẩu || Tất cả người dùng || Người dùng yêu cầu OTP qua email để xác minh và đặt lại mật khẩu mới.
+R004	Quản lý tài khoản || ADMIN || ADMIN xem danh sách tài khoản, tra cứu, khóa, mở khóa hoặc xóa mềm tài khoản.
+R005	Quản lý doanh nghiệp || ADMIN, BUSINESS || ADMIN duyệt hoặc cấp tài khoản doanh nghiệp; BUSINESS cập nhật hồ sơ doanh nghiệp.
+R006	Quản lý thương hiệu xe || ADMIN || ADMIN thêm, sửa, xóa mềm thương hiệu xe dùng chung trong hệ thống.
+R007	Quản lý xe || BUSINESS, Chủ xe cá nhân || Chủ xe thêm xe, cập nhật thông tin xe, ẩn/hiển thị xe, cập nhật vị trí nhận xe và theo dõi trạng thái duyệt.
+R008	Duyệt xe || ADMIN || ADMIN kiểm tra thông tin xe và quyết định duyệt hoặc từ chối xe trước khi xe được hiển thị công khai.
+R009	Tìm kiếm và lọc xe || Người thuê xe || Người thuê tìm kiếm xe theo địa điểm, thời gian thuê, thương hiệu, số ghế, giá, nhiên liệu và các tiêu chí khác.
+R010	Xem chi tiết xe || Người thuê xe || Người thuê xem thông tin xe, hình ảnh, giá thuê, vị trí nhận xe, đánh giá và điều kiện thuê.
+R011	Quản lý giỏ xe || Người thuê xe || Người thuê thêm xe vào giỏ, giữ xe tạm thời và tạo booking từ giỏ.
+R012	Tạo booking || Người thuê xe || Người thuê chọn xe, thời gian thuê, thông tin nhận xe và gửi yêu cầu đặt xe.
+R013	Duyệt booking || BUSINESS, Chủ xe cá nhân || Chủ xe xem booking mới và quyết định chấp nhận hoặc từ chối yêu cầu thuê xe.
+R014	Hủy booking || Người thuê xe, Chủ xe || Người thuê hoặc chủ xe hủy booking khi booking còn ở trạng thái cho phép hủy; hệ thống tính chính sách hủy và hoàn tiền nếu có.
+R015	Thanh toán || Người thuê xe, Cổng thanh toán || Người thuê thanh toán cọc, toàn bộ, phần còn lại hoặc phụ phí bằng CASH, MoMo hoặc VNPAY.
+R016	Hoàn tiền || Người thuê xe, Chủ xe || Khi booking bị hủy và có số tiền cần hoàn, hệ thống tạo hồ sơ Refund để chủ xe xử lý hoàn thủ công và người thuê xác nhận đã nhận tiền.
+R017	Bàn giao xe || BUSINESS, Chủ xe cá nhân || Chủ xe xác nhận bàn giao xe cho người thuê khi booking đủ điều kiện thanh toán và nhận xe.
+R018	Trả xe và kiểm tra sau thuê || BUSINESS, Chủ xe cá nhân || Chủ xe nhận xe trả, ghi nhận tình trạng xe sau thuê, hình ảnh, nhiên liệu, số km và kết quả kiểm tra.
+R019	Quản lý phụ phí || BUSINESS, Chủ xe cá nhân, Người thuê xe || Chủ xe tạo phụ phí nếu phát sinh chi phí sau thuê; người thuê thanh toán phụ phí; chủ xe có thể xác nhận hoặc hủy phụ phí.
+R020	Hoàn tất chuyến thuê || BUSINESS, Chủ xe cá nhân || Chủ xe hoàn tất booking sau khi xe đã được trả, kiểm tra xong và các khoản thanh toán/phụ phí đã được xử lý.
+R021	Xử lý khách không nhận xe || BUSINESS, Chủ xe cá nhân || Chủ xe xác nhận trường hợp người thuê không đến nhận xe đúng lịch, hệ thống chuyển booking sang NO_SHOW.
+R022	Xem hợp đồng || Người thuê xe, BUSINESS, Chủ xe cá nhân || Các bên liên quan xem hợp đồng thuê xe tương ứng với booking.
+R023	Xem lịch sử booking || Người thuê xe, BUSINESS, Chủ xe cá nhân || Người dùng xem lại các booking đã tạo hoặc các booking phát sinh từ xe thuộc quyền quản lý.
+R024	Xem lịch sử thanh toán || Người thuê xe, BUSINESS, Chủ xe cá nhân || Người dùng xem danh sách payment, chi tiết giao dịch và trạng thái thanh toán.
+R025	Đánh giá xe || Người thuê xe || Sau khi chuyến thuê hoàn tất, người thuê gửi đánh giá, số sao, nhận xét và hình ảnh nếu có.
+R026	Phản hồi đánh giá || BUSINESS, Chủ xe cá nhân || Chủ xe phản hồi đánh giá của người thuê đối với xe thuộc quyền quản lý.
+R027	Xử lý đánh giá vi phạm || ADMIN || ADMIN xem các đánh giá bị báo cáo và quyết định ẩn hoặc hiển thị lại đánh giá.
+R028	Xem thông báo || Tất cả người dùng || Người dùng xem thông báo nghiệp vụ, đánh dấu đã đọc hoặc xóa thông báo.
+R029	Xem trung tâm việc cần làm || ADMIN, BUSINESS, Chủ xe cá nhân, Người thuê xe || Hệ thống hiển thị các tác vụ cần xử lý theo vai trò như duyệt xe, duyệt booking, thanh toán, bàn giao, trả xe, xử lý phụ phí.
+R030	Xem dashboard || ADMIN, BUSINESS, Chủ xe cá nhân || Người dùng xem số liệu tổng quan về xe, booking, thanh toán, doanh thu, đánh giá và các trạng thái cần theo dõi.
+
+TABLE 10
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã người dùng
+R002	name || Chuỗi(100) ||  ||  || x || Họ tên người dùng
+R003	email || Chuỗi(100) ||  || x || x || Email đăng nhập
+R004	password || Chuỗi ||  ||  || x || Mật khẩu đã mã hóa
+R005	phone || Chuỗi(20) ||  ||  ||  || Số điện thoại
+R006	address || Chuỗi ||  ||  ||  || Địa chỉ người dùng
+R007	avatar || Chuỗi ||  ||  ||  || Ảnh đại diện
+R008	role || Enum ||  ||  || x || Vai trò: ADMIN, BUSINESS, USER
+R009	isBlocked || Boolean ||  ||  ||  || Trạng thái khóa tài khoản
+R010	isVerified || Boolean ||  ||  || x || Trạng thái xác thực tài khoản
+R011	isDeleted || Boolean ||  ||  ||  || Trạng thái xóa mềm
+
+TABLE 11
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã doanh nghiệp
+R002	userId || ObjectId ||  ||  || x || Mã tài khoản đại diện
+R003	businessName || Chuỗi(150) ||  ||  || x || Tên doanh nghiệp
+R004	businessType || Enum ||  ||  || x || Loại hình: COMPANY, INDIVIDUAL
+R005	phone || Chuỗi(20) ||  ||  ||  || Số điện thoại doanh nghiệp
+R006	address || Chuỗi ||  ||  ||  || Địa chỉ doanh nghiệp
+R007	description || Chuỗi ||  ||  ||  || Mô tả doanh nghiệp
+R008	logo || Chuỗi ||  ||  ||  || Logo doanh nghiệp
+R009	isApproved || Boolean ||  ||  ||  || Trạng thái được duyệt
+R010	isRejected || Boolean ||  ||  ||  || Trạng thái bị từ chối
+R011	rejectReason || Chuỗi ||  ||  ||  || Lý do từ chối
+R012	isDeleted || Boolean ||  ||  ||  || Trạng thái xóa mềm
+
+TABLE 12
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã thương hiệu xe
+R002	name || Chuỗi(100) ||  || x || x || Tên thương hiệu
+R003	logo || Chuỗi ||  ||  ||  || Logo thương hiệu
+R004	description || Chuỗi ||  ||  ||  || Mô tả thương hiệu
+R005	isDeleted || Boolean ||  ||  ||  || Trạng thái xóa mềm
+
+TABLE 13
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	businessId || ObjectId ||  ||  ||  || Doanh nghiệp sở hữu theo mô hình dữ liệu cũ; tham chiếu businesses
+R003	ownerId || ObjectId ||  ||  || x || Chủ xe; tham chiếu users hoặc businesses theo ownerModel
+R004	ownerType || String (enum) ||  ||  || x || Loại chủ xe: BUSINESS hoặc USER
+R005	ownerModel || String (enum) ||  ||  || x || Tên model tham chiếu động: User hoặc Business
+R006	brandId || ObjectId ||  ||  || x || Hãng xe; tham chiếu brands
+R007	name || String ||  ||  || x || Tên xe
+R008	type || String (enum) ||  ||  || x || Loại xe: SUV, SEDAN, HATCHBACK, PICKUP, MPV, COUPE, CONVERTIBLE hoặc ELECTRIC
+R009	licensePlate || String ||  ||  ||  || Biển số xe
+R010	plateNumberNormalized || String ||  ||  ||  || Biển số đã chuẩn hóa để tìm kiếm/kiểm tra trùng
+R011	pricePerDay || Number ||  ||  ||  || Giá thuê cơ bản theo ngày, không âm
+R012	pricePerHour || Number ||  ||  ||  || Giá thuê cơ bản theo giờ, không âm
+R013	pricing || Object ||  ||  ||  || Cấu hình giá theo ngày thường, cuối tuần và ngày lễ
+R014	pricing.weekdayPricePerDay || Number ||  ||  ||  || Giá thuê ngày thường
+R015	pricing.weekendPricePerDay || Number ||  ||  ||  || Giá thuê cuối tuần
+R016	pricing.holidayPricePerDay || Number ||  ||  ||  || Giá thuê ngày lễ
+R017	pricing.pricePerHour || Number ||  ||  ||  || Giá thuê giờ ngày thường
+R018	pricing.weekendPricePerHour || Number ||  ||  ||  || Giá thuê giờ cuối tuần
+R019	pricing.holidayPricePerHour || Number ||  ||  ||  || Giá thuê giờ ngày lễ
+R020	allowDailyRental || Boolean ||  ||  ||  || Cho phép thuê theo ngày
+R021	allowHourlyRental || Boolean ||  ||  ||  || Cho phép thuê theo giờ
+R022	rentalUnit || String (enum) ||  ||  ||  || Đơn vị thuê mặc định: DAY hoặc HOUR
+R023	seats || Number ||  ||  || x || Số chỗ ngồi, tối thiểu 1
+R024	fuelType || String (enum) ||  ||  ||  || Nhiên liệu: GASOLINE, DIESEL, ELECTRIC hoặc HYBRID
+R025	transmission || String (enum) ||  ||  ||  || Hộp số: AUTOMATIC hoặc MANUAL
+R026	images || Array<String> ||  ||  ||  || Danh sách đường dẫn hình ảnh xe
+R027	description || String ||  ||  ||  || Mô tả xe
+R028	pickupAddress || String ||  ||  ||  || Địa chỉ nhận xe
+R029	pickupFormattedAddress || String ||  ||  ||  || Địa chỉ nhận xe đã định dạng
+R030	pickupPlaceId || String ||  ||  ||  || Mã địa điểm từ dịch vụ bản đồ
+R031	pickupLat || Number ||  ||  ||  || Vĩ độ điểm nhận xe
+R032	pickupLng || Number ||  ||  ||  || Kinh độ điểm nhận xe
+R033	pickupProvince || String ||  ||  ||  || Tỉnh/thành điểm nhận xe
+R034	pickupDistrict || String ||  ||  ||  || Quận/huyện điểm nhận xe
+R035	pickupWard || String ||  ||  ||  || Phường/xã điểm nhận xe
+R036	pickupNote || String ||  ||  ||  || Ghi chú điểm nhận xe
+R037	pickupLocationText || String ||  ||  ||  || Chuỗi vị trí nhận xe hiển thị
+R038	address || String ||  ||  ||  || Địa chỉ xe theo cấu trúc cũ
+R039	province || String ||  ||  ||  || Tỉnh/thành theo cấu trúc cũ
+R040	city || String ||  ||  ||  || Thành phố theo cấu trúc cũ
+R041	district || String ||  ||  ||  || Quận/huyện theo cấu trúc cũ
+R042	ward || String ||  ||  ||  || Phường/xã theo cấu trúc cũ
+R043	locationNote || String ||  ||  ||  || Ghi chú vị trí
+R044	latitude || Number ||  ||  ||  || Vĩ độ hiện tại
+R045	longitude || Number ||  ||  ||  || Kinh độ hiện tại
+R046	lastLocationUpdatedAt || Date ||  ||  ||  || Thời điểm cập nhật vị trí gần nhất
+R047	lastLocationUpdatedBy || ObjectId ||  ||  ||  || Người cập nhật vị trí; tham chiếu users
+R048	lastLocationUpdatedByRole || String (enum) ||  ||  ||  || Vai trò người cập nhật: BUSINESS hoặc USER
+R049	locationUpdateCount || Number ||  ||  ||  || Số lần cập nhật vị trí
+R050	locationHistory || Array<Object> ||  ||  ||  || Lịch sử thay đổi vị trí
+R051	locationHistory[].oldLat || Number ||  ||  ||  || Vĩ độ cũ
+R052	locationHistory[].oldLng || Number ||  ||  ||  || Kinh độ cũ
+R053	locationHistory[].newLat || Number ||  ||  || x || Vĩ độ mới trong phần tử lịch sử
+R054	locationHistory[].newLng || Number ||  ||  || x || Kinh độ mới trong phần tử lịch sử
+R055	locationHistory[].oldAddress || String ||  ||  ||  || Địa chỉ cũ
+R056	locationHistory[].newAddress || String ||  ||  ||  || Địa chỉ mới
+R057	locationHistory[].updatedBy || ObjectId ||  ||  || x || Người cập nhật; tham chiếu users
+R058	locationHistory[].updatedByRole || String (enum) ||  ||  || x || Vai trò người cập nhật
+R059	locationHistory[].updatedAt || Date ||  ||  || x || Thời điểm cập nhật
+R060	deliveryEnabled || Boolean ||  ||  ||  || Cho phép giao xe đến khách hàng
+R061	deliveryBaseFee || Number ||  ||  ||  || Phí giao xe cơ bản
+R062	deliveryFeePerKm || Number ||  ||  ||  || Phí giao xe theo ki-lô-mét
+R063	deliveryMaxDistanceKm || Number ||  ||  ||  || Khoảng cách giao xe tối đa
+R064	deliveryNote || String ||  ||  ||  || Ghi chú dịch vụ giao xe
+R065	bookingRevision || Number ||  ||  ||  || Phiên bản thay đổi phục vụ kiểm soát booking
+R066	status || String (enum) ||  ||  ||  || Trạng thái: PENDING, APPROVED, RENTED, REJECTED hoặc HIDDEN
+R067	rejectReason || String ||  ||  ||  || Lý do từ chối xe
+R068	isHidden || Boolean ||  ||  ||  || Trạng thái ẩn tổng hợp
+R069	hiddenByOwner || Boolean ||  ||  ||  || Xe bị ẩn bởi chủ xe
+R070	hiddenByAdmin || Boolean ||  ||  ||  || Xe bị ẩn bởi quản trị viên
+R071	isDeleted || Boolean ||  ||  ||  || Đánh dấu xóa mềm
+R072	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R073	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 14
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	userId || ObjectId ||  ||  || x || Người thuê; tham chiếu users
+R003	businessId || ObjectId ||  ||  ||  || Doanh nghiệp sở hữu theo mô hình cũ; tham chiếu businesses
+R004	ownerId || ObjectId ||  ||  || x || Chủ xe; tham chiếu động theo ownerModel
+R005	ownerType || String (enum) ||  ||  || x || Loại chủ xe: BUSINESS hoặc USER
+R006	ownerModel || String (enum) ||  ||  || x || Model chủ xe: User hoặc Business
+R007	carId || ObjectId ||  ||  || x || Xe được đặt; tham chiếu cars
+R008	cartId || ObjectId ||  ||  ||  || Mục giỏ hàng nguồn; tham chiếu carts
+R009	startDate || Date ||  ||  || x || Thời điểm bắt đầu thuê
+R010	endDate || Date ||  ||  || x || Thời điểm kết thúc thuê
+R011	rentalMode || String (enum) ||  ||  || x || Hình thức thuê: DAILY hoặc HOURLY
+R012	totalPrice || Number ||  ||  || x || Tổng giá trị booking
+R013	pricingSnapshot || Object ||  ||  ||  || Bản chụp cấu hình tính giá
+R014	pricingSnapshot.rentalMode || String (enum) ||  ||  ||  || Hình thức thuê tại thời điểm đặt
+R015	pricingSnapshot.weekdayPricePerDay || Number ||  ||  ||  || Giá ngày thường
+R016	pricingSnapshot.weekendPricePerDay || Number ||  ||  ||  || Giá cuối tuần
+R017	pricingSnapshot.holidayPricePerDay || Number ||  ||  ||  || Giá ngày lễ
+R018	pricingSnapshot.pricePerHour || Number ||  ||  ||  || Giá giờ ngày thường
+R019	pricingSnapshot.weekendPricePerHour || Number ||  ||  ||  || Giá giờ cuối tuần
+R020	pricingSnapshot.holidayPricePerHour || Number ||  ||  ||  || Giá giờ ngày lễ
+R021	pricingSnapshot.breakdown || Array<Object> ||  ||  ||  || Chi tiết tiền theo ngày/giờ
+R022	pricingSnapshot.breakdown[].date || String ||  ||  ||  || Ngày tính giá
+R023	pricingSnapshot.breakdown[].type || String ||  ||  ||  || Loại ngày
+R024	pricingSnapshot.breakdown[].label || String ||  ||  ||  || Nhãn hiển thị
+R025	pricingSnapshot.breakdown[].unitCount || Number ||  ||  ||  || Số đơn vị thuê
+R026	pricingSnapshot.breakdown[].unitPrice || Number ||  ||  ||  || Đơn giá
+R027	pricingSnapshot.breakdown[].price || Number ||  ||  ||  || Thành tiền
+R028	pricingSnapshot.subtotal || Number ||  ||  ||  || Tổng tạm tính
+R029	pricingSnapshot.rentalSubtotal || Number ||  ||  ||  || Tiền thuê xe
+R030	pricingSnapshot.deliveryFee || Number ||  ||  ||  || Phí giao xe
+R031	pricingSnapshot.totalPrice || Number ||  ||  ||  || Tổng tiền sau phí giao xe
+R032	pricingSnapshot.delivery || Object ||  ||  ||  || Thông tin giao/nhận xe
+R033	pricingSnapshot.delivery.deliveryType || String (enum) ||  ||  ||  || Nhận tại vị trí xe hoặc giao đến khách
+R034	pricingSnapshot.delivery.deliveryAddress || String ||  ||  ||  || Địa chỉ giao xe
+R035	pricingSnapshot.delivery.deliveryAddressText || String ||  ||  ||  || Chuỗi địa chỉ giao xe
+R036	pricingSnapshot.delivery.deliveryFormattedAddress || String ||  ||  ||  || Địa chỉ giao xe đã định dạng
+R037	pricingSnapshot.delivery.deliveryAddressSource || String (enum) ||  ||  ||  || Nguồn địa chỉ: nhập tay, geocode, vị trí hiện tại hoặc ghim bản đồ
+R038	pricingSnapshot.delivery.deliveryLat || Number ||  ||  ||  || Vĩ độ điểm giao
+R039	pricingSnapshot.delivery.deliveryLng || Number ||  ||  ||  || Kinh độ điểm giao
+R040	pricingSnapshot.delivery.deliveryDistanceKm || Number ||  ||  ||  || Khoảng cách giao xe
+R041	pricingSnapshot.delivery.deliveryDurationText || String ||  ||  ||  || Thời gian giao xe dự kiến
+R042	pricingSnapshot.delivery.deliveryBaseFee || Number ||  ||  ||  || Phí giao cơ bản
+R043	pricingSnapshot.delivery.deliveryFeePerKm || Number ||  ||  ||  || Phí theo ki-lô-mét
+R044	pricingSnapshot.delivery.deliveryMaxDistanceKm || Number ||  ||  ||  || Khoảng cách giao tối đa
+R045	pricingSnapshot.delivery.deliveryFee || Number ||  ||  ||  || Tổng phí giao
+R046	pricingSnapshot.delivery.deliveryNote || String ||  ||  ||  || Ghi chú giao xe
+R047	paymentOption || String (enum) ||  ||  ||  || Lựa chọn thanh toán: DEPOSIT hoặc FULL
+R048	depositAmount || Number ||  ||  ||  || Số tiền đặt cọc
+R049	remainingAmount || Number ||  ||  ||  || Số tiền còn phải thanh toán
+R050	paidAmount || Number ||  ||  ||  || Tổng số tiền đã thanh toán
+R051	isDepositRefundable || Boolean ||  ||  ||  || Tiền cọc có thể hoàn lại
+R052	cancellationPolicySnapshot || Object ||  ||  ||  || Bản chụp chính sách hủy
+R053	cancellationPolicySnapshot.fullRefundBeforeHours || Number ||  ||  ||  || Số giờ tối thiểu để hoàn đủ
+R054	cancellationPolicySnapshot.partialRefundBeforeHours || Number ||  ||  ||  || Số giờ tối thiểu để hoàn một phần
+R055	cancellationPolicySnapshot.partialRefundRate || Number ||  ||  ||  || Tỷ lệ hoàn một phần, từ 0 đến 1
+R056	cancellationPolicySnapshot.lateCancellationRule || String ||  ||  ||  || Quy tắc hủy sát giờ
+R057	cancellationPolicySnapshot.ownerCancellationRefundRate || Number ||  ||  ||  || Tỷ lệ hoàn khi chủ xe hủy
+R058	pickupAddressSnapshot || String ||  ||  ||  || Địa chỉ nhận xe được chụp tại thời điểm đặt
+R059	returnAddressSnapshot || String ||  ||  ||  || Địa chỉ trả xe được chụp tại thời điểm đặt
+R060	renterInfo || Object ||  ||  ||  || Thông tin người thuê dùng cho booking/hợp đồng
+R061	renterInfo.fullName || String ||  ||  ||  || Họ tên người thuê
+R062	renterInfo.phone || String ||  ||  ||  || Số điện thoại người thuê
+R063	renterInfo.email || String ||  ||  ||  || Email người thuê
+R064	renterInfo.cccdNumber || String ||  ||  ||  || Số căn cước công dân
+R065	renterInfo.cccdFrontImage || String ||  ||  ||  || Ảnh mặt trước căn cước
+R066	renterInfo.cccdBackImage || String ||  ||  ||  || Ảnh mặt sau căn cước
+R067	renterInfo.driverLicenseNumber || String ||  ||  ||  || Số giấy phép lái xe
+R068	renterInfo.driverLicenseImage || String ||  ||  ||  || Ảnh giấy phép lái xe
+R069	renterInfo.note || String ||  ||  ||  || Ghi chú người thuê
+R070	status || String (enum) ||  ||  ||  || Trạng thái vòng đời booking
+R071	ownerApprovedAt || Date ||  ||  ||  || Thời điểm chủ xe duyệt
+R072	paymentDeadlineAt || Date ||  ||  ||  || Hạn thanh toán
+R073	cancelReason || String ||  ||  ||  || Lý do hủy theo cấu trúc cũ
+R074	cancelledAt || Date ||  ||  ||  || Thời điểm hủy
+R075	cancelledBy || ObjectId ||  ||  ||  || Người hủy; tham chiếu users
+R076	cancelledByRole || String ||  ||  ||  || Vai trò người hủy
+R077	cancelReasonCode || String ||  ||  ||  || Mã lý do hủy
+R078	cancelReasonText || String ||  ||  ||  || Nội dung lý do hủy
+R079	cancellationSummary || Object ||  ||  ||  || Kết quả tính phí và hoàn tiền khi hủy
+R080	cancellationSummary.paidAmountAtCancellation || Number ||  ||  ||  || Số tiền đã trả tại lúc hủy
+R081	cancellationSummary.cancellationFee || Number ||  ||  ||  || Phí hủy
+R082	cancellationSummary.refundAmount || Number ||  ||  ||  || Số tiền được hoàn
+R083	cancellationSummary.policyRuleApplied || String ||  ||  ||  || Quy tắc hoàn tiền áp dụng
+R084	cancellationSummary.refundRequired || Boolean ||  ||  ||  || Có yêu cầu hoàn tiền hay không
+R085	cancellationSummary.refundId || ObjectId ||  ||  ||  || Bản hoàn tiền; tham chiếu refunds
+R086	noShowReason || String ||  ||  ||  || Lý do khách không đến nhận xe
+R087	noShowAt || Date ||  ||  ||  || Thời điểm ghi nhận không đến
+R088	returnReminderSentAt || Date ||  ||  ||  || Thời điểm gửi nhắc trả xe
+R089	note || String ||  ||  ||  || Ghi chú booking
+R090	isDeleted || Boolean ||  ||  ||  || Đánh dấu xóa mềm
+R091	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R092	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 15
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	bookingId || ObjectId ||  ||  || x || Booking được thanh toán; tham chiếu bookings
+R003	extraChargeId || ObjectId ||  ||  ||  || Phụ phí được thanh toán; tham chiếu extracharges
+R004	userId || ObjectId ||  ||  || x || Người thanh toán; tham chiếu users
+R005	amount || Number ||  ||  || x || Số tiền thanh toán
+R006	method || String (enum) ||  ||  ||  || Phương thức: CASH, MOMO hoặc VNPAY
+R007	status || String (enum) ||  ||  ||  || Trạng thái: PENDING, PAID, FAILED hoặc REFUNDED
+R008	paymentType || String (enum) ||  ||  ||  || Loại tiền: DEPOSIT, FULL, REMAINING hoặc EXTRA_CHARGE
+R009	paidAt || Date ||  ||  ||  || Thời điểm thanh toán thành công
+R010	transactionCode || String ||  ||  ||  || Mã giao dịch
+R011	refundedAmount || Number ||  ||  ||  || Số tiền đã hoàn
+R012	refundStatus || String ||  ||  ||  || Trạng thái hoàn tiền liên quan
+R013	confirmedBy || ObjectId ||  ||  ||  || Người xác nhận thanh toán; tham chiếu users
+R014	confirmedByRole || String ||  ||  ||  || Vai trò người xác nhận
+R015	note || String ||  ||  ||  || Ghi chú thanh toán
+R016	remainingPaymentReminderSentAt || Date ||  ||  ||  || Thời điểm gửi nhắc thanh toán phần còn lại
+R017	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R018	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 16
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	bookingId || ObjectId ||  || x || x || Booking duy nhất của hợp đồng; tham chiếu bookings
+R003	userId || ObjectId ||  ||  || x || Người thuê; tham chiếu users
+R004	carId || ObjectId ||  ||  || x || Xe cho thuê; tham chiếu cars
+R005	businessId || ObjectId ||  ||  ||  || Doanh nghiệp sở hữu theo mô hình cũ; tham chiếu businesses
+R006	ownerId || ObjectId ||  ||  || x || Chủ xe; tham chiếu động theo ownerModel
+R007	ownerType || String (enum) ||  ||  || x || Loại chủ xe: BUSINESS hoặc USER
+R008	ownerModel || String (enum) ||  ||  || x || Model chủ xe: User hoặc Business
+R009	renterName || String ||  ||  || x || Họ tên người thuê
+R010	renterPhone || String ||  ||  || x || Số điện thoại người thuê
+R011	renterIdentityNumber || String ||  ||  || x || Số giấy tờ định danh
+R012	renterAddress || String ||  ||  || x || Địa chỉ người thuê
+R013	note || String ||  ||  ||  || Ghi chú hợp đồng
+R014	startDate || Date ||  ||  || x || Thời điểm bắt đầu hợp đồng
+R015	endDate || Date ||  ||  || x || Thời điểm kết thúc hợp đồng
+R016	totalPrice || Number ||  ||  || x || Tổng giá trị hợp đồng
+R017	depositAmount || Number ||  ||  ||  || Tiền đặt cọc
+R018	paidAmount || Number ||  ||  ||  || Số tiền đã thanh toán
+R019	remainingAmount || Number ||  ||  ||  || Số tiền còn lại
+R020	paymentStatus || String ||  ||  ||  || Trạng thái thanh toán tổng hợp
+R021	paymentOption || String (enum) ||  ||  || x || Lựa chọn DEPOSIT hoặc FULL
+R022	pickupAddressSnapshot || String ||  ||  ||  || Địa chỉ nhận xe tại thời điểm lập hợp đồng
+R023	returnAddressSnapshot || String ||  ||  ||  || Địa chỉ trả xe tại thời điểm lập hợp đồng
+R024	ownerAddressSnapshot || String ||  ||  ||  || Địa chỉ chủ xe tại thời điểm lập hợp đồng
+R025	status || String (enum) ||  ||  ||  || Trạng thái: DRAFT, ACTIVE, COMPLETED hoặc CANCELLED
+R026	contractCode || String ||  || x || x || Mã hợp đồng
+R027	signedAt || Date ||  ||  ||  || Thời điểm ký hợp đồng
+R028	isDeleted || Boolean ||  ||  ||  || Đánh dấu xóa mềm
+R029	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R030	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 17
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	name || String ||  ||  || x || Họ tên người dùng
+R003	email || String ||  || x || x || Email đăng nhập, được chuẩn hóa chữ thường
+R004	password || String ||  ||  || x || Mật khẩu đã mã hóa
+R005	phone || String ||  ||  ||  || Số điện thoại
+R006	address || String ||  ||  ||  || Địa chỉ chi tiết
+R007	province || String ||  ||  ||  || Tỉnh/thành phố
+R008	city || String ||  ||  ||  || Thành phố
+R009	district || String ||  ||  ||  || Quận/huyện
+R010	ward || String ||  ||  ||  || Phường/xã
+R011	avatar || String ||  ||  ||  || Đường dẫn ảnh đại diện
+R012	bio || String ||  ||  ||  || Thông tin giới thiệu
+R013	role || String (enum) ||  ||  ||  || Vai trò: ADMIN, BUSINESS hoặc USER
+R014	isBlocked || Boolean ||  ||  ||  || Đánh dấu tài khoản bị khóa
+R015	blockedReason || String ||  ||  ||  || Lý do khóa tài khoản
+R016	blockedAt || Date ||  ||  ||  || Thời điểm khóa tài khoản
+R017	blockedBy || ObjectId ||  ||  ||  || Người quản trị thực hiện khóa; tham chiếu users
+R018	isDeleted || Boolean ||  ||  ||  || Đánh dấu xóa mềm
+R019	deletedReason || String ||  ||  ||  || Lý do xóa tài khoản
+R020	deletedAt || Date ||  ||  ||  || Thời điểm xóa
+R021	deletedBy || ObjectId ||  ||  ||  || Người thực hiện xóa; tham chiếu users
+R022	isVerified || Boolean ||  ||  ||  || Trạng thái xác thực tài khoản
+R023	otpCode || String ||  ||  ||  || Mã OTP xác thực
+R024	otpExpireAt || Date ||  ||  ||  || Thời điểm hết hạn OTP
+R025	resetPasswordOtpHash || String ||  ||  ||  || Giá trị băm OTP đặt lại mật khẩu
+R026	resetPasswordOtpExpiresAt || Date ||  ||  ||  || Thời điểm OTP đặt lại mật khẩu hết hạn
+R027	resetPasswordOtpVerified || Boolean ||  ||  ||  || Trạng thái xác minh OTP đặt lại mật khẩu
+R028	resetPasswordOtpVerifiedAt || Date ||  ||  ||  || Thời điểm xác minh OTP
+R029	resetPasswordOtpAttempts || Number ||  ||  ||  || Số lần nhập OTP đặt lại mật khẩu
+R030	resetPasswordTokenHash || String ||  ||  ||  || Giá trị băm token đặt lại mật khẩu
+R031	resetPasswordTokenExpiresAt || Date ||  ||  ||  || Thời điểm token đặt lại mật khẩu hết hạn
+R032	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R033	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 18
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	userId || ObjectId ||  ||  || x || Tài khoản đại diện doanh nghiệp; tham chiếu users
+R003	businessName || String ||  ||  || x || Tên đơn vị kinh doanh
+R004	businessType || String (enum) ||  ||  || x || Loại chủ xe: COMPANY hoặc INDIVIDUAL
+R005	isRejected || Boolean ||  ||  ||  || Trạng thái hồ sơ bị từ chối
+R006	rejectReason || String ||  ||  ||  || Lý do từ chối hồ sơ
+R007	phone || String ||  ||  ||  || Số điện thoại liên hệ
+R008	address || String ||  ||  ||  || Địa chỉ chi tiết
+R009	province || String ||  ||  ||  || Tỉnh/thành phố
+R010	city || String ||  ||  ||  || Thành phố
+R011	district || String ||  ||  ||  || Quận/huyện
+R012	ward || String ||  ||  ||  || Phường/xã
+R013	description || String ||  ||  ||  || Mô tả doanh nghiệp
+R014	logo || String ||  ||  ||  || Đường dẫn logo
+R015	publicEmail || String ||  ||  ||  || Email công khai
+R016	publicPhone || String ||  ||  ||  || Số điện thoại công khai
+R017	website || String ||  ||  ||  || Website doanh nghiệp
+R018	shortDescription || String ||  ||  ||  || Mô tả ngắn hiển thị công khai
+R019	isPublicPartner || Boolean ||  ||  ||  || Cho phép hiển thị trong danh sách đối tác
+R020	displayOrder || Number ||  ||  ||  || Thứ tự hiển thị
+R021	isApproved || Boolean ||  ||  ||  || Trạng thái được quản trị viên phê duyệt
+R022	isDeleted || Boolean ||  ||  ||  || Đánh dấu xóa mềm
+R023	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R024	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 19
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	name || String ||  || x || x || Tên hãng xe
+R003	logo || String ||  ||  ||  || Đường dẫn logo hãng xe
+R004	description || String ||  ||  ||  || Mô tả hãng xe
+R005	isDeleted || Boolean ||  ||  ||  || Đánh dấu xóa mềm
+R006	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R007	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 20
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	businessId || ObjectId ||  ||  ||  || Doanh nghiệp sở hữu theo mô hình dữ liệu cũ; tham chiếu businesses
+R003	ownerId || ObjectId ||  ||  || x || Chủ xe; tham chiếu users hoặc businesses theo ownerModel
+R004	ownerType || String (enum) ||  ||  || x || Loại chủ xe: BUSINESS hoặc USER
+R005	ownerModel || String (enum) ||  ||  || x || Tên model tham chiếu động: User hoặc Business
+R006	brandId || ObjectId ||  ||  || x || Hãng xe; tham chiếu brands
+R007	name || String ||  ||  || x || Tên xe
+R008	type || String (enum) ||  ||  || x || Loại xe: SUV, SEDAN, HATCHBACK, PICKUP, MPV, COUPE, CONVERTIBLE hoặc ELECTRIC
+R009	licensePlate || String ||  ||  ||  || Biển số xe
+R010	plateNumberNormalized || String ||  ||  ||  || Biển số đã chuẩn hóa để tìm kiếm/kiểm tra trùng
+R011	pricePerDay || Number ||  ||  ||  || Giá thuê cơ bản theo ngày, không âm
+R012	pricePerHour || Number ||  ||  ||  || Giá thuê cơ bản theo giờ, không âm
+R013	pricing || Object ||  ||  ||  || Cấu hình giá theo ngày thường, cuối tuần và ngày lễ
+R014	pricing.weekdayPricePerDay || Number ||  ||  ||  || Giá thuê ngày thường
+R015	pricing.weekendPricePerDay || Number ||  ||  ||  || Giá thuê cuối tuần
+R016	pricing.holidayPricePerDay || Number ||  ||  ||  || Giá thuê ngày lễ
+R017	pricing.pricePerHour || Number ||  ||  ||  || Giá thuê giờ ngày thường
+R018	pricing.weekendPricePerHour || Number ||  ||  ||  || Giá thuê giờ cuối tuần
+R019	pricing.holidayPricePerHour || Number ||  ||  ||  || Giá thuê giờ ngày lễ
+R020	allowDailyRental || Boolean ||  ||  ||  || Cho phép thuê theo ngày
+R021	allowHourlyRental || Boolean ||  ||  ||  || Cho phép thuê theo giờ
+R022	rentalUnit || String (enum) ||  ||  ||  || Đơn vị thuê mặc định: DAY hoặc HOUR
+R023	seats || Number ||  ||  || x || Số chỗ ngồi, tối thiểu 1
+R024	fuelType || String (enum) ||  ||  ||  || Nhiên liệu: GASOLINE, DIESEL, ELECTRIC hoặc HYBRID
+R025	transmission || String (enum) ||  ||  ||  || Hộp số: AUTOMATIC hoặc MANUAL
+R026	images || Array<String> ||  ||  ||  || Danh sách đường dẫn hình ảnh xe
+R027	description || String ||  ||  ||  || Mô tả xe
+R028	pickupAddress || String ||  ||  ||  || Địa chỉ nhận xe
+R029	pickupFormattedAddress || String ||  ||  ||  || Địa chỉ nhận xe đã định dạng
+R030	pickupPlaceId || String ||  ||  ||  || Mã địa điểm từ dịch vụ bản đồ
+R031	pickupLat || Number ||  ||  ||  || Vĩ độ điểm nhận xe
+R032	pickupLng || Number ||  ||  ||  || Kinh độ điểm nhận xe
+R033	pickupProvince || String ||  ||  ||  || Tỉnh/thành điểm nhận xe
+R034	pickupDistrict || String ||  ||  ||  || Quận/huyện điểm nhận xe
+R035	pickupWard || String ||  ||  ||  || Phường/xã điểm nhận xe
+R036	pickupNote || String ||  ||  ||  || Ghi chú điểm nhận xe
+R037	pickupLocationText || String ||  ||  ||  || Chuỗi vị trí nhận xe hiển thị
+R038	address || String ||  ||  ||  || Địa chỉ xe theo cấu trúc cũ
+R039	province || String ||  ||  ||  || Tỉnh/thành theo cấu trúc cũ
+R040	city || String ||  ||  ||  || Thành phố theo cấu trúc cũ
+R041	district || String ||  ||  ||  || Quận/huyện theo cấu trúc cũ
+R042	ward || String ||  ||  ||  || Phường/xã theo cấu trúc cũ
+R043	locationNote || String ||  ||  ||  || Ghi chú vị trí
+R044	latitude || Number ||  ||  ||  || Vĩ độ hiện tại
+R045	longitude || Number ||  ||  ||  || Kinh độ hiện tại
+R046	lastLocationUpdatedAt || Date ||  ||  ||  || Thời điểm cập nhật vị trí gần nhất
+R047	lastLocationUpdatedBy || ObjectId ||  ||  ||  || Người cập nhật vị trí; tham chiếu users
+R048	lastLocationUpdatedByRole || String (enum) ||  ||  ||  || Vai trò người cập nhật: BUSINESS hoặc USER
+R049	locationUpdateCount || Number ||  ||  ||  || Số lần cập nhật vị trí
+R050	locationHistory || Array<Object> ||  ||  ||  || Lịch sử thay đổi vị trí
+R051	locationHistory[].oldLat || Number ||  ||  ||  || Vĩ độ cũ
+R052	locationHistory[].oldLng || Number ||  ||  ||  || Kinh độ cũ
+R053	locationHistory[].newLat || Number ||  ||  || x || Vĩ độ mới trong phần tử lịch sử
+R054	locationHistory[].newLng || Number ||  ||  || x || Kinh độ mới trong phần tử lịch sử
+R055	locationHistory[].oldAddress || String ||  ||  ||  || Địa chỉ cũ
+R056	locationHistory[].newAddress || String ||  ||  ||  || Địa chỉ mới
+R057	locationHistory[].updatedBy || ObjectId ||  ||  || x || Người cập nhật; tham chiếu users
+R058	locationHistory[].updatedByRole || String (enum) ||  ||  || x || Vai trò người cập nhật
+R059	locationHistory[].updatedAt || Date ||  ||  || x || Thời điểm cập nhật
+R060	deliveryEnabled || Boolean ||  ||  ||  || Cho phép giao xe đến khách hàng
+R061	deliveryBaseFee || Number ||  ||  ||  || Phí giao xe cơ bản
+R062	deliveryFeePerKm || Number ||  ||  ||  || Phí giao xe theo ki-lô-mét
+R063	deliveryMaxDistanceKm || Number ||  ||  ||  || Khoảng cách giao xe tối đa
+R064	deliveryNote || String ||  ||  ||  || Ghi chú dịch vụ giao xe
+R065	bookingRevision || Number ||  ||  ||  || Phiên bản thay đổi phục vụ kiểm soát booking
+R066	status || String (enum) ||  ||  ||  || Trạng thái: PENDING, APPROVED, RENTED, REJECTED hoặc HIDDEN
+R067	rejectReason || String ||  ||  ||  || Lý do từ chối xe
+R068	isHidden || Boolean ||  ||  ||  || Trạng thái ẩn tổng hợp
+R069	hiddenByOwner || Boolean ||  ||  ||  || Xe bị ẩn bởi chủ xe
+R070	hiddenByAdmin || Boolean ||  ||  ||  || Xe bị ẩn bởi quản trị viên
+R071	isDeleted || Boolean ||  ||  ||  || Đánh dấu xóa mềm
+R072	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R073	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 21
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	userId || ObjectId ||  ||  || x || Người thuê; tham chiếu users
+R003	carId || ObjectId ||  ||  || x || Xe được giữ trong giỏ; tham chiếu cars
+R004	startDate || Date ||  ||  || x || Thời điểm bắt đầu thuê
+R005	endDate || Date ||  ||  || x || Thời điểm kết thúc thuê
+R006	rentalMode || String (enum) ||  ||  || x || Hình thức thuê: DAILY hoặc HOURLY
+R007	totalPrice || Number ||  ||  || x || Tổng tiền tạm tính
+R008	pricingSnapshot || Mixed ||  ||  ||  || Bản chụp cấu hình và chi tiết tính giá tại thời điểm thêm giỏ
+R009	expiredAt || Date ||  ||  || x || Thời điểm giữ xe trong giỏ hết hạn
+R010	status || String (enum) ||  ||  ||  || Trạng thái: ACTIVE, EXPIRED, BOOKED hoặc CANCELLED
+R011	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R012	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 22
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	userId || ObjectId ||  ||  || x || Người thuê; tham chiếu users
+R003	businessId || ObjectId ||  ||  ||  || Doanh nghiệp sở hữu theo mô hình cũ; tham chiếu businesses
+R004	ownerId || ObjectId ||  ||  || x || Chủ xe; tham chiếu động theo ownerModel
+R005	ownerType || String (enum) ||  ||  || x || Loại chủ xe: BUSINESS hoặc USER
+R006	ownerModel || String (enum) ||  ||  || x || Model chủ xe: User hoặc Business
+R007	carId || ObjectId ||  ||  || x || Xe được đặt; tham chiếu cars
+R008	cartId || ObjectId ||  ||  ||  || Mục giỏ hàng nguồn; tham chiếu carts
+R009	startDate || Date ||  ||  || x || Thời điểm bắt đầu thuê
+R010	endDate || Date ||  ||  || x || Thời điểm kết thúc thuê
+R011	rentalMode || String (enum) ||  ||  || x || Hình thức thuê: DAILY hoặc HOURLY
+R012	totalPrice || Number ||  ||  || x || Tổng giá trị booking
+R013	pricingSnapshot || Object ||  ||  ||  || Bản chụp cấu hình tính giá
+R014	pricingSnapshot.rentalMode || String (enum) ||  ||  ||  || Hình thức thuê tại thời điểm đặt
+R015	pricingSnapshot.weekdayPricePerDay || Number ||  ||  ||  || Giá ngày thường
+R016	pricingSnapshot.weekendPricePerDay || Number ||  ||  ||  || Giá cuối tuần
+R017	pricingSnapshot.holidayPricePerDay || Number ||  ||  ||  || Giá ngày lễ
+R018	pricingSnapshot.pricePerHour || Number ||  ||  ||  || Giá giờ ngày thường
+R019	pricingSnapshot.weekendPricePerHour || Number ||  ||  ||  || Giá giờ cuối tuần
+R020	pricingSnapshot.holidayPricePerHour || Number ||  ||  ||  || Giá giờ ngày lễ
+R021	pricingSnapshot.breakdown || Array<Object> ||  ||  ||  || Chi tiết tiền theo ngày/giờ
+R022	pricingSnapshot.breakdown[].date || String ||  ||  ||  || Ngày tính giá
+R023	pricingSnapshot.breakdown[].type || String ||  ||  ||  || Loại ngày
+R024	pricingSnapshot.breakdown[].label || String ||  ||  ||  || Nhãn hiển thị
+R025	pricingSnapshot.breakdown[].unitCount || Number ||  ||  ||  || Số đơn vị thuê
+R026	pricingSnapshot.breakdown[].unitPrice || Number ||  ||  ||  || Đơn giá
+R027	pricingSnapshot.breakdown[].price || Number ||  ||  ||  || Thành tiền
+R028	pricingSnapshot.subtotal || Number ||  ||  ||  || Tổng tạm tính
+R029	pricingSnapshot.rentalSubtotal || Number ||  ||  ||  || Tiền thuê xe
+R030	pricingSnapshot.deliveryFee || Number ||  ||  ||  || Phí giao xe
+R031	pricingSnapshot.totalPrice || Number ||  ||  ||  || Tổng tiền sau phí giao xe
+R032	pricingSnapshot.delivery || Object ||  ||  ||  || Thông tin giao/nhận xe
+R033	pricingSnapshot.delivery.deliveryType || String (enum) ||  ||  ||  || Nhận tại vị trí xe hoặc giao đến khách
+R034	pricingSnapshot.delivery.deliveryAddress || String ||  ||  ||  || Địa chỉ giao xe
+R035	pricingSnapshot.delivery.deliveryAddressText || String ||  ||  ||  || Chuỗi địa chỉ giao xe
+R036	pricingSnapshot.delivery.deliveryFormattedAddress || String ||  ||  ||  || Địa chỉ giao xe đã định dạng
+R037	pricingSnapshot.delivery.deliveryAddressSource || String (enum) ||  ||  ||  || Nguồn địa chỉ: nhập tay, geocode, vị trí hiện tại hoặc ghim bản đồ
+R038	pricingSnapshot.delivery.deliveryLat || Number ||  ||  ||  || Vĩ độ điểm giao
+R039	pricingSnapshot.delivery.deliveryLng || Number ||  ||  ||  || Kinh độ điểm giao
+R040	pricingSnapshot.delivery.deliveryDistanceKm || Number ||  ||  ||  || Khoảng cách giao xe
+R041	pricingSnapshot.delivery.deliveryDurationText || String ||  ||  ||  || Thời gian giao xe dự kiến
+R042	pricingSnapshot.delivery.deliveryBaseFee || Number ||  ||  ||  || Phí giao cơ bản
+R043	pricingSnapshot.delivery.deliveryFeePerKm || Number ||  ||  ||  || Phí theo ki-lô-mét
+R044	pricingSnapshot.delivery.deliveryMaxDistanceKm || Number ||  ||  ||  || Khoảng cách giao tối đa
+R045	pricingSnapshot.delivery.deliveryFee || Number ||  ||  ||  || Tổng phí giao
+R046	pricingSnapshot.delivery.deliveryNote || String ||  ||  ||  || Ghi chú giao xe
+R047	paymentOption || String (enum) ||  ||  ||  || Lựa chọn thanh toán: DEPOSIT hoặc FULL
+R048	depositAmount || Number ||  ||  ||  || Số tiền đặt cọc
+R049	remainingAmount || Number ||  ||  ||  || Số tiền còn phải thanh toán
+R050	paidAmount || Number ||  ||  ||  || Tổng số tiền đã thanh toán
+R051	isDepositRefundable || Boolean ||  ||  ||  || Tiền cọc có thể hoàn lại
+R052	cancellationPolicySnapshot || Object ||  ||  ||  || Bản chụp chính sách hủy
+R053	cancellationPolicySnapshot.fullRefundBeforeHours || Number ||  ||  ||  || Số giờ tối thiểu để hoàn đủ
+R054	cancellationPolicySnapshot.partialRefundBeforeHours || Number ||  ||  ||  || Số giờ tối thiểu để hoàn một phần
+R055	cancellationPolicySnapshot.partialRefundRate || Number ||  ||  ||  || Tỷ lệ hoàn một phần, từ 0 đến 1
+R056	cancellationPolicySnapshot.lateCancellationRule || String ||  ||  ||  || Quy tắc hủy sát giờ
+R057	cancellationPolicySnapshot.ownerCancellationRefundRate || Number ||  ||  ||  || Tỷ lệ hoàn khi chủ xe hủy
+R058	pickupAddressSnapshot || String ||  ||  ||  || Địa chỉ nhận xe được chụp tại thời điểm đặt
+R059	returnAddressSnapshot || String ||  ||  ||  || Địa chỉ trả xe được chụp tại thời điểm đặt
+R060	renterInfo || Object ||  ||  ||  || Thông tin người thuê dùng cho booking/hợp đồng
+R061	renterInfo.fullName || String ||  ||  ||  || Họ tên người thuê
+R062	renterInfo.phone || String ||  ||  ||  || Số điện thoại người thuê
+R063	renterInfo.email || String ||  ||  ||  || Email người thuê
+R064	renterInfo.cccdNumber || String ||  ||  ||  || Số căn cước công dân
+R065	renterInfo.cccdFrontImage || String ||  ||  ||  || Ảnh mặt trước căn cước
+R066	renterInfo.cccdBackImage || String ||  ||  ||  || Ảnh mặt sau căn cước
+R067	renterInfo.driverLicenseNumber || String ||  ||  ||  || Số giấy phép lái xe
+R068	renterInfo.driverLicenseImage || String ||  ||  ||  || Ảnh giấy phép lái xe
+R069	renterInfo.note || String ||  ||  ||  || Ghi chú người thuê
+R070	status || String (enum) ||  ||  ||  || Trạng thái vòng đời booking
+R071	ownerApprovedAt || Date ||  ||  ||  || Thời điểm chủ xe duyệt
+R072	paymentDeadlineAt || Date ||  ||  ||  || Hạn thanh toán
+R073	cancelReason || String ||  ||  ||  || Lý do hủy theo cấu trúc cũ
+R074	cancelledAt || Date ||  ||  ||  || Thời điểm hủy
+R075	cancelledBy || ObjectId ||  ||  ||  || Người hủy; tham chiếu users
+R076	cancelledByRole || String ||  ||  ||  || Vai trò người hủy
+R077	cancelReasonCode || String ||  ||  ||  || Mã lý do hủy
+R078	cancelReasonText || String ||  ||  ||  || Nội dung lý do hủy
+R079	cancellationSummary || Object ||  ||  ||  || Kết quả tính phí và hoàn tiền khi hủy
+R080	cancellationSummary.paidAmountAtCancellation || Number ||  ||  ||  || Số tiền đã trả tại lúc hủy
+R081	cancellationSummary.cancellationFee || Number ||  ||  ||  || Phí hủy
+R082	cancellationSummary.refundAmount || Number ||  ||  ||  || Số tiền được hoàn
+R083	cancellationSummary.policyRuleApplied || String ||  ||  ||  || Quy tắc hoàn tiền áp dụng
+R084	cancellationSummary.refundRequired || Boolean ||  ||  ||  || Có yêu cầu hoàn tiền hay không
+R085	cancellationSummary.refundId || ObjectId ||  ||  ||  || Bản hoàn tiền; tham chiếu refunds
+R086	noShowReason || String ||  ||  ||  || Lý do khách không đến nhận xe
+R087	noShowAt || Date ||  ||  ||  || Thời điểm ghi nhận không đến
+R088	returnReminderSentAt || Date ||  ||  ||  || Thời điểm gửi nhắc trả xe
+R089	note || String ||  ||  ||  || Ghi chú booking
+R090	isDeleted || Boolean ||  ||  ||  || Đánh dấu xóa mềm
+R091	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R092	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 23
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	bookingId || ObjectId ||  || x || x || Booking duy nhất của hợp đồng; tham chiếu bookings
+R003	userId || ObjectId ||  ||  || x || Người thuê; tham chiếu users
+R004	carId || ObjectId ||  ||  || x || Xe cho thuê; tham chiếu cars
+R005	businessId || ObjectId ||  ||  ||  || Doanh nghiệp sở hữu theo mô hình cũ; tham chiếu businesses
+R006	ownerId || ObjectId ||  ||  || x || Chủ xe; tham chiếu động theo ownerModel
+R007	ownerType || String (enum) ||  ||  || x || Loại chủ xe: BUSINESS hoặc USER
+R008	ownerModel || String (enum) ||  ||  || x || Model chủ xe: User hoặc Business
+R009	renterName || String ||  ||  || x || Họ tên người thuê
+R010	renterPhone || String ||  ||  || x || Số điện thoại người thuê
+R011	renterIdentityNumber || String ||  ||  || x || Số giấy tờ định danh
+R012	renterAddress || String ||  ||  || x || Địa chỉ người thuê
+R013	note || String ||  ||  ||  || Ghi chú hợp đồng
+R014	startDate || Date ||  ||  || x || Thời điểm bắt đầu hợp đồng
+R015	endDate || Date ||  ||  || x || Thời điểm kết thúc hợp đồng
+R016	totalPrice || Number ||  ||  || x || Tổng giá trị hợp đồng
+R017	depositAmount || Number ||  ||  ||  || Tiền đặt cọc
+R018	paidAmount || Number ||  ||  ||  || Số tiền đã thanh toán
+R019	remainingAmount || Number ||  ||  ||  || Số tiền còn lại
+R020	paymentStatus || String ||  ||  ||  || Trạng thái thanh toán tổng hợp
+R021	paymentOption || String (enum) ||  ||  || x || Lựa chọn DEPOSIT hoặc FULL
+R022	pickupAddressSnapshot || String ||  ||  ||  || Địa chỉ nhận xe tại thời điểm lập hợp đồng
+R023	returnAddressSnapshot || String ||  ||  ||  || Địa chỉ trả xe tại thời điểm lập hợp đồng
+R024	ownerAddressSnapshot || String ||  ||  ||  || Địa chỉ chủ xe tại thời điểm lập hợp đồng
+R025	status || String (enum) ||  ||  ||  || Trạng thái: DRAFT, ACTIVE, COMPLETED hoặc CANCELLED
+R026	contractCode || String ||  || x || x || Mã hợp đồng
+R027	signedAt || Date ||  ||  ||  || Thời điểm ký hợp đồng
+R028	isDeleted || Boolean ||  ||  ||  || Đánh dấu xóa mềm
+R029	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R030	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 24
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	bookingId || ObjectId ||  ||  || x || Booking được thanh toán; tham chiếu bookings
+R003	extraChargeId || ObjectId ||  ||  ||  || Phụ phí được thanh toán; tham chiếu extracharges
+R004	userId || ObjectId ||  ||  || x || Người thanh toán; tham chiếu users
+R005	amount || Number ||  ||  || x || Số tiền thanh toán
+R006	method || String (enum) ||  ||  ||  || Phương thức: CASH, MOMO hoặc VNPAY
+R007	status || String (enum) ||  ||  ||  || Trạng thái: PENDING, PAID, FAILED hoặc REFUNDED
+R008	paymentType || String (enum) ||  ||  ||  || Loại tiền: DEPOSIT, FULL, REMAINING hoặc EXTRA_CHARGE
+R009	paidAt || Date ||  ||  ||  || Thời điểm thanh toán thành công
+R010	transactionCode || String ||  ||  ||  || Mã giao dịch
+R011	refundedAmount || Number ||  ||  ||  || Số tiền đã hoàn
+R012	refundStatus || String ||  ||  ||  || Trạng thái hoàn tiền liên quan
+R013	confirmedBy || ObjectId ||  ||  ||  || Người xác nhận thanh toán; tham chiếu users
+R014	confirmedByRole || String ||  ||  ||  || Vai trò người xác nhận
+R015	note || String ||  ||  ||  || Ghi chú thanh toán
+R016	remainingPaymentReminderSentAt || Date ||  ||  ||  || Thời điểm gửi nhắc thanh toán phần còn lại
+R017	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R018	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 25
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	bookingId || ObjectId ||  ||  || x || Booking phát sinh hoàn tiền; tham chiếu bookings
+R003	requestedBy || ObjectId ||  ||  || x || Người yêu cầu hoàn; tham chiếu users
+R004	requestedByRole || String (enum) ||  ||  || x || Vai trò người yêu cầu
+R005	cancelledBy || ObjectId ||  ||  || x || Người hủy booking; tham chiếu users
+R006	cancelledByRole || String (enum) ||  ||  || x || Vai trò người hủy
+R007	reasonCode || String ||  ||  || x || Mã lý do hoàn tiền
+R008	reasonText || String ||  ||  ||  || Nội dung lý do hoàn tiền
+R009	paidAmountAtCancellation || Number ||  ||  || x || Số tiền đã thanh toán khi hủy
+R010	cancellationFee || Number ||  ||  || x || Phí hủy
+R011	refundAmount || Number ||  ||  || x || Số tiền hoàn
+R012	policySnapshot || Mixed ||  ||  ||  || Bản chụp chính sách hoàn tiền
+R013	policyRuleApplied || String ||  ||  || x || Quy tắc chính sách đã áp dụng
+R014	policySource || String ||  ||  || x || Nguồn chính sách
+R015	method || String (enum) ||  ||  ||  || Phương thức hoàn: VNPAY, MOMO, CASH, MANUAL hoặc NONE
+R016	status || String (enum) ||  ||  ||  || Trạng thái xử lý hoàn tiền
+R017	paymentIds || Array<ObjectId> ||  ||  ||  || Các giao dịch được hoàn; tham chiếu payments
+R018	provider || String ||  ||  ||  || Nhà cung cấp thanh toán
+R019	providerRefundId || String ||  ||  ||  || Mã hoàn tiền phía nhà cung cấp
+R020	providerTransactionId || String ||  ||  ||  || Mã giao dịch phía nhà cung cấp
+R021	providerResponseCode || String ||  ||  ||  || Mã phản hồi nhà cung cấp
+R022	providerResponseMessage || String ||  ||  ||  || Thông điệp phản hồi nhà cung cấp
+R023	idempotencyKey || String ||  || x || x || Khóa chống xử lý hoàn tiền trùng
+R024	failureReason || String ||  ||  ||  || Lý do hoàn tiền thất bại
+R025	retryCount || Number ||  ||  ||  || Số lần thử lại
+R026	recipientInfo || Object ||  ||  ||  || Thông tin người nhận tiền hoàn
+R027	recipientInfo.method || String (enum) ||  ||  ||  || BANK_TRANSFER, E_WALLET hoặc CASH
+R028	recipientInfo.bankName || String ||  ||  ||  || Tên ngân hàng
+R029	recipientInfo.accountNumber || String ||  ||  ||  || Số tài khoản
+R030	recipientInfo.accountNumberMasked || String ||  ||  ||  || Số tài khoản đã che
+R031	recipientInfo.accountHolderName || String ||  ||  ||  || Tên chủ tài khoản
+R032	recipientInfo.walletProvider || String ||  ||  ||  || Nhà cung cấp ví điện tử
+R033	recipientInfo.walletAccount || String ||  ||  ||  || Tài khoản ví điện tử
+R034	recipientInfo.walletAccountMasked || String ||  ||  ||  || Tài khoản ví đã che
+R035	recipientInfo.walletHolderName || String ||  ||  ||  || Tên chủ ví
+R036	recipientInfo.cashNote || String ||  ||  ||  || Ghi chú hoàn tiền mặt
+R037	recipientInfo.submittedBy || ObjectId ||  ||  ||  || Người cung cấp thông tin; tham chiếu users
+R038	recipientInfo.submittedAt || Date ||  ||  ||  || Thời điểm cung cấp thông tin
+R039	recipientInfo.updatedAt || Date ||  ||  ||  || Thời điểm cập nhật thông tin nhận hoàn
+R040	manualRefundEvidence || Array<String> ||  ||  ||  || Danh sách ảnh/chứng từ hoàn thủ công
+R041	manualRefundMethod || String ||  ||  ||  || Phương thức hoàn thủ công
+R042	manualRefundReference || String ||  ||  ||  || Mã tham chiếu hoàn thủ công
+R043	manualRefundNote || String ||  ||  ||  || Ghi chú hoàn thủ công
+R044	manualRefundSentAt || Date ||  ||  ||  || Thời điểm gửi khoản hoàn thủ công
+R045	renterConfirmedAt || Date ||  ||  ||  || Thời điểm người thuê xác nhận đã nhận tiền
+R046	requestedAt || Date ||  ||  ||  || Thời điểm yêu cầu hoàn
+R047	processingAt || Date ||  ||  ||  || Thời điểm bắt đầu xử lý
+R048	succeededAt || Date ||  ||  ||  || Thời điểm hoàn thành
+R049	failedAt || Date ||  ||  ||  || Thời điểm thất bại
+R050	isDeleted || Boolean ||  ||  ||  || Đánh dấu xóa mềm
+R051	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R052	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 26
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	bookingId || ObjectId ||  ||  || x || Booking phát sinh phụ phí; tham chiếu bookings
+R003	carId || ObjectId ||  ||  || x || Xe phát sinh phụ phí; tham chiếu cars
+R004	renterId || ObjectId ||  ||  || x || Người thuê; tham chiếu users
+R005	ownerId || ObjectId ||  ||  || x || Chủ xe; tham chiếu động theo ownerModel
+R006	ownerType || String (enum) ||  ||  || x || Loại chủ xe: BUSINESS hoặc USER
+R007	ownerModel || String (enum) ||  ||  || x || Model chủ xe: User hoặc Business
+R008	type || String (enum) ||  ||  || x || Loại phụ phí: CLEANING, DAMAGE, LATE_RETURN, FUEL hoặc OTHER
+R009	amount || Number ||  ||  || x || Số tiền phụ phí, tối thiểu 1
+R010	description || String ||  ||  || x || Nội dung phụ phí
+R011	evidenceImages || Array<String> ||  ||  ||  || Hình ảnh bằng chứng
+R012	status || String (enum) ||  ||  ||  || Trạng thái: PENDING, PAID hoặc CANCELLED
+R013	paymentId || ObjectId ||  ||  ||  || Giao dịch thanh toán phụ phí; tham chiếu payments
+R014	paymentMethod || String (enum) ||  ||  ||  || Phương thức thanh toán
+R015	paidAt || Date ||  ||  ||  || Thời điểm thanh toán
+R016	confirmedBy || ObjectId ||  ||  ||  || Người xác nhận; tham chiếu users
+R017	confirmedByRole || String (enum) ||  ||  ||  || Vai trò người xác nhận
+R018	cancelReason || String ||  ||  ||  || Lý do hủy phụ phí
+R019	isDeleted || Boolean ||  ||  ||  || Đánh dấu xóa mềm
+R020	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R021	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 27
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	bookingId || ObjectId ||  || x || x || Booking duy nhất được kiểm tra trả xe
+R003	carId || ObjectId ||  ||  || x || Xe được kiểm tra; tham chiếu cars
+R004	renterId || ObjectId ||  ||  || x || Người thuê; tham chiếu users
+R005	ownerId || ObjectId ||  ||  || x || Chủ xe; tham chiếu động theo ownerModel
+R006	ownerType || String (enum) ||  ||  || x || Loại chủ xe: BUSINESS hoặc USER
+R007	ownerModel || String (enum) ||  ||  || x || Model chủ xe: User hoặc Business
+R008	receivedAt || Date ||  ||  || x || Thời điểm tiếp nhận xe trả
+R009	receivedBy || ObjectId ||  ||  || x || Người tiếp nhận; tham chiếu users
+R010	actualReturnAt || Date ||  ||  || x || Thời điểm khách thực tế trả xe
+R011	returnOdometer || Number ||  ||  ||  || Số công-tơ-mét khi trả
+R012	returnFuelLevel || Number ||  ||  ||  || Mức nhiên liệu khi trả, từ 0 đến 100
+R013	returnPhotos || Array<String> ||  ||  ||  || Ảnh xe khi trả
+R014	conditionNotes || String ||  ||  ||  || Ghi chú tình trạng xe
+R015	isLate || Boolean ||  ||  ||  || Trả xe trễ hay không
+R016	lateMinutes || Number ||  ||  ||  || Số phút trả trễ
+R017	hasDamage || Boolean ||  ||  ||  || Có hư hỏng hay không
+R018	hasCleaningIssue || Boolean ||  ||  ||  || Có vấn đề vệ sinh hay không
+R019	hasFuelShortage || Boolean ||  ||  ||  || Có thiếu nhiên liệu hay không
+R020	inspectionStatus || String (enum) ||  ||  ||  || RECEIVED, INSPECTING, CHARGES_PENDING hoặc CLEARED
+R021	inspectedAt || Date ||  ||  ||  || Thời điểm hoàn tất kiểm tra
+R022	inspectedBy || ObjectId ||  ||  ||  || Người kiểm tra; tham chiếu users
+R023	isDeleted || Boolean ||  ||  ||  || Đánh dấu xóa mềm
+R024	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R025	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 28
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	bookingId || ObjectId ||  ||  || x || Booking đã hoàn thành; tham chiếu bookings; thuộc chỉ mục duy nhất ghép với renterId
+R003	carId || ObjectId ||  ||  || x || Xe được đánh giá; tham chiếu cars
+R004	renterId || ObjectId ||  ||  || x || Người đánh giá; tham chiếu users; thuộc chỉ mục duy nhất ghép với bookingId
+R005	ownerId || ObjectId ||  ||  || x || Chủ xe; tham chiếu động theo ownerModel
+R006	ownerType || String (enum) ||  ||  || x || Loại chủ xe: BUSINESS hoặc USER
+R007	ownerModel || String (enum) ||  ||  || x || Model chủ xe: Business hoặc User
+R008	rating || Number ||  ||  || x || Điểm tổng, số nguyên từ 1 đến 5
+R009	criteria || Object ||  ||  ||  || Điểm theo từng tiêu chí
+R010	criteria.vehicleQuality || Number ||  ||  ||  || Chất lượng xe, từ 1 đến 5
+R011	criteria.cleanliness || Number ||  ||  ||  || Độ sạch, từ 1 đến 5
+R012	criteria.descriptionAccuracy || Number ||  ||  ||  || Độ chính xác mô tả, từ 1 đến 5
+R013	criteria.handoverService || Number ||  ||  ||  || Dịch vụ bàn giao, từ 1 đến 5
+R014	criteria.ownerAttitude || Number ||  ||  ||  || Thái độ chủ xe, từ 1 đến 5
+R015	criteria.punctuality || Number ||  ||  ||  || Đúng giờ, từ 1 đến 5
+R016	comment || String ||  ||  ||  || Nội dung đánh giá
+R017	images || Array<String> ||  ||  ||  || Tối đa 3 ảnh đánh giá
+R018	ownerReply || Object ||  ||  ||  || Phản hồi của chủ xe
+R019	ownerReply.content || String ||  ||  ||  || Nội dung phản hồi
+R020	ownerReply.repliedAt || Date ||  ||  ||  || Thời điểm phản hồi
+R021	ownerReply.updatedAt || Date ||  ||  ||  || Thời điểm cập nhật phản hồi
+R022	status || String (enum) ||  ||  ||  || Trạng thái: VISIBLE, REPORTED hoặc HIDDEN
+R023	report || Object ||  ||  ||  || Thông tin báo cáo đánh giá
+R024	report.reason || String ||  ||  ||  || Lý do báo cáo
+R025	report.reportedBy || ObjectId ||  ||  ||  || Người báo cáo; tham chiếu users
+R026	report.reportedAt || Date ||  ||  ||  || Thời điểm báo cáo
+R027	hiddenReason || String ||  ||  ||  || Lý do ẩn đánh giá
+R028	hiddenBy || ObjectId ||  ||  ||  || Người ẩn; tham chiếu users
+R029	hiddenAt || Date ||  ||  ||  || Thời điểm ẩn
+R030	helpfulCount || Number ||  ||  ||  || Số lượt đánh dấu hữu ích
+R031	helpfulBy || Array<ObjectId> ||  ||  ||  || Người đánh dấu hữu ích; tham chiếu users
+R032	reviewerNameSnapshot || String ||  ||  ||  || Tên người đánh giá tại thời điểm tạo
+R033	carNameSnapshot || String ||  ||  ||  || Tên xe tại thời điểm tạo
+R034	ownerNameSnapshot || String ||  ||  ||  || Tên chủ xe tại thời điểm tạo
+R035	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R036	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 29
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	recipientId || ObjectId ||  ||  || x || Người nhận; tham chiếu users; thuộc chỉ mục duy nhất ghép với dedupeKey
+R003	recipientRole || String (enum) ||  ||  || x || Vai trò người nhận
+R004	type || String (enum) ||  ||  || x || Loại sự kiện thông báo
+R005	title || String ||  ||  || x || Tiêu đề, tối đa 160 ký tự
+R006	message || String ||  ||  || x || Nội dung, tối đa 1000 ký tự
+R007	actorId || ObjectId ||  ||  ||  || Người gây ra sự kiện; tham chiếu users
+R008	actorRole || String (enum) ||  ||  ||  || Vai trò người gây ra sự kiện
+R009	entityType || String (enum) ||  ||  || x || Loại thực thể liên quan
+R010	entityId || ObjectId ||  ||  ||  || Mã thực thể liên quan
+R011	bookingId || ObjectId ||  ||  ||  || Booking liên quan; tham chiếu bookings
+R012	carId || ObjectId ||  ||  ||  || Xe liên quan; tham chiếu cars
+R013	actionKey || String (enum) ||  ||  ||  || Hành động điều hướng từ thông báo
+R014	actionUrl || String ||  ||  ||  || Đường dẫn điều hướng
+R015	metadata || Mixed ||  ||  ||  || Dữ liệu bổ sung theo từng loại thông báo
+R016	isRead || Boolean ||  ||  ||  || Đã đọc hay chưa
+R017	readAt || Date ||  ||  ||  || Thời điểm đọc
+R018	isDeleted || Boolean ||  ||  ||  || Đánh dấu xóa mềm
+R019	deletedAt || Date ||  ||  ||  || Thời điểm xóa
+R020	dedupeKey || String ||  ||  || x || Khóa chống tạo thông báo trùng; duy nhất khi ghép với recipientId
+R021	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R022	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 30
+R000	Thuộc tính || Kiểu || K || U || M || Diễn giải
+R001	_id || ObjectId || x || x || x || Mã định danh do MongoDB sinh
+R002	name || String ||  ||  || x || Tên ngày lễ hoặc kỳ nghỉ
+R003	date || Date ||  ||  ||  || Ngày lễ đơn theo cấu trúc tương thích
+R004	startDate || Date ||  ||  || x || Ngày bắt đầu
+R005	endDate || Date ||  ||  || x || Ngày kết thúc
+R006	country || String ||  ||  ||  || Mã quốc gia, mặc định VN
+R007	type || String ||  ||  ||  || Loại ngày, mặc định HOLIDAY
+R008	isActive || Boolean ||  ||  ||  || Lịch đang được áp dụng
+R009	note || String ||  ||  ||  || Ghi chú
+R010	isDeleted || Boolean ||  ||  ||  || Đánh dấu xóa mềm
+R011	createdAt || Date ||  ||  ||  || Thời điểm tạo bản ghi
+R012	updatedAt || Date ||  ||  ||  || Thời điểm cập nhật gần nhất
+
+TABLE 31
+R000	Collection || Trường chỉ mục || Loại || Mục đích
+R001	users || email || Unique || Bảo đảm email đăng nhập duy nhất
+R002	brands || name || Unique || Bảo đảm tên hãng xe duy nhất
+R003	cars || plateNumberNormalized || Single || Tìm kiếm biển số đã chuẩn hóa
+R004	cars || status, isDeleted, isHidden, createdAt(-1) || Compound || Lọc danh sách xe công khai
+R005	cars || brandId, status, isDeleted || Compound || Lọc xe theo hãng và trạng thái
+R006	cars || ownerId, ownerType, isDeleted, createdAt(-1) || Compound || Quản lý xe theo chủ sở hữu
+R007	carts || userId, status, expiredAt, createdAt(-1) || Compound || Truy vấn giỏ thuê đang hoạt động của người dùng
+R008	carts || carId, status, startDate, endDate, expiredAt || Compound || Kiểm tra xe đang được giữ trong giỏ
+R009	bookings || userId, isDeleted, createdAt(-1) || Compound || Lịch sử booking của người thuê
+R010	bookings || carId, status, startDate, endDate, isDeleted || Compound || Kiểm tra xung đột lịch thuê xe
+R011	bookings || ownerId, ownerType, isDeleted, createdAt(-1) || Compound || Danh sách booking của chủ xe
+R012	contracts || bookingId || Unique || Mỗi booking chỉ có một hợp đồng
+R013	contracts || contractCode || Unique || Mã hợp đồng duy nhất
+R014	payments || extraChargeId || Single || Tra cứu thanh toán theo phụ phí
+R015	refunds || idempotencyKey || Unique || Ngăn xử lý yêu cầu hoàn tiền lặp
+R016	refunds || bookingId, status, isDeleted || Compound || Tra cứu hoàn tiền theo booking
+R017	refunds || requestedBy, createdAt(-1) || Compound || Lịch sử hoàn tiền của người yêu cầu
+R018	extracharges || bookingId / carId / renterId / ownerId / status / isDeleted || Single || Các chỉ mục đơn hỗ trợ lọc phụ phí
+R019	returninspections || bookingId || Unique || Mỗi booking chỉ có một lần kiểm tra trả xe
+R020	returninspections || carId / renterId / ownerId / inspectionStatus / isDeleted || Single || Các chỉ mục đơn hỗ trợ truy vấn kiểm tra
+R021	reviews || bookingId, renterId || Compound unique || Mỗi người thuê chỉ đánh giá một lần cho booking
+R022	reviews || carId, status, createdAt(-1) || Compound || Danh sách đánh giá của xe
+R023	reviews || ownerId, ownerType, createdAt(-1) || Compound || Danh sách đánh giá theo chủ xe
+R024	reviews || status, report.reportedAt(-1) || Compound || Kiểm duyệt đánh giá bị báo cáo
+R025	notifications || recipientId, dedupeKey || Compound unique || Ngăn thông báo trùng cho cùng người nhận
+R026	notifications || recipientId, isRead, createdAt(-1) || Compound || Danh sách thông báo chưa đọc
+R027	notifications || recipientId, createdAt(-1) || Compound || Lịch sử thông báo
+R028	holidaycalendars || country, startDate, endDate || Compound || Tra cứu kỳ nghỉ theo khoảng ngày
+R029	holidaycalendars || country, type, isActive, isDeleted || Compound || Lọc lịch ngày lễ đang áp dụng

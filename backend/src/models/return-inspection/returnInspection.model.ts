@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { BaseDocument } from "../../base/baseModel";
 import {
+  MileageStatusEnum,
   OwnerTypeEnum,
   ReturnInspectionStatusEnum,
 } from "../../constants/model.const";
@@ -15,6 +16,16 @@ export type IReturnInspection = BaseDocument & {
   receivedAt: Date;
   receivedBy: mongoose.Types.ObjectId;
   actualReturnAt: Date;
+  returnOdometerKm?: number;
+  returnEnergyLevelPercent?: number;
+  returnDashboardImage?: string;
+  distanceTravelledKm?: number;
+  totalIncludedKm?: number;
+  overageKm?: number;
+  chargeableOverageKm?: number;
+  suggestedOverageAmount?: number;
+  mileageStatus: MileageStatusEnum;
+  // Legacy read compatibility. New writes must use the canonical fields above.
   returnOdometer?: number;
   returnFuelLevel?: number;
   returnPhotos?: string[];
@@ -81,6 +92,50 @@ const returnInspectionSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    returnOdometerKm: {
+      type: Number,
+      min: 0,
+      validate: {
+        validator: (value: number | undefined) =>
+          value === undefined || Number.isInteger(value),
+        message: "ODO nhận lại phải là số nguyên không âm",
+      },
+    },
+    returnEnergyLevelPercent: {
+      type: Number,
+      min: 0,
+      max: 100,
+    },
+    returnDashboardImage: {
+      type: String,
+      trim: true,
+    },
+    distanceTravelledKm: {
+      type: Number,
+      min: 0,
+    },
+    totalIncludedKm: {
+      type: Number,
+      min: 0,
+    },
+    overageKm: {
+      type: Number,
+      min: 0,
+    },
+    chargeableOverageKm: {
+      type: Number,
+      min: 0,
+    },
+    suggestedOverageAmount: {
+      type: Number,
+      min: 0,
+    },
+    mileageStatus: {
+      type: String,
+      enum: Object.values(MileageStatusEnum),
+      default: MileageStatusEnum.NOT_EVALUATED_KM,
+    },
+    // Legacy read compatibility. Do not use these fields for new writes.
     returnOdometer: {
       type: Number,
       min: 0,

@@ -1483,6 +1483,7 @@ class BookingRoute extends BaseRoute {
           "carId",
           "startDate",
           "endDate",
+          "actualReturnAt",
           "rentalMode",
           "totalPrice",
           "paymentOption",
@@ -2042,6 +2043,7 @@ class BookingRoute extends BaseRoute {
         rentalMode: plainBooking.rentalMode || "",
         startDate: plainBooking.startDate,
         endDate: plainBooking.endDate,
+        actualReturnAt: plainBooking.actualReturnAt || null,
         pickupTime: plainBooking.startDate,
         returnTime: plainBooking.endDate,
         pickupAddressSnapshot: plainBooking.pickupAddressSnapshot || "",
@@ -2436,17 +2438,28 @@ class BookingRoute extends BaseRoute {
     const booking = await BookingModel.findOne({
       _id: id,
       ...this.buildOwnerFilter(owner),
-      status: BookingStatusEnum.IN_PROGRESS,
       isDeleted: false,
     } as any);
 
     if (!booking) {
       throw ErrorHelper.requestDataInvalid(
-        "Booking chưa ở trạng thái đang thuê hoặc bạn không có quyền tiếp nhận xe trả.",
+        "Booking không tồn tại hoặc bạn không có quyền tiếp nhận xe trả.",
       );
     }
 
     hydrateLegacyBookingOwner(booking);
+
+    if (booking.actualReturnAt) {
+      throw ErrorHelper.requestDataInvalid(
+        "Thời gian trả xe thực tế đã được ghi nhận trước đó.",
+      );
+    }
+
+    if (booking.status !== BookingStatusEnum.IN_PROGRESS) {
+      throw ErrorHelper.requestDataInvalid(
+        "Booking chưa ở trạng thái đang thuê, không thể tiếp nhận xe trả.",
+      );
+    }
 
     const existedInspection = await this.findReturnInspectionForBooking(booking._id);
 
@@ -2456,17 +2469,7 @@ class BookingRoute extends BaseRoute {
       );
     }
 
-    const actualReturnAt = new Date(req.body?.actualReturnAt || new Date());
-
-    if (Number.isNaN(actualReturnAt.getTime())) {
-      throw ErrorHelper.requestDataInvalid("Thời gian trả xe thực tế không hợp lệ.");
-    }
-
-    if (actualReturnAt.getTime() < new Date(booking.startDate).getTime()) {
-      throw ErrorHelper.requestDataInvalid(
-        "Thời gian trả xe không được trước thời gian nhận xe.",
-      );
-    }
+    const actualReturnAt = new Date();
 
     const returnOdometerRaw = req.body?.returnOdometer;
     const returnFuelLevelRaw = req.body?.returnFuelLevel;
@@ -2540,6 +2543,7 @@ class BookingRoute extends BaseRoute {
 
     const inspection = await ReturnInspectionModel.create(inspectionPayload);
 
+    booking.actualReturnAt = actualReturnAt;
     transitionBookingStatus(booking, BookingStatusEnum.RETURN_INSPECTION);
     await booking.save();
     void notificationCenterService.notifyReturnReceived(booking, authUser.userId);

@@ -34,6 +34,13 @@ export type ICar = BaseDocument & {
   allowHourlyRental?: boolean;
   rentalUnit: string;
   seats: number;
+  currentOdometerKm?: number | null;
+  mileagePolicy?: {
+    includedKmPerDay?: number;
+    includedKmPerHour?: number;
+    overageFeePerKm: number;
+    graceKm: number;
+  };
   fuelType?: string;
   transmission?: string;
   images?: string[];
@@ -182,6 +189,34 @@ const carSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 1,
+    },
+    currentOdometerKm: {
+      type: Number,
+      default: null,
+      min: 0,
+      validate: {
+        validator: (value: number | null | undefined) =>
+          value === null || value === undefined || Number.isInteger(value),
+        message: "ODO hiện tại phải là số nguyên không âm",
+      },
+    },
+    mileagePolicy: {
+      includedKmPerDay: {
+        type: Number,
+        min: 1,
+      },
+      includedKmPerHour: {
+        type: Number,
+        min: 1,
+      },
+      overageFeePerKm: {
+        type: Number,
+        min: 0,
+      },
+      graceKm: {
+        type: Number,
+        min: 0,
+      },
     },
     fuelType: {
       type: String,

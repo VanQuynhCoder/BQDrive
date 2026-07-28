@@ -122,6 +122,7 @@ export type BusinessBooking = {
   carId: BusinessCar;
   startDate: string;
   endDate: string;
+  actualReturnAt?: string | null;
   totalPrice?: number;
   pickupAddressSnapshot?: string;
   returnAddressSnapshot?: string;
@@ -195,7 +196,6 @@ export type ReturnCompletionState = {
 };
 
 export type ReceiveReturnPayload = {
-  actualReturnAt: string;
   returnOdometer?: number;
   returnFuelLevel?: number;
   returnPhotos?: string[];

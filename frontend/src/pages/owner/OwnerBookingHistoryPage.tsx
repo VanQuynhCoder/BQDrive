@@ -17,6 +17,7 @@ import {
 } from "../../utils/display.util";
 import { formatVietnamDateTime } from "../../utils/date.util";
 import { normalizeImageUrl } from "../../utils/image.util";
+import { getReturnTimingState } from "../../utils/returnTiming.util";
 
 type OwnerBookingHistoryPageProps = {
   title: string;
@@ -169,6 +170,11 @@ function BookingHistoryDetailModal({
   if (!booking) return null;
 
   const carImage = normalizeImageUrl(booking.car?.image);
+  const returnTiming = getReturnTimingState({
+    endDate: booking.endDate,
+    actualReturnAt: booking.actualReturnAt,
+    bookingStatus: booking.status,
+  });
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
@@ -230,8 +236,26 @@ function BookingHistoryDetailModal({
                 label="Hình thức thuê"
                 value={booking.rentalMode === "HOURLY" ? "Thuê theo giờ" : "Thuê theo ngày"}
               />
-              <DetailLine label="Ngày nhận xe" value={formatDateTime(booking.startDate)} />
-              <DetailLine label="Ngày trả xe" value={formatDateTime(booking.endDate)} />
+              <DetailLine
+                label="Ngày nhận dự kiến"
+                value={formatDateTime(booking.startDate)}
+              />
+              <DetailLine
+                label="Ngày trả dự kiến"
+                value={formatDateTime(booking.endDate)}
+              />
+              <DetailLine
+                label="Ngày trả thực tế"
+                value={
+                  booking.actualReturnAt
+                    ? formatDateTime(booking.actualReturnAt)
+                    : "Chưa ghi nhận"
+                }
+              />
+              <DetailLine
+                label="Tình trạng trả xe"
+                value={returnTiming.label}
+              />
               <DetailLine
                 label="Địa điểm nhận xe"
                 value={booking.pickupAddressSnapshot}
