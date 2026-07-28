@@ -48,12 +48,14 @@ import OwnerReviewsPage from "./pages/owner/OwnerReviewsPage";
 import TaskCenterPage from "./pages/tasks/TaskCenterPage";
 import NotificationCenterPage from "./pages/notifications/NotificationCenterPage";
 import PaymentResultPage from "./pages/PaymentResultPage";
+import WelcomeBackToast from "./components/WelcomeBackToast";
 
 function App() {
   const userRoles = ["USER"];
 
   return (
-    <Routes>
+    <>
+      <Routes>
       {/* Public */}
       <Route path="/" element={<HomePage />} />
 
@@ -377,8 +379,9 @@ function App() {
     </ProtectedRoute>
   }
 />
-    </Routes>
-    
+      </Routes>
+      <WelcomeBackToast />
+    </>
   );
 }
 

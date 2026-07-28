@@ -112,6 +112,15 @@ type HomeFilterDropdown =
   | "type"
   | "rentalMode";
 
+type QuickSearchField =
+  | "location"
+  | "pickupDate"
+  | "pickupTime"
+  | "returnDate"
+  | "returnTime";
+
+type QuickSearchErrors = Partial<Record<QuickSearchField, string>>;
+
 const heroImage =
   "https://images.unsplash.com/photo-1503376780353-7e6692767b70?q=80&w=1800";
 
@@ -120,6 +129,20 @@ const DEFAULT_END_TIME = "18:00";
 const BOOKING_HOLD_MINUTES = 10;
 const BOOKING_HOLD_MS = BOOKING_HOLD_MINUTES * 60 * 1000;
 const HOME_CARS_PER_PAGE = 6;
+const QUICK_SEARCH_FIELD_ORDER: QuickSearchField[] = [
+  "location",
+  "pickupDate",
+  "pickupTime",
+  "returnDate",
+  "returnTime",
+];
+const QUICK_SEARCH_FIELD_IDS: Record<QuickSearchField, string> = {
+  location: "quick-search-location",
+  pickupDate: "quick-search-pickup-date",
+  pickupTime: "quick-search-pickup-time",
+  returnDate: "quick-search-return-date",
+  returnTime: "quick-search-return-time",
+};
 const emptyHomeFilters: HomeFilters = {
   location: "",
   type: "",
@@ -136,6 +159,131 @@ const emptyHomeFilters: HomeFilters = {
   userLat: "",
   userLng: "",
 };
+
+function getLocalDateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function buildLocalDateTime(dateValue: string, timeValue: string) {
+  const dateParts = dateValue.split("-").map(Number);
+  const timeParts = timeValue.split(":").map(Number);
+  const [year, month, day] = dateParts;
+  const [hour, minute] = timeParts;
+
+  if (
+    dateParts.length !== 3 ||
+    timeParts.length < 2 ||
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute)
+  ) {
+    return null;
+  }
+
+  const value = new Date(year, month - 1, day, hour, minute, 0, 0);
+  if (
+    value.getFullYear() !== year ||
+    value.getMonth() !== month - 1 ||
+    value.getDate() !== day ||
+    value.getHours() !== hour ||
+    value.getMinutes() !== minute
+  ) {
+    return null;
+  }
+
+  return value;
+}
+
+function validateQuickSearch(input: {
+  location: string;
+  pickupDate: string;
+  pickupTime: string;
+  returnDate: string;
+  returnTime: string;
+  now?: Date;
+}) {
+  const errors: QuickSearchErrors = {};
+  const now = input.now ?? new Date();
+  const today = getLocalDateInputValue(now);
+
+  if (!input.location.trim()) {
+    errors.location = "Vui lòng nhập quận/huyện nhận xe.";
+  }
+  if (!input.pickupDate) {
+    errors.pickupDate = "Vui lòng chọn đầy đủ ngày và giờ nhận xe.";
+  }
+  if (!input.pickupTime) {
+    errors.pickupTime = "Vui lòng chọn đầy đủ ngày và giờ nhận xe.";
+  }
+  if (!input.returnDate) {
+    errors.returnDate = "Vui lòng chọn đầy đủ ngày và giờ trả xe.";
+  }
+  if (!input.returnTime) {
+    errors.returnTime = "Vui lòng chọn đầy đủ ngày và giờ trả xe.";
+  }
+
+  if (input.pickupDate && input.pickupDate < today) {
+    errors.pickupDate = "Ngày nhận không được nằm trong quá khứ.";
+  }
+  if (
+    input.pickupDate &&
+    input.returnDate &&
+    input.returnDate < input.pickupDate
+  ) {
+    errors.returnDate = "Ngày trả không được trước ngày nhận.";
+  }
+
+  if (Object.keys(errors).length > 0) return errors;
+
+  const pickupDateTime = buildLocalDateTime(
+    input.pickupDate,
+    input.pickupTime,
+  );
+  const returnDateTime = buildLocalDateTime(
+    input.returnDate,
+    input.returnTime,
+  );
+
+  if (!pickupDateTime) {
+    errors.pickupDate = "Ngày hoặc giờ nhận xe không hợp lệ.";
+    return errors;
+  }
+  if (!returnDateTime) {
+    errors.returnDate = "Ngày hoặc giờ trả xe không hợp lệ.";
+    return errors;
+  }
+  if (pickupDateTime.getTime() <= now.getTime()) {
+    if (input.pickupDate === today) {
+      errors.pickupTime =
+        "Giờ nhận phải lớn hơn thời gian hiện tại.";
+    } else {
+      errors.pickupDate = "Ngày nhận không được nằm trong quá khứ.";
+    }
+  }
+  if (returnDateTime.getTime() <= pickupDateTime.getTime()) {
+    errors.returnTime = "Thời gian trả phải sau thời gian nhận.";
+  }
+
+  return errors;
+}
+
+function focusFirstQuickSearchError(errors: QuickSearchErrors) {
+  const firstField = QUICK_SEARCH_FIELD_ORDER.find((field) => errors[field]);
+  if (!firstField) return;
+
+  window.requestAnimationFrame(() => {
+    const element = document.getElementById(
+      QUICK_SEARCH_FIELD_IDS[firstField],
+    );
+    element?.scrollIntoView({ behavior: "smooth", block: "center" });
+    element?.focus();
+  });
+}
 const popularAreas = [
   "Quận 1",
   "Bình Thạnh",
@@ -285,6 +433,8 @@ export default function HomePage() {
   const [returnDate, setReturnDate] = useState("");
   const [pickupTime, setPickupTime] = useState(DEFAULT_START_TIME);
   const [returnTime, setReturnTime] = useState(DEFAULT_END_TIME);
+  const [quickSearchErrors, setQuickSearchErrors] =
+    useState<QuickSearchErrors>({});
   const [appliedSchedule, setAppliedSchedule] = useState<{
     startDate: string;
     endDate: string;
@@ -431,22 +581,51 @@ export default function HomePage() {
     }, 0);
   }, [location.hash]);
 
+  const clearQuickSearchErrors = (...fields: QuickSearchField[]) => {
+    setQuickSearchErrors((currentErrors) => {
+      const nextErrors = { ...currentErrors };
+      fields.forEach((field) => delete nextErrors[field]);
+      return nextErrors;
+    });
+  };
+
+  const handlePickupDateChange = (nextPickupDate: string) => {
+    setPickupDate(nextPickupDate);
+    clearQuickSearchErrors("pickupDate", "pickupTime");
+
+    if (returnDate && nextPickupDate && returnDate < nextPickupDate) {
+      setReturnDate("");
+      setQuickSearchErrors((currentErrors) => ({
+        ...currentErrors,
+        returnDate:
+          "Ngày trả không được trước ngày nhận. Vui lòng chọn lại ngày trả.",
+      }));
+    }
+  };
+
   const handleSearchCars = () => {
     const trimmedLocation = searchLocation.trim();
+    const validationErrors = validateQuickSearch({
+      location: trimmedLocation,
+      pickupDate,
+      pickupTime,
+      returnDate,
+      returnTime,
+    });
 
-    if (!pickupDate || !returnDate) {
-      toast.error("Vui lòng chọn ngày nhận và ngày trả xe");
+    if (Object.keys(validationErrors).length > 0) {
+      setQuickSearchErrors(validationErrors);
+      focusFirstQuickSearchError(validationErrors);
+      const firstMessage = QUICK_SEARCH_FIELD_ORDER
+        .map((field) => validationErrors[field])
+        .find(Boolean);
+      if (firstMessage) toast.error(firstMessage);
       return;
     }
 
+    setQuickSearchErrors({});
     const startDate = buildVietnamDateTime(pickupDate, pickupTime);
     const endDate = buildVietnamDateTime(returnDate, returnTime);
-
-    if (new Date(endDate) <= new Date(startDate)) {
-      toast.error("Thời gian trả xe phải sau thời gian nhận xe");
-      return;
-    }
-
     const params = new URLSearchParams({
       startDate,
       endDate,
@@ -1222,6 +1401,9 @@ export default function HomePage() {
     </div>
   );
 
+  const todayDateInput = getLocalDateInputValue();
+  const minimumReturnDate = pickupDate || todayDateInput;
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-background">
       <Header />
@@ -1293,87 +1475,218 @@ export default function HomePage() {
               <div className="space-y-4">
                 <label className="block">
                   <span className="mb-1 block text-sm font-bold">Địa điểm</span>
-                  <span className="flex min-h-12 items-center gap-3 rounded-lg border border-border px-4 transition focus-within:border-secondary">
-                    <MapPin size={19} className="shrink-0 text-secondary" />
+                  <span
+                    className={`flex min-h-12 items-center rounded-lg border px-4 transition ${
+                      quickSearchErrors.location
+                        ? "border-red-400 bg-red-50/40 focus-within:border-red-500"
+                        : "border-border focus-within:border-secondary"
+                    }`}
+                  >
                     <input
+                      id={QUICK_SEARCH_FIELD_IDS.location}
                       className="min-w-0 flex-1 bg-transparent outline-none"
-                      placeholder="Bạn muốn nhận xe ở đâu? hãy nhập quận huyện mà bạn muốn nhận xe "
+                      placeholder="Hãy Nhập quận / Huyện bạn muốn nhận xe "
                       value={searchLocation}
-                      onChange={(event) => setSearchLocation(event.target.value)}
+                      aria-invalid={Boolean(quickSearchErrors.location)}
+                      aria-describedby={
+                        quickSearchErrors.location
+                          ? "quick-search-location-error"
+                          : undefined
+                      }
+                      onChange={(event) => {
+                        setSearchLocation(event.target.value);
+                        clearQuickSearchErrors("location");
+                      }}
                     />
                   </span>
+                  {quickSearchErrors.location && (
+                    <span
+                      id="quick-search-location-error"
+                      className="mt-1.5 block text-xs font-bold text-red-600"
+                      role="alert"
+                    >
+                      {quickSearchErrors.location}
+                    </span>
+                  )}
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
                     <span className="mb-1 block text-sm font-bold">
                       Ngày nhận
                     </span>
-                    <span className="flex min-h-12 items-center gap-3 rounded-lg border border-border px-4 transition focus-within:border-secondary">
+                    <span
+                      className={`flex min-h-12 items-center gap-3 rounded-lg border px-4 transition ${
+                        quickSearchErrors.pickupDate
+                          ? "border-red-400 bg-red-50/40 focus-within:border-red-500"
+                          : "border-border focus-within:border-secondary"
+                      }`}
+                    >
                       <CalendarDays
                         size={19}
                         className="shrink-0 text-secondary"
                       />
                       <input
+                        id={QUICK_SEARCH_FIELD_IDS.pickupDate}
                         className="w-full min-w-0 flex-1 bg-transparent outline-none"
                         type="date"
+                        min={todayDateInput}
                         value={pickupDate}
-                        onChange={(event) => setPickupDate(event.target.value)}
+                        aria-invalid={Boolean(quickSearchErrors.pickupDate)}
+                        aria-describedby={
+                          quickSearchErrors.pickupDate
+                            ? "quick-search-pickup-date-error"
+                            : undefined
+                        }
+                        onChange={(event) =>
+                          handlePickupDateChange(event.target.value)
+                        }
                       />
                     </span>
+                    {quickSearchErrors.pickupDate && (
+                      <span
+                        id="quick-search-pickup-date-error"
+                        className="mt-1.5 block text-xs font-bold text-red-600"
+                        role="alert"
+                      >
+                        {quickSearchErrors.pickupDate}
+                      </span>
+                    )}
                   </label>
 
                   <label className="block">
                     <span className="mb-1 block text-sm font-bold">
                       Giờ nhận
                     </span>
-                    <span className="flex min-h-12 items-center gap-3 rounded-lg border border-border px-4 transition focus-within:border-secondary">
+                    <span
+                      className={`flex min-h-12 items-center gap-3 rounded-lg border px-4 transition ${
+                        quickSearchErrors.pickupTime
+                          ? "border-red-400 bg-red-50/40 focus-within:border-red-500"
+                          : "border-border focus-within:border-secondary"
+                      }`}
+                    >
                       <Clock
                         size={19}
                         className="shrink-0 text-secondary"
                       />
                       <input
+                        id={QUICK_SEARCH_FIELD_IDS.pickupTime}
                         className="w-full min-w-0 flex-1 bg-transparent outline-none"
                         type="time"
                         value={pickupTime}
-                        onChange={(event) => setPickupTime(event.target.value)}
+                        aria-invalid={Boolean(quickSearchErrors.pickupTime)}
+                        aria-describedby={
+                          quickSearchErrors.pickupTime
+                            ? "quick-search-pickup-time-error"
+                            : undefined
+                        }
+                        onChange={(event) => {
+                          setPickupTime(event.target.value);
+                          clearQuickSearchErrors(
+                            "pickupTime",
+                            "returnTime",
+                          );
+                        }}
                       />
                     </span>
+                    {quickSearchErrors.pickupTime && (
+                      <span
+                        id="quick-search-pickup-time-error"
+                        className="mt-1.5 block text-xs font-bold text-red-600"
+                        role="alert"
+                      >
+                        {quickSearchErrors.pickupTime}
+                      </span>
+                    )}
                   </label>
 
                   <label className="block">
                     <span className="mb-1 block text-sm font-bold">
                       Ngày trả
                     </span>
-                    <span className="flex min-h-12 items-center gap-3 rounded-lg border border-border px-4 transition focus-within:border-secondary">
+                    <span
+                      className={`flex min-h-12 items-center gap-3 rounded-lg border px-4 transition ${
+                        quickSearchErrors.returnDate
+                          ? "border-red-400 bg-red-50/40 focus-within:border-red-500"
+                          : "border-border focus-within:border-secondary"
+                      }`}
+                    >
                       <CalendarDays
                         size={19}
                         className="shrink-0 text-secondary"
                       />
                       <input
+                        id={QUICK_SEARCH_FIELD_IDS.returnDate}
                         className="w-full min-w-0 flex-1 bg-transparent outline-none"
                         type="date"
+                        min={minimumReturnDate}
                         value={returnDate}
-                        onChange={(event) => setReturnDate(event.target.value)}
+                        aria-invalid={Boolean(quickSearchErrors.returnDate)}
+                        aria-describedby={
+                          quickSearchErrors.returnDate
+                            ? "quick-search-return-date-error"
+                            : undefined
+                        }
+                        onChange={(event) => {
+                          setReturnDate(event.target.value);
+                          clearQuickSearchErrors(
+                            "returnDate",
+                            "returnTime",
+                          );
+                        }}
                       />
                     </span>
+                    {quickSearchErrors.returnDate && (
+                      <span
+                        id="quick-search-return-date-error"
+                        className="mt-1.5 block text-xs font-bold text-red-600"
+                        role="alert"
+                      >
+                        {quickSearchErrors.returnDate}
+                      </span>
+                    )}
                   </label>
 
                   <label className="block">
                     <span className="mb-1 block text-sm font-bold">
                       Giờ trả
                     </span>
-                    <span className="flex min-h-12 items-center gap-3 rounded-lg border border-border px-4 transition focus-within:border-secondary">
+                    <span
+                      className={`flex min-h-12 items-center gap-3 rounded-lg border px-4 transition ${
+                        quickSearchErrors.returnTime
+                          ? "border-red-400 bg-red-50/40 focus-within:border-red-500"
+                          : "border-border focus-within:border-secondary"
+                      }`}
+                    >
                       <Clock
                         size={19}
                         className="shrink-0 text-secondary"
                       />
                       <input
+                        id={QUICK_SEARCH_FIELD_IDS.returnTime}
                         className="w-full min-w-0 flex-1 bg-transparent outline-none"
                         type="time"
                         value={returnTime}
-                        onChange={(event) => setReturnTime(event.target.value)}
+                        aria-invalid={Boolean(quickSearchErrors.returnTime)}
+                        aria-describedby={
+                          quickSearchErrors.returnTime
+                            ? "quick-search-return-time-error"
+                            : undefined
+                        }
+                        onChange={(event) => {
+                          setReturnTime(event.target.value);
+                          clearQuickSearchErrors("returnTime");
+                        }}
                       />
                     </span>
+                    {quickSearchErrors.returnTime && (
+                      <span
+                        id="quick-search-return-time-error"
+                        className="mt-1.5 block text-xs font-bold text-red-600"
+                        role="alert"
+                      >
+                        {quickSearchErrors.returnTime}
+                      </span>
+                    )}
                   </label>
                 </div>
 

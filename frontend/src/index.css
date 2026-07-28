@@ -95,3 +95,88 @@ body {
     transition: none;
   }
 }
+
+@keyframes welcome-back-enter {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes welcome-back-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+}
+
+@keyframes welcome-back-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.welcome-back-toast {
+  animation: welcome-back-enter 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.welcome-back-toast.is-closing {
+  animation: welcome-back-exit 280ms ease-in both;
+  pointer-events: none;
+}
+
+.welcome-back-progress {
+  animation-name: welcome-back-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+@media (max-width: 639px) {
+  @keyframes welcome-back-mobile-enter {
+    from {
+      opacity: 0;
+      transform: translateY(-14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes welcome-back-mobile-exit {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-12px);
+    }
+  }
+
+  .welcome-back-toast {
+    animation-name: welcome-back-mobile-enter;
+  }
+
+  .welcome-back-toast.is-closing {
+    animation-name: welcome-back-mobile-exit;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-back-toast,
+  .welcome-back-toast.is-closing {
+    animation-name: none;
+  }
+}

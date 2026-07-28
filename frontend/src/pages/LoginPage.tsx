@@ -8,11 +8,11 @@ import {
   LockKeyhole,
   Mail,
 } from "lucide-react";
-import toast from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
 
 import AuthLayout from "../layouts/AuthLayout";
 import { authService } from "../services/auth.service";
+import { queueWelcomeBack } from "../utils/welcomeBack.util";
 
 const inputShellClass =
   "flex min-h-11 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-4 transition focus-within:border-secondary focus-within:bg-white/[0.07] focus-within:ring-4 focus-within:ring-secondary/10";
@@ -89,7 +89,7 @@ export default function LoginPage() {
         password,
       });
 
-      toast.success("Đăng nhập thành công");
+      queueWelcomeBack(user);
       navigate(getRedirectPath(user.role), { replace: true });
     } catch (error: unknown) {
       setError(getErrorMessage(error, "Đăng nhập thất bại"));
@@ -199,7 +199,7 @@ export default function LoginPage() {
                   credential: credentialResponse.credential,
                 });
 
-                toast.success("Đăng nhập Google thành công");
+                queueWelcomeBack(user);
                 navigate(getRedirectPath(user.role), { replace: true });
               } catch (error: unknown) {
                 setError(getErrorMessage(error, "Đăng nhập Google thất bại"));
