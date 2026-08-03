@@ -5,6 +5,7 @@
   ClipboardList,
   CreditCard,
   History,
+  FileText,
   LogOut,
   MapPinned,
   RefreshCw,
@@ -66,6 +67,7 @@ const navItems = [
     ],
   },
   { label: "Lịch sử booking", to: "/business/booking-history", icon: History },
+  { label: "Hợp đồng", to: "/business/contracts", icon: FileText },
   { label: "Thanh toán", to: "/business/payments", icon: CreditCard },
   {
     label: "Hoàn tiền",

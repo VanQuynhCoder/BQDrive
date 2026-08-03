@@ -8,10 +8,7 @@ import { UserModel } from "../../models/user/user.model";
 import { calculateRentalPrice } from "../../helper/rental.helper";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
 import { expireOldCarts } from "../../helper/cart.helper";
-import {
-  getBookingBufferHours,
-  getBufferedAvailabilityRange,
-} from "../../helper/booking-availability.helper";
+import { assertCarAvailability } from "../../helper/car-availability.helper";
 import {
   BookingStatusEnum,
   CarStatusEnum,
@@ -109,57 +106,19 @@ class CartRoute extends BaseRoute {
     session?: ClientSession,
   ) {
     const now = new Date();
-    const { bufferedStart, bufferedEnd } = getBufferedAvailabilityRange(
-      start,
-      end,
-    );
 
     if (!session) {
       await expireAbandonedPendingBookings(now);
       await expireOldCarts(now);
     }
 
-    const bookingQuery = BookingModel.findOne({
+    await assertCarAvailability({
       carId,
-      status: {
-        $in: BLOCKING_BOOKING_STATUSES,
-      },
-      isDeleted: false,
-      startDate: { $lt: bufferedEnd },
-      endDate: { $gt: bufferedStart },
-    } as any);
-    if (session) bookingQuery.session(session);
-    const existedBooking = await bookingQuery;
-
-    if (existedBooking) {
-      throw ErrorHelper.carTimeConflict({
-        carId,
-        startAt: start.toISOString(),
-        endAt: end.toISOString(),
-        conflictType: "BOOKING",
-        bufferHours: getBookingBufferHours(),
-      });
-    }
-
-    const cartQuery = CartModel.findOne({
-      carId,
-      status: CartStatusEnum.ACTIVE,
-      expiredAt: { $gt: now },
-      startDate: { $lt: bufferedEnd },
-      endDate: { $gt: bufferedStart },
-    } as any);
-    if (session) cartQuery.session(session);
-    const existedHold = await cartQuery;
-
-    if (existedHold) {
-      throw ErrorHelper.carTimeConflict({
-        carId,
-        startAt: start.toISOString(),
-        endAt: end.toISOString(),
-        conflictType: "HOLD",
-        bufferHours: getBookingBufferHours(),
-      });
-    }
+      start,
+      end,
+      now,
+      ...(session ? { session } : {}),
+    });
   }
 
   private async lockBookableCar(carId: string, session: ClientSession) {

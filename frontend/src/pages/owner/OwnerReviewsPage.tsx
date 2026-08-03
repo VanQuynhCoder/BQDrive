@@ -244,7 +244,7 @@ export default function OwnerReviewsPage({
                       {review.licensePlate || "--"}
                     </p>
                     <p className="text-xs font-bold uppercase text-secondary">
-                      Booking #{review.bookingCode || "--"}
+                      Booking {review.bookingCode || "--"}
                     </p>
                     {review.status === "REPORTED" && (
                       <span className="mt-2 inline-flex rounded-full bg-red-50 px-2 py-1 text-xs font-extrabold text-red-700">
@@ -392,7 +392,7 @@ export default function OwnerReviewsPage({
       {replyTarget && (
         <ReviewActionModal
           title="Phản hồi đánh giá"
-          subtitle={`Booking #${replyTarget.bookingCode || "--"} - ${replyTarget.carName || "Xe"}`}
+          subtitle={`Booking ${replyTarget.bookingCode || "--"} - ${replyTarget.carName || "Xe"}`}
           value={replyContent}
           placeholder="Cảm ơn bạn đã góp ý. Chúng tôi sẽ cải thiện..."
           confirmText="Lưu phản hồi"

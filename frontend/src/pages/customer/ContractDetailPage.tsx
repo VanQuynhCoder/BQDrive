@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { ArrowLeft, FileText, Loader2, Printer } from "lucide-react";
+import { AlertTriangle, ArrowLeft, FileText, Loader2, Printer } from "lucide-react";
 
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
@@ -14,6 +14,7 @@ import {
   type RentalContract,
 } from "../../services/contract.service";
 import {
+  getBookingDisplayCode,
   getContractStatusLabel,
   getPaymentTypeLabel,
 } from "../../utils/display.util";
@@ -94,6 +95,21 @@ function getPaymentSummaryLabel(status?: string) {
   return map[status || ""] || status || "--";
 }
 
+function getCancellationReason(booking?: ReturnType<typeof getContractBooking>) {
+  if (
+    booking?.cancelledByRole === "SYSTEM" &&
+    booking.cancelReasonCode === "PAYMENT_TIMEOUT"
+  ) {
+    return "Hệ thống đã tự động hủy booking do chưa hoàn tất thanh toán trong thời hạn quy định.";
+  }
+
+  return (
+    booking?.cancelReasonText ||
+    booking?.cancelReason ||
+    "Không có lý do hủy được ghi nhận."
+  );
+}
+
 export default function ContractDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -147,7 +163,7 @@ export default function ContractDetailPage() {
         <main className="mx-auto max-w-7xl px-6 pt-32">
           <div className="rounded-lg border border-border bg-white p-10 text-center">
             <h1 className="text-2xl font-extrabold text-primary">
-              Không tìm thủy hợp đồng
+              Không tìm thấy hợp đồng
             </h1>
             <Link
               to="/my-contracts"
@@ -204,6 +220,8 @@ export default function ContractDetailPage() {
       Math.max((contract.totalPrice || 0) - (contract.paidAmount || 0), 0),
     paymentStatus: contract.paymentStatus,
   };
+  const isCancelled = contract.status === "CANCELLED";
+  const cancellationReason = getCancellationReason(booking);
 
   return (
     <div className="min-h-screen bg-background">
@@ -241,6 +259,34 @@ export default function ContractDetailPage() {
         </div>
 
         <article className="rounded-lg border border-border bg-white p-6 shadow-sm md:p-8 print:border-0 print:shadow-none">
+          {isCancelled && (
+            <section className="mb-7 border border-red-300 bg-red-50 p-5 text-red-900 print:border-2 print:border-black print:bg-white print:text-black">
+              <div className="flex items-start gap-3">
+                <AlertTriangle
+                  size={22}
+                  className="mt-0.5 shrink-0 text-red-600 print:text-black"
+                />
+                <div>
+                  <p className="text-base font-extrabold uppercase">
+                    Trạng thái: Đã hủy - Không còn hiệu lực
+                  </p>
+                  <p className="mt-2 font-semibold">
+                    Hợp đồng này đã bị hủy và không còn hiệu lực.
+                  </p>
+                  <p className="mt-2 text-sm leading-6">
+                    <strong>Lý do hủy:</strong> {cancellationReason}
+                  </p>
+                  {booking?.cancelledAt && (
+                    <p className="mt-1 text-sm">
+                      <strong>Ngày hủy:</strong>{" "}
+                      {formatDateTime(booking.cancelledAt)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
           <div className="mb-8 flex flex-col gap-4 border-b border-border pb-6 md:flex-row md:items-start md:justify-between">
             <div className="flex items-start gap-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary text-secondary">
@@ -252,6 +298,9 @@ export default function ContractDetailPage() {
                 </h2>
                 <p className="mt-1 text-sm text-muted">
                   Mã hợp đồng: {contract.contractCode}
+                </p>
+                <p className="mt-1 text-sm text-muted">
+                  Mã đặt xe: {getBookingDisplayCode(booking)}
                 </p>
               </div>
             </div>
@@ -338,7 +387,7 @@ export default function ContractDetailPage() {
               value={formatCurrency(paymentSummary.remainingAmount)}
             />
             <InfoItem
-              label="Phuong án thanh toán"
+              label="Phương án thanh toán"
               value={getPaymentTypeLabel(contract.paymentOption)}
             />
             <InfoItem
@@ -369,7 +418,7 @@ export default function ContractDetailPage() {
           <section className="mt-8 rounded-lg border border-border p-5">
             <p className="text-sm leading-7 text-muted">
               Hợp đồng này được tạo dựa trên thông tin booking và thông tin
-              người thuê đã cung cập trên hệ thống BQDrive. Người thuê và đơn vị
+              người thuê đã cung cấp trên hệ thống BQDrive. Người thuê và đơn vị
               cho thuê có trách nhiệm thực hiện đúng thời gian nhận/trả xe,
               phương án thanh toán và các điều khoản đã được xác nhận.
             </p>

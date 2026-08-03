@@ -29,6 +29,7 @@ import {
   ShoppingCart,
   Sparkles,
   Star,
+  ThumbsUp,
   Users,
   Wallet,
   X,
@@ -68,7 +69,8 @@ import { hasPricingNumber } from "../utils/pricing.util";
 type RentalAvailability =
   | "AVAILABLE"
   | "HELD_IN_CART"
-  | "PENDING_CONFIRMATION";
+  | "PENDING_CONFIRMATION"
+  | "CLEANING";
 
 function ReviewAvatar({
   name,
@@ -108,6 +110,7 @@ const reviewCriteriaLabels: Array<{ key: keyof ReviewCriteria; label: string }> 
 
 type CarDetail = {
   _id: string;
+  carCode?: string | null;
   name: string;
   licensePlate?: string;
   description: string;
@@ -169,6 +172,7 @@ type CarDetail = {
   availabilityLabel?: string;
   isBookable?: boolean;
   unavailableReason?: string;
+  cleaningUntil?: string;
   unavailableRanges: UnavailableRange[];
   currentUserActiveBooking?: CurrentUserActiveBooking | null;
 };
@@ -178,6 +182,8 @@ type UnavailableRange = {
   startDate: string;
   endDate: string;
   status: string;
+  type?: "CLEANING" | string;
+  reason?: string;
 };
 
 type CurrentUserActiveBooking = {
@@ -658,7 +664,33 @@ function formatUnavailableRange(range: UnavailableRange) {
     year: "numeric",
   });
 
-  return `Từ ${formatter.format(start)} đến ${formatter.format(end)}`;
+  if (range.type === "CLEANING" || range.status === "CLEANING") {
+    return `Vệ sinh xe: từ ${formatter.format(start)} đến ${formatter.format(end)}`;
+  }
+
+  return `Đã có lịch thuê: từ ${formatter.format(start)} đến ${formatter.format(end)}`;
+}
+
+function findOverlappingUnavailableRange(
+  ranges: UnavailableRange[] | undefined,
+  start: Date,
+  end: Date,
+) {
+  if (!ranges?.length) return undefined;
+
+  return ranges.find((range) => {
+    const unavailableStart = new Date(range.startDate);
+    const unavailableEnd = new Date(range.endDate);
+
+    if (
+      Number.isNaN(unavailableStart.getTime()) ||
+      Number.isNaN(unavailableEnd.getTime())
+    ) {
+      return false;
+    }
+
+    return start < unavailableEnd && end > unavailableStart;
+  });
 }
 
 function doesRangeOverlapUnavailable(
@@ -692,7 +724,13 @@ function isDateInsideUnavailableRange(
   const dayStart = new Date(`${dateValue}T00:00:00`);
   const dayEnd = new Date(`${dateValue}T23:59:59`);
 
-  return doesRangeOverlapUnavailable(ranges, dayStart, dayEnd);
+  return doesRangeOverlapUnavailable(
+    ranges.filter(
+      (range) => range.type !== "CLEANING" && range.status !== "CLEANING",
+    ),
+    dayStart,
+    dayEnd,
+  );
 }
 
 function getCarImages(car?: CarDetail) {
@@ -731,14 +769,44 @@ function isAuthenticationError(error: unknown) {
   );
 }
 
-function getAvailabilityInfo(car?: CarDetail | null) {
+function getAvailabilityInfo(car?: CarDetail | null, now = Date.now()) {
   const availability = car?.rentalAvailability || "AVAILABLE";
+
+  if (availability === "CLEANING") {
+    const cleaningUntil = car?.cleaningUntil
+      ? new Date(car.cleaningUntil).getTime()
+      : 0;
+
+    if (cleaningUntil > now) {
+      const formattedUntil = new Date(cleaningUntil).toLocaleString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+
+      return {
+        label: `Đang vệ sinh đến ${new Date(cleaningUntil).toLocaleTimeString(
+          "vi-VN",
+          { hour: "2-digit", minute: "2-digit" },
+        )}`,
+        badgeClass: "bg-amber-100 text-amber-800 ring-1 ring-amber-200",
+        isBookable: car?.isBookable !== false,
+        isCleaning: true,
+        message:
+          car?.unavailableReason ||
+          `Xe vừa hoàn tất chuyến thuê và đang được vệ sinh đến ${formattedUntil}. Vui lòng chọn giờ nhận xe sau thời điểm này.`,
+      };
+    }
+  }
 
   if (availability === "PENDING_CONFIRMATION") {
     return {
       label: car?.availabilityLabel || "Đang chờ xác nhận",
       badgeClass: "bg-amber-50 text-amber-700",
       isBookable: false,
+      isCleaning: false,
       message:
         "Xe này đang có booking chờ chủ xe xác nhận, vui lòng chọn xe khác.",
     };
@@ -749,6 +817,7 @@ function getAvailabilityInfo(car?: CarDetail | null) {
       label: car?.availabilityLabel || "Đang được giữ",
       badgeClass: "bg-sky-50 text-sky-700",
       isBookable: false,
+      isCleaning: false,
       message: "Xe này đang được giữ trong giỏ hàng của người khác.",
     };
   }
@@ -758,8 +827,9 @@ function getAvailabilityInfo(car?: CarDetail | null) {
     badgeClass:
       car?.isBookable === false
         ? "bg-white text-primary ring-1 ring-border"
-        : "bg-secondarySoft text-primary",
+        : "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200",
     isBookable: car?.isBookable !== false,
+    isCleaning: false,
     message: car?.unavailableReason || "",
   };
 }
@@ -788,9 +858,11 @@ export default function CarDetailPage() {
   const [activeHolidayDate, setActiveHolidayDate] = useState("");
   const [hourlyDuration, setHourlyDuration] = useState(4); // Mặc định thuê theo giờ tối thiểu 4 giờ.
   const [currentMinuteOfDay, setCurrentMinuteOfDay] = useState(getCurrentMinuteOfDay); // Dùng để khóa giờ đã qua trong ngày hiện tại.
+  const [availabilityNow, setAvailabilityNow] = useState(() => Date.now());
   const [isBookingSubmitting, setIsBookingSubmitting] = useState(false);
   const [isCartSubmitting, setIsCartSubmitting] = useState(false);
   const [reviewSummary, setReviewSummary] = useState<CarReviewSummary | null>(null);
+  const [helpfulLoadingReviewId, setHelpfulLoadingReviewId] = useState("");
   const [reviewSort, setReviewSort] =
     useState<"newest" | "oldest" | "highest" | "lowest">("newest");
   const [reviewRatingFilter, setReviewRatingFilter] = useState(0);
@@ -873,6 +945,49 @@ export default function CarDetailPage() {
     };
   }, [id, reviewFilterMode, reviewRatingFilter, reviewSort]);
 
+  const handleHelpfulToggle = async (
+    reviewId: string,
+    isHelpfulByMe: boolean,
+  ) => {
+    if (!authService.isLoggedIn()) {
+      toast.error("Vui lòng đăng nhập để đánh dấu đánh giá hữu ích.");
+      return;
+    }
+
+    if (authService.getRole() !== "USER") {
+      toast.error("Chức năng này dành cho tài khoản người dùng.");
+      return;
+    }
+
+    setHelpfulLoadingReviewId(reviewId);
+    try {
+      const updatedReview = isHelpfulByMe
+        ? await reviewService.unmarkReviewHelpful(reviewId)
+        : await reviewService.markReviewHelpful(reviewId);
+
+      setReviewSummary((current) =>
+        current
+          ? {
+              ...current,
+              reviews: current.reviews.map((review) =>
+                review.id === reviewId
+                  ? {
+                      ...review,
+                      helpfulCount: Number(updatedReview.helpfulCount || 0),
+                      isHelpfulByMe: !isHelpfulByMe,
+                    }
+                  : review,
+              ),
+            }
+          : current,
+      );
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setHelpfulLoadingReviewId("");
+    }
+  };
+
   const galleryImages = useMemo(() => getCarImages(car || undefined), [car]);
 
   useEffect(() => {
@@ -931,6 +1046,16 @@ export default function CarDetailPage() {
   const closeImageViewer = useCallback(() => {
     setActiveImageIndex(null);
   }, []);
+
+  useEffect(() => {
+    if (!car?.cleaningUntil) return;
+
+    const intervalId = window.setInterval(() => {
+      setAvailabilityNow(Date.now());
+    }, 30 * 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [car?.cleaningUntil]);
 
   const showPreviousImage = useCallback(() => {
     setActiveImageIndex((current) => {
@@ -1025,7 +1150,7 @@ export default function CarDetailPage() {
   const primaryStartingUnit = supportedRentalModes.allowDailyRental
     ? "ngày"
     : "giờ";
-  const availabilityInfo = getAvailabilityInfo(car);
+  const availabilityInfo = getAvailabilityInfo(car, availabilityNow);
 
   const rentalTime = useMemo(() => {
     if (!car || !startDate || !endDate || !startTime || !endTime) return 0;
@@ -1054,9 +1179,33 @@ export default function CarDetailPage() {
       return "";
     }
 
-    return doesRangeOverlapUnavailable(car.unavailableRanges, start, end)
-      ? "Xe đã được thuê trong khoảng thời gian bạn chọn"
-      : "";
+    const overlappingRange = findOverlappingUnavailableRange(
+      car.unavailableRanges,
+      start,
+      end,
+    );
+
+    if (!overlappingRange) return "";
+
+    if (
+      overlappingRange.type === "CLEANING" ||
+      overlappingRange.status === "CLEANING"
+    ) {
+      const cleaningUntil = new Date(overlappingRange.endDate);
+      const formattedUntil = Number.isNaN(cleaningUntil.getTime())
+        ? "thời điểm vệ sinh kết thúc"
+        : cleaningUntil.toLocaleString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          });
+
+      return `Xe đang được vệ sinh đến ${formattedUntil}. Vui lòng chọn giờ nhận xe sau thời điểm này.`;
+    }
+
+    return "Xe đã được thuê trong khoảng thời gian bạn chọn";
   }, [car, startDate, endDate, startTime, endTime]);
   const rentalModeValidationMessage = useMemo(() => {
     if (rentalMode === "DAILY" && !supportedRentalModes.allowDailyRental) {
@@ -1370,8 +1519,19 @@ export default function CarDetailPage() {
     const proposedStart = new Date(buildVietnamDateTime(startDate, startTime));
     const proposedEnd = new Date(buildVietnamDateTime(dateValue, endTime));
 
-    if (doesRangeOverlapUnavailable(unavailableRanges, proposedStart, proposedEnd)) {
-      toast.error("Khoảng thời gian này trùng với lịch xe đã được thuê");
+    const overlappingRange = findOverlappingUnavailableRange(
+      unavailableRanges,
+      proposedStart,
+      proposedEnd,
+    );
+
+    if (overlappingRange) {
+      toast.error(
+        overlappingRange.type === "CLEANING" ||
+          overlappingRange.status === "CLEANING"
+          ? "Giờ nhận xe trùng thời gian vệ sinh. Vui lòng chọn giờ muộn hơn."
+          : "Khoảng thời gian này trùng với lịch xe đã được thuê",
+      );
       return;
     }
 
@@ -1695,6 +1855,9 @@ export default function CarDetailPage() {
                   <h1 className="max-w-4xl text-4xl font-extrabold leading-tight text-primary md:text-5xl">
                     {car.name}
                   </h1>
+                  <p className="mt-3 text-base font-extrabold text-primary">
+                    Biển số: {car.licensePlate || "Chưa cập nhật"}
+                  </p>
                 </div>
 
                 <div className="grid gap-3 text-center sm:grid-cols-3">
@@ -2292,6 +2455,13 @@ export default function CarDetailPage() {
                   </p>
                 )}
 
+                {availabilityInfo.isCleaning && availabilityInfo.message && (
+                  <p className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold leading-6 text-amber-800">
+                    <Clock size={17} className="mt-0.5 shrink-0" />
+                    {availabilityInfo.message}
+                  </p>
+                )}
+
                 {shouldShowRentalValidation && (
                   <p className="flex items-start gap-2 rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold leading-6 text-primary">
                     <X size={17} className="mt-0.5 shrink-0" />
@@ -2318,7 +2488,9 @@ export default function CarDetailPage() {
                     <div className="flex items-start gap-2">
                       <X size={17} className="mt-0.5 shrink-0 text-red-600" />
                       <div>
-                        <p className="font-extrabold">Xe đã được thuê:</p>
+                        <p className="font-extrabold">
+                          Thời gian xe không khả dụng:
+                        </p>
                         <ul className="mt-1 space-y-1">
                           {unavailableRanges.map((range) => {
                             const label = formatUnavailableRange(range);
@@ -2598,6 +2770,30 @@ export default function CarDetailPage() {
                       </p>
                     </div>
                   )}
+                  <div className="mt-4 border-t border-slate-200 pt-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void handleHelpfulToggle(
+                          review.id,
+                          Boolean(review.isHelpfulByMe),
+                        )
+                      }
+                      disabled={helpfulLoadingReviewId === review.id}
+                      aria-pressed={Boolean(review.isHelpfulByMe)}
+                      className={`inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 text-sm font-extrabold transition disabled:cursor-wait disabled:opacity-60 ${
+                        review.isHelpfulByMe
+                          ? "border-secondary bg-secondarySoft text-primary"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-secondary hover:text-primary"
+                      }`}
+                    >
+                      <ThumbsUp
+                        size={16}
+                        fill={review.isHelpfulByMe ? "currentColor" : "none"}
+                      />
+                      Hữu ích ({review.helpfulCount || 0})
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>

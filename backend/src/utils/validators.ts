@@ -2,8 +2,27 @@ import { ErrorHelper } from "../base/error";
 
 const PHONE_PATTERN = /^0\d{9}$/;
 const TWELVE_DIGITS_PATTERN = /^\d{12}$/;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 const LICENSE_PLATE_PATTERN = /^\d{2}[A-Z]-?(\d{5}|\d{3}\.\d{2})$/;
+
+const COMMON_EMAIL_DOMAIN_TYPOS: Record<string, string> = {
+  "gmai.com": "gmail.com",
+  "gamil.com": "gmail.com",
+  "gmial.com": "gmail.com",
+  "gmail.co": "gmail.com",
+  "gmail.con": "gmail.com",
+  "gmail.cm": "gmail.com",
+  "gmaill.com": "gmail.com",
+  "hotmai.com": "hotmail.com",
+  "hotmial.com": "hotmail.com",
+  "hotmail.co": "hotmail.com",
+  "outlok.com": "outlook.com",
+  "outllook.com": "outlook.com",
+  "outlook.co": "outlook.com",
+  "yaho.com": "yahoo.com",
+  "yahoo.co": "yahoo.com",
+  "yahoo.con": "yahoo.com",
+};
 
 export const PHONE_INVALID_MESSAGE =
   "Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.";
@@ -26,8 +45,47 @@ export function isValidVietnamPhone(value: unknown) {
   return PHONE_PATTERN.test(String(value || ""));
 }
 
+export function normalizeEmail(value: unknown) {
+  return String(value || "").trim().toLowerCase();
+}
+
+export function getEmailValidationError(value: unknown, label = "Email") {
+  const email = normalizeEmail(value);
+
+  if (!email) return `Vui lòng nhập ${label.toLowerCase()}`;
+
+  if (
+    email.length > 254 ||
+    !EMAIL_PATTERN.test(email) ||
+    email.startsWith(".") ||
+    email.includes("..")
+  ) {
+    return `${label} không hợp lệ`;
+  }
+
+  const domain = email.slice(email.lastIndexOf("@") + 1);
+  const suggestedDomain = COMMON_EMAIL_DOMAIN_TYPOS[domain];
+
+  if (suggestedDomain) {
+    return `${label} có thể bị nhập sai. Vui lòng kiểm tra lại domain ${suggestedDomain}`;
+  }
+
+  return "";
+}
+
 export function isValidEmail(value: unknown) {
-  return EMAIL_PATTERN.test(String(value || ""));
+  return !getEmailValidationError(value);
+}
+
+export function validateEmail(value: unknown, label = "Email") {
+  const email = normalizeEmail(value);
+  const error = getEmailValidationError(email, label);
+
+  if (error) {
+    throw ErrorHelper.requestDataInvalid(error);
+  }
+
+  return email;
 }
 
 export function validatePhone(value: unknown, required = true) {

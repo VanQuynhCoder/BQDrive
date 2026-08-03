@@ -32,6 +32,7 @@ import AdminBrandsPage from "./pages/admin/AdminBrandsPage";
 import AdminCarsPage from "./pages/admin/AdminCarsPage";
 import AdminCarMapPage from "./pages/admin/AdminCarMapPage";
 import AdminHolidaysPage from "./pages/admin/AdminHolidaysPage";
+import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
 import BusinessDashboardPage from "./pages/business/BusinessDashboardPage";
 import BusinessCarsPage from "./pages/business/BusinessCarsPage";
 import BusinessBookingsPage from "./pages/business/BusinessBookingsPage";
@@ -45,16 +46,19 @@ import OwnerBookingHistoryPage from "./pages/owner/OwnerBookingHistoryPage";
 import OwnerCarLocationPage from "./pages/owner/OwnerCarLocationPage";
 import OwnerRefundsPage from "./pages/owner/OwnerRefundsPage";
 import OwnerReviewsPage from "./pages/owner/OwnerReviewsPage";
+import OwnerContractsPage from "./pages/owner/OwnerContractsPage";
 import TaskCenterPage from "./pages/tasks/TaskCenterPage";
 import NotificationCenterPage from "./pages/notifications/NotificationCenterPage";
 import PaymentResultPage from "./pages/PaymentResultPage";
 import WelcomeBackToast from "./components/WelcomeBackToast";
+import ScrollToTop from "./components/ScrollToTop";
 
 function App() {
   const userRoles = ["USER"];
 
   return (
     <>
+      <ScrollToTop />
       <Routes>
       {/* Public */}
       <Route path="/" element={<HomePage />} />
@@ -160,7 +164,7 @@ function App() {
       <Route
         path="/contracts/:id"
         element={
-          <ProtectedRoute roles={userRoles}>
+          <ProtectedRoute roles={["USER", "BUSINESS"]}>
             <ContractDetailPage />
           </ProtectedRoute>
         }
@@ -229,6 +233,15 @@ function App() {
           }
         />
         <Route path="payments" element={<BusinessPaymentsPage />} />
+        <Route
+          path="contracts"
+          element={
+            <OwnerContractsPage
+              title="Hợp đồng xe doanh nghiệp"
+              subtitle="Xem các hợp đồng phát sinh từ booking thuộc xe của doanh nghiệp."
+            />
+          }
+        />
         <Route
           path="refunds"
           element={
@@ -305,6 +318,15 @@ function App() {
         />
         <Route path="payments" element={<PrivateOwnerPaymentsPage />} />
         <Route
+          path="contracts"
+          element={
+            <OwnerContractsPage
+              title="Hợp đồng xe ký gửi"
+              subtitle="Xem các hợp đồng phát sinh từ booking thuộc xe ký gửi của bạn."
+            />
+          }
+        />
+        <Route
           path="refunds"
           element={
             <OwnerRefundsPage
@@ -370,6 +392,8 @@ function App() {
         <Route path="car-map" element={<AdminCarMapPage />} />
 
         <Route path="holidays" element={<AdminHolidaysPage />} />
+
+        <Route path="reviews" element={<AdminReviewsPage />} />
       </Route>
       <Route
   path="/payment-result"

@@ -185,7 +185,7 @@ export default function CarCarousel({
                 />
 
                 <div className="absolute left-3 top-3 flex max-w-[calc(100%-24px)] flex-wrap gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-secondarySoft px-2.5 py-1 text-xs font-extrabold text-primary">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-extrabold text-emerald-700 ring-1 ring-emerald-200">
                     <ShieldCheck size={14} />
                     Sẵn sàng
                   </span>

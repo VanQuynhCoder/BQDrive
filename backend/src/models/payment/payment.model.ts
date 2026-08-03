@@ -11,6 +11,7 @@ import {
 export type IPayment = BaseDocument & {
   bookingId: mongoose.Types.ObjectId;
   extraChargeId?: mongoose.Types.ObjectId;
+  extensionId?: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   amount: number;
   method: string;
@@ -36,6 +37,11 @@ const paymentSchema = new mongoose.Schema(
     extraChargeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "ExtraCharge",
+      index: true,
+    },
+    extensionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "BookingExtension",
       index: true,
     },
     userId: {

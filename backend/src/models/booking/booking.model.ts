@@ -31,6 +31,7 @@ export type IPricingSnapshot = {
 };
 
 export type IBooking = BaseDocument & {
+  bookingCode?: string;
   userId: mongoose.Types.ObjectId;
   ownerId: mongoose.Types.ObjectId;
   ownerType: OwnerTypeEnum;
@@ -42,6 +43,7 @@ export type IBooking = BaseDocument & {
   endDate: Date;
   actualPickupAt?: Date;
   actualReturnAt?: Date;
+  completedAt?: Date;
   rentalMode: string;
   mileagePolicySnapshot?: {
     rentalMode: string;
@@ -134,6 +136,15 @@ export type IBooking = BaseDocument & {
 
 const bookingSchema = new mongoose.Schema(
   {
+    bookingCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      immutable: true,
+      trim: true,
+      uppercase: true,
+      match: /^BQD-BK-\d{6}$/,
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -180,6 +191,10 @@ const bookingSchema = new mongoose.Schema(
       default: null,
     },
     actualReturnAt: {
+      type: Date,
+      default: null,
+    },
+    completedAt: {
       type: Date,
       default: null,
     },
@@ -580,6 +595,12 @@ bookingSchema.index({
   isDeleted: 1,
 });
 bookingSchema.index({ ownerId: 1, ownerType: 1, isDeleted: 1, createdAt: -1 });
+bookingSchema.index({
+  carId: 1,
+  status: 1,
+  completedAt: -1,
+  isDeleted: 1,
+});
 
 const BookingModel = mongoose.model<IBooking>("Booking", bookingSchema);
 

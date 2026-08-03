@@ -46,7 +46,8 @@ import type { CarPricing } from "../types/pricing";
 type RentalAvailability =
   | "AVAILABLE"
   | "HELD_IN_CART"
-  | "PENDING_CONFIRMATION";
+  | "PENDING_CONFIRMATION"
+  | "CLEANING";
 
 type HomeCar = {
   _id: string;
@@ -73,6 +74,7 @@ type HomeCar = {
   availabilityLabel?: string;
   isBookable?: boolean;
   unavailableReason?: string;
+  cleaningUntil?: string;
   holdingCartId?: string;
   holdExpiredAt?: string;
   resumeBookingId?: string;
@@ -1463,7 +1465,7 @@ export default function HomePage() {
                     Tìm xe nhanh
                   </p>
                   <h2 className="mt-1 text-2xl font-extrabold">
-                    Chọn lịch trình
+                    Tìm xe theo khu vực
                   </h2>
                 </div>
 

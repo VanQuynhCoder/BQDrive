@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { BaseRoute, Request, Response } from "../../base/baseRoute";
 import { ErrorHelper } from "../../base/error";
+import { getBookingDisplayCode } from "../../helper/booking-code.helper";
 import { UserModel } from "../../models/user/user.model";
 import { BusinessModel } from "../../models/business/business.model";
 import { CarModel } from "../../models/car/car.model";
@@ -19,7 +20,7 @@ import {
   PaymentStatusEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
-import { isValidEmail, validatePhone } from "../../utils/validators";
+import { validateEmail, validatePhone } from "../../utils/validators";
 
 const ACTIVE_BOOKING_STATUSES = [
   BookingStatusEnum.REQUESTED,
@@ -128,24 +129,8 @@ class AdminRoute extends BaseRoute {
     );
   }
 
-  private normalizeEmail(email: unknown) {
-    return typeof email === "string" ? email.trim().toLowerCase() : "";
-  }
-
   private validateBusinessEmail(email: unknown) {
-    const normalizedEmail = this.normalizeEmail(email);
-
-    if (!normalizedEmail) {
-      throw ErrorHelper.requestDataInvalid("Thiếu email doanh nghiệp");
-    }
-
-    if (!isValidEmail(normalizedEmail)) {
-      throw ErrorHelper.requestDataInvalid(
-        "Email doanh nghiệp không hợp lệ. Vui lòng nhập đúng định dạng, ví dụ: business@gmail.com",
-      );
-    }
-
-    return normalizedEmail;
+    return validateEmail(email, "Email doanh nghiệp");
   }
 
   private isTempBusinessUser(user: { name?: string; role?: string }) {
@@ -165,16 +150,17 @@ class AdminRoute extends BaseRoute {
     return {
       id: review._id,
       bookingId: review.bookingId?._id || review.bookingId,
-      bookingCode: String(review.bookingId?._id || review.bookingId || "")
-        .slice(-8)
-        .toUpperCase(),
+      bookingCode: getBookingDisplayCode(review.bookingId),
       carName: review.carNameSnapshot || review.carId?.name || "Xe",
       licensePlate: review.carId?.licensePlate || "",
       renterName: review.reviewerNameSnapshot || review.renterId?.name || "Khách thuê",
       renterEmail: review.renterId?.email || "",
+      renterAvatar: review.renterId?.avatar || "",
       rating: review.rating,
+      criteria: review.criteria || {},
       comment: review.comment || "",
       images: review.images || [],
+      helpfulCount: Number(review.helpfulCount || 0),
       ownerReply: review.ownerReply || null,
       status: review.status,
       report: review.report || null,
@@ -383,9 +369,9 @@ class AdminRoute extends BaseRoute {
     }
 
     const reviews = await ReviewModel.find(filter)
-      .populate("bookingId", "_id")
+      .populate("bookingId", "_id bookingCode")
       .populate("carId", "name licensePlate")
-      .populate("renterId", "name email")
+      .populate("renterId", "name email avatar")
       .sort({ createdAt: -1 })
       .limit(100)
       .lean();
@@ -838,6 +824,27 @@ class AdminRoute extends BaseRoute {
     );
   }
 
+  private getPrivateOwnerCarFilter(userId: string) {
+    return {
+      ownerId: userId,
+      ownerType: OwnerTypeEnum.USER,
+      isDeleted: false,
+    } as any;
+  }
+
+  private getBusinessCarFilter(businessId: string) {
+    return {
+      $or: [
+        { businessId },
+        {
+          ownerId: businessId,
+          ownerType: OwnerTypeEnum.BUSINESS,
+        },
+      ],
+      isDeleted: false,
+    } as any;
+  }
+
   private async checkUserOwnedCarsHaveActiveWork(userId: string) {
     await expireAbandonedPendingBookings();
 
@@ -925,6 +932,7 @@ class AdminRoute extends BaseRoute {
           "Không thể khóa tài khoản đang có xe ký gửi phát sinh booking, hợp đồng hoặc thanh toán chưa đóng",
         );
       }
+
     }
 
     if (user.role === UserRoleEnum.BUSINESS) {
@@ -950,7 +958,11 @@ class AdminRoute extends BaseRoute {
 
     await user.save();
 
-    if (user.role === UserRoleEnum.BUSINESS) {
+    if (user.role === UserRoleEnum.USER) {
+      await this.hideCarsByAdmin(
+        this.getPrivateOwnerCarFilter(String(user._id)),
+      );
+    } else if (user.role === UserRoleEnum.BUSINESS) {
       const business = await BusinessModel.findOne({
         userId: user._id,
         isDeleted: false,
@@ -958,10 +970,7 @@ class AdminRoute extends BaseRoute {
 
       if (business) {
         await this.hideCarsByAdmin(
-          {
-            businessId: business._id,
-            isDeleted: false,
-          } as any,
+          this.getBusinessCarFilter(String(business._id)),
         );
       }
     }
@@ -999,7 +1008,11 @@ class AdminRoute extends BaseRoute {
 
     await user.save();
 
-    if (user.role === UserRoleEnum.BUSINESS) {
+    if (user.role === UserRoleEnum.USER) {
+      await this.restoreCarsAfterAdminUnblock(
+        this.getPrivateOwnerCarFilter(String(user._id)),
+      );
+    } else if (user.role === UserRoleEnum.BUSINESS) {
       const business = await BusinessModel.findOne({
         userId: user._id,
         isDeleted: false,
@@ -1007,10 +1020,7 @@ class AdminRoute extends BaseRoute {
 
       if (business) {
         await this.restoreCarsAfterAdminUnblock(
-          {
-            businessId: business._id,
-            isDeleted: false,
-          } as any,
+          this.getBusinessCarFilter(String(business._id)),
         );
       }
     }
@@ -1060,6 +1070,15 @@ class AdminRoute extends BaseRoute {
           "Không thể xóa tài khoản đang có xe ký gửi phát sinh booking, hợp đồng hoặc thanh toán chưa đóng",
         );
       }
+
+      await CarModel.updateMany(
+        this.getPrivateOwnerCarFilter(id),
+        {
+          isDeleted: true,
+          isHidden: true,
+          hiddenByAdmin: true,
+        } as any,
+      );
     }
 
     if (user.role === UserRoleEnum.BUSINESS) {
@@ -1083,12 +1102,11 @@ class AdminRoute extends BaseRoute {
         await business.save();
 
         await CarModel.updateMany(
-          {
-            businessId: business._id,
-            isDeleted: false,
-          },
+          this.getBusinessCarFilter(String(business._id)),
           {
             isDeleted: true,
+            isHidden: true,
+            hiddenByAdmin: true,
           },
         );
       }
@@ -1154,10 +1172,7 @@ class AdminRoute extends BaseRoute {
     await user.save();
 
     await this.hideCarsByAdmin(
-      {
-        businessId: business._id,
-        isDeleted: false,
-      } as any,
+      this.getBusinessCarFilter(String(business._id)),
     );
 
     return res.status(200).json({
@@ -1195,10 +1210,7 @@ class AdminRoute extends BaseRoute {
     await user.save();
 
     await this.restoreCarsAfterAdminUnblock(
-      {
-        businessId: business._id,
-        isDeleted: false,
-      } as any,
+      this.getBusinessCarFilter(String(business._id)),
     );
 
     return res.status(200).json({
@@ -1256,6 +1268,8 @@ class AdminRoute extends BaseRoute {
       } as any,
       {
         isDeleted: true,
+        isHidden: true,
+        hiddenByAdmin: true,
       },
     );
 

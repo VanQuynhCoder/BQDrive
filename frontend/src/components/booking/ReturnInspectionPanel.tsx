@@ -25,10 +25,30 @@ type ReturnInspection = {
   receivedAt?: string;
   returnOdometer?: number;
   returnFuelLevel?: number;
+  returnOdometerKm?: number;
+  returnEnergyLevelPercent?: number;
+  returnDashboardImage?: string;
+  distanceTravelledKm?: number;
+  totalIncludedKm?: number;
+  overageKm?: number;
+  chargeableOverageKm?: number;
+  suggestedOverageAmount?: number;
+  mileageStatus?: string;
   returnPhotos?: string[];
   conditionNotes?: string;
   isLate?: boolean;
   lateMinutes?: number;
+  lateReturnCalculation?: {
+    scheduledReturnAt: string;
+    actualReturnAt: string;
+    lateMinutes: number;
+    graceMinutes: number;
+    chargeableMinutes: number;
+    blockMinutes: number;
+    chargedBlocks: number;
+    feePerBlock: number;
+    calculatedAmount: number;
+  };
   hasDamage?: boolean;
   hasCleaningIssue?: boolean;
   hasFuelShortage?: boolean;
@@ -59,6 +79,8 @@ type Props = {
   bookingId: string;
   bookingStatus: string;
   plannedReturnAt?: string;
+  handoverOdometerKm?: number;
+  handoverEnergyLevelPercent?: number;
   getInspection: (id: string) => Promise<ReturnInspectionResponse>;
   receiveReturn: (
     id: string,
@@ -68,7 +90,9 @@ type Props = {
     id: string,
     conditionNotes?: string,
   ) => Promise<ReturnInspectionResponse>;
+  completeBooking?: (id: string) => Promise<unknown>;
   onChanged?: () => Promise<void> | void;
+  onCompleted?: () => void;
 };
 
 const MAX_RETURN_PHOTOS = 8;
@@ -101,14 +125,36 @@ function formatDateTime(value?: string) {
     : "--";
 }
 
+function formatDuration(minutes = 0) {
+  const normalized = Math.max(Math.round(minutes), 0);
+  const hours = Math.floor(normalized / 60);
+  const remainingMinutes = normalized % 60;
+
+  if (!hours) return `${remainingMinutes} phút`;
+  if (!remainingMinutes) return `${hours} giờ`;
+  return `${hours} giờ ${remainingMinutes} phút`;
+}
+
+function formatCurrency(value = 0) {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export default function ReturnInspectionPanel({
   bookingId,
   bookingStatus,
   plannedReturnAt,
+  handoverOdometerKm,
+  handoverEnergyLevelPercent,
   getInspection,
   receiveReturn,
   clearInspection,
+  completeBooking,
   onChanged,
+  onCompleted,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -124,6 +170,14 @@ export default function ReturnInspectionPanel({
   const [hasDamage, setHasDamage] = useState(false);
   const [hasCleaningIssue, setHasCleaningIssue] = useState(false);
   const [hasFuelShortage, setHasFuelShortage] = useState(false);
+  const displayedReturnOdometer =
+    inspection?.returnOdometerKm ?? inspection?.returnOdometer;
+  const displayedReturnEnergy =
+    inspection?.returnEnergyLevelPercent ?? inspection?.returnFuelLevel;
+  const isAwaitingExtraCharge = bookingStatus === "AWAITING_EXTRA_CHARGE";
+  const hasPendingExtraCharge = completionState.blockers.includes(
+    "PENDING_EXTRA_CHARGE",
+  );
 
   const shouldFetch = useMemo(
     () =>
@@ -229,6 +283,24 @@ export default function ReturnInspectionPanel({
       await onChanged?.();
     } catch (error) {
       toast.error(getErrorMessage(error, "Không thể xác nhận kiểm tra xe"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCompleteBooking = async () => {
+    if (!completeBooking || !completionState.canComplete) return;
+
+    setSubmitting(true);
+    try {
+      await completeBooking(bookingId);
+      toast.success("Đã hoàn tất booking");
+      notifyNotificationSummaryChanged();
+      await onChanged?.();
+      onCompleted?.();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Không thể hoàn tất booking"));
+      await fetchInspection();
     } finally {
       setSubmitting(false);
     }
@@ -400,7 +472,7 @@ export default function ReturnInspectionPanel({
 
       {inspection && (
         <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="grid gap-3 text-sm sm:grid-cols-2">
+          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-lg bg-slate-50 p-3">
               <p className="text-xs font-bold uppercase text-slate-400">
                 Thời gian trả thực tế
@@ -421,22 +493,168 @@ export default function ReturnInspectionPanel({
             </div>
             <div className="rounded-lg bg-slate-50 p-3">
               <p className="text-xs font-bold uppercase text-slate-400">
-                ODO lúc trả
+                ODO lúc giao
               </p>
               <p className="mt-1 font-extrabold text-primary">
-                {inspection.returnOdometer ?? "--"}
+                {handoverOdometerKm !== undefined
+                  ? `${new Intl.NumberFormat("vi-VN").format(handoverOdometerKm)} km`
+                  : "--"}
               </p>
             </div>
             <div className="rounded-lg bg-slate-50 p-3">
               <p className="text-xs font-bold uppercase text-slate-400">
-                Nhiên liệu lúc trả
+                ODO lúc trả
               </p>
               <p className="mt-1 font-extrabold text-primary">
-                {inspection.returnFuelLevel ?? "--"}
-                {inspection.returnFuelLevel !== undefined ? "%" : ""}
+                {displayedReturnOdometer !== undefined
+                  ? `${new Intl.NumberFormat("vi-VN").format(displayedReturnOdometer)} km`
+                  : "--"}
+              </p>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase text-slate-400">
+                Năng lượng lúc giao
+              </p>
+              <p className="mt-1 font-extrabold text-primary">
+                {handoverEnergyLevelPercent !== undefined
+                  ? `${handoverEnergyLevelPercent}%`
+                  : "--"}
+              </p>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase text-slate-400">
+                Năng lượng lúc trả
+              </p>
+              <p className="mt-1 font-extrabold text-primary">
+                {displayedReturnEnergy !== undefined
+                  ? `${displayedReturnEnergy}%`
+                  : "--"}
               </p>
             </div>
           </div>
+
+          {inspection.lateReturnCalculation && (
+            <div
+              className={`rounded-xl border p-4 ${
+                inspection.lateReturnCalculation.calculatedAmount > 0
+                  ? "border-yellow-200 bg-yellow-50"
+                  : "border-emerald-200 bg-emerald-50"
+              }`}
+            >
+              <p className="text-sm font-extrabold uppercase text-primary">
+                Thời gian trả xe và phí trả trễ
+              </p>
+              <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <p className="font-bold text-slate-500">Dự kiến trả</p>
+                  <p className="mt-1 font-extrabold text-primary">
+                    {formatDateTime(
+                      inspection.lateReturnCalculation.scheduledReturnAt,
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-bold text-slate-500">Thực tế tiếp nhận</p>
+                  <p className="mt-1 font-extrabold text-primary">
+                    {formatDateTime(
+                      inspection.lateReturnCalculation.actualReturnAt,
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-bold text-slate-500">Trễ thực tế</p>
+                  <p className="mt-1 font-extrabold text-primary">
+                    {formatDuration(
+                      inspection.lateReturnCalculation.lateMinutes,
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-bold text-slate-500">Thời gian miễn phí</p>
+                  <p className="mt-1 font-extrabold text-primary">
+                    {inspection.lateReturnCalculation.graceMinutes} phút
+                  </p>
+                </div>
+                <div>
+                  <p className="font-bold text-slate-500">Thời gian tính phí</p>
+                  <p className="mt-1 font-extrabold text-primary">
+                    {formatDuration(
+                      inspection.lateReturnCalculation.chargeableMinutes,
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-bold text-slate-500">Số block</p>
+                  <p className="mt-1 font-extrabold text-primary">
+                    {inspection.lateReturnCalculation.chargedBlocks} block
+                  </p>
+                </div>
+                <div>
+                  <p className="font-bold text-slate-500">Đơn giá</p>
+                  <p className="mt-1 font-extrabold text-primary">
+                    {formatCurrency(
+                      inspection.lateReturnCalculation.feePerBlock,
+                    )}
+                    /block {inspection.lateReturnCalculation.blockMinutes} phút
+                  </p>
+                </div>
+                <div>
+                  <p className="font-bold text-slate-500">Phí trả trễ</p>
+                  <p className="mt-1 text-lg font-extrabold text-primary">
+                    {formatCurrency(
+                      inspection.lateReturnCalculation.calculatedAmount,
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg border border-slate-200 bg-white p-3">
+              <p className="text-xs font-bold uppercase text-slate-400">Quãng đường đã đi</p>
+              <p className="mt-1 font-extrabold text-primary">
+                {inspection.distanceTravelledKm !== undefined
+                  ? `${inspection.distanceTravelledKm} km`
+                  : "Chưa đánh giá"}
+              </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-white p-3">
+              <p className="text-xs font-bold uppercase text-slate-400">Km trong gói</p>
+              <p className="mt-1 font-extrabold text-primary">
+                {inspection.totalIncludedKm !== undefined
+                  ? `${inspection.totalIncludedKm} km`
+                  : "Chưa đánh giá"}
+              </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-white p-3">
+              <p className="text-xs font-bold uppercase text-slate-400">Km vượt thực tế</p>
+              <p className="mt-1 font-extrabold text-primary">
+                {inspection.overageKm !== undefined
+                  ? `${inspection.overageKm} km`
+                  : "Chưa đánh giá"}
+              </p>
+            </div>
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+              <p className="text-xs font-bold uppercase text-amber-700">Km tính phí</p>
+              <p className="mt-1 font-extrabold text-primary">
+                {inspection.chargeableOverageKm !== undefined
+                  ? `${inspection.chargeableOverageKm} km`
+                  : "Chưa đánh giá"}
+              </p>
+            </div>
+          </div>
+
+          {inspection.suggestedOverageAmount !== undefined &&
+            inspection.suggestedOverageAmount > 0 && (
+              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm font-semibold text-primary">
+                Hệ thống đề xuất phí vượt kilomet: {new Intl.NumberFormat("vi-VN", {
+                  style: "currency",
+                  currency: "VND",
+                  maximumFractionDigits: 0,
+                }).format(inspection.suggestedOverageAmount)}
+              </div>
+            )}
 
           {inspection.conditionNotes && (
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-semibold leading-6 text-slate-700">
@@ -444,13 +662,30 @@ export default function ReturnInspectionPanel({
             </div>
           )}
 
-          {inspection.returnPhotos?.length ? (
+          {(inspection.returnPhotos?.length || inspection.returnDashboardImage) ? (
             <div>
               <p className="mb-2 text-xs font-bold uppercase text-slate-400">
-                Ảnh xe lúc trả
+                Ảnh đối chiếu khi nhận xe trả
               </p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {inspection.returnPhotos.map((image, index) => (
+                {inspection.returnDashboardImage && (
+                  <a
+                    href={normalizeImageUrl(inspection.returnDashboardImage)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+                  >
+                    <img
+                      src={normalizeImageUrl(inspection.returnDashboardImage)}
+                      alt="Ảnh đồng hồ ODO khi nhận xe trả"
+                      className="h-24 w-full object-cover transition group-hover:scale-105"
+                    />
+                    <span className="block px-3 py-2 text-xs font-extrabold text-primary">
+                      Ảnh đồng hồ ODO
+                    </span>
+                  </a>
+                )}
+                {(inspection.returnPhotos || []).map((image, index) => (
                   <a
                     key={`${inspection._id}-${index}`}
                     href={normalizeImageUrl(image)}
@@ -460,9 +695,12 @@ export default function ReturnInspectionPanel({
                   >
                     <img
                       src={normalizeImageUrl(image)}
-                      alt={`Ảnh xe lúc trả ${index + 1}`}
+                      alt={`Ảnh tình trạng xe lúc trả ${index + 1}`}
                       className="h-24 w-full object-cover transition group-hover:scale-105"
                     />
+                    <span className="block px-3 py-2 text-xs font-extrabold text-primary">
+                      Ảnh tình trạng {index + 1}
+                    </span>
                   </a>
                 ))}
               </div>
@@ -471,6 +709,20 @@ export default function ReturnInspectionPanel({
             <div className="flex items-center gap-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-500">
               <Camera size={16} />
               Chưa có ảnh xe lúc trả.
+            </div>
+          )}
+
+          {isAwaitingExtraCharge && (
+            <div
+              className={`rounded-lg border p-4 text-sm font-bold leading-6 ${
+                hasPendingExtraCharge
+                  ? "border-yellow-200 bg-yellow-50 text-amber-800"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-800"
+              }`}
+            >
+              {hasPendingExtraCharge
+                ? "Đang chờ khách thanh toán phụ phí"
+                : "Đã xử lý xong phụ phí - chờ chủ xe hoàn tất chuyến"}
             </div>
           )}
 
@@ -487,7 +739,8 @@ export default function ReturnInspectionPanel({
             </div>
           )}
 
-          {inspection.inspectionStatus !== "CLEARED" && (
+          {inspection.inspectionStatus !== "CLEARED" &&
+            !hasPendingExtraCharge && (
             <button
               type="button"
               onClick={handleClearInspection}
@@ -498,6 +751,24 @@ export default function ReturnInspectionPanel({
               Xác nhận không có phát sinh / đã xử lý xong
             </button>
           )}
+
+          {inspection.inspectionStatus === "CLEARED" &&
+            completeBooking &&
+            completionState.canComplete && (
+              <button
+                type="button"
+                onClick={handleCompleteBooking}
+                disabled={submitting}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 font-extrabold text-secondary transition hover:bg-primaryDark disabled:opacity-60"
+              >
+                {submitting ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <CheckCircle2 size={16} />
+                )}
+                Hoàn tất chuyến
+              </button>
+            )}
         </div>
       )}
     </div>

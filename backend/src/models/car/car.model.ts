@@ -20,7 +20,23 @@ export type ICarPricing = {
   holidaySurchargePerHour?: number;
 };
 
+export type ICarApprovalChange = {
+  field: string;
+  label: string;
+  previousValue?: unknown;
+  currentValue?: unknown;
+};
+
+export type ICarApprovalSubmission = {
+  submissionType: "CREATE" | "UPDATE" | "RESUBMIT";
+  submittedAt: Date;
+  submittedBy?: mongoose.Types.ObjectId;
+  submittedByRole: OwnerTypeEnum;
+  changes: ICarApprovalChange[];
+};
+
 export type ICar = BaseDocument & {
+  carCode?: string;
   ownerId: mongoose.Types.ObjectId;
   ownerType: OwnerTypeEnum;
   ownerModel: string;
@@ -45,6 +61,7 @@ export type ICar = BaseDocument & {
   fuelType?: string;
   transmission?: string;
   images?: string[];
+  registrationCardImages?: string[];
   description?: string;
   pickupAddress?: string;
   pickupFormattedAddress?: string;
@@ -85,6 +102,7 @@ export type ICar = BaseDocument & {
   deliveryMaxDistanceKm?: number;
   deliveryNote?: string;
   bookingRevision?: number;
+  approvalSubmission?: ICarApprovalSubmission;
   status: string;
   rejectReason?: string;
   isHidden?: boolean;
@@ -95,6 +113,14 @@ export type ICar = BaseDocument & {
 
 const carSchema = new mongoose.Schema(
   {
+    carCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      immutable: true,
+      trim: true,
+      uppercase: true,
+    },
     businessId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Business",
@@ -226,6 +252,11 @@ const carSchema = new mongoose.Schema(
       enum: Object.values(TransmissionEnum),
     },
     images: [
+      {
+        type: String,
+      },
+    ],
+    registrationCardImages: [
       {
         type: String,
       },
@@ -384,6 +415,41 @@ const carSchema = new mongoose.Schema(
       default: 0,
       min: 0,
       select: false,
+    },
+    approvalSubmission: {
+      submissionType: {
+        type: String,
+        enum: ["CREATE", "UPDATE", "RESUBMIT"],
+      },
+      submittedAt: {
+        type: Date,
+      },
+      submittedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      submittedByRole: {
+        type: String,
+        enum: [OwnerTypeEnum.BUSINESS, OwnerTypeEnum.USER],
+      },
+      changes: [
+        {
+          field: {
+            type: String,
+            required: true,
+          },
+          label: {
+            type: String,
+            required: true,
+          },
+          previousValue: {
+            type: mongoose.Schema.Types.Mixed,
+          },
+          currentValue: {
+            type: mongoose.Schema.Types.Mixed,
+          },
+        },
+      ],
     },
     status: {
       type: String,

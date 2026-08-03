@@ -185,7 +185,7 @@ function BookingHistoryDetailModal({
               Chi tiết lịch sử booking
             </p>
             <h2 className="mt-1 text-xl font-extrabold text-white">
-              Booking #{booking.bookingCode}
+              Booking {booking.bookingCode}
             </h2>
           </div>
           <button
@@ -504,7 +504,7 @@ export default function OwnerBookingHistoryPage({
                 bookings.map((booking) => (
                   <tr key={booking.bookingId} className="hover:bg-slate-50">
                     <td className="px-5 py-4 font-extrabold text-primary">
-                      #{booking.bookingCode}
+                      {booking.bookingCode}
                     </td>
                     <td className="px-5 py-4">
                       <p className="font-extrabold text-primary">

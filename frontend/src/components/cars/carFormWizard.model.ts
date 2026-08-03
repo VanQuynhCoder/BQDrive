@@ -41,6 +41,7 @@ export type CarWizardForm = {
   deliveryNote: string;
   mainImage: string;
   galleryImages: string[];
+  registrationCardImages: string[];
   description: string;
 };
 
@@ -94,6 +95,7 @@ export type CarWizardCar = {
   deliveryMaxDistanceKm?: number;
   deliveryNote?: string;
   images?: string[];
+  registrationCardImages?: string[];
   description?: string;
 };
 
@@ -124,6 +126,7 @@ export type CarWizardPayload = {
     holidaySurchargePerHour?: number;
   };
   images: string[];
+  registrationCardImages: string[];
   description: string;
   pickupAddress: string;
   pickupFormattedAddress: string;
@@ -183,6 +186,7 @@ export const EMPTY_CAR_WIZARD_FORM: CarWizardForm = {
   deliveryNote: "",
   mainImage: "",
   galleryImages: [],
+  registrationCardImages: [],
   description: "",
 };
 
@@ -235,6 +239,7 @@ export function carToWizardForm(car: CarWizardCar): CarWizardForm {
     deliveryNote: car.deliveryNote || "",
     mainImage: images[0] || "",
     galleryImages: images.slice(1),
+    registrationCardImages: car.registrationCardImages || [],
     description: car.description || "",
   };
 }
@@ -243,6 +248,7 @@ export function validateCarWizardStep(
   form: CarWizardForm,
   step: CarFormStep,
   editingOdometer?: number | null,
+  requireRegistrationCardImages = false,
 ) {
   const errors: Record<string, string> = {};
   const addError = (field: string, message: string) => {
@@ -389,6 +395,17 @@ export function validateCarWizardStep(
     addError("mainImage", "Vui lòng chọn ảnh chính của xe.");
   }
 
+  if (
+    step === 5 &&
+    requireRegistrationCardImages &&
+    form.registrationCardImages.length === 0
+  ) {
+    addError(
+      "registrationCardImages",
+      "Vui lòng bổ sung ít nhất một ảnh cà vẹt xe.",
+    );
+  }
+
   return errors;
 }
 
@@ -458,6 +475,7 @@ export function buildCarWizardPayload(
         : {}),
     },
     images: [form.mainImage, ...form.galleryImages].filter(Boolean),
+    registrationCardImages: form.registrationCardImages,
     description: form.description.trim(),
     pickupAddress,
     pickupFormattedAddress,

@@ -12,6 +12,7 @@ import type { CarPricing } from "../types/pricing";
 
 export type ContractCar = {
   _id: string;
+  carCode?: string | null;
   name?: string;
   licensePlate?: string;
   images?: string[];
@@ -55,7 +56,13 @@ export type ContractOwnerUser = {
 
 export type ContractBooking = {
   _id: string;
+  bookingCode?: string;
   status?: string;
+  cancelledAt?: string;
+  cancelledByRole?: string;
+  cancelReason?: string;
+  cancelReasonCode?: string;
+  cancelReasonText?: string;
   pricingSnapshot?: {
     rentalSubtotal?: number;
     deliveryFee?: number;
@@ -83,7 +90,7 @@ export type ContractPaymentSummary = {
 export type RentalContract = {
   _id: string;
   bookingId: ContractBooking | string;
-  userId: string;
+  userId: ContractOwnerUser | string;
   carId: ContractCar | string;
   businessId: ContractBusiness | string;
   ownerId: ContractBusiness | ContractOwnerUser | string;

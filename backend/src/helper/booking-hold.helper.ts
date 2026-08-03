@@ -10,6 +10,7 @@ import {
   sendBookingPaymentTimeoutMail,
   sendBookingRequestTimeoutMail,
 } from "./mail.helper";
+import { notificationCenterService } from "../services/notification-center.service";
 
 export const BOOKING_HOLD_MINUTES = 10;
 export const ABANDONED_BOOKING_CANCEL_REASON =
@@ -93,7 +94,13 @@ async function expireStaleRequestedBookings(cutoff: Date) {
     if (!expiredBooking) continue;
 
     expiredCount += 1;
-    void sendBookingRequestTimeoutMail(expiredBooking);
+    await Promise.all([
+      sendBookingRequestTimeoutMail(expiredBooking),
+      notificationCenterService.notifyBookingTimeoutCancelled(
+        expiredBooking,
+        "OWNER_RESPONSE_TIMEOUT",
+      ),
+    ]);
   }
 
   return expiredCount;
@@ -182,7 +189,13 @@ async function expireStaleWaitingPaymentBookings(now: Date, cutoff: Date) {
     );
 
     expiredCount += 1;
-    void sendBookingPaymentTimeoutMail(expiredBooking);
+    await Promise.all([
+      sendBookingPaymentTimeoutMail(expiredBooking),
+      notificationCenterService.notifyBookingTimeoutCancelled(
+        expiredBooking,
+        "PAYMENT_TIMEOUT",
+      ),
+    ]);
   }
 
   return expiredCount;

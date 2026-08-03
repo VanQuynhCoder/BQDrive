@@ -11,6 +11,7 @@ import {
   UserRoleEnum,
 } from "../../constants/model.const";
 import { notificationCenterService } from "../../services/notification-center.service";
+import { sendNewReviewMail } from "../../helper/mail.helper";
 
 const REVIEW_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const REVIEW_DEADLINE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -257,6 +258,7 @@ class ReviewRoute extends BaseRoute {
       ownerNameSnapshot: getOwnerName(plainBooking),
     });
     void notificationCenterService.notifyReviewCreated(review, authUser.userId);
+    void sendNewReviewMail(review, booking);
 
     return res.status(201).json({
       status: 201,

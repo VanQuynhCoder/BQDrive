@@ -1,5 +1,6 @@
 import { BaseRoute, Request, Response } from "../../base/baseRoute";
 import { ErrorHelper } from "../../base/error";
+import { getBookingDisplayCode } from "../../helper/booking-code.helper";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
 import { syncRentedCarStatuses } from "../../helper/car-status.helper";
 import {
@@ -24,6 +25,9 @@ type StatusCount = {
   status: string;
   count: number;
 };
+
+const HIGH_RATING_THRESHOLD = 4;
+const IMPROVEMENT_RATING_THRESHOLD = 3.5;
 
 class DashboardRoute extends BaseRoute {
   constructor() {
@@ -260,13 +264,17 @@ class DashboardRoute extends BaseRoute {
     return {
       totalReviews: reviews.length,
       averageRating: Number((totalRating / reviews.length).toFixed(1)),
-      topRatedCars: [...rows]
+      topRatedCars: rows
+        .filter((item) => item.averageRating >= HIGH_RATING_THRESHOLD)
         .sort(
           (a, b) =>
             b.averageRating - a.averageRating || b.reviewCount - a.reviewCount,
         )
         .slice(0, 5),
-      lowRatedCars: [...rows]
+      lowRatedCars: rows
+        .filter(
+          (item) => item.averageRating < IMPROVEMENT_RATING_THRESHOLD,
+        )
         .sort(
           (a, b) =>
             a.averageRating - b.averageRating || b.reviewCount - a.reviewCount,
@@ -288,7 +296,7 @@ class DashboardRoute extends BaseRoute {
 
     return bookings.map((booking: any) => ({
       bookingId: booking._id,
-      bookingCode: String(booking._id).slice(-8).toUpperCase(),
+      bookingCode: getBookingDisplayCode(booking),
       carName: booking.carId?.name || "Xe",
       licensePlate: booking.carId?.licensePlate || "",
       carImage: this.getCarImage(booking.carId),

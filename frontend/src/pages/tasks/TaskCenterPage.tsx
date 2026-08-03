@@ -230,7 +230,7 @@ function TaskCard({ task }: { task: ActionCenterTask }) {
           </p>
 
           <div className="mt-4 grid gap-3 text-sm font-semibold text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
-            {bookingCode && <InfoBox label="Mã booking" value={`#${bookingCode}`} />}
+            {bookingCode && <InfoBox label="Mã booking" value={bookingCode} />}
             {carName && <InfoBox label="Xe" value={String(carName)} />}
             {licensePlate && <InfoBox label="Biển số" value={String(licensePlate)} />}
             {dueAt && (

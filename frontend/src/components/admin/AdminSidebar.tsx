@@ -7,6 +7,7 @@
   Factory,
   LogOut,
   MapPinned,
+  MessageSquareText,
   Tags,
   Users,
 } from "lucide-react";
@@ -62,6 +63,12 @@ const menuItems = [
     to: "/admin/holidays",
     label: "Quản lý ngày lễ",
     icon: CalendarDays,
+  },
+  {
+    to: "/admin/reviews",
+    label: "Quản lý đánh giá",
+    icon: MessageSquareText,
+    badgeKeys: ["reportedReviews"],
   },
 ];
 

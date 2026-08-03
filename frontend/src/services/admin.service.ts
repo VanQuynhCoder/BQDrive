@@ -50,6 +50,7 @@ export type AdminBrand = {
 
 export type AdminCar = {
   _id: string;
+  carCode?: string | null;
   name: string;
   type?: string;
   licensePlate?: string;
@@ -68,6 +69,18 @@ export type AdminCar = {
   currentOdometerKm?: number | null;
   mileagePolicy?: CarMileagePolicy | null;
   images?: string[];
+  registrationCardImages?: string[];
+  approvalSubmission?: {
+    submissionType: "CREATE" | "UPDATE" | "RESUBMIT";
+    submittedAt?: string;
+    submittedByRole?: "USER" | "BUSINESS" | string;
+    changes?: Array<{
+      field: string;
+      label: string;
+      previousValue?: unknown;
+      currentValue?: unknown;
+    }>;
+  };
   description?: string;
   pickupAddress?: string;
   pickupFormattedAddress?: string;
@@ -83,6 +96,7 @@ export type AdminCar = {
   status: "PENDING" | "APPROVED" | "REJECTED" | string;
   rejectReason?: string;
   createdAt?: string;
+  updatedAt?: string;
 };
 
 export type AdminHoliday = {
@@ -94,6 +108,28 @@ export type AdminHoliday = {
   type: "HOLIDAY" | string;
   isActive: boolean;
   note?: string;
+  createdAt?: string;
+};
+
+export type AdminReview = {
+  id: string;
+  bookingId?: string;
+  bookingCode?: string;
+  carName: string;
+  licensePlate?: string;
+  renterName: string;
+  renterEmail?: string;
+  renterAvatar?: string;
+  rating: number;
+  criteria?: Record<string, number>;
+  comment?: string;
+  images?: string[];
+  helpfulCount: number;
+  ownerReply?: { content?: string } | null;
+  status: "VISIBLE" | "REPORTED" | "HIDDEN" | string;
+  report?: { reason?: string; reportedAt?: string } | null;
+  hiddenReason?: string;
+  hiddenAt?: string;
   createdAt?: string;
 };
 
@@ -339,6 +375,23 @@ export const adminService = {
   rejectCar: async (id: string, rejectReason: string) => {
     const res = await api.post(`/cars/rejectCar/${id}`, { rejectReason });
     return unwrap<{ car: AdminCar }>(res).car;
+  },
+
+  getAdminReviews: async (status?: string) => {
+    const res = await api.get("/admin/reviews", {
+      params: status ? { status } : undefined,
+    });
+    return unwrap<{ reviews: AdminReview[] }>(res).reviews;
+  },
+
+  hideReview: async (id: string, reason: string) => {
+    const res = await api.patch(`/admin/reviews/${id}/hide`, { reason });
+    return unwrap<{ review: AdminReview }>(res).review;
+  },
+
+  showReview: async (id: string) => {
+    const res = await api.patch(`/admin/reviews/${id}/show`);
+    return unwrap<{ review: AdminReview }>(res).review;
   },
 
   getHolidays: async () => {

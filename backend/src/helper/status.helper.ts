@@ -42,10 +42,7 @@ const BOOKING_TRANSITIONS: Record<BookingStatusEnum, readonly BookingStatusEnum[
     BookingStatusEnum.AWAITING_EXTRA_CHARGE,
     BookingStatusEnum.COMPLETED,
   ],
-  [BookingStatusEnum.AWAITING_EXTRA_CHARGE]: [
-    BookingStatusEnum.RETURN_INSPECTION,
-    BookingStatusEnum.COMPLETED,
-  ],
+  [BookingStatusEnum.AWAITING_EXTRA_CHARGE]: [BookingStatusEnum.COMPLETED],
   [BookingStatusEnum.COMPLETED]: [],
   [BookingStatusEnum.CANCELLED]: [],
   [BookingStatusEnum.REJECTED]: [],

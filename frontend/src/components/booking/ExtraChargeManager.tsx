@@ -14,6 +14,8 @@ import {
   type ExtraChargeType,
 } from "../../services/extraCharge.service";
 import { notifyNotificationSummaryChanged } from "../../services/notification.service";
+import { ownerBookingService } from "../../services/ownerBooking.service";
+import type { OwnerReturnInspection } from "../../types/ownerBooking";
 import { normalizeImageUrl } from "../../utils/image.util";
 
 const MAX_EVIDENCE_IMAGES = 5;
@@ -23,6 +25,7 @@ const chargeTypes: Array<{ value: ExtraChargeType; label: string }> = [
   { value: "DAMAGE", label: "Phí sửa chữa/hư hỏng" },
   { value: "LATE_RETURN", label: "Phí trễ giờ" },
   { value: "FUEL", label: "Phí nhiên liệu" },
+  { value: "OVERAGE_KM", label: "Phí vượt kilomet" },
   { value: "OTHER", label: "Khác" },
 ];
 
@@ -32,6 +35,16 @@ function formatCurrency(value?: number) {
     currency: "VND",
     maximumFractionDigits: 0,
   }).format(value || 0);
+}
+
+function formatDuration(minutes?: number) {
+  const safeMinutes = Math.max(0, Math.round(Number(minutes || 0)));
+  const hours = Math.floor(safeMinutes / 60);
+  const remainingMinutes = safeMinutes % 60;
+
+  if (hours === 0) return `${remainingMinutes} phút`;
+  if (remainingMinutes === 0) return `${hours} giờ`;
+  return `${hours} giờ ${remainingMinutes} phút`;
 }
 
 function getTypeLabel(type: string) {
@@ -69,9 +82,11 @@ function readFileAsDataUrl(file: File) {
 export default function ExtraChargeManager({
   bookingId,
   bookingStatus,
+  onChanged,
 }: {
   bookingId: string;
   bookingStatus: string;
+  onChanged?: () => Promise<void> | void;
 }) {
   const [charges, setCharges] = useState<ExtraCharge[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,7 +95,9 @@ export default function ExtraChargeManager({
   const [type, setType] = useState<ExtraChargeType>("CLEANING");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
+  const [adjustmentReason, setAdjustmentReason] = useState("");
   const [evidenceImages, setEvidenceImages] = useState<string[]>([]);
+  const [inspection, setInspection] = useState<OwnerReturnInspection | null>(null);
 
   const canCreate = ["RETURN_INSPECTION", "AWAITING_EXTRA_CHARGE"].includes(
     bookingStatus,
@@ -92,11 +109,50 @@ export default function ExtraChargeManager({
         .reduce((sum, charge) => sum + Number(charge.amount || 0), 0),
     [charges],
   );
+  const paidTotal = useMemo(
+    () =>
+      charges
+        .filter((charge) => charge.status === "PAID")
+        .reduce((sum, charge) => sum + Number(charge.amount || 0), 0),
+    [charges],
+  );
+  const totalCharge = useMemo(
+    () =>
+      charges
+        .filter((charge) => charge.status !== "CANCELLED")
+        .reduce((sum, charge) => sum + Number(charge.amount || 0), 0),
+    [charges],
+  );
+  const suggestedOverageAmount = Math.round(
+    Number(inspection?.suggestedOverageAmount || 0),
+  );
+  const chargeableOverageKm = Number(inspection?.chargeableOverageKm || 0);
+  const hasValidOverage =
+    inspection?.mileageStatus === "EXCEEDED_LIMIT_KM" &&
+    chargeableOverageKm > 0 &&
+    suggestedOverageAmount > 0;
+  const lateReturnCalculation = inspection?.lateReturnCalculation;
+  const suggestedLateReturnAmount = Math.round(
+    Number(lateReturnCalculation?.calculatedAmount || 0),
+  );
+  const hasValidLateReturn =
+    Number(lateReturnCalculation?.chargeableMinutes || 0) > 0 &&
+    Number(lateReturnCalculation?.chargedBlocks || 0) > 0 &&
+    suggestedLateReturnAmount > 0;
+  const isSystemCalculatedCharge =
+    type === "OVERAGE_KM" || type === "LATE_RETURN";
+  const hasValidSystemCalculation =
+    type === "OVERAGE_KM" ? hasValidOverage : hasValidLateReturn;
 
   const fetchCharges = useCallback(async () => {
     setLoading(true);
     try {
-      setCharges(await extraChargeService.getByBooking(bookingId));
+      const [nextCharges, inspectionResult] = await Promise.all([
+        extraChargeService.getByBooking(bookingId),
+        ownerBookingService.getReturnInspection(bookingId),
+      ]);
+      setCharges(nextCharges);
+      setInspection(inspectionResult.inspection);
     } catch {
       toast.error("Không thể tải phí phát sinh");
     } finally {
@@ -116,8 +172,64 @@ export default function ExtraChargeManager({
     setType("CLEANING");
     setAmount("");
     setDescription("");
+    setAdjustmentReason("");
     setEvidenceImages([]);
     setFormOpen(false);
+  };
+
+  const showUnavailableOverageMessage = () => {
+    if (inspection?.mileageStatus === "NOT_EVALUATED_KM") {
+      toast.error(
+        "Booking không có đủ dữ liệu chính sách kilomet để tính phí vượt.",
+      );
+      return;
+    }
+
+    toast.error("Xe không vượt ngưỡng kilomet tính phí.");
+  };
+
+  const showUnavailableLateReturnMessage = () => {
+    toast.error(
+      "Xe được trả trong thời gian miễn phí 30 phút, không phát sinh phí trả trễ.",
+    );
+  };
+
+  const handleChargeTypeChange = (nextType: ExtraChargeType) => {
+    setType(nextType);
+    setAdjustmentReason("");
+
+    if (nextType === "LATE_RETURN") {
+      if (!hasValidLateReturn) {
+        setAmount("");
+        setDescription("");
+        showUnavailableLateReturnMessage();
+        return;
+      }
+
+      setAmount(String(suggestedLateReturnAmount));
+      setDescription(
+        `Phí trả xe trễ ${formatDuration(lateReturnCalculation?.lateMinutes)}, sau 30 phút miễn phí`,
+      );
+      return;
+    }
+
+    if (nextType !== "OVERAGE_KM") {
+      setAmount("");
+      setDescription("");
+      return;
+    }
+
+    if (!hasValidOverage) {
+      setAmount("");
+      setDescription("");
+      showUnavailableOverageMessage();
+      return;
+    }
+
+    setAmount(String(suggestedOverageAmount));
+    setDescription(
+      `Phí vượt ${chargeableOverageKm} km theo biên bản trả xe`,
+    );
   };
 
   const handleEvidenceChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -153,7 +265,22 @@ export default function ExtraChargeManager({
   };
 
   const handleCreate = async () => {
-    const parsedAmount = Number(amount);
+    if (type === "OVERAGE_KM" && !hasValidOverage) {
+      showUnavailableOverageMessage();
+      return;
+    }
+
+    if (type === "LATE_RETURN" && !hasValidLateReturn) {
+      showUnavailableLateReturnMessage();
+      return;
+    }
+
+    const parsedAmount =
+      type === "OVERAGE_KM"
+        ? suggestedOverageAmount
+        : type === "LATE_RETURN"
+          ? suggestedLateReturnAmount
+          : Number(amount);
 
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       toast.error("Số tiền phí phát sinh phải lớn hơn 0");
@@ -172,11 +299,15 @@ export default function ExtraChargeManager({
         amount: Math.round(parsedAmount),
         description: description.trim(),
         evidenceImages,
+        ...(adjustmentReason.trim()
+          ? { adjustmentReason: adjustmentReason.trim() }
+          : {}),
       });
       toast.success("Đã thêm phí phát sinh");
       notifyNotificationSummaryChanged();
       resetForm();
       await fetchCharges();
+      await onChanged?.();
     } catch {
       toast.error("Không thể thêm phí phát sinh");
     } finally {
@@ -191,6 +322,7 @@ export default function ExtraChargeManager({
       toast.success("Đã xác nhận thu phí");
       notifyNotificationSummaryChanged();
       await fetchCharges();
+      await onChanged?.();
     } catch {
       toast.error("Không thể xác nhận thu phí");
     } finally {
@@ -205,6 +337,7 @@ export default function ExtraChargeManager({
       toast.success("Đã hủy phí phát sinh");
       notifyNotificationSummaryChanged();
       await fetchCharges();
+      await onChanged?.();
     } catch {
       toast.error("Không thể hủy phí phát sinh");
     } finally {
@@ -237,6 +370,76 @@ export default function ExtraChargeManager({
         )}
       </div>
 
+      {charges.length > 0 && (
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-bold uppercase text-slate-400">Tổng phụ phí</p>
+            <p className="mt-1 font-extrabold text-primary">{formatCurrency(totalCharge)}</p>
+          </div>
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+            <p className="text-xs font-bold uppercase text-emerald-700">Đã thu</p>
+            <p className="mt-1 font-extrabold text-emerald-800">{formatCurrency(paidTotal)}</p>
+          </div>
+          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+            <p className="text-xs font-bold uppercase text-amber-700">Còn phải thu</p>
+            <p className="mt-1 font-extrabold text-amber-800">{formatCurrency(pendingTotal)}</p>
+          </div>
+        </div>
+      )}
+
+      {canCreate && suggestedOverageAmount > 0 && (
+        <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+          <p className="text-sm font-extrabold text-primary">Gợi ý phí vượt kilomet</p>
+          <div className="mt-2 grid gap-2 text-sm text-slate-700 sm:grid-cols-3">
+            <p>Km tính phí: <strong>{inspection?.chargeableOverageKm || 0} km</strong></p>
+            <p>Đơn giá: <strong>{formatCurrency(inspection?.suggestedOverageAmount && inspection.chargeableOverageKm ? inspection.suggestedOverageAmount / inspection.chargeableOverageKm : 0)}/km</strong></p>
+            <p>Tạm tính: <strong>{formatCurrency(suggestedOverageAmount)}</strong></p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setFormOpen(true);
+              handleChargeTypeChange("OVERAGE_KM");
+            }}
+            className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-extrabold text-secondary"
+          >
+            Tạo theo mức đề xuất
+          </button>
+        </div>
+      )}
+
+      {canCreate && hasValidLateReturn && lateReturnCalculation && (
+        <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+          <p className="text-sm font-extrabold text-primary">
+            Gợi ý phí trả xe trễ
+          </p>
+          <div className="mt-2 grid gap-2 text-sm text-slate-700 sm:grid-cols-4">
+            <p>
+              Trễ thực tế: <strong>{formatDuration(lateReturnCalculation.lateMinutes)}</strong>
+            </p>
+            <p>
+              Miễn phí: <strong>{lateReturnCalculation.graceMinutes} phút</strong>
+            </p>
+            <p>
+              Số block: <strong>{lateReturnCalculation.chargedBlocks}</strong>
+            </p>
+            <p>
+              Tạm tính: <strong>{formatCurrency(suggestedLateReturnAmount)}</strong>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setFormOpen(true);
+              handleChargeTypeChange("LATE_RETURN");
+            }}
+            className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-extrabold text-secondary"
+          >
+            Tạo phí trả xe trễ
+          </button>
+        </div>
+      )}
+
       {formOpen && (
         <div className="mb-4 grid gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4 sm:grid-cols-2">
           <label className="block">
@@ -245,7 +448,10 @@ export default function ExtraChargeManager({
             </span>
             <select
               value={type}
-              onChange={(event) => setType(event.target.value as ExtraChargeType)}
+              onChange={(event) => {
+                const nextType = event.target.value as ExtraChargeType;
+                handleChargeTypeChange(nextType);
+              }}
               className="min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 font-semibold outline-none focus:border-secondary"
             >
               {chargeTypes.map((item) => (
@@ -261,11 +467,39 @@ export default function ExtraChargeManager({
             </span>
             <input
               value={amount}
-              onChange={(event) => setAmount(event.target.value)}
+              onChange={(event) => {
+                if (!isSystemCalculatedCharge) setAmount(event.target.value);
+              }}
               inputMode="numeric"
-              className="min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 font-semibold outline-none focus:border-secondary"
-              placeholder="300000"
+              readOnly={isSystemCalculatedCharge}
+              disabled={isSystemCalculatedCharge && !hasValidSystemCalculation}
+              className={`min-h-11 w-full rounded-lg border px-3 font-semibold outline-none ${
+                isSystemCalculatedCharge
+                  ? "cursor-not-allowed border-yellow-200 bg-yellow-100 text-primary"
+                  : "border-slate-200 bg-white focus:border-secondary"
+              }`}
+              placeholder={
+                type === "OVERAGE_KM"
+                  ? "Không có phí vượt kilomet"
+                  : type === "LATE_RETURN"
+                    ? "Không có phí trả xe trễ"
+                  : "300000"
+              }
             />
+            {type === "OVERAGE_KM" && (
+              <span className="mt-2 block text-xs font-semibold leading-5 text-slate-600">
+                {hasValidOverage
+                  ? `Hệ thống tự tính ${chargeableOverageKm} km vượt ngưỡng, tương ứng ${formatCurrency(suggestedOverageAmount)}.`
+                  : "Không phát sinh kilomet vượt ngưỡng nên không thể tạo khoản phí này."}
+              </span>
+            )}
+            {type === "LATE_RETURN" && (
+              <span className="mt-2 block text-xs font-semibold leading-5 text-slate-600">
+                {hasValidLateReturn && lateReturnCalculation
+                  ? `Hệ thống tính ${lateReturnCalculation.chargedBlocks} block, mỗi block ${lateReturnCalculation.blockMinutes} phút, tương ứng ${formatCurrency(suggestedLateReturnAmount)}.`
+                  : "Xe được trả trong thời gian miễn phí 30 phút nên không thể tạo khoản phí này."}
+              </span>
+            )}
           </label>
           <label className="block sm:col-span-2">
             <span className="mb-2 block text-sm font-extrabold text-primary">
@@ -330,7 +564,11 @@ export default function ExtraChargeManager({
           <button
             type="button"
             onClick={handleCreate}
-            disabled={submitting}
+            disabled={
+              submitting ||
+              (type === "OVERAGE_KM" && !hasValidOverage) ||
+              (type === "LATE_RETURN" && !hasValidLateReturn)
+            }
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 font-extrabold text-secondary disabled:opacity-60"
           >
             {submitting && <Loader2 size={16} className="animate-spin" />}
@@ -370,11 +608,39 @@ export default function ExtraChargeManager({
                   <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
                     {charge.description}
                   </p>
+                  {charge.adjustmentReason && (
+                    <p className="mt-1 text-xs font-semibold text-amber-700">
+                      Điều chỉnh: {charge.adjustmentReason}
+                    </p>
+                  )}
                 </div>
                 <p className="text-lg font-extrabold text-primary">
                   {formatCurrency(charge.amount)}
                 </p>
               </div>
+
+              {charge.type === "LATE_RETURN" && charge.lateReturnSnapshot && (
+                <div className="mt-4 grid gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm sm:grid-cols-3">
+                  <p>
+                    Trả dự kiến: <strong>{new Date(charge.lateReturnSnapshot.scheduledReturnAt).toLocaleString("vi-VN")}</strong>
+                  </p>
+                  <p>
+                    Tiếp nhận thực tế: <strong>{new Date(charge.lateReturnSnapshot.actualReturnAt).toLocaleString("vi-VN")}</strong>
+                  </p>
+                  <p>
+                    Trễ: <strong>{formatDuration(charge.lateReturnSnapshot.lateMinutes)}</strong>
+                  </p>
+                  <p>
+                    Miễn phí: <strong>{charge.lateReturnSnapshot.graceMinutes} phút</strong>
+                  </p>
+                  <p>
+                    Tính phí: <strong>{formatDuration(charge.lateReturnSnapshot.chargeableMinutes)}</strong>
+                  </p>
+                  <p>
+                    Công thức: <strong>{charge.lateReturnSnapshot.chargedBlocks} block × {formatCurrency(charge.lateReturnSnapshot.feePerBlock)}</strong>
+                  </p>
+                </div>
+              )}
 
               {charge.evidenceImages?.length ? (
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -405,7 +671,7 @@ export default function ExtraChargeManager({
                     disabled={submitting}
                     className="rounded-lg bg-primary px-4 py-2 text-sm font-extrabold text-secondary disabled:opacity-60"
                   >
-                    Xác nhận đã thu
+                    Xác nhận đã thu tiền mặt
                   </button>
                   <button
                     type="button"

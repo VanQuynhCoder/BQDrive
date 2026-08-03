@@ -1,4 +1,7 @@
 ﻿import { BaseRoute, Request, Response } from "../../base/baseRoute";
+import mongoose from "mongoose";
+import { getBookingDisplayCode } from "../../helper/booking-code.helper";
+
 import { ErrorHelper } from "../../base/error";
 import { PaymentModel } from "../../models/payment/payment.model";
 import { BookingModel } from "../../models/booking/booking.model";
@@ -18,9 +21,15 @@ import {
 import {
   sendCashPaymentSelectedMail,
   sendDepositRemainingPaymentMail,
+  sendExtraChargePaidMail,
   sendPaymentSuccessMail,
 } from "../../helper/mail.helper";
 import { syncBookingPaymentFromPaidPayments } from "../../helper/payment-sync.helper";
+import { ensureContractForPayment } from "../../helper/contract.helper";
+import {
+  activatePaidBookingExtension,
+  prepareBookingExtensionPayment,
+} from "../../helper/booking-extension.helper";
 import {
   deriveContractPaymentStatus,
   transitionBookingStatus,
@@ -265,23 +274,32 @@ class PaymentRoute extends BaseRoute {
   private async markExtraChargePaidFromPayment(payment: any) {
     if (payment.paymentType !== PaymentTypeEnum.EXTRA_CHARGE) return;
 
-    const extraCharge = await ExtraChargeModel.findOne({
-      _id: payment.extraChargeId,
-      isDeleted: false,
-    } as any);
+    const paidAt = payment.paidAt || new Date();
+    const extraCharge = await ExtraChargeModel.findOneAndUpdate(
+      {
+        _id: payment.extraChargeId,
+        status: ExtraChargeStatusEnum.PENDING,
+        isDeleted: false,
+      } as any,
+      {
+        $set: {
+          status: ExtraChargeStatusEnum.PAID,
+          paymentId: payment._id,
+          paymentMethod: payment.method,
+          paidAt,
+        },
+      },
+      { new: true },
+    );
 
     if (!extraCharge) return;
 
-    extraCharge.status = ExtraChargeStatusEnum.PAID;
-    extraCharge.paymentId = payment._id;
-    extraCharge.paymentMethod = payment.method;
-    extraCharge.paidAt = payment.paidAt || new Date();
-    await extraCharge.save();
     void notificationCenterService.notifyExtraChargePaid(
       extraCharge,
       payment,
       String(payment.userId || ""),
     );
+    void sendExtraChargePaidMail(extraCharge, payment);
 
     const remainingPendingCharge = await ExtraChargeModel.findOne({
       bookingId: extraCharge.bookingId,
@@ -297,17 +315,10 @@ class PaymentRoute extends BaseRoute {
           isDeleted: false,
         } as any,
         {
-          $set: { inspectionStatus: ReturnInspectionStatusEnum.INSPECTING },
-        },
-      );
-      await BookingModel.updateOne(
-        {
-          _id: extraCharge.bookingId,
-          status: BookingStatusEnum.AWAITING_EXTRA_CHARGE,
-          isDeleted: false,
-        } as any,
-        {
-          $set: { status: BookingStatusEnum.RETURN_INSPECTION },
+          $set: {
+            inspectionStatus: ReturnInspectionStatusEnum.CLEARED,
+            inspectedAt: paidAt,
+          },
         },
       );
     }
@@ -316,6 +327,11 @@ class PaymentRoute extends BaseRoute {
   private async applyPaidPaymentEffects(booking: any, payment: any) {
     if (payment.paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
       await this.markExtraChargePaidFromPayment(payment);
+      return;
+    }
+
+    if (payment.paymentType === PaymentTypeEnum.EXTENSION) {
+      await activatePaidBookingExtension(String(payment._id));
       return;
     }
 
@@ -395,6 +411,164 @@ class PaymentRoute extends BaseRoute {
       booking.depositAmount = depositAmount;
       booking.remainingAmount = Math.max(totalPrice - depositAmount, 0);
     }
+  }
+
+  private async prepareRentalPayment(input: {
+    bookingId: string;
+    userId: string;
+    paymentType: string;
+    method: PaymentMethodEnum;
+  }) {
+    if (!input.paymentType) {
+      throw ErrorHelper.requestDataInvalid("Thiếu loại thanh toán");
+    }
+
+    if (
+      ![
+        PaymentTypeEnum.DEPOSIT,
+        PaymentTypeEnum.FULL,
+        PaymentTypeEnum.REMAINING,
+      ].includes(input.paymentType as PaymentTypeEnum)
+    ) {
+      throw ErrorHelper.requestDataInvalid("Loại thanh toán không hợp lệ");
+    }
+
+    await expireAbandonedPendingBookings();
+
+    const session = await mongoose.startSession();
+    let prepared:
+      | {
+          booking: any;
+          payment: any;
+          amount: number;
+          reusedPayment: boolean;
+        }
+      | undefined;
+
+    try {
+      await session.withTransaction(async () => {
+        const booking = await BookingModel.findOne({
+          _id: input.bookingId,
+          userId: input.userId,
+          isDeleted: false,
+        } as any).session(session);
+
+        if (!booking) {
+          throw ErrorHelper.recordNotFound("Booking");
+        }
+
+        hydrateLegacyBookingOwner(booking);
+        this.assertBookingCanCreatePayment(booking);
+        this.assertPaymentTypeIsValidForBooking(booking, input.paymentType);
+        this.syncBookingPaymentPlan(booking, input.paymentType);
+
+        const existedPaidPayment = await PaymentModel.findOne({
+          bookingId: booking._id,
+          paymentType: input.paymentType,
+          status: PaymentStatusEnum.PAID,
+        }).session(session);
+
+        if (existedPaidPayment) {
+          throw ErrorHelper.requestDataInvalid(
+            "Khoản thanh toán này đã được thanh toán",
+          );
+        }
+
+        const amount = this.getPaymentAmount(booking, input.paymentType);
+
+        if (amount <= 0) {
+          throw ErrorHelper.requestDataInvalid(
+            "Số tiền cần thanh toán không hợp lệ",
+          );
+        }
+
+        if (MANUAL_PAYMENT_METHODS.includes(input.method)) {
+          if (booking.status === BookingStatusEnum.PAYMENT_PENDING) {
+            transitionBookingStatus(booking, BookingStatusEnum.OWNER_APPROVED);
+          }
+        } else if (booking.status === BookingStatusEnum.OWNER_APPROVED) {
+          transitionBookingStatus(booking, BookingStatusEnum.PAYMENT_PENDING);
+        }
+
+        await booking.save({ session });
+        const contract = await ensureContractForPayment(booking, { session });
+
+        // A retry may change FULL/DEPOSIT or the gateway before any payment is
+        // successful. Old links are invalidated so only the latest plan can pay.
+        await PaymentModel.updateMany(
+          {
+            bookingId: booking._id,
+            status: PaymentStatusEnum.PENDING,
+            paymentType: {
+              $in: [
+                PaymentTypeEnum.DEPOSIT,
+                PaymentTypeEnum.FULL,
+                PaymentTypeEnum.REMAINING,
+              ],
+            },
+            $or: [
+              { paymentType: { $ne: input.paymentType } },
+              { method: { $ne: input.method } },
+            ],
+          },
+          { $set: { status: PaymentStatusEnum.FAILED } },
+          { session },
+        );
+
+        let payment = await PaymentModel.findOne({
+          bookingId: booking._id,
+          paymentType: input.paymentType,
+          method: input.method,
+          status: PaymentStatusEnum.PENDING,
+        }).session(session);
+        const reusedPayment = Boolean(payment);
+
+        if (!payment) {
+          const createdPayments = await PaymentModel.create(
+            [
+              {
+                bookingId: booking._id,
+                userId: input.userId,
+                amount,
+                method: input.method,
+                paymentType: input.paymentType,
+                status: PaymentStatusEnum.PENDING,
+              },
+            ],
+            { session },
+          );
+          payment = createdPayments[0] || null;
+        } else if (Number(payment.amount || 0) !== amount) {
+          payment.amount = amount;
+          await payment.save({ session });
+        }
+
+        if (!payment) {
+          throw ErrorHelper.requestDataInvalid("Không thể tạo thanh toán");
+        }
+
+        contract.paymentStatus = deriveContractPaymentStatus({
+          totalPrice: booking.totalPrice,
+          depositAmount: booking.depositAmount,
+          paidAmount: booking.paidAmount,
+          hasPendingPayment: true,
+        });
+        await contract.save({ session });
+
+        prepared = { booking, payment, amount, reusedPayment };
+      });
+    } finally {
+      await session.endSession();
+    }
+
+    if (!prepared) {
+      throw ErrorHelper.requestDataInvalid("Không thể chuẩn bị thanh toán");
+    }
+
+    prepared.booking.$session?.(null);
+    prepared.payment.$session?.(null);
+
+    return prepared;
   }
 
   private assertBookingCanCreatePayment(booking: any) {
@@ -547,6 +721,8 @@ class PaymentRoute extends BaseRoute {
     } else {
       if (payment.paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
         await this.markExtraChargePaidFromPayment(payment);
+      } else if (payment.paymentType === PaymentTypeEnum.EXTENSION) {
+        await activatePaidBookingExtension(String(payment._id));
       } else if (booking.status === BookingStatusEnum.CANCELLED) {
         const refund =
           await cancellationRefundService.createManualRefundForCancelledPaidPayment(
@@ -564,7 +740,7 @@ class PaymentRoute extends BaseRoute {
 
   async createMomoPayment(req: Request, res: Response) {
     const authUser = (req as any).user;
-    const { bookingId, paymentType, extraChargeId } = req.body;
+    const { bookingId, paymentType, extraChargeId, extensionId } = req.body;
 
     if (paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
       if (!extraChargeId) {
@@ -611,80 +787,46 @@ class PaymentRoute extends BaseRoute {
       });
     }
 
+    if (paymentType === PaymentTypeEnum.EXTENSION) {
+      if (!extensionId) {
+        throw ErrorHelper.requestDataInvalid("Thiếu extensionId");
+      }
+
+      const { booking, extension, payment } =
+        await prepareBookingExtensionPayment({
+          extensionId: String(extensionId),
+          userId: String(authUser.userId),
+          method: PaymentMethodEnum.MOMO,
+        });
+      const orderId = `MOMO-${String(payment._id)}-${Date.now()}`;
+      const momoResponse = await createMomoPayment({
+        amount: Number(payment.amount || 0),
+        orderId,
+        requestId: orderId,
+        orderInfo: `Thanh toán gia hạn BQDrive ${String(extension._id)}`,
+        extraData: String(payment._id),
+      });
+      payment.transactionCode = orderId;
+      await payment.save();
+
+      return res.status(200).json({
+        status: 200,
+        code: "200",
+        message: "Tạo thanh toán gia hạn MoMo thành công",
+        data: { payment, extension, booking, payUrl: momoResponse.payUrl },
+      });
+    }
+
     if (!bookingId) {
       throw ErrorHelper.requestDataInvalid("Thiếu bookingId");
     }
 
-    const booking = await BookingModel.findOne({
-      _id: bookingId,
-      userId: authUser.userId,
-      isDeleted: false,
-    } as any);
-
-    if (!booking) {
-      throw ErrorHelper.recordNotFound("Booking");
-    }
-
-    hydrateLegacyBookingOwner(booking);
-    this.assertBookingCanCreatePayment(booking);
-
-    const selectedPaymentType =
-      paymentType ||
-      (booking.paymentOption === PaymentOptionEnum.FULL
-        ? PaymentTypeEnum.FULL
-        : PaymentTypeEnum.DEPOSIT);
-
-    if (!Object.values(PaymentTypeEnum).includes(selectedPaymentType)) {
-      throw ErrorHelper.requestDataInvalid("Loại thanh toán không hợp lệ");
-    }
-
-    this.assertPaymentTypeIsValidForBooking(booking, selectedPaymentType);
-    this.syncBookingPaymentPlan(booking, selectedPaymentType);
-
-    const existedPaidPayment = await PaymentModel.findOne({
-      bookingId: booking._id,
-      paymentType: selectedPaymentType,
-      status: PaymentStatusEnum.PAID,
-    });
-
-    if (existedPaidPayment) {
-      throw ErrorHelper.requestDataInvalid(
-        "Khoản thanh toán này đã được thanh toán",
-      );
-    }
-
-    let payment = await PaymentModel.findOne({
-      bookingId: booking._id,
-      paymentType: selectedPaymentType,
+    const { booking, payment, amount } = await this.prepareRentalPayment({
+      bookingId: String(bookingId),
+      userId: String(authUser.userId),
+      paymentType: String(paymentType || ""),
       method: PaymentMethodEnum.MOMO,
-      status: PaymentStatusEnum.PENDING,
     });
-
-    const amount = this.getPaymentAmount(booking, selectedPaymentType);
-
-    if (amount <= 0) {
-      throw ErrorHelper.requestDataInvalid(
-        "Số tiền cần thanh toán không hợp lệ",
-      );
-    }
-
-    if (!payment) {
-      payment = await PaymentModel.create({
-        bookingId: booking._id,
-        userId: authUser.userId,
-        amount,
-        method: PaymentMethodEnum.MOMO,
-        paymentType: selectedPaymentType,
-        status: PaymentStatusEnum.PENDING,
-      });
-    }
-
-    if (booking.status === BookingStatusEnum.OWNER_APPROVED) {
-      transitionBookingStatus(booking, BookingStatusEnum.PAYMENT_PENDING);
-      await booking.save();
-    } else {
-      await booking.save();
-    }
 
     const orderId = `MOMO-${String(payment._id)}-${Date.now()}`;
     const requestId = orderId;
@@ -753,6 +895,8 @@ class PaymentRoute extends BaseRoute {
     if (payment.status === PaymentStatusEnum.PAID) {
       if (payment.paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
         await this.markExtraChargePaidFromPayment(payment);
+      } else if (payment.paymentType === PaymentTypeEnum.EXTENSION) {
+        await activatePaidBookingExtension(String(payment._id));
       } else if (booking.status === BookingStatusEnum.CANCELLED) {
         const refund =
           await cancellationRefundService.createManualRefundForCancelledPaidPayment(
@@ -769,6 +913,13 @@ class PaymentRoute extends BaseRoute {
       return res.status(200).json({
         status: 200,
         message: "Payment already paid",
+      });
+    }
+
+    if (payment.status === PaymentStatusEnum.FAILED) {
+      return res.status(200).json({
+        resultCode: 0,
+        message: "Payment attempt is no longer active",
       });
     }
 
@@ -853,6 +1004,15 @@ class PaymentRoute extends BaseRoute {
       });
     }
 
+    if (payment.status === PaymentStatusEnum.FAILED) {
+      return res.status(409).json({
+        status: 409,
+        code: "409",
+        message: "Giao dịch này đã hết hiệu lực do phương án thanh toán đã thay đổi",
+        data: { payment, booking, success: false },
+      });
+    }
+
     const resultCode = Number(data.resultCode);
 
     if (resultCode === 0) {
@@ -899,7 +1059,7 @@ class PaymentRoute extends BaseRoute {
 
   async createVnpayPayment(req: Request, res: Response) {
     const authUser = (req as any).user;
-    const { bookingId, paymentType, extraChargeId } = req.body;
+    const { bookingId, paymentType, extraChargeId, extensionId } = req.body;
 
     if (paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
       if (!extraChargeId) {
@@ -945,80 +1105,50 @@ class PaymentRoute extends BaseRoute {
       });
     }
 
+    if (paymentType === PaymentTypeEnum.EXTENSION) {
+      if (!extensionId) {
+        throw ErrorHelper.requestDataInvalid("Thiếu extensionId");
+      }
+
+      const { booking, extension, payment } =
+        await prepareBookingExtensionPayment({
+          extensionId: String(extensionId),
+          userId: String(authUser.userId),
+          method: PaymentMethodEnum.VNPAY,
+        });
+      const orderId = `VNPAY-${String(payment._id)}-${Date.now()}`;
+      const forwardedFor = req.headers["x-forwarded-for"];
+      const forwardedIp = Array.isArray(forwardedFor)
+        ? forwardedFor[0]
+        : forwardedFor?.split(",")[0]?.trim();
+      const ipAddr = forwardedIp || req.socket.remoteAddress || "127.0.0.1";
+      payment.transactionCode = orderId;
+      await payment.save();
+      const payUrl = createVnpayPaymentUrl({
+        amount: Number(payment.amount || 0),
+        orderId,
+        orderInfo: `Thanh toán gia hạn BQDrive ${String(extension._id)}`,
+        ipAddr,
+      });
+
+      return res.status(200).json({
+        status: 200,
+        code: "200",
+        message: "Tạo thanh toán gia hạn VNPay thành công",
+        data: { payment, extension, booking, payUrl },
+      });
+    }
+
     if (!bookingId) {
       throw ErrorHelper.requestDataInvalid("Thiếu bookingId");
     }
 
-    const booking = await BookingModel.findOne({
-      _id: bookingId,
-      userId: authUser.userId,
-      isDeleted: false,
-    } as any);
-
-    if (!booking) {
-      throw ErrorHelper.recordNotFound("Booking");
-    }
-
-    hydrateLegacyBookingOwner(booking);
-    this.assertBookingCanCreatePayment(booking);
-
-    const selectedPaymentType =
-      paymentType ||
-      (booking.paymentOption === PaymentOptionEnum.FULL
-        ? PaymentTypeEnum.FULL
-        : PaymentTypeEnum.DEPOSIT);
-
-    if (!Object.values(PaymentTypeEnum).includes(selectedPaymentType)) {
-      throw ErrorHelper.requestDataInvalid("Loại thanh toán không hợp lệ");
-    }
-
-    this.assertPaymentTypeIsValidForBooking(booking, selectedPaymentType);
-    this.syncBookingPaymentPlan(booking, selectedPaymentType);
-
-    const existedPaidPayment = await PaymentModel.findOne({
-      bookingId: booking._id,
-      paymentType: selectedPaymentType,
-      status: PaymentStatusEnum.PAID,
-    });
-
-    if (existedPaidPayment) {
-      throw ErrorHelper.requestDataInvalid(
-        "Khoản thanh toán này đã được thanh toán",
-      );
-    }
-
-    let payment = await PaymentModel.findOne({
-      bookingId: booking._id,
-      paymentType: selectedPaymentType,
+    const { booking, payment, amount } = await this.prepareRentalPayment({
+      bookingId: String(bookingId),
+      userId: String(authUser.userId),
+      paymentType: String(paymentType || ""),
       method: PaymentMethodEnum.VNPAY,
-      status: PaymentStatusEnum.PENDING,
     });
-
-    const amount = this.getPaymentAmount(booking, selectedPaymentType);
-
-    if (amount <= 0) {
-      throw ErrorHelper.requestDataInvalid(
-        "Số tiền cần thanh toán không hợp lệ",
-      );
-    }
-
-    if (!payment) {
-      payment = await PaymentModel.create({
-        bookingId: booking._id,
-        userId: authUser.userId,
-        amount,
-        method: PaymentMethodEnum.VNPAY,
-        paymentType: selectedPaymentType,
-        status: PaymentStatusEnum.PENDING,
-      });
-    }
-
-    if (booking.status === BookingStatusEnum.OWNER_APPROVED) {
-      transitionBookingStatus(booking, BookingStatusEnum.PAYMENT_PENDING);
-      await booking.save();
-    } else {
-      await booking.save();
-    }
 
     const orderId = `VNPAY-${String(payment._id)}-${Date.now()}`;
     const forwardedFor = req.headers["x-forwarded-for"];
@@ -1108,6 +1238,8 @@ class PaymentRoute extends BaseRoute {
     if (payment.status === PaymentStatusEnum.PAID) {
       if (payment.paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
         await this.markExtraChargePaidFromPayment(payment);
+      } else if (payment.paymentType === PaymentTypeEnum.EXTENSION) {
+        await activatePaidBookingExtension(String(payment._id));
       } else if (booking.status === BookingStatusEnum.CANCELLED) {
         const refund =
           await cancellationRefundService.createManualRefundForCancelledPaidPayment(
@@ -1126,6 +1258,15 @@ class PaymentRoute extends BaseRoute {
         code: "200",
         message: "Payment already paid",
         data: { payment, booking, success: true },
+      });
+    }
+
+    if (payment.status === PaymentStatusEnum.FAILED) {
+      return res.status(409).json({
+        status: 409,
+        code: "409",
+        message: "Giao dịch này đã hết hiệu lực do phương án thanh toán đã thay đổi",
+        data: { payment, booking, success: false },
       });
     }
 
@@ -1168,9 +1309,16 @@ class PaymentRoute extends BaseRoute {
 
   async createPayment(req: Request, res: Response) {
     const authUser = (req as any).user;
-    const { bookingId, method, paymentType, extraChargeId } = req.body;
+    const { bookingId, method, paymentType, extraChargeId, extensionId } = req.body;
 
-    if ((!bookingId && paymentType !== PaymentTypeEnum.EXTRA_CHARGE) || !method) {
+    if (
+      (!bookingId &&
+        ![
+          PaymentTypeEnum.EXTRA_CHARGE,
+          PaymentTypeEnum.EXTENSION,
+        ].includes(paymentType)) ||
+      !method
+    ) {
       throw ErrorHelper.requestDataInvalid("Thiếu bookingId hoặc method");
     }
 
@@ -1204,116 +1352,47 @@ class PaymentRoute extends BaseRoute {
       });
     }
 
-    await expireAbandonedPendingBookings();
-
-    const booking = await BookingModel.findOne({
-      _id: bookingId,
-      userId: authUser.userId,
-      isDeleted: false,
-    } as any);
-
-    if (!booking) {
-      throw ErrorHelper.recordNotFound("Booking");
-    }
-
-    hydrateLegacyBookingOwner(booking);
-    this.assertBookingCanCreatePayment(booking);
-
-    if (
-      [
-        BookingStatusEnum.CANCELLED,
-        BookingStatusEnum.COMPLETED,
-        BookingStatusEnum.NO_SHOW,
-      ].includes(booking.status as BookingStatusEnum)
-    ) {
-      throw ErrorHelper.requestDataInvalid(
-        "Booking không còn khả dụng để thanh toán",
-      );
-    }
-
-    const selectedPaymentType =
-      paymentType ||
-      (booking.paymentOption === PaymentOptionEnum.FULL
-        ? PaymentTypeEnum.FULL
-        : PaymentTypeEnum.DEPOSIT);
-
-    if (!Object.values(PaymentTypeEnum).includes(selectedPaymentType)) {
-      throw ErrorHelper.requestDataInvalid("Loại thanh toán không hợp lệ");
-    }
-
-    this.assertPaymentTypeIsValidForBooking(booking, selectedPaymentType);
-    this.syncBookingPaymentPlan(booking, selectedPaymentType);
-
-    const existedPendingPayment = await PaymentModel.findOne({
-      bookingId: booking._id,
-      method,
-      paymentType: selectedPaymentType,
-      status: PaymentStatusEnum.PENDING,
-    });
-
-    if (existedPendingPayment) {
-      if (
-        MANUAL_PAYMENT_METHODS.includes(method as PaymentMethodEnum) &&
-        booking.status === BookingStatusEnum.PAYMENT_PENDING
-      ) {
-        transitionBookingStatus(booking, BookingStatusEnum.OWNER_APPROVED);
-        await booking.save();
+    if (paymentType === PaymentTypeEnum.EXTENSION) {
+      if (!extensionId) {
+        throw ErrorHelper.requestDataInvalid("Thiếu extensionId");
       }
 
-      return res.status(200).json({
-        status: 200,
-        code: "200",
-        message: "Payment chờ thanh toán đã tồn tại",
-        data: { payment: existedPendingPayment },
+      const { payment, extension, reusedPayment } =
+        await prepareBookingExtensionPayment({
+          extensionId: String(extensionId),
+          userId: String(authUser.userId),
+          method: method as PaymentMethodEnum,
+        });
+      const responseStatus = reusedPayment ? 200 : 201;
+      return res.status(responseStatus).json({
+        status: responseStatus,
+        code: String(responseStatus),
+        message: reusedPayment
+          ? "Thanh toán gia hạn đang chờ đã tồn tại"
+          : "Đã tạo thanh toán gia hạn",
+        data: { payment, extension },
       });
     }
 
-    const existedPaidPayment = await PaymentModel.findOne({
-      bookingId: booking._id,
-      paymentType: selectedPaymentType,
-      status: PaymentStatusEnum.PAID,
+    const prepared = await this.prepareRentalPayment({
+      bookingId: String(bookingId),
+      userId: String(authUser.userId),
+      paymentType: String(paymentType || ""),
+      method: method as PaymentMethodEnum,
     });
+    const { booking, payment, reusedPayment } = prepared;
 
-    if (existedPaidPayment) {
-      throw ErrorHelper.requestDataInvalid(
-        "Khoản thanh toán này đã được thanh toán",
-      );
-    }
-
-    const amount = this.getPaymentAmount(booking, selectedPaymentType);
-
-    if (amount <= 0) {
-      throw ErrorHelper.requestDataInvalid(
-        "Số tiền cần thanh toán không hợp lệ",
-      );
-    }
-
-    const payment = await PaymentModel.create({
-      bookingId: booking._id,
-      userId: authUser.userId,
-      amount,
-      method,
-      paymentType: selectedPaymentType,
-      status: PaymentStatusEnum.PENDING,
-    });
-    if (MANUAL_PAYMENT_METHODS.includes(method as PaymentMethodEnum)) {
+    if (!reusedPayment && MANUAL_PAYMENT_METHODS.includes(method as PaymentMethodEnum)) {
       void sendCashPaymentSelectedMail(booking, payment);
     }
 
-    if (
-      MANUAL_PAYMENT_METHODS.includes(method as PaymentMethodEnum) &&
-      booking.status === BookingStatusEnum.PAYMENT_PENDING
-    ) {
-      transitionBookingStatus(booking, BookingStatusEnum.OWNER_APPROVED);
-      await booking.save();
-    }
-
-    await booking.save();
-
-    return res.status(201).json({
-      status: 201,
-      code: "201",
-      message: "Tạo thanh toán thành công",
+    const responseStatus = reusedPayment ? 200 : 201;
+    return res.status(responseStatus).json({
+      status: responseStatus,
+      code: String(responseStatus),
+      message: reusedPayment
+        ? "Payment chờ thanh toán đã tồn tại"
+        : "Tạo thanh toán thành công",
       data: { payment },
     });
   }
@@ -1446,7 +1525,7 @@ class PaymentRoute extends BaseRoute {
       renterId: authUser.userId,
       isDeleted: false,
     } as any)
-      .populate("bookingId", "_id startDate endDate status")
+      .populate("bookingId", "_id bookingCode startDate endDate status")
       .populate("carId", "name licensePlate images")
       .sort({ createdAt: -1 })
       .lean();
@@ -1526,6 +1605,7 @@ class PaymentRoute extends BaseRoute {
             PaymentTypeEnum.DEPOSIT,
             PaymentTypeEnum.FULL,
             PaymentTypeEnum.REMAINING,
+            PaymentTypeEnum.EXTENSION,
           ].includes(payment.paymentType as PaymentTypeEnum),
         );
         const paidAmount = rentalPayments
@@ -1539,7 +1619,7 @@ class PaymentRoute extends BaseRoute {
 
         return {
           bookingId,
-          bookingCode: bookingId.slice(-8).toUpperCase(),
+          bookingCode: getBookingDisplayCode(booking || bookingId),
           bookingStatus: booking?.status || "",
           rentalMode: booking?.rentalMode || "",
           startDate: booking?.startDate || null,
@@ -1707,6 +1787,8 @@ class PaymentRoute extends BaseRoute {
     if (status === PaymentStatusEnum.PAID) {
       if (payment.paymentType === PaymentTypeEnum.EXTRA_CHARGE) {
         await this.markExtraChargePaidFromPayment(payment);
+      } else if (payment.paymentType === PaymentTypeEnum.EXTENSION) {
+        await activatePaidBookingExtension(String(payment._id));
       } else {
         await syncBookingPaymentFromPaidPayments(booking);
         void sendPaymentSuccessMail(booking, payment);

@@ -2,10 +2,13 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  FileBadge2,
   Loader2,
   Pencil,
+  Upload,
+  X,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 
 const CAR_FORM_STEPS = [
   "Thông tin xe",
@@ -217,5 +220,103 @@ export function FieldError({ message }: { message?: string }) {
     <p className="mt-1 text-xs font-bold text-red-600" role="alert">
       {message}
     </p>
+  );
+}
+
+type RegistrationCardImagesFieldProps = {
+  images: string[];
+  uploading: boolean;
+  required?: boolean;
+  error?: string;
+  onFilesChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onRemove: (index: number) => void;
+};
+
+export function RegistrationCardImagesField({
+  images,
+  uploading,
+  required = false,
+  error,
+  onFilesChange,
+  onRemove,
+}: RegistrationCardImagesFieldProps) {
+  return (
+    <section
+      data-car-form-field="registrationCardImages"
+      className="mt-4 rounded-lg border border-secondary/40 bg-yellow-50/50 p-4"
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary text-secondary">
+            <FileBadge2 size={22} />
+          </div>
+          <div>
+            <p className="text-sm font-extrabold text-primary">
+              Ảnh cà vẹt xe{required ? " *" : ""}
+            </p>
+            <p className="mt-1 max-w-xl text-sm leading-5 text-slate-600">
+              Chụp rõ thông tin đăng ký xe. Hồ sơ này chỉ dùng để Admin kiểm
+              duyệt và không hiển thị công khai
+              {required ? ". Xe tạo mới bắt buộc có ít nhất một ảnh." : "."}
+            </p>
+          </div>
+        </div>
+
+        <label
+          className={`inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-2 font-extrabold text-primary transition hover:bg-secondaryDark ${
+            uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+          }`}
+        >
+          {uploading ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : (
+            <Upload size={18} />
+          )}
+          {uploading ? "Đang upload..." : "Chọn ảnh cà vẹt"}
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={onFilesChange}
+            disabled={uploading}
+          />
+        </label>
+      </div>
+
+      {images.length > 0 ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {images.map((image, index) => (
+            <div
+              key={`${image.slice(0, 36)}-registration-${index}`}
+              className="group relative aspect-[16/10] overflow-hidden rounded-lg border border-secondary/30 bg-white"
+            >
+              <img
+                src={image}
+                alt={`Ảnh cà vẹt xe ${index + 1}`}
+                className="h-full w-full object-cover"
+              />
+              <span className="absolute bottom-2 left-2 rounded-lg bg-primary/90 px-3 py-1 text-xs font-extrabold text-secondary">
+                {index === 0 ? "Cà vẹt mặt trước" : "Cà vẹt mặt sau"}
+              </span>
+              <button
+                type="button"
+                onClick={() => onRemove(index)}
+                className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg bg-slate-950/80 text-white transition hover:bg-red-600"
+                aria-label={`Xóa ảnh cà vẹt ${index + 1}`}
+                title="Xóa ảnh cà vẹt"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4 rounded-lg border border-dashed border-secondary/40 bg-white px-4 py-7 text-center text-sm font-bold text-slate-500">
+          Chưa có ảnh cà vẹt xe. Có thể tải tối đa 2 ảnh, mỗi ảnh tối đa 5MB.
+        </div>
+      )}
+      <FieldError message={error} />
+    </section>
   );
 }

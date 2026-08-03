@@ -1,10 +1,14 @@
 ﻿import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import {
+  ArrowRight,
   Building2,
   Car,
   CheckCircle2,
+  Eye,
   Fuel,
+  FileBadge2,
   Gauge,
   Image,
   MapPin,
@@ -35,6 +39,11 @@ import {
 
 type CarAction = "approve" | "reject";
 type OwnerType = "BUSINESS" | "USER";
+type OwnerFilter = "ALL" | OwnerType;
+type RegistrationCardPreview = {
+  src: string;
+  label: string;
+};
 
 const carTypeLabels: Record<string, string> = {
   SUV: "SUV",
@@ -191,6 +200,37 @@ function getTransmissionLabel(value?: string) {
   return value ? labels[value] || value : "--";
 }
 
+function formatApprovalChangeValue(field: string, value: unknown) {
+  if (value === undefined || value === null || value === "") {
+    return "Chưa có";
+  }
+  if (field === "brandId") return "Hãng xe đã thay đổi";
+  if (value === "true") return "Có";
+  if (value === "false") return "Không";
+  if (field === "fuelType") return getFuelLabel(String(value));
+  if (field === "transmission") return getTransmissionLabel(String(value));
+  if (field === "type") return getCarTypeLabel(String(value));
+
+  const numericValue = Number(value);
+  if (
+    Number.isFinite(numericValue) &&
+    (field.startsWith("pricing.") ||
+      field === "deliveryBaseFee" ||
+      field === "deliveryFeePerKm" ||
+      field === "mileagePolicy.overageFeePerKm")
+  ) {
+    return `${new Intl.NumberFormat("vi-VN").format(numericValue)} đồng`;
+  }
+  if (
+    Number.isFinite(numericValue) &&
+    (field === "currentOdometerKm" || field.startsWith("mileagePolicy."))
+  ) {
+    return `${new Intl.NumberFormat("vi-VN").format(numericValue)} km`;
+  }
+
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
 export default function AdminCarsPage() {
   const [cars, setCars] = useState<AdminCar[]>([]);
   const [loading, setLoading] = useState(true);
@@ -202,6 +242,22 @@ export default function AdminCarsPage() {
   } | null>(null);
   const [detailCar, setDetailCar] = useState<AdminCar | null>(null);
   const [activeDetailImageIndex, setActiveDetailImageIndex] = useState(0);
+  const [ownerFilter, setOwnerFilter] = useState<OwnerFilter>("ALL");
+  const [registrationCardPreview, setRegistrationCardPreview] =
+    useState<RegistrationCardPreview | null>(null);
+
+  useEffect(() => {
+    if (!registrationCardPreview) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setRegistrationCardPreview(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [registrationCardPreview]);
 
   const fetchCars = async () => {
     setLoading(true);
@@ -251,6 +307,30 @@ export default function AdminCarsPage() {
       pendingCars,
     };
   }, [cars]);
+
+  const filteredCars = useMemo(() => {
+    if (ownerFilter === "ALL") return cars;
+
+    return cars.filter((car) => getOwnerType(car) === ownerFilter);
+  }, [cars, ownerFilter]);
+
+  const ownerFilterOptions: Array<{
+    value: OwnerFilter;
+    label: string;
+    count: number;
+  }> = [
+    { value: "ALL", label: "Tất cả", count: stats.total },
+    {
+      value: "BUSINESS",
+      label: "Doanh nghiệp",
+      count: stats.businessCars,
+    },
+    {
+      value: "USER",
+      label: "Người dùng ký gửi",
+      count: stats.privateOwnerCars,
+    },
+  ];
 
   const openAction = (type: CarAction, car: AdminCar) => {
     setReason("");
@@ -376,33 +456,70 @@ export default function AdminCarsPage() {
       </section>
 
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <h3 className="text-lg font-extrabold text-primary">
               Danh sách xe trong hệ thống
             </h3>
             <p className="mt-1 text-sm text-slate-500">
-              Đang hiển thị {stats.total.toLocaleString("vi-VN")} xe. Nhấp vào
-              một dòng để xem chi tiết và xử lý kiểm duyệt.
+              Đang hiển thị {filteredCars.length.toLocaleString("vi-VN")} trên
+              tổng {stats.total.toLocaleString("vi-VN")} xe. Nhấp vào một dòng
+              để xem chi tiết và xử lý kiểm duyệt.
             </p>
           </div>
-          <AdminStatusBadge
-            tone="blue"
-            label={`${stats.pendingCars.toLocaleString("vi-VN")} xe chờ duyệt`}
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div
+              className="grid grid-cols-1 gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 sm:grid-cols-3"
+              role="group"
+              aria-label="Lọc xe theo nguồn sở hữu"
+            >
+              {ownerFilterOptions.map((option) => {
+                const active = ownerFilter === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setOwnerFilter(option.value)}
+                    aria-pressed={active}
+                    className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-extrabold transition focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-1 ${
+                      active
+                        ? "bg-primary text-secondary shadow-sm"
+                        : "bg-transparent text-slate-600 hover:bg-white hover:text-primary"
+                    }`}
+                  >
+                    <span>{option.label}</span>
+                    <span
+                      className={`inline-flex min-w-6 items-center justify-center rounded-full px-1.5 py-0.5 text-xs ${
+                        active
+                          ? "bg-secondary text-primary"
+                          : "bg-white text-slate-500 ring-1 ring-slate-200"
+                      }`}
+                    >
+                      {option.count.toLocaleString("vi-VN")}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <AdminStatusBadge
+              tone="blue"
+              label={`${stats.pendingCars.toLocaleString("vi-VN")} xe chờ duyệt`}
+            />
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1120px] table-fixed text-left text-sm">
+        <div className="w-full overflow-hidden">
+          <table className="w-full table-fixed text-left text-sm">
             <thead className="bg-slate-50 text-xs font-extrabold uppercase text-slate-500">
               <tr>
-                <th className="w-[300px] px-5 py-4">Xe</th>
-                <th className="w-[105px] px-5 py-4">Loại xe</th>
-                <th className="w-[130px] px-5 py-4">Hãng xe</th>
-                <th className="w-[250px] px-5 py-4">Chủ sở hữu</th>
-                <th className="w-[140px] px-5 py-4">Nguồn</th>
-                <th className="w-[165px] px-5 py-4">Giá thuê</th>
-                <th className="w-[145px] px-5 py-4">Trạng thái</th>
+                <th className="w-[12%] px-3 py-4">Mã xe</th>
+                <th className="w-[25%] px-3 py-4">Xe</th>
+                <th className="w-[11%] px-3 py-4">Hãng / loại</th>
+                <th className="w-[19%] px-3 py-4">Chủ sở hữu</th>
+                <th className="w-[11%] px-3 py-4">Nguồn</th>
+                <th className="w-[12%] px-3 py-4">Giá thuê</th>
+                <th className="w-[10%] px-3 py-4">Trạng thái</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -418,7 +535,7 @@ export default function AdminCarsPage() {
               )}
 
               {!loading &&
-                cars.map((car) => {
+                filteredCars.map((car) => {
                   const status = getStatus(car.status);
                   const ownerType = getOwnerType(car);
                   const pendingReview = isPendingCar(car);
@@ -438,9 +555,14 @@ export default function AdminCarsPage() {
                       className="cursor-pointer align-middle transition hover:bg-slate-50"
                       title="Nhấp để xem chi tiết và xử lý xe"
                     >
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                      <td className="px-3 py-3 font-mono text-xs font-extrabold text-amber-700">
+                        <span className="block break-words">
+                          {car.carCode || "Chưa được cấp"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                             {car.images?.[0] ? (
                               <img
                                 src={car.images[0]}
@@ -476,17 +598,15 @@ export default function AdminCarsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-slate-600">
-                        <span className="block truncate">
+                      <td className="px-3 py-3 text-slate-600">
+                        <span className="block truncate font-bold text-slate-700">
+                          {car.brandId.name || "--"}
+                        </span>
+                        <span className="mt-1 block truncate text-xs">
                           {getCarTypeLabel(car.type)}
                         </span>
                       </td>
-                      <td className="px-5 py-3 font-bold text-slate-700">
-                        <span className="block truncate">
-                          {car.brandId.name || "--"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3">
+                      <td className="px-3 py-3">
                         <div className="min-w-0">
                           <p className="line-clamp-2 font-bold leading-5 text-slate-700">
                             {getOwnerName(car)}
@@ -496,13 +616,13 @@ export default function AdminCarsPage() {
                           </p>
                         </div>
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-3 py-3">
                         <AdminStatusBadge
                           tone={ownerType === "BUSINESS" ? "blue" : "green"}
                           label={getOwnerTypeLabel(car)}
                         />
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-3 py-3">
                         <div className="space-y-1">
                           <p className="truncate font-extrabold text-primary">
                             {getPriceLabel(car)}
@@ -513,7 +633,7 @@ export default function AdminCarsPage() {
                           />
                         </div>
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-3 py-3">
                         <div className="flex items-center gap-2">
                           {pendingReview && (
                             <span
@@ -532,13 +652,15 @@ export default function AdminCarsPage() {
                   );
                 })}
 
-              {!loading && cars.length === 0 && (
+              {!loading && filteredCars.length === 0 && (
                 <tr>
                   <td
                     colSpan={7}
                     className="px-5 py-8 text-center text-slate-500"
                   >
-                    Chưa có xe nào trong hệ thống.
+                    {cars.length === 0
+                      ? "Chưa có xe nào trong hệ thống."
+                      : "Không có xe phù hợp với bộ lọc đã chọn."}
                   </td>
                 </tr>
               )}
@@ -558,6 +680,9 @@ export default function AdminCarsPage() {
                 <h3 className="mt-1 text-2xl font-extrabold">
                   {detailCar.name}
                 </h3>
+                <p className="mt-1 font-mono text-xs font-extrabold text-secondary">
+                  Mã xe: {detailCar.carCode || "Chưa được cấp"}
+                </p>
                 <p className="mt-1 text-sm font-semibold text-slate-300">
                   {detailCar.licensePlate || "Chưa có biển số"} ·{" "}
                   {getOwnerName(detailCar)}
@@ -575,6 +700,91 @@ export default function AdminCarsPage() {
             </div>
 
             <div className="overflow-y-auto p-5">
+              {detailCar.approvalSubmission && (
+                <section className="mb-5 rounded-lg border border-secondary/50 bg-yellow-50 p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-extrabold uppercase text-amber-700">
+                        Lần gửi duyệt gần nhất
+                      </p>
+                      <h4 className="mt-1 text-lg font-extrabold text-primary">
+                        {detailCar.approvalSubmission.submissionType === "UPDATE"
+                          ? "Chủ xe vừa cập nhật thông tin"
+                          : detailCar.approvalSubmission.submissionType ===
+                              "RESUBMIT"
+                            ? "Chủ xe gửi lại yêu cầu duyệt"
+                            : "Xe mới được gửi kiểm duyệt"}
+                      </h4>
+                      <p className="mt-1 text-sm font-semibold text-slate-600">
+                        {detailCar.approvalSubmission.submittedAt
+                          ? `Gửi lúc ${formatDate(
+                              detailCar.approvalSubmission.submittedAt,
+                            )}`
+                          : "Chưa ghi nhận thời gian gửi"}
+                      </p>
+                    </div>
+                    <span className="w-fit rounded-lg bg-primary px-3 py-2 text-xs font-extrabold text-secondary">
+                      {detailCar.approvalSubmission.submissionType === "UPDATE"
+                        ? `${detailCar.approvalSubmission.changes?.length || 0} mục đã sửa`
+                        : detailCar.approvalSubmission.submissionType ===
+                            "RESUBMIT"
+                          ? "Gửi lại"
+                          : "Xe mới"}
+                    </span>
+                  </div>
+
+                  {detailCar.approvalSubmission.submissionType === "UPDATE" &&
+                    (detailCar.approvalSubmission.changes?.length || 0) > 0 && (
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        {detailCar.approvalSubmission.changes?.map(
+                          (change, index) => (
+                            <div
+                              key={`${change.field}-${index}`}
+                              className="rounded-lg border border-amber-200 bg-white p-4"
+                            >
+                              <p className="text-xs font-extrabold uppercase text-amber-700">
+                                {change.label}
+                              </p>
+                              {change.field === "brandId" ? (
+                                <p className="mt-2 font-bold text-primary">
+                                  Hãng xe đã được thay đổi. Hãng hiện tại là {" "}
+                                  {detailCar.brandId.name || "--"}.
+                                </p>
+                              ) : (
+                                <div className="mt-2 flex items-center gap-2 text-sm">
+                                  <span className="min-w-0 flex-1 break-words rounded-lg bg-slate-100 px-3 py-2 font-bold text-slate-600">
+                                    {formatApprovalChangeValue(
+                                      change.field,
+                                      change.previousValue,
+                                    )}
+                                  </span>
+                                  <ArrowRight
+                                    size={17}
+                                    className="shrink-0 text-secondary"
+                                  />
+                                  <span className="min-w-0 flex-1 break-words rounded-lg bg-emerald-50 px-3 py-2 font-extrabold text-emerald-800">
+                                    {formatApprovalChangeValue(
+                                      change.field,
+                                      change.currentValue,
+                                    )}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    )}
+
+                  {detailCar.approvalSubmission.submissionType === "RESUBMIT" && (
+                    <p className="mt-4 rounded-lg bg-white px-4 py-3 text-sm font-semibold text-slate-700">
+                      Xe được gửi lại với dữ liệu hiện tại, không phát sinh chỉnh
+                      sửa mới trong thao tác gửi lại này.
+                    </p>
+                  )}
+                </section>
+              )}
+
               <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
                 <div>
                   <div className="relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
@@ -728,6 +938,64 @@ export default function AdminCarsPage() {
                 </div>
               </div>
 
+              <section className="mt-5 rounded-lg border border-slate-200 bg-white p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-secondary">
+                    <FileBadge2 size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-extrabold uppercase text-secondary">
+                      Hồ sơ pháp lý
+                    </p>
+                    <h4 className="mt-1 font-extrabold text-primary">
+                      Ảnh cà vẹt xe
+                    </h4>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Chỉ Admin và chủ xe được xem các ảnh này trong quá trình
+                      kiểm duyệt.
+                    </p>
+                  </div>
+                </div>
+
+                {(detailCar.registrationCardImages?.length || 0) > 0 ? (
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {detailCar.registrationCardImages?.map((image, index) => {
+                      const label =
+                        index === 0 ? "Cà vẹt mặt trước" : "Cà vẹt mặt sau";
+
+                      return (
+                        <button
+                          key={`${image.slice(0, 36)}-registration-${index}`}
+                          type="button"
+                          onClick={() =>
+                            setRegistrationCardPreview({ src: image, label })
+                          }
+                          className="group relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-left transition hover:border-secondary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-secondary"
+                          aria-label={`Xem lớn ${label}`}
+                        >
+                          <img
+                            src={image}
+                            alt={label}
+                            className="aspect-[16/10] w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                          />
+                          <span className="absolute inset-x-0 bottom-9 flex items-center justify-center gap-2 bg-primary/85 px-3 py-2 text-xs font-bold text-white opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
+                            <Eye size={15} /> Xem ảnh
+                          </span>
+                          <p className="px-3 py-2 text-sm font-extrabold text-primary">
+                            {label}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-lg border border-dashed border-amber-300 bg-amber-50 px-4 py-5 text-sm font-bold text-amber-800">
+                    Xe cũ chưa có ảnh cà vẹt trong hồ sơ. Các xe tạo mới sẽ bắt
+                    buộc bổ sung trước khi gửi duyệt.
+                  </div>
+                )}
+              </section>
+
               <div className="mt-5 grid gap-4 md:grid-cols-3">
                 <div className="rounded-lg border border-slate-200 bg-white p-5">
                   <div className="mb-4 flex items-center gap-2 text-primary">
@@ -792,7 +1060,10 @@ export default function AdminCarsPage() {
                     <div className="flex justify-between gap-3">
                       <dt className="text-slate-500">Ngày gửi</dt>
                       <dd className="font-extrabold text-primary">
-                        {formatDate(detailCar.createdAt)}
+                        {formatDate(
+                          detailCar.approvalSubmission?.submittedAt ||
+                            detailCar.createdAt,
+                        )}
                       </dd>
                     </div>
                     <div className="flex justify-between gap-3">
@@ -973,6 +1244,9 @@ export default function AdminCarsPage() {
                   <p className="mt-1 text-sm font-bold text-slate-500">
                     {action?.car.licensePlate || "Chưa có biển số"}
                   </p>
+                  <p className="mt-1 font-mono text-xs font-extrabold text-amber-700">
+                    Mã xe: {action?.car.carCode || "Chưa được cấp"}
+                  </p>
                   <p className="mt-2 flex min-w-0 items-center gap-1 text-sm font-semibold text-slate-500">
                     <MapPin size={14} className="shrink-0 text-secondary" />
                     <span className="truncate">
@@ -1022,6 +1296,66 @@ export default function AdminCarsPage() {
               </div>
             </div>
 
+            {action.car.approvalSubmission && (
+              <div className="rounded-lg border border-secondary/40 bg-yellow-50 px-4 py-3 text-sm">
+                <p className="font-extrabold text-primary">
+                  {action.car.approvalSubmission.submissionType === "UPDATE"
+                    ? `Chủ xe vừa sửa ${
+                        action.car.approvalSubmission.changes?.length || 0
+                      } mục`
+                    : action.car.approvalSubmission.submissionType ===
+                        "RESUBMIT"
+                      ? "Xe được gửi lại duyệt"
+                      : "Xe mới gửi duyệt"}
+                </p>
+                <p className="mt-1 font-semibold text-slate-600">
+                  {action.car.approvalSubmission.submittedAt
+                    ? formatDate(action.car.approvalSubmission.submittedAt)
+                    : "Chưa ghi nhận thời gian gửi"}
+                  . Mở Chi tiết xe để đối chiếu đầy đủ nội dung trước và sau.
+                </p>
+              </div>
+            )}
+
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <p className="text-xs font-extrabold uppercase text-slate-400">
+                Ảnh cà vẹt xe
+              </p>
+              {(action.car.registrationCardImages?.length || 0) > 0 ? (
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  {action.car.registrationCardImages?.map((image, index) => {
+                    const label =
+                      index === 0 ? "Cà vẹt mặt trước" : "Cà vẹt mặt sau";
+
+                    return (
+                      <button
+                        key={`${image.slice(0, 32)}-action-registration-${index}`}
+                        type="button"
+                        onClick={() =>
+                          setRegistrationCardPreview({ src: image, label })
+                        }
+                        className="group relative overflow-hidden rounded-lg border border-slate-200 text-left transition hover:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary"
+                        aria-label={`Xem lớn ${label}`}
+                      >
+                        <img
+                          src={image}
+                          alt={label}
+                          className="aspect-[16/10] w-full object-cover transition duration-200 group-hover:scale-[1.02]"
+                        />
+                        <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-primary/85 px-3 py-2 text-xs font-bold text-white opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
+                          <Eye size={15} /> Xem ảnh
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="mt-2 font-bold text-amber-700">
+                  Xe cũ chưa có ảnh cà vẹt trong hồ sơ.
+                </p>
+              )}
+            </div>
+
             {action?.type === "approve" && (
               <div className="rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
                 Sau khi duyệt, xe sẽ được phép hiển thị cho khách hàng nếu không
@@ -1046,6 +1380,46 @@ export default function AdminCarsPage() {
           </div>
         )}
       </AdminModal>
+
+      {registrationCardPreview &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[5200] flex items-center justify-center bg-slate-950/90 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Xem ${registrationCardPreview.label}`}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setRegistrationCardPreview(null);
+              }
+            }}
+          >
+            <div className="flex max-h-full w-full max-w-5xl flex-col">
+              <div className="mb-3 flex items-center justify-between gap-4 text-white">
+                <p className="text-lg font-extrabold">
+                  {registrationCardPreview.label}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setRegistrationCardPreview(null)}
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-secondary"
+                  aria-label="Đóng ảnh xem trước"
+                >
+                  <XCircle size={24} />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-hidden rounded-lg bg-white p-2 shadow-2xl">
+                <img
+                  src={registrationCardPreview.src}
+                  alt={registrationCardPreview.label}
+                  className="max-h-[82vh] w-full object-contain"
+                />
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -12,6 +12,10 @@ import { Link, useNavigate } from "react-router-dom";
 
 import AuthLayout from "../layouts/AuthLayout";
 import { authService } from "../services/auth.service";
+import {
+  getEmailValidationError,
+  normalizeEmail,
+} from "../utils/validators";
 import { queueWelcomeBack } from "../utils/welcomeBack.util";
 
 const inputShellClass =
@@ -66,13 +70,9 @@ export default function LoginPage() {
 
     setError("");
 
-    if (!email) {
-      setError("Vui lòng nhập email");
-      return;
-    }
-
-    if (!email.includes("@")) {
-      setError("Định dạng email không hợp lệ");
+    const emailError = getEmailValidationError(email);
+    if (emailError) {
+      setError(emailError);
       return;
     }
 
@@ -85,7 +85,7 @@ export default function LoginPage() {
       setLoading(true);
 
       const { user } = await authService.login({
-        email,
+        email: normalizeEmail(email),
         password,
       });
 

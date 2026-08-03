@@ -1,17 +1,17 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
+  CalendarDays,
   Car,
   Edit,
-  Eye,
-  EyeOff,
   Fuel,
+  Gauge,
   Image,
   Loader2,
   MapPin,
   Plus,
-  Trash2,
   Upload,
   X,
   Zap,
@@ -23,9 +23,16 @@ import {
   CarFormNavigation,
   CarFormStepper,
   FieldError,
+  RegistrationCardImagesField,
   type CarFormStep,
 } from "../../components/cars/CarFormWizard";
+import OwnerCarListToolbar from "../../components/cars/OwnerCarListToolbar";
+import OwnerCarActions from "../../components/cars/OwnerCarActions";
+import OwnerCarBookingsPanel from "../../components/cars/OwnerCarBookingsPanel";
+import OwnerCarPerformancePanel from "../../components/cars/OwnerCarPerformancePanel";
+import OwnerCarMobileCard from "../../components/cars/OwnerCarMobileCard";
 import CarFormReviewStep from "../../components/cars/CarFormReviewStep";
+import CarCodeNotice from "../../components/cars/CarCodeNotice";
 import {
   buildCarWizardPayload,
   carToWizardForm,
@@ -33,6 +40,7 @@ import {
   type CarWizardForm as CarForm,
 } from "../../components/cars/carFormWizard.model";
 import { useCarFormWizard } from "../../components/cars/useCarFormWizard";
+import { useOwnerCarList } from "../../components/cars/useOwnerCarList";
 import FormattedNumberInput from "../../components/forms/FormattedNumberInput";
 import MapPicker from "../../components/maps/MapPicker";
 import {
@@ -43,7 +51,12 @@ import {
 import { mapService } from "../../services/map.service";
 import { uploadService } from "../../services/upload.service";
 import { formatAddressArea, formatPickupAddress } from "../../utils/address.util";
-import { getCarStatusMeta } from "../../utils/display.util";
+import {
+  getCarStatusMeta,
+  getFuelTypeLabel,
+  getTransmissionLabel,
+} from "../../utils/display.util";
+import { isOwnerCarHidden } from "../../utils/ownerCarList.util";
 import {
   isValidPlateNumber,
   sanitizePlateNumberInput,
@@ -62,6 +75,7 @@ const carTypeOptions = [
 const fuelTypeOptions = ["GASOLINE", "DIESEL", "ELECTRIC", "HYBRID"];
 const transmissionOptions = ["AUTOMATIC", "MANUAL"];
 const maxGalleryImages = 8;
+const maxRegistrationCardImages = 2;
 const maxCarImageSize = 5 * 1024 * 1024;
 
 function formatCurrency(value?: number | null) {
@@ -96,6 +110,20 @@ function getRentalPriceText(car: BusinessCar) {
 function formatPrice(value?: number | null) {
   if (value === undefined || value === null || value < 0) return "--";
   return `${value.toLocaleString("vi-VN")}đ`;
+}
+
+function formatOdometer(value?: number | null) {
+  return value === null || value === undefined
+    ? "Chưa cập nhật"
+    : `${new Intl.NumberFormat("vi-VN").format(value)} km`;
+}
+
+function formatUpdatedAt(value?: string) {
+  if (!value) return "Chưa cập nhật";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Chưa cập nhật"
+    : date.toLocaleString("vi-VN");
 }
 
 function getPricingRows(car: BusinessCar) {
@@ -133,26 +161,6 @@ function getPricingRows(car: BusinessCar) {
   ];
 }
 
-function getFuelLabel(value?: string) {
-  const labels: Record<string, string> = {
-    GASOLINE: "Xăng",
-    DIESEL: "Dầu",
-    ELECTRIC: "Điện",
-    HYBRID: "Hybrid",
-  };
-
-  return value ? labels[value] || value : "--";
-}
-
-function getTransmissionLabel(value?: string) {
-  const labels: Record<string, string> = {
-    AUTOMATIC: "Số tự động",
-    MANUAL: "Số sàn",
-  };
-
-  return value ? labels[value] || value : "--";
-}
-
 function getStatusBadge(status?: string) {
   return getCarStatusMeta(status);
 }
@@ -173,6 +181,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function BusinessCarsPage() {
+  const navigate = useNavigate();
   const [cars, setCars] = useState<BusinessCar[]>([]);
   const [brands, setBrands] = useState<BusinessBrand[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,7 +191,12 @@ export default function BusinessCarsPage() {
   const [form, setForm] = useState<CarForm>(EMPTY_CAR_WIZARD_FORM);
   const [editingCar, setEditingCar] = useState<BusinessCar | null>(null);
   const [deleteCar, setDeleteCar] = useState<BusinessCar | null>(null);
+  const [hideCar, setHideCar] = useState<BusinessCar | null>(null);
+  const [resubmitCar, setResubmitCar] = useState<BusinessCar | null>(null);
   const [detailCar, setDetailCar] = useState<BusinessCar | null>(null);
+  const [detailTab, setDetailTab] = useState<
+    "INFO" | "BOOKINGS" | "PERFORMANCE"
+  >("INFO");
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeStatus, setGeocodeStatus] = useState("");
   const [visibilityUpdatingId, setVisibilityUpdatingId] = useState<string | null>(
@@ -196,6 +210,35 @@ export default function BusinessCarsPage() {
     fieldErrors,
     goToStep,
   } = wizard;
+  const {
+    search,
+    status: statusFilter,
+    sort,
+    counts,
+    visibleCars,
+    queryCarId,
+    clearQueryCarId,
+    setSearch,
+    setStatus,
+    setSort,
+  } = useOwnerCarList(cars);
+
+  useEffect(() => {
+    if (!queryCarId || loading || detailCar?._id === queryCarId) return;
+
+    const target = cars.find((car) => car._id === queryCarId);
+    queueMicrotask(() => {
+      if (target) {
+        setDetailTab("INFO");
+        setDetailCar(target);
+      } else {
+        clearQueryCarId();
+        toast.error(
+          "Không tìm thấy xe cần xem hoặc xe không thuộc doanh nghiệp của bạn.",
+        );
+      }
+    });
+  }, [cars, clearQueryCarId, detailCar?._id, loading, queryCarId]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -282,6 +325,7 @@ export default function BusinessCarsPage() {
     wizard.goToNextStep(
       form,
       editingCar ? editingCar.currentOdometerKm ?? null : undefined,
+      !editingCar,
     );
   };
 
@@ -447,6 +491,62 @@ export default function BusinessCarsPage() {
       ),
     }));
   };
+
+  const handleRegistrationCardImageFileChange = async (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    event.target.value = "";
+
+    if (selectedFiles.length === 0) return;
+    if (
+      form.registrationCardImages.length + selectedFiles.length >
+      maxRegistrationCardImages
+    ) {
+      toast.error("Chỉ được chọn tối đa 2 ảnh cà vẹt xe");
+      return;
+    }
+    if (selectedFiles.some((file) => !file.type.startsWith("image/"))) {
+      toast.error("Vui lòng chọn file ảnh JPG, PNG hoặc WEBP");
+      return;
+    }
+    if (selectedFiles.some((file) => file.size > maxCarImageSize)) {
+      toast.error("Mỗi ảnh cà vẹt tối đa 5MB");
+      return;
+    }
+
+    setUploadingImages(true);
+    try {
+      const images = await Promise.all(
+        selectedFiles.map((file) =>
+          uploadService.uploadCarImage(file).then((image) => image.url),
+        ),
+      );
+      wizard.clearFieldError("registrationCardImages");
+      setForm((prev) => ({
+        ...prev,
+        registrationCardImages: [
+          ...prev.registrationCardImages,
+          ...images,
+        ],
+      }));
+      toast.success("Đã upload ảnh cà vẹt xe");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Không thể upload ảnh cà vẹt xe"));
+    } finally {
+      setUploadingImages(false);
+    }
+  };
+
+  const removeRegistrationCardImage = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      registrationCardImages: prev.registrationCardImages.filter(
+        (_, imageIndex) => imageIndex !== index,
+      ),
+    }));
+  };
+
   const handleSubmit = async (event?: FormEvent) => {
     event?.preventDefault();
 
@@ -469,7 +569,7 @@ export default function BusinessCarsPage() {
     const editingOdometer = editingCar
       ? (editingCar.currentOdometerKm ?? null)
       : undefined;
-    if (wizard.findFirstInvalidStep(form, editingOdometer)) return;
+    if (wizard.findFirstInvalidStep(form, editingOdometer, !editingCar)) return;
 
     const payload = buildCarWizardPayload(form);
 
@@ -479,8 +579,11 @@ export default function BusinessCarsPage() {
         await businessService.updateCar(editingCar._id, payload);
         toast.success("Đã cập nhật xe, vui lòng cho Admin duyệt lại");
       } else {
-        await businessService.createCar(payload);
-        toast.success("Đã thêm xe, trạng thái đang cho Admin duyệt");
+        const createdCar = await businessService.createCar(payload);
+        toast.success(
+          `Đã thêm xe thành công. Mã xe: ${createdCar.carCode || "Chưa được cấp"}. Trạng thái: Chờ duyệt.`,
+          { duration: 6000 },
+        );
       }
 
       closeForm(true);
@@ -508,22 +611,63 @@ export default function BusinessCarsPage() {
     }
   };
 
-  const toggleCarVisibility = async (car: BusinessCar) => {
+  const updateCarVisibility = async (car: BusinessCar, shouldHide: boolean) => {
     setVisibilityUpdatingId(car._id);
     try {
-      if (car.isHidden) {
-        await businessService.unhideCar(car._id);
-        toast.success("Đã hiện xe trên hệ thống");
-      } else {
+      if (shouldHide) {
         await businessService.hideCar(car._id);
         toast.success("Đã ẩn xe khỏi hệ thống");
+      } else {
+        const updatedCar = await businessService.unhideCar(car._id);
+        if (isOwnerCarHidden(updatedCar)) {
+          toast.success("Đã bỏ ẩn của doanh nghiệp, xe vẫn đang bị Admin ẩn");
+        } else {
+          toast.success("Đã hiện xe trên hệ thống");
+        }
       }
 
+      setHideCar(null);
       await fetchData();
     } catch (error) {
       toast.error(getErrorMessage(error, "Cập nhật hiển thị xe thất bại"));
     } finally {
       setVisibilityUpdatingId(null);
+    }
+  };
+
+  const requestVisibilityChange = (car: BusinessCar) => {
+    if (isOwnerCarHidden(car)) {
+      void updateCarVisibility(car, false);
+    } else {
+      setHideCar(car);
+    }
+  };
+
+  const confirmResubmit = async () => {
+    if (!resubmitCar) return;
+
+    setSubmitting(true);
+    try {
+      await businessService.resubmitCar(resubmitCar._id);
+      toast.success("Đã gửi lại xe để Admin duyệt");
+      setResubmitCar(null);
+      await fetchData();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Gửi lại duyệt thất bại"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openLocation = (car: BusinessCar) => {
+    navigate(`/business/map?carId=${encodeURIComponent(car._id)}`);
+  };
+
+  const closeDetail = () => {
+    setDetailTab("INFO");
+    setDetailCar(null);
+    if (queryCarId) {
+      clearQueryCarId();
     }
   };
 
@@ -553,48 +697,70 @@ export default function BusinessCarsPage() {
         </button>
       </section>
 
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <OwnerCarListToolbar
+        search={search}
+        status={statusFilter}
+        sort={sort}
+        counts={counts}
+        onSearchChange={setSearch}
+        onStatusChange={setStatus}
+        onSortChange={setSort}
+      />
+
+      <section className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm lg:block">
         <div className="overflow-x-auto">
-          <table className="min-w-[1080px] w-full text-left text-sm">
+          <table className="w-full min-w-[1280px] text-left text-sm">
             <thead className="bg-slate-50 text-xs font-extrabold uppercase text-slate-500">
               <tr>
+                <th className="px-5 py-4">Mã xe</th>
                 <th className="px-5 py-4">Xe</th>
                 <th className="px-5 py-4">Hãng</th>
                 <th className="px-5 py-4">Nhiên liệu</th>
                 <th className="px-5 py-4">Giá thuê</th>
+                <th className="px-5 py-4">ODO</th>
+                <th className="px-5 py-4">Cập nhật</th>
                 <th className="px-5 py-4">Trạng thái</th>
-                <th className="px-5 py-4 text-right">Thao tác</th>
+                <th className="sticky right-0 z-20 bg-slate-50 px-5 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.45)]">
+                  Thao tác
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
+                  <td colSpan={9} className="px-5 py-8 text-center text-slate-500">
                     Đang tải danh sách xe...
                   </td>
                 </tr>
               )}
 
               {!loading &&
-                cars.map((car) => {
+                visibleCars.map((car) => {
                   const status = getStatusBadge(car.status);
                   const carIsElectric = car.fuelType === "ELECTRIC";
 
                   return (
                     <tr
                       key={car._id}
-                      onClick={() => setDetailCar(car)}
+                      onClick={() => {
+                        setDetailTab("INFO");
+                        setDetailCar(car);
+                      }}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" || event.key === " ") {
                           event.preventDefault();
+                          setDetailTab("INFO");
                           setDetailCar(car);
                         }
                       }}
                       tabIndex={0}
                       role="button"
                       title="Nhấn để xem chi tiết xe"
-                      className="cursor-pointer hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                      className="group cursor-pointer hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
                     >
+                      <td className="px-5 py-4 font-mono text-xs font-extrabold text-amber-700">
+                        {car.carCode || "Chưa được cấp"}
+                      </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100 text-secondary">
@@ -632,11 +798,17 @@ export default function BusinessCarsPage() {
                           ) : (
                             <Fuel size={16} className="text-secondary" />
                           )}
-                          {car.fuelType || "--"}
+                          {getFuelTypeLabel(car.fuelType)}
                         </span>
                       </td>
                       <td className="px-5 py-4 font-extrabold text-primary">
                         {getRentalPriceText(car)}
+                      </td>
+                      <td className="px-5 py-4 font-bold text-slate-700">
+                        {formatOdometer(car.currentOdometerKm)}
+                      </td>
+                      <td className="px-5 py-4 text-xs font-semibold text-slate-500">
+                        {formatUpdatedAt(car.updatedAt || car.createdAt)}
                       </td>
                       <td className="px-5 py-4">
                         <div className="space-y-1">
@@ -649,7 +821,7 @@ export default function BusinessCarsPage() {
                               {car.rejectReason}
                             </p>
                           )}
-                          {car.isHidden && (
+                          {isOwnerCarHidden(car) && (
                             <AdminStatusBadge
                               tone="gray"
                               label="Đã ẩn khỏi trang chủ"
@@ -657,49 +829,21 @@ export default function BusinessCarsPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-5 py-4">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void toggleCarVisibility(car);
-                            }}
-                            disabled={visibilityUpdatingId === car._id}
-                            className="inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 font-bold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {visibilityUpdatingId === car._id ? (
-                              <Loader2 size={16} className="animate-spin" />
-                            ) : car.isHidden ? (
-                              <Eye size={16} />
-                            ) : (
-                              <EyeOff size={16} />
-                            )}
-                            {car.isHidden ? "Hiện xe" : "Ẩn xe"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openEdit(car);
-                            }}
-                            className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 font-bold text-slate-700 transition hover:bg-slate-200"
-                          >
-                            <Edit size={16} />
-                            Sửa
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setDeleteCar(car);
-                            }}
-                            className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 font-extrabold text-slate-800 transition hover:bg-slate-200"
-                          >
-                            <Trash2 size={16} />
-                            Xóa
-                          </button>
-                        </div>
+                      <td className="sticky right-0 z-10 bg-white px-5 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.45)] transition group-hover:bg-slate-50 group-focus:bg-slate-50">
+                        <OwnerCarActions
+                          car={car}
+                          variant="desktop"
+                          visibilityLoading={visibilityUpdatingId === car._id}
+                          onView={() => {
+                            setDetailTab("INFO");
+                            setDetailCar(car);
+                          }}
+                          onEdit={() => openEdit(car)}
+                          onManageLocation={() => openLocation(car)}
+                          onToggleVisibility={() => requestVisibilityChange(car)}
+                          onDelete={() => setDeleteCar(car)}
+                          onResubmit={() => setResubmitCar(car)}
+                        />
                       </td>
                     </tr>
                   );
@@ -707,14 +851,62 @@ export default function BusinessCarsPage() {
 
               {!loading && cars.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
+                  <td colSpan={9} className="px-5 py-8 text-center text-slate-500">
                     Doanh nghiệp chưa có xe nào.
+                  </td>
+                </tr>
+              )}
+
+              {!loading && cars.length > 0 && visibleCars.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-5 py-8 text-center text-slate-500">
+                    Không tìm thấy xe phù hợp
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section className="space-y-4 lg:hidden">
+        {loading && (
+          <div className="rounded-lg border border-slate-200 bg-white px-5 py-8 text-center text-sm font-semibold text-slate-500">
+            Đang tải danh sách xe...
+          </div>
+        )}
+
+        {!loading &&
+          visibleCars.map((car) => (
+            <OwnerCarMobileCard
+              key={car._id}
+              car={car}
+              priceText={getRentalPriceText(car)}
+              areaText={formatAddressArea(car)}
+              visibilityLoading={visibilityUpdatingId === car._id}
+              onView={() => {
+                setDetailTab("INFO");
+                setDetailCar(car);
+              }}
+              onEdit={() => openEdit(car)}
+              onManageLocation={() => openLocation(car)}
+              onToggleVisibility={() => requestVisibilityChange(car)}
+              onDelete={() => setDeleteCar(car)}
+              onResubmit={() => setResubmitCar(car)}
+            />
+          ))}
+
+        {!loading && cars.length === 0 && (
+          <div className="rounded-lg border border-slate-200 bg-white px-5 py-8 text-center text-sm font-semibold text-slate-500">
+            Doanh nghiệp chưa có xe nào.
+          </div>
+        )}
+
+        {!loading && cars.length > 0 && visibleCars.length === 0 && (
+          <div className="rounded-lg border border-slate-200 bg-white px-5 py-8 text-center text-sm font-semibold text-slate-500">
+            Không tìm thấy xe phù hợp
+          </div>
+        )}
       </section>
 
       {detailCar && (
@@ -728,6 +920,9 @@ export default function BusinessCarsPage() {
                 <h3 className="mt-1 text-2xl font-extrabold">
                   {detailCar.name}
                 </h3>
+                <p className="mt-1 font-mono text-xs font-extrabold text-secondary">
+                  Mã xe: {detailCar.carCode || "Chưa được cấp"}
+                </p>
                 <p className="mt-1 text-sm font-semibold text-white/70">
                   {detailCar.licensePlate || "Chưa có biển số"} ·{" "}
                   {detailCar.brandId?.name || "--"}
@@ -735,7 +930,7 @@ export default function BusinessCarsPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setDetailCar(null)}
+                onClick={closeDetail}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white/70 transition hover:bg-white/10 hover:text-secondary"
                 aria-label="Đóng chi tiết xe"
                 title="Đóng"
@@ -744,7 +939,52 @@ export default function BusinessCarsPage() {
               </button>
             </div>
 
-            <div className="overflow-y-auto p-6">
+            <div className="grid grid-cols-3 border-b border-slate-200 bg-white px-2 sm:px-6">
+              <button
+                type="button"
+                onClick={() => setDetailTab("INFO")}
+                className={`inline-flex min-h-12 items-center justify-center gap-2 border-b-2 px-2 text-center text-sm font-extrabold transition sm:px-4 ${
+                  detailTab === "INFO"
+                    ? "border-secondary text-primary"
+                    : "border-transparent text-slate-500 hover:text-primary"
+                }`}
+              >
+                <Car size={18} />
+                Thông tin xe
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetailTab("BOOKINGS")}
+                className={`inline-flex min-h-12 items-center justify-center gap-2 border-b-2 px-2 text-center text-sm font-extrabold transition sm:px-4 ${
+                  detailTab === "BOOKINGS"
+                    ? "border-secondary text-primary"
+                    : "border-transparent text-slate-500 hover:text-primary"
+                }`}
+              >
+                <CalendarDays size={18} />
+                Lịch thuê
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetailTab("PERFORMANCE")}
+                className={`inline-flex min-h-12 items-center justify-center gap-2 border-b-2 px-2 text-center text-sm font-extrabold transition sm:px-4 ${
+                  detailTab === "PERFORMANCE"
+                    ? "border-secondary text-primary"
+                    : "border-transparent text-slate-500 hover:text-primary"
+                }`}
+              >
+                <Gauge size={18} />
+                Hiệu quả
+              </button>
+            </div>
+
+            <div
+              className={
+                detailTab === "INFO"
+                  ? "min-h-0 flex-1 overflow-y-auto p-6"
+                  : "hidden"
+              }
+            >
               <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="space-y-4">
                   <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
@@ -767,7 +1007,7 @@ export default function BusinessCarsPage() {
                         tone={getStatusBadge(detailCar.status).tone}
                         label={getStatusBadge(detailCar.status).label}
                       />
-                      {detailCar.isHidden && (
+                      {isOwnerCarHidden(detailCar) && (
                         <AdminStatusBadge tone="gray" label="Đã ẩn" />
                       )}
                     </div>
@@ -834,13 +1074,27 @@ export default function BusinessCarsPage() {
                       <div className="flex justify-between gap-4">
                         <dt className="text-slate-500">Nhiên liệu</dt>
                         <dd className="font-extrabold text-primary">
-                          {getFuelLabel(detailCar.fuelType)}
+                          {getFuelTypeLabel(detailCar.fuelType)}
                         </dd>
                       </div>
                       <div className="flex justify-between gap-4">
                         <dt className="text-slate-500">Hộp số</dt>
                         <dd className="font-extrabold text-primary">
                           {getTransmissionLabel(detailCar.transmission)}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-slate-500">ODO hiện tại</dt>
+                        <dd className="font-extrabold text-primary">
+                          {formatOdometer(detailCar.currentOdometerKm)}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-slate-500">Cập nhật lần cuối</dt>
+                        <dd className="text-right font-extrabold text-primary">
+                          {formatUpdatedAt(
+                            detailCar.updatedAt || detailCar.createdAt,
+                          )}
                         </dd>
                       </div>
                     </dl>
@@ -859,6 +1113,95 @@ export default function BusinessCarsPage() {
                         fallback: "Địa điểm nhận xe đang cập nhật",
                       })}
                     </p>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 bg-white p-5">
+                    <h4 className="font-extrabold text-primary">
+                      Kilomet và giao xe
+                    </h4>
+                    <dl className="mt-4 space-y-3 text-sm">
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-slate-500">Giới hạn ngày</dt>
+                        <dd className="font-extrabold text-primary">
+                          {detailCar.mileagePolicy?.includedKmPerDay !==
+                            undefined &&
+                          detailCar.mileagePolicy?.includedKmPerDay !== null
+                            ? `${detailCar.mileagePolicy.includedKmPerDay.toLocaleString("vi-VN")} km/ngày`
+                            : "Chưa thiết lập"}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-slate-500">Giới hạn giờ</dt>
+                        <dd className="font-extrabold text-primary">
+                          {detailCar.mileagePolicy?.includedKmPerHour !==
+                            undefined &&
+                          detailCar.mileagePolicy?.includedKmPerHour !== null
+                            ? `${detailCar.mileagePolicy.includedKmPerHour.toLocaleString("vi-VN")} km/giờ`
+                            : "Chưa thiết lập"}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-slate-500">Phí vượt kilomet</dt>
+                        <dd className="font-extrabold text-primary">
+                          {detailCar.mileagePolicy?.overageFeePerKm !==
+                            undefined &&
+                          detailCar.mileagePolicy?.overageFeePerKm !== null
+                            ? `${formatPrice(detailCar.mileagePolicy.overageFeePerKm)}/km`
+                            : "Chưa thiết lập"}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-slate-500">Mức miễn</dt>
+                        <dd className="font-extrabold text-primary">
+                          {detailCar.mileagePolicy?.graceKm !== undefined &&
+                          detailCar.mileagePolicy?.graceKm !== null
+                            ? `${detailCar.mileagePolicy.graceKm.toLocaleString("vi-VN")} km`
+                            : "Chưa thiết lập"}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-4 border-t border-slate-100 pt-3">
+                        <dt className="text-slate-500">Giao tận nơi</dt>
+                        <dd className="font-extrabold text-primary">
+                          {detailCar.deliveryEnabled
+                            ? "Có hỗ trợ"
+                            : "Không hỗ trợ"}
+                        </dd>
+                      </div>
+                      {detailCar.deliveryEnabled && (
+                        <>
+                          <div className="flex justify-between gap-4">
+                            <dt className="text-slate-500">Phí mở đầu</dt>
+                            <dd className="font-extrabold text-primary">
+                              {formatPrice(detailCar.deliveryBaseFee)}
+                            </dd>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <dt className="text-slate-500">Đơn giá</dt>
+                            <dd className="font-extrabold text-primary">
+                              {formatPrice(detailCar.deliveryFeePerKm)}/km
+                            </dd>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <dt className="text-slate-500">
+                              Phạm vi tối đa
+                            </dt>
+                            <dd className="font-extrabold text-primary">
+                              {detailCar.deliveryMaxDistanceKm !== undefined
+                                ? `${detailCar.deliveryMaxDistanceKm.toLocaleString("vi-VN")} km`
+                                : "Chưa thiết lập"}
+                            </dd>
+                          </div>
+                          {detailCar.deliveryNote && (
+                            <div className="border-t border-slate-100 pt-3">
+                              <dt className="text-slate-500">Ghi chú giao xe</dt>
+                              <dd className="mt-1 font-semibold leading-6 text-primary">
+                                {detailCar.deliveryNote}
+                              </dd>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </dl>
                   </div>
 
                   <div className="rounded-lg border border-slate-200 bg-white p-5">
@@ -888,7 +1231,7 @@ export default function BusinessCarsPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        setDetailCar(null);
+                        closeDetail();
                         openEdit(detailCar);
                       }}
                       className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-2 font-extrabold text-primary transition hover:bg-secondaryLight"
@@ -898,7 +1241,7 @@ export default function BusinessCarsPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setDetailCar(null)}
+                      onClick={closeDetail}
                       className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white px-5 py-2 font-bold text-primary transition hover:bg-slate-50"
                     >
                       Đóng
@@ -907,6 +1250,25 @@ export default function BusinessCarsPage() {
                 </aside>
               </div>
             </div>
+            <OwnerCarBookingsPanel
+              key={detailCar._id}
+              carId={detailCar._id}
+              enabled={detailTab === "BOOKINGS"}
+              loadBookings={businessService.getCarBookings}
+              onOpenBooking={(bookingId) =>
+                navigate(
+                  `/business/bookings?bookingId=${encodeURIComponent(
+                    bookingId,
+                  )}&action=view-booking`,
+                )
+              }
+            />
+            <OwnerCarPerformancePanel
+              key={`performance-${detailCar._id}`}
+              carId={detailCar._id}
+              enabled={detailTab === "PERFORMANCE"}
+              loadPerformance={businessService.getCarPerformance}
+            />
           </div>
         </div>
       )}
@@ -954,6 +1316,11 @@ export default function BusinessCarsPage() {
               onSubmit={handleSubmit}
               className="overflow-y-auto px-5 py-5 sm:px-6"
             >
+              <CarCodeNotice
+                carCode={editingCar?.carCode}
+                editing={Boolean(editingCar)}
+                currentStep={currentStep}
+              />
               {Object.keys(fieldErrors).length > 0 && (
                 <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
                   Vui lòng kiểm tra lại các trường được báo lỗi trong bước này.
@@ -1126,7 +1493,7 @@ export default function BusinessCarsPage() {
                   >
                     {fuelTypeOptions.map((item) => (
                       <option key={item} value={item}>
-                        {item}
+                        {getFuelTypeLabel(item)}
                       </option>
                     ))}
                   </select>
@@ -1145,7 +1512,7 @@ export default function BusinessCarsPage() {
                   >
                     {transmissionOptions.map((item) => (
                       <option key={item} value={item}>
-                        {item}
+                        {getTransmissionLabel(item)}
                       </option>
                     ))}
                   </select>
@@ -1893,6 +2260,17 @@ export default function BusinessCarsPage() {
               )}
 
               {currentStep === 5 && (
+                <RegistrationCardImagesField
+                  images={form.registrationCardImages}
+                  uploading={uploadingImages}
+                  required={!editingCar}
+                  error={fieldErrors.registrationCardImages}
+                  onFilesChange={handleRegistrationCardImageFileChange}
+                  onRemove={removeRegistrationCardImage}
+                />
+              )}
+
+              {currentStep === 5 && (
               <label className="mt-4 block">
                 <span className="mb-2 block text-sm font-extrabold text-slate-700">
                   Mô tả
@@ -1934,6 +2312,42 @@ export default function BusinessCarsPage() {
           </div>
         </div>
       )}
+
+      <AdminModal
+        open={!!hideCar}
+        title="Ẩn xe khỏi hệ thống?"
+        description="Xe sẽ không còn hiển thị cho khách thuê cho đến khi bạn bật hiển thị lại."
+        confirmText="Xác nhận ẩn"
+        loading={
+          !!hideCar && visibilityUpdatingId === hideCar._id
+        }
+        onClose={() => setHideCar(null)}
+        onConfirm={() => {
+          if (hideCar) void updateCarVisibility(hideCar, true);
+        }}
+      />
+
+      <AdminModal
+        open={!!resubmitCar}
+        title="Gửi lại xe để duyệt?"
+        description="Xe sẽ chuyển về trạng thái chờ Admin kiểm duyệt."
+        confirmText="Gửi lại duyệt"
+        loading={submitting}
+        onClose={() => setResubmitCar(null)}
+        onConfirm={confirmResubmit}
+      >
+        {resubmitCar && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <p className="text-xs font-extrabold uppercase text-amber-700">
+              Lý do từ chối hiện tại
+            </p>
+            <p className="mt-2 font-semibold leading-6 text-slate-800">
+              {resubmitCar.rejectReason?.trim() ||
+                "Admin chưa cung cấp lý do từ chối."}
+            </p>
+          </div>
+        )}
+      </AdminModal>
 
       <AdminModal
         open={!!deleteCar}

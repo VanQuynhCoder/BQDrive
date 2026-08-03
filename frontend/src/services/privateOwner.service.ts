@@ -5,6 +5,14 @@ import type {
   PaymentStatus as OfficialPaymentStatus,
 } from "../constants/status.constants";
 import type { CarPricing } from "../types/pricing";
+import type {
+  GetOwnerCarBookingsParams,
+  OwnerCarBookingsResponse,
+} from "../types/ownerCarBooking";
+import type {
+  OwnerCarPerformanceRange,
+  OwnerCarPerformanceResponse,
+} from "../types/ownerCarPerformance";
 export type { CarPricing } from "../types/pricing";
 
 export type PrivateOwnerStatus = "PENDING" | "APPROVED" | "REJECTED" | string;
@@ -48,6 +56,7 @@ export type PrivateOwnerProfile = {
 
 export type PrivateOwnerCar = {
   _id: string;
+  carCode?: string | null;
   name: string;
   type?: string;
   licensePlate?: string;
@@ -68,6 +77,7 @@ export type PrivateOwnerCar = {
   fuelType?: FuelType;
   transmission?: string;
   images?: string[];
+  registrationCardImages?: string[];
   description?: string;
   pickupAddress?: string;
   pickupFormattedAddress?: string;
@@ -94,11 +104,16 @@ export type PrivateOwnerCar = {
   status?: PrivateOwnerStatus;
   rejectReason?: string;
   isHidden?: boolean;
+  hiddenByOwner?: boolean;
+  hiddenByAdmin?: boolean;
+  isDeleted?: boolean;
   createdAt?: string;
+  updatedAt?: string;
 };
 
 export type PrivateOwnerBooking = {
   _id: string;
+  bookingCode?: string;
   userId: PrivateOwnerUser;
   carId: PrivateOwnerCar;
   startDate: string;
@@ -323,6 +338,24 @@ export const privateOwnerService = {
     return unwrap<{ cars: PrivateOwnerCar[] }>(res).cars;
   },
 
+  getCarBookings: async (
+    carId: string,
+    params: GetOwnerCarBookingsParams = {},
+  ) => {
+    const res = await api.get(`/owner/cars/${carId}/bookings`, { params });
+    return unwrap<OwnerCarBookingsResponse>(res);
+  },
+
+  getCarPerformance: async (
+    carId: string,
+    range: OwnerCarPerformanceRange,
+  ) => {
+    const res = await api.get(`/owner/cars/${carId}/performance`, {
+      params: { range },
+    });
+    return unwrap<OwnerCarPerformanceResponse>(res);
+  },
+
   createCar: async (data: CreatePrivateOwnerCarData) => {
     const res = await api.post("/cars/createCar", data);
     return unwrap<{ car: PrivateOwnerCar }>(res).car;
@@ -330,6 +363,11 @@ export const privateOwnerService = {
 
   updateCar: async (id: string, data: UpdatePrivateOwnerCarData) => {
     const res = await api.post(`/cars/updateCar/${id}`, data);
+    return unwrap<{ car: PrivateOwnerCar }>(res).car;
+  },
+
+  resubmitCar: async (id: string) => {
+    const res = await api.post(`/cars/resubmitCar/${id}`);
     return unwrap<{ car: PrivateOwnerCar }>(res).car;
   },
 

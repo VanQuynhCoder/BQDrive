@@ -341,7 +341,7 @@ export default function Header() {
                                 {todo.carName}
                               </p>
                               <span className="shrink-0 rounded-full bg-secondarySoft px-2 py-0.5 text-xs font-extrabold text-primary">
-                                #{todo.bookingCode}
+                                {todo.bookingCode}
                               </span>
                             </div>
                             <p className="mt-1 text-xs font-semibold text-muted">

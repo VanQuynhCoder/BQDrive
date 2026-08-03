@@ -12,6 +12,7 @@ import {
 } from "../../services/payment.service";
 import {
   getBookingStatusLabel,
+  getBookingDisplayCode,
   getOwnerTypeLabel,
   getPaymentMethodLabel,
   getPaymentRefundStatusLabel,
@@ -82,11 +83,7 @@ function getStatusLabel(status?: string) {
 }
 
 function formatShortId(id: string) {
-  if (!id) return "--";
-
-  const normalizedId = id.startsWith("#") ? id.slice(1) : id;
-
-  return `#${normalizedId.slice(-8).toUpperCase()}`;
+  return getBookingDisplayCode(id);
 }
 
 function getCarLabel(item: BookingPaymentHistory) {

@@ -29,8 +29,9 @@ import {
 } from "../../services/admin.service";
 import { getBusinessTypeLabel } from "../../utils/display.util";
 import {
-  isValidEmail,
+  getEmailValidationError,
   isValidVietnamPhone,
+  normalizeEmail,
   normalizePhone,
 } from "../../utils/validators";
 
@@ -205,7 +206,7 @@ export default function AdminBusinessesPage() {
 
   const validateBusinessInfo = () => {
     const businessName = createForm.businessName.trim();
-    const email = createForm.email.trim().toLowerCase();
+    const email = normalizeEmail(createForm.email);
     const phone = normalizePhone(createForm.phone);
     const address = createForm.address.trim();
 
@@ -214,8 +215,9 @@ export default function AdminBusinessesPage() {
       return false;
     }
 
-    if (!isValidEmail(email)) {
-      toast.error("Email doanh nghiệp không hợp lệ");
+    const emailError = getEmailValidationError(email, "Email doanh nghiệp");
+    if (emailError) {
+      toast.error(emailError);
       return false;
     }
 

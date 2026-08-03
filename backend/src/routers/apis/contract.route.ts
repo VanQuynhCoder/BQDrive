@@ -4,24 +4,18 @@ import { BookingModel } from "../../models/booking/booking.model";
 import { BusinessModel } from "../../models/business/business.model";
 import { ContractModel } from "../../models/contract/contract.model";
 import { ReviewModel } from "../../models/review/review.model";
-import { UserModel } from "../../models/user/user.model";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
-import { formatAddress } from "../../helper/address.helper";
 import {
   getContractStatusForBookingStatus,
   syncContractFromBooking,
 } from "../../helper/payment-sync.helper";
 import {
   BookingStatusEnum,
-  ContractStatusEnum,
   OwnerTypeEnum,
-  PaymentOptionEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
 
 const RENTER_ROLES = [UserRoleEnum.USER];
-const RENTER_INFO_REQUIRED_FOR_CONTRACT_MESSAGE =
-  "Booking thiếu thông tin người thuê, không thể tạo hợp đồng.";
 
 class ContractRoute extends BaseRoute {
   constructor() {
@@ -39,7 +33,7 @@ class ContractRoute extends BaseRoute {
       "/my-contracts",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER, UserRoleEnum.BUSINESS]),
       ],
       this.route(this.getMyContracts),
     );
@@ -57,29 +51,10 @@ class ContractRoute extends BaseRoute {
       "/:id",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER, UserRoleEnum.BUSINESS]),
       ],
       this.route(this.getContractDetail),
     );
-  }
-
-  private async generateContractCode() {
-    const now = new Date();
-    const datePart = [
-      now.getFullYear(),
-      String(now.getMonth() + 1).padStart(2, "0"),
-      String(now.getDate()).padStart(2, "0"),
-    ].join("");
-
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      const random = Math.floor(1000 + Math.random() * 9000);
-      const contractCode = `HD-BQD-${datePart}-${random}`;
-      const existed = await ContractModel.exists({ contractCode });
-
-      if (!existed) return contractCode;
-    }
-
-    return `HD-BQD-${datePart}-${Date.now().toString().slice(-4)}`;
   }
 
   private async getOwnerContext(authUser: any) {
@@ -127,25 +102,6 @@ class ContractRoute extends BaseRoute {
     return ownerFilter;
   }
 
-  private async getOwnerAddressSnapshot(booking: any) {
-    const ownerType = (booking as any).ownerType || OwnerTypeEnum.BUSINESS;
-
-    if (ownerType === OwnerTypeEnum.USER) {
-      const ownerUser = await UserModel.findById((booking as any).ownerId)
-        .select("-password -otpCode")
-        .lean();
-
-      return ownerUser ? formatAddress(ownerUser) : "";
-    }
-
-    const ownerBusinessId = (booking as any).ownerId || booking.businessId;
-    const ownerBusiness = ownerBusinessId
-      ? await BusinessModel.findById(ownerBusinessId).lean()
-      : null;
-
-    return ownerBusiness ? formatAddress(ownerBusiness) : "";
-  }
-
   private getBusinessPopulate() {
     return {
       path: "businessId",
@@ -153,30 +109,6 @@ class ContractRoute extends BaseRoute {
         path: "userId",
         select: "-password -otpCode",
       },
-    };
-  }
-
-  private getContractRenterInfo(booking: any) {
-    const renterInfo = (booking as any).renterInfo || {};
-    const renterName = String(renterInfo.fullName || "").trim();
-    const renterPhone = String(renterInfo.phone || "").trim();
-    const renterIdentityNumber = String(renterInfo.cccdNumber || "").trim();
-    const renterAddress = String(
-      renterInfo.address ||
-        (booking as any).pickupAddressSnapshot ||
-        "",
-    ).trim();
-
-    if (!renterName || !renterPhone || !renterIdentityNumber || !renterAddress) {
-      throw ErrorHelper.requestDataInvalid(RENTER_INFO_REQUIRED_FOR_CONTRACT_MESSAGE);
-    }
-
-    return {
-      renterName,
-      renterPhone,
-      renterIdentityNumber,
-      renterAddress,
-      note: String(renterInfo.note || "").trim(),
     };
   }
 
@@ -282,51 +214,9 @@ class ContractRoute extends BaseRoute {
       });
     }
 
-    const ownerAddressSnapshot =
-      (await this.getOwnerAddressSnapshot(booking)) ||
-      (booking as any).pickupAddressSnapshot ||
-      "";
-    const contractRenterInfo = this.getContractRenterInfo(booking);
-
-    const contract = await ContractModel.create({
-      bookingId: booking._id,
-      userId: booking.userId,
-      carId: booking.carId,
-      ...(booking.businessId ? { businessId: booking.businessId } : {}),
-      ownerId: (booking as any).ownerId || booking.businessId,
-      ownerType: (booking as any).ownerType || OwnerTypeEnum.BUSINESS,
-      ownerModel:
-        ((booking as any).ownerType || OwnerTypeEnum.BUSINESS) ===
-        OwnerTypeEnum.USER
-          ? "User"
-          : "Business",
-      ...contractRenterInfo,
-      startDate: booking.startDate,
-      endDate: booking.endDate,
-      totalPrice: booking.totalPrice,
-      depositAmount: booking.depositAmount,
-      remainingAmount: booking.remainingAmount,
-      paymentOption: booking.paymentOption || PaymentOptionEnum.DEPOSIT,
-      pickupAddressSnapshot: (booking as any).pickupAddressSnapshot,
-      returnAddressSnapshot: (booking as any).returnAddressSnapshot,
-      ownerAddressSnapshot,
-      status: ContractStatusEnum.ACTIVE,
-      contractCode: await this.generateContractCode(),
-      signedAt: new Date(),
-    });
-
-    await contract.populate("carId");
-    await contract.populate("ownerId", "-password -otpCode");
-    await contract.populate(this.getBusinessPopulate());
-    await contract.populate("bookingId");
-    const contractResponse = await this.buildContractResponse(contract);
-
-    return res.status(201).json({
-      status: 201,
-      code: "201",
-      message: "Tạo hợp đồng thuê xe thành công",
-      data: { contract: contractResponse },
-    });
+    throw ErrorHelper.requestDataInvalid(
+      "Hợp đồng được hệ thống tạo khi bạn bắt đầu thanh toán booking",
+    );
   }
 
   async getMyContracts(req: Request, res: Response) {
@@ -359,17 +249,42 @@ class ContractRoute extends BaseRoute {
 
     const contract = await ContractModel.findOne({
       _id: id,
-      userId: authUser.userId,
       isDeleted: false,
-    } as any)
-      .populate("carId")
-      .populate("ownerId", "-password -otpCode")
-      .populate(this.getBusinessPopulate())
-      .populate("bookingId");
+    } as any);
 
     if (!contract) {
       throw ErrorHelper.recordNotFound("Hợp đồng");
     }
+
+    const isRenter = String(contract.userId) === String(authUser.userId);
+    let isOwner = false;
+
+    if (authUser.role === UserRoleEnum.USER) {
+      isOwner =
+        contract.ownerType === OwnerTypeEnum.USER &&
+        String(contract.ownerId) === String(authUser.userId);
+    } else if (authUser.role === UserRoleEnum.BUSINESS) {
+      const business = await BusinessModel.findOne({
+        userId: authUser.userId,
+        isDeleted: false,
+      }).select("_id");
+
+      if (business) {
+        isOwner =
+          (contract.ownerType === OwnerTypeEnum.BUSINESS &&
+            String(contract.ownerId) === String(business._id)) ||
+          String(contract.businessId || "") === String(business._id);
+      }
+    }
+
+    if (!isRenter && !isOwner) {
+      throw ErrorHelper.permissionDeny();
+    }
+
+    await contract.populate("carId");
+    await contract.populate("ownerId", "-password -otpCode");
+    await contract.populate(this.getBusinessPopulate());
+    await contract.populate("bookingId");
     const contractResponse = await this.buildContractResponse(contract);
 
     return res.status(200).json({

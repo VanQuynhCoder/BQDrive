@@ -9,6 +9,7 @@ import {
 } from "../../services/business.service";
 import { paymentService } from "../../services/payment.service";
 import {
+  getBookingDisplayCode,
   getPaymentMethodLabel,
   getPaymentRefundStatusLabel,
 } from "../../utils/display.util";
@@ -268,7 +269,7 @@ export default function BusinessPaymentsPage() {
                       </td>
                       <td className="px-5 py-4 font-semibold text-slate-600">
                         {payment.bookingId
-                          ? `#${payment.bookingId._id.slice(-8).toUpperCase()}`
+                          ? getBookingDisplayCode(payment.bookingId)
                           : "--"}
                       </td>
                       <td className="px-5 py-4">

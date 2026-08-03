@@ -15,6 +15,10 @@ import { Link, useNavigate } from "react-router-dom";
 
 import AuthLayout from "../layouts/AuthLayout";
 import { authService } from "../services/auth.service";
+import {
+  getEmailValidationError,
+  normalizeEmail,
+} from "../utils/validators";
 
 type Step = "EMAIL" | "OTP" | "PASSWORD";
 
@@ -89,19 +93,13 @@ export default function ForgotPasswordPage() {
   }, [resendSeconds]);
 
   const validateEmail = () => {
-    const normalizedEmail = email.trim().toLowerCase();
-
-    if (!normalizedEmail) {
-      setError("Vui lòng nhập email");
+    const validationError = getEmailValidationError(email);
+    if (validationError) {
+      setError(validationError);
       return "";
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      setError("Email không hợp lệ");
-      return "";
-    }
-
-    return normalizedEmail;
+    return normalizeEmail(email);
   };
 
   const handleSendOtp = async (event?: React.FormEvent) => {

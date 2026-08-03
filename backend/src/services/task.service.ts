@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 import {
   BookingStatusEnum,
   CarStatusEnum,
@@ -11,6 +11,7 @@ import {
   UserRoleEnum,
 } from "../constants/model.const";
 import { BookingModel } from "../models/booking/booking.model";
+import { getBookingDisplayCode } from "../helper/booking-code.helper";
 import { BusinessModel } from "../models/business/business.model";
 import { CarModel } from "../models/car/car.model";
 import { ExtraChargeModel } from "../models/extra-charge/extraCharge.model";
@@ -87,7 +88,7 @@ function getCar(booking: any) {
 }
 
 function bookingCode(booking: any) {
-  return idOf(booking._id).slice(-8).toUpperCase();
+  return getBookingDisplayCode(booking);
 }
 
 function carName(booking: any) {
@@ -339,7 +340,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
         : isWaitingForInfo
           ? "Đang chờ người thuê cung cấp thông tin nhận tiền"
           : "Đang chờ người thuê xác nhận hoàn tiền",
-      description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+      description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
       detail: isManualRequired
         ? `Số tiền cần hoàn: ${amount.toLocaleString("vi-VN")}đ.`
         : isWaitingForInfo
@@ -409,7 +410,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
         group: "ACTION_REQUIRED",
         priority: "MEDIUM",
         title: "Booking cần xác nhận",
-        description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+        description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
         detail: "Khách vừa gửi yêu cầu thuê xe, bạn cần xác nhận hoặc từ chối.",
         entityType: "BOOKING",
         entityId: id,
@@ -434,7 +435,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
         group: "ACTION_REQUIRED",
         priority: isDueSoon(booking.startDate, 720) || isOverdue(booking.startDate) ? "HIGH" : "MEDIUM",
         title: "Cần bàn giao xe",
-        description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+        description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
         detail: "Booking đã đủ điều kiện bàn giao, hãy chuẩn bị xe đúng lịch.",
         entityType: "BOOKING",
         entityId: id,
@@ -459,7 +460,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
         group: "ACTION_REQUIRED",
         priority: "HIGH",
         title: "Cần xác nhận đã nhận tiền mặt",
-        description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+        description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
         detail: "Có giao dịch tiền mặt đang chờ chủ xe xác nhận.",
         entityType: "BOOKING",
         entityId: id,
@@ -485,7 +486,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
         group: "ACTION_REQUIRED",
         priority: overdue ? "HIGH" : "MEDIUM",
         title: overdue ? "Xe đã quá hạn trả" : "Cần tiếp nhận xe trả",
-        description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+        description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
         detail: overdue
           ? "Xe đã quá thời gian dự kiến trả, hãy liên hệ khách và tiếp nhận xe."
           : "Chuyến thuê đang diễn ra. Khi khách trả xe, hãy tiếp nhận và kiểm tra sau thuê.",
@@ -521,7 +522,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
           group: "WAITING",
           priority: "MEDIUM",
           title: "Đang chờ khách xử lý phí phát sinh",
-          description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+          description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
           detail: "Booking có phí phát sinh đang chờ khách thanh toán hoặc chủ xe xác nhận thu.",
           entityType: "BOOKING",
           entityId: id,
@@ -548,7 +549,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
             group: "ACTION_REQUIRED",
             priority: "HIGH",
             title: "Booking sẵn sàng hoàn tất",
-            description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+            description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
             detail: "Xe đã kiểm tra xong, không còn tiền hoặc phí chờ xử lý.",
             entityType: "BOOKING",
             entityId: id,
@@ -571,7 +572,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
             group: "WAITING",
             priority: "MEDIUM",
             title: "Đang chờ khách thanh toán phần còn lại",
-            description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+            description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
             detail: "Booking đã kiểm tra xong nhưng khách còn số tiền thuê chưa thanh toán.",
             entityType: "BOOKING",
             entityId: id,
@@ -596,15 +597,15 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
         context: owner.context,
         group: "ACTION_REQUIRED",
         priority: "MEDIUM",
-        title: "Cần kiỒm tra xe sau thuê",
-        description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+        title: "Cần kiểm tra xe sau thuê",
+        description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
         detail: "Xe đã được tiếp nhận và đang chờ bạn kiểm tra tình trạng sau thuê.",
         entityType: "BOOKING",
         entityId: id,
         bookingId: id,
         carId: idOf(getCar(booking)?._id),
         actionKey: "return-inspection",
-        actionLabel: "KiỒm tra xe",
+        actionLabel: "Kiểm tra xe",
         actionUrl: ownerActionUrl(owner.context, id, "return-inspection"),
         dueAt: booking.endDate || null,
         isOverdue: isOverdue(booking.endDate),
@@ -627,7 +628,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
         group: "WAITING",
         priority: "LOW",
         title: "Đang chờ khách thanh toán",
-        description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+        description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
         detail: "Chủ xe đã duyệt booking, hiện đang chờ người thuê thanh toán.",
         entityType: "BOOKING",
         entityId: id,
@@ -735,7 +736,7 @@ async function getCustomerTasks(userId: string) {
         : waitingOwner
           ? "Đang chờ chủ xe hoàn tiền"
           : "Xác nhận đã nhận tiền hoàn",
-      description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+      description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
       detail: needsRecipientInfo
         ? `Vui lòng cung cấp thông tin để nhận khoản hoàn ${amount.toLocaleString("vi-VN")}đ.`
         : waitingOwner
@@ -795,7 +796,7 @@ async function getCustomerTasks(userId: string) {
         group: "ACTION_REQUIRED",
         priority: "HIGH",
         title: "Booking đã được duyệt, cần thanh toán",
-        description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+        description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
         detail: "Chủ xe đã đồng ý cho thuê. Bạn cần thanh toán để giữ lịch thuê.",
         entityType: "BOOKING",
         entityId: id,
@@ -822,7 +823,7 @@ async function getCustomerTasks(userId: string) {
         group: "ACTION_REQUIRED",
         priority: "HIGH",
         title: "Cần thanh toán phần còn lại",
-        description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+        description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
         detail: `Số tiền còn phải thanh toán: ${remainingAmount.toLocaleString("vi-VN")}đ.`,
         entityType: "BOOKING",
         entityId: id,
@@ -848,7 +849,7 @@ async function getCustomerTasks(userId: string) {
         group: "ACTION_REQUIRED",
         priority: "HIGH",
         title: "Có phí phát sinh cần xử lý",
-        description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+        description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
         detail: `Bạn có ${chargeSummary.count} khoản phí phát sinh đang chờ xử lý.`,
         entityType: "BOOKING",
         entityId: id,
@@ -875,7 +876,7 @@ async function getCustomerTasks(userId: string) {
           group: "ACTION_REQUIRED",
           priority: overdue ? "HIGH" : "MEDIUM",
           title: overdue ? "Đã quá hạn trả xe" : "Sắp đến hạn trả xe",
-          description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+          description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
           detail: overdue
             ? "Booking đã quá thời gian trả xe dự kiến."
             : "Chuyến thuê sắp đến hạn trả xe trong 30 phút.",
@@ -900,7 +901,7 @@ async function getCustomerTasks(userId: string) {
           group: "WAITING",
           priority: "LOW",
           title: "Chuyến thuê đang diễn ra",
-          description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+          description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
           detail: "Bạn đang trong thời gian thuê xe. Hãy theo dõi lịch trả xe.",
           entityType: "BOOKING",
           entityId: id,
@@ -930,7 +931,7 @@ async function getCustomerTasks(userId: string) {
         group: "WAITING",
         priority: "LOW",
         title: "Đang chờ chủ xe duyệt",
-        description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+        description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
         detail: "Yêu cầu thuê xe đã gửi và đang chờ chủ xe phản hồi.",
         entityType: "BOOKING",
         entityId: id,
@@ -959,7 +960,7 @@ async function getCustomerTasks(userId: string) {
         group: "WAITING",
         priority: "LOW",
         title: "Chủ xe đang kiểm tra xe",
-        description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+        description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
         detail: "Xe đã được trả và đang trong bước kiểm tra sau thuê.",
         entityType: "BOOKING",
         entityId: id,
@@ -1003,7 +1004,7 @@ async function getCustomerTasks(userId: string) {
       group: "ACTION_REQUIRED",
       priority: "LOW",
       title: "Chuyến thuê hoàn tất, hãy để lại đánh giá",
-      description: `${carName(booking)} - Booking #${bookingCode(booking)}`,
+      description: `${carName(booking)} - Mã đặt xe ${bookingCode(booking)}`,
       detail: "Đánh giá của bạn giúp BQDrive cải thiện chất lượng dịch vụ.",
       entityType: "BOOKING",
       entityId: id,

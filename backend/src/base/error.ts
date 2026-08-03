@@ -60,6 +60,18 @@ export class ErrorHelper extends BaseError {
     );
   }
 
+  static carCleaningInProgress(availableAt: Date) {
+    return new BaseError(
+      409,
+      "CAR_CLEANING_IN_PROGRESS",
+      `Xe vừa hoàn tất chuyến thuê và đang được vệ sinh đến ${availableAt.toLocaleString(
+        "vi-VN",
+        { timeZone: "Asia/Ho_Chi_Minh" },
+      )}. Vui lòng chọn giờ nhận xe sau thời điểm này.`,
+      { availableAt: availableAt.toISOString() },
+    );
+  }
+
   static recordNotFound(message?: string) {
     return new BaseError(
       404,

@@ -5,6 +5,7 @@ export type ExtraChargeType =
   | "DAMAGE"
   | "LATE_RETURN"
   | "FUEL"
+  | "OVERAGE_KM"
   | "OTHER";
 
 export type ExtraChargeStatus = "PENDING" | "PAID" | "CANCELLED" | string;
@@ -22,6 +23,23 @@ export type ExtraCharge = {
   amount: number;
   description: string;
   evidenceImages?: string[];
+  mileageSnapshot?: {
+    chargeableOverageKm?: number;
+    overageFeePerKm?: number;
+    suggestedOverageAmount?: number;
+  };
+  lateReturnSnapshot?: {
+    scheduledReturnAt: string;
+    actualReturnAt: string;
+    lateMinutes: number;
+    graceMinutes: number;
+    chargeableMinutes: number;
+    blockMinutes: number;
+    chargedBlocks: number;
+    feePerBlock: number;
+    calculatedAmount: number;
+  };
+  adjustmentReason?: string;
   status: ExtraChargeStatus;
   paymentId?: string;
   paymentMethod?: string;
@@ -43,6 +61,7 @@ export const extraChargeService = {
       amount: number;
       description: string;
       evidenceImages?: string[];
+      adjustmentReason?: string;
     },
   ) => {
     const res = await api.post(`/owner/bookings/${bookingId}/extra-charges`, data);

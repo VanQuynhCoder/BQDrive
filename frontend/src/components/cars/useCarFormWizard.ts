@@ -59,8 +59,14 @@ export function useCarFormWizard(scrollContainerId: string) {
     form: CarWizardForm,
     step: CarFormStep,
     editingOdometer?: number | null,
+    requireRegistrationCardImages = false,
   ) => {
-    const errors = validateCarWizardStep(form, step, editingOdometer);
+    const errors = validateCarWizardStep(
+      form,
+      step,
+      editingOdometer,
+      requireRegistrationCardImages,
+    );
     setFieldErrors(errors);
 
     const firstField = Object.keys(errors)[0];
@@ -86,8 +92,18 @@ export function useCarFormWizard(scrollContainerId: string) {
   const goToNextStep = (
     form: CarWizardForm,
     editingOdometer?: number | null,
+    requireRegistrationCardImages = false,
   ) => {
-    if (!validateStep(form, currentStep, editingOdometer)) return false;
+    if (
+      !validateStep(
+        form,
+        currentStep,
+        editingOdometer,
+        requireRegistrationCardImages,
+      )
+    ) {
+      return false;
+    }
     if (currentStep < 6) {
       goToStep((currentStep + 1) as CarFormStep);
     }
@@ -97,9 +113,17 @@ export function useCarFormWizard(scrollContainerId: string) {
   const findFirstInvalidStep = (
     form: CarWizardForm,
     editingOdometer?: number | null,
+    requireRegistrationCardImages = false,
   ) => {
     for (let step = 1; step <= 5; step += 1) {
-      if (!validateStep(form, step as CarFormStep, editingOdometer)) {
+      if (
+        !validateStep(
+          form,
+          step as CarFormStep,
+          editingOdometer,
+          requireRegistrationCardImages,
+        )
+      ) {
         goToStep(step as CarFormStep, false);
         return step as CarFormStep;
       }

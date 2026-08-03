@@ -5,6 +5,11 @@ import { BookingModel } from "../../models/booking/booking.model";
 import { RefundModel } from "../../models/refund/refund.model";
 import { cancellationRefundService } from "../../services/cancellation-refund.service";
 import { notificationCenterService } from "../../services/notification-center.service";
+import {
+  sendRefundReceivedMail,
+  sendRefundRecipientInfoSubmittedMail,
+  sendRefundSentMail,
+} from "../../helper/mail.helper";
 
 class RefundRoute extends BaseRoute {
   constructor() {
@@ -133,7 +138,7 @@ class RefundRoute extends BaseRoute {
       .populate({
         path: "bookingId",
         select:
-          "_id userId ownerId ownerType businessId carId status startDate endDate cancelReason cancelReasonText cancelledAt cancelledByRole",
+          "_id bookingCode userId ownerId ownerType businessId carId status startDate endDate cancelReason cancelReasonText cancelledAt cancelledByRole",
         populate: [
           { path: "carId", select: "name licensePlate images" },
           { path: "userId", select: "name email phone" },
@@ -219,6 +224,7 @@ class RefundRoute extends BaseRoute {
       booking,
       authUser.userId,
     );
+    void sendRefundRecipientInfoSubmittedMail(refund, booking);
 
     return res.status(200).json({
       status: 200,
@@ -245,6 +251,7 @@ class RefundRoute extends BaseRoute {
       booking,
       authUser.userId,
     );
+    void sendRefundSentMail(refund, booking);
 
     return res.status(200).json({
       status: 200,
@@ -274,6 +281,7 @@ class RefundRoute extends BaseRoute {
       booking,
       authUser.userId,
     );
+    void sendRefundReceivedMail(refund, booking);
 
     return res.status(200).json({
       status: 200,

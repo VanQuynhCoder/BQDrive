@@ -30,13 +30,13 @@ type DashboardReviewSectionsProps = {
 const defaultLabels = {
   top: {
     title: "Xe được đánh giá cao",
-    subtitle: "Sắp xếp theo điểm trung bình tốt nhất.",
-    emptyText: "Chưa có xe nào đủ dữ liệu đánh giá.",
+    subtitle: "Các xe đạt điểm trung bình từ 4,0/5 trở lên.",
+    emptyText: "Chưa có xe nào đạt từ 4,0/5 trở lên.",
   },
   low: {
     title: "Xe cần cải thiện đánh giá",
-    subtitle: "Các xe có điểm trung bình thấp hơn để chủ xe theo dõi.",
-    emptyText: "Chưa có dữ liệu đánh giá thấp.",
+    subtitle: "Các xe có điểm trung bình dưới 3,5/5.",
+    emptyText: "Không có xe nào dưới 3,5/5.",
   },
   most: {
     title: "Xe được đánh giá nhiều nhất",
@@ -49,14 +49,19 @@ function formatRating(value?: number) {
   return Number(value || 0).toFixed(1);
 }
 
+const HIGH_RATING_THRESHOLD = 4;
+const IMPROVEMENT_RATING_THRESHOLD = 3.5;
+
 function ReviewList({
   cars,
   config,
   icon: Icon,
+  scrollable = false,
 }: {
   cars: RatedCar[];
   config: ReviewSectionConfig;
   icon: LucideIcon;
+  scrollable?: boolean;
 }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -74,7 +79,13 @@ function ReviewList({
         </div>
       </div>
 
-      <div className="mt-5 space-y-3">
+      <div
+        className={`mt-5 space-y-3 ${
+          scrollable && cars.length > 0
+            ? "max-h-[300px] overflow-y-auto overscroll-contain pr-2 [scrollbar-color:#eab308_#f1f5f9] [scrollbar-width:thin]"
+            : ""
+        }`}
+      >
         {cars.length === 0 ? (
           <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-500">
             {config.emptyText}
@@ -128,6 +139,18 @@ export default function DashboardReviewSections({
   mostReviewedCars = [],
   labels,
 }: DashboardReviewSectionsProps) {
+  const filteredTopRatedCars = topRatedCars.filter(
+    (car) =>
+      car.reviewCount > 0 && car.averageRating >= HIGH_RATING_THRESHOLD,
+  );
+  const filteredLowRatedCars = lowRatedCars.filter(
+    (car) =>
+      car.reviewCount > 0 &&
+      car.averageRating < IMPROVEMENT_RATING_THRESHOLD,
+  );
+  const filteredMostReviewedCars = mostReviewedCars.filter(
+    (car) => car.reviewCount > 0,
+  );
   const mergedLabels = {
     top: labels?.top || defaultLabels.top,
     low: labels?.low || defaultLabels.low,
@@ -137,19 +160,20 @@ export default function DashboardReviewSections({
   return (
     <section className="grid gap-6 xl:grid-cols-3">
       <ReviewList
-        cars={topRatedCars}
+        cars={filteredTopRatedCars}
         config={mergedLabels.top}
         icon={TrendingUp}
       />
       <ReviewList
-        cars={lowRatedCars}
+        cars={filteredLowRatedCars}
         config={mergedLabels.low}
         icon={TrendingDown}
       />
       <ReviewList
-        cars={mostReviewedCars}
+        cars={filteredMostReviewedCars}
         config={mergedLabels.most}
         icon={MessageSquareText}
+        scrollable
       />
     </section>
   );

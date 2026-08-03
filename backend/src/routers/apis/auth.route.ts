@@ -13,7 +13,7 @@ import {
 } from "../../helper/mail.helper";
 import { OAuth2Client } from "google-auth-library";
 import axios from "axios";
-import { validatePhone } from "../../utils/validators";
+import { validateEmail, validatePhone } from "../../utils/validators";
 
 const RESET_PASSWORD_GENERIC_MESSAGE =
   "Nếu email tồn tại trong hệ thống, mã xác thực sẽ được gửi.";
@@ -91,10 +91,6 @@ class AuthRoute extends BaseRoute {
     return normalizedRole;
   }
 
-  private normalizeEmail(email?: string) {
-    return String(email || "").trim().toLowerCase();
-  }
-
   private cleanText(value: unknown, maxLength = 500) {
     if (typeof value !== "string") return "";
     return value.trim().slice(0, maxLength);
@@ -125,10 +121,6 @@ class AuthRoute extends BaseRoute {
       role: role || safeUser.role,
       hasLocalPassword,
     };
-  }
-
-  private isValidEmail(email: string) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
 
   private generateOtp() {
@@ -182,11 +174,7 @@ class AuthRoute extends BaseRoute {
   }
 
   async forgotPassword(req: Request, res: Response) {
-    const email = this.normalizeEmail(req.body.email);
-
-    if (!email || !this.isValidEmail(email)) {
-      throw ErrorHelper.requestDataInvalid("Email không hợp lệ");
-    }
+    const email = validateEmail(req.body.email);
 
     const user = await UserModel.findOne({
       email,
@@ -231,10 +219,10 @@ class AuthRoute extends BaseRoute {
   }
 
   async verifyResetOtp(req: Request, res: Response) {
-    const email = this.normalizeEmail(req.body.email);
+    const email = validateEmail(req.body.email);
     const otp = String(req.body.otp || "").trim();
 
-    if (!email || !this.isValidEmail(email) || !/^\d{6}$/.test(otp)) {
+    if (!/^\d{6}$/.test(otp)) {
       throw ErrorHelper.requestDataInvalid("OTP không hợp lệ hoặc đã hết hạn");
     }
 
@@ -284,12 +272,12 @@ class AuthRoute extends BaseRoute {
   }
 
   async resetPassword(req: Request, res: Response) {
-    const email = this.normalizeEmail(req.body.email);
+    const email = validateEmail(req.body.email);
     const resetToken = String(req.body.resetToken || "").trim();
     const newPassword = String(req.body.newPassword || "");
     const confirmPassword = String(req.body.confirmPassword || "");
 
-    if (!email || !this.isValidEmail(email) || !resetToken) {
+    if (!resetToken) {
       throw ErrorHelper.requestDataInvalid(
         "Phiên đặt lại mật khẩu không hợp lệ hoặc đã hết hạn",
       );
@@ -338,11 +326,7 @@ class AuthRoute extends BaseRoute {
   }
 
   async sendOtp(req: Request, res: Response) {
-    const { email } = req.body;
-
-    if (!email) {
-      throw ErrorHelper.requestDataInvalid("Thiếu email");
-    }
+    const email = validateEmail(req.body.email);
 
     const existedUser = await UserModel.findOne({
       email,
@@ -383,10 +367,11 @@ class AuthRoute extends BaseRoute {
   }
 
   async verifyOtp(req: Request, res: Response) {
-    const { email, otp } = req.body;
+    const email = validateEmail(req.body.email);
+    const { otp } = req.body;
 
-    if (!email || !otp) {
-      throw ErrorHelper.requestDataInvalid("Thiếu email hoặc OTP");
+    if (!otp) {
+      throw ErrorHelper.requestDataInvalid("Thiếu OTP");
     }
 
     const user = await UserModel.findOne({
@@ -425,10 +410,11 @@ class AuthRoute extends BaseRoute {
   }
 
   async register(req: Request, res: Response) {
-    const { name, email, password, phone } = req.body;
+    const { name, password, phone } = req.body;
+    const email = validateEmail(req.body.email);
 
-    if (!name || !email || !password) {
-      throw ErrorHelper.requestDataInvalid("Thiếu name, email hoặc password");
+    if (!name || !password) {
+      throw ErrorHelper.requestDataInvalid("Thiếu name hoặc password");
     }
 
     this.validatePasswordStrength(password);
@@ -470,10 +456,11 @@ class AuthRoute extends BaseRoute {
   }
 
   async login(req: Request, res: Response) {
-    const { email, password } = req.body;
+    const email = validateEmail(req.body.email);
+    const { password } = req.body;
 
-    if (!email || !password) {
-      throw ErrorHelper.requestDataInvalid("Thiếu email hoặc password");
+    if (!password) {
+      throw ErrorHelper.requestDataInvalid("Thiếu password");
     }
 
     const user = await UserModel.findOne({

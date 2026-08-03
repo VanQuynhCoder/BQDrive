@@ -16,10 +16,10 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import PricingBreakdown from "../components/pricing/PricingBreakdown";
 import { bookingService } from "../services/booking.service";
-import { contractService } from "../services/contract.service";
 import { paymentService } from "../services/payment.service";
 import { getFirstCarImage } from "../utils/image.util";
 import { formatAddressSnapshot } from "../utils/address.util";
+import { getBookingDisplayCode } from "../utils/display.util";
 import type { PricingSnapshot } from "../types/pricing";
 
 type BookingCar = {
@@ -41,6 +41,7 @@ type BookingCar = {
 
 type Booking = {
   _id: string;
+  bookingCode?: string;
   carId: BookingCar;
   startDate: string;
   endDate: string;
@@ -192,6 +193,8 @@ export default function PaymentPage() {
     "PAYMENT_PENDING", // Trạng thái mới: đang chờ thanh toán, được quay lại thanh toán
     "PAID", // Trạng thái mới: cho phép thanh toán phần còn lại nếu còn tiền
     "IN_PROGRESS",
+    "RETURN_INSPECTION",
+    "AWAITING_EXTRA_CHARGE",
   ].includes(booking?.status || "");
   const rental = getRentalInfo(
     booking?.pricingSnapshot?.rentalMode || booking?.rentalMode,
@@ -321,38 +324,18 @@ export default function PaymentPage() {
     setSubmitting(true);
 
     try {
-      console.log("PAYMENT DEBUG - START:", {
-        bookingId: booking._id,
-        method,
-        paymentType: effectivePaymentType,
-      });
-
-      try {
-        const contract = await contractService.createContract({
-          bookingId: booking._id,
-        });
-        console.log("PAYMENT DEBUG - CONTRACT CREATED:", contract);
-      } catch (contractError) {
-        console.error("PAYMENT DEBUG - CREATE CONTRACT FAILED:", contractError);
-        throw contractError;
-      }
-
       if (method === "MOMO") {
-      console.log("PAYMENT DEBUG - CALL MOMO CREATE");
-      const momoResult = await paymentService.createMomoPayment({
-        bookingId: booking._id,
-        paymentType: effectivePaymentType,
-      });
+        const momoResult = await paymentService.createMomoPayment({
+          bookingId: booking._id,
+          paymentType: effectivePaymentType,
+        });
 
-      console.log("MOMO RESULT:", momoResult);
-      console.log("PAY URL:", momoResult.payUrl);
+        if (!momoResult.payUrl) {
+          throw new Error("Không lấy được đường đến thanh toán MoMo");
+        }
 
-      if (!momoResult.payUrl) {
-        throw new Error("Không lấy được đường đến thanh toán MoMo");
-      }
-
-      window.open(momoResult.payUrl, "_self");
-      return;
+        window.open(momoResult.payUrl, "_self");
+        return;
       }
 
       if (method === "VNPAY") {
@@ -382,7 +365,6 @@ export default function PaymentPage() {
       );
       navigate(`/bookings/${booking._id}`);
     } catch (error) {
-      console.error("PAYMENT DEBUG - HANDLE PAYMENT FAILED:", error);
       toast.error(getErrorMessage(error, "Thanh toán thất bại"));
     } finally {
       setSubmitting(false);
@@ -460,6 +442,9 @@ export default function PaymentPage() {
           <p className="mt-3 max-w-2xl text-muted">
             Kiểm tra hồ sơ người thuê đã gửi trước đó và chọn khoản thanh toán
             cho booking này.
+          </p>
+          <p className="mt-2 font-bold text-slate-700">
+            Mã đặt xe: {getBookingDisplayCode(booking)}
           </p>
         </div>
 

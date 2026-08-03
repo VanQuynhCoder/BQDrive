@@ -7,6 +7,7 @@ const RETURN_REMINDER_JOB_INTERVAL_MS = 60 * 1000;
 const RETURN_REMINDER_BATCH_SIZE = 25;
 
 let returnReminderJobStarted = false;
+let returnReminderJobRunning = false;
 
 export async function sendUpcomingReturnReminders(now = new Date()) {
   const reminderUntil = new Date(now.getTime() + RETURN_REMINDER_BEFORE_MS);
@@ -14,7 +15,7 @@ export async function sendUpcomingReturnReminders(now = new Date()) {
   const bookings = await BookingModel.find({
     status: BookingStatusEnum.IN_PROGRESS,
     isDeleted: false,
-    returnReminderSentAt: { $exists: false },
+    returnReminderSentAt: null,
     endDate: {
       $gt: now,
       $lte: reminderUntil,
@@ -29,7 +30,7 @@ export async function sendUpcomingReturnReminders(now = new Date()) {
     const claimedBooking = await BookingModel.findOneAndUpdate(
       {
         _id: booking._id,
-        returnReminderSentAt: { $exists: false },
+        returnReminderSentAt: null,
       },
       { returnReminderSentAt: now },
       { new: true },
@@ -37,8 +38,20 @@ export async function sendUpcomingReturnReminders(now = new Date()) {
 
     if (!claimedBooking) continue;
 
-    void sendBookingReturnReminderMail(claimedBooking);
-    sentCount += 1;
+    const sent = await sendBookingReturnReminderMail(claimedBooking);
+
+    if (sent) {
+      sentCount += 1;
+      continue;
+    }
+
+    await BookingModel.updateOne(
+      {
+        _id: claimedBooking._id,
+        returnReminderSentAt: now,
+      },
+      { $unset: { returnReminderSentAt: "" } },
+    );
   }
 
   return { checkedCount: bookings.length, sentCount };
@@ -49,17 +62,25 @@ export function startReturnReminderJob() {
 
   returnReminderJobStarted = true;
 
-  const runJob = () => {
-    sendUpcomingReturnReminders().catch((error) => {
+  const runJob = async () => {
+    if (returnReminderJobRunning) return;
+
+    returnReminderJobRunning = true;
+
+    try {
+      await sendUpcomingReturnReminders();
+    } catch (error: any) {
       console.error("Return reminder job failed", {
         message: error?.message,
         stack: error?.stack,
       });
-    });
+    } finally {
+      returnReminderJobRunning = false;
+    }
   };
 
-  runJob();
+  void runJob();
 
-  const interval = setInterval(runJob, RETURN_REMINDER_JOB_INTERVAL_MS);
+  const interval = setInterval(() => void runJob(), RETURN_REMINDER_JOB_INTERVAL_MS);
   interval.unref?.();
 }

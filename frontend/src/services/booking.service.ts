@@ -63,6 +63,7 @@ export type PaymentTodo = {
 
 export type BookingHoldSummary = {
   _id: string;
+  bookingCode?: string;
   carId: string;
   status: string;
   paidAmount: number;

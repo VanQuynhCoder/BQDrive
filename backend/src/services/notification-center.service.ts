@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 import { BookingModel } from "../models/booking/booking.model";
+import { getBookingDisplayCode } from "../helper/booking-code.helper";
 import { BusinessModel } from "../models/business/business.model";
 import { CarModel } from "../models/car/car.model";
 import { ExtraChargeModel } from "../models/extra-charge/extraCharge.model";
@@ -51,7 +52,7 @@ function toId(value: any) {
 }
 
 function bookingCode(booking: any) {
-  return toId(booking).slice(-8).toUpperCase();
+  return getBookingDisplayCode(booking);
 }
 
 function formatCurrency(value: unknown) {
@@ -345,7 +346,7 @@ class NotificationCenterService {
       ...owner,
       type: NotificationTypeEnum.BOOKING_CREATED,
       title: "Có yêu cầu thuê xe mới",
-      message: `Booking #${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đang chờ bạn xác nhận.`,
+      message: `Mã đặt xe ${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đang chờ bạn xác nhận.`,
       actorId,
       actorRole: UserRoleEnum.USER,
       entityType: NotificationEntityTypeEnum.BOOKING,
@@ -370,7 +371,7 @@ class NotificationCenterService {
       recipientRole: UserRoleEnum.USER,
       type: NotificationTypeEnum.BOOKING_APPROVED,
       title: "Booking đã được chủ xe duyệt",
-      message: `Booking #${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã được duyệt. Bạn có thể tiếp tục thanh toán.`,
+      message: `Mã đặt xe ${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã được duyệt. Bạn có thể tiếp tục thanh toán.`,
       actorId,
       actorRole:
         booking.ownerType === OwnerTypeEnum.USER
@@ -398,7 +399,7 @@ class NotificationCenterService {
       recipientRole: UserRoleEnum.USER,
       type: NotificationTypeEnum.BOOKING_REJECTED,
       title: "Booking đã bị từ chối",
-      message: `Booking #${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã bị từ chối${reason ? `: ${reason}` : "."}`,
+      message: `Mã đặt xe ${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã bị từ chối${reason ? `: ${reason}` : "."}`,
       actorId,
       actorRole:
         booking.ownerType === OwnerTypeEnum.USER
@@ -433,7 +434,7 @@ class NotificationCenterService {
         recipientRole: UserRoleEnum.USER,
         type: NotificationTypeEnum.BOOKING_CANCELLED,
         title: "Chủ xe đã hủy booking",
-        message: `Booking #${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã được chủ xe hủy. Nếu bạn đã thanh toán, yêu cầu hoàn tiền sẽ được xử lý theo chính sách.`,
+        message: `Mã đặt xe ${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã được chủ xe hủy. Nếu bạn đã thanh toán, yêu cầu hoàn tiền sẽ được xử lý theo chính sách.`,
         actorId,
         actorRole:
           booking.ownerType === OwnerTypeEnum.USER
@@ -459,7 +460,7 @@ class NotificationCenterService {
       ...owner,
       type: NotificationTypeEnum.BOOKING_CANCELLED,
       title: "Khách đã hủy booking",
-      message: `Booking #${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã được khách hủy.`,
+      message: `Mã đặt xe ${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã được khách hủy.`,
       actorId,
       actorRole: UserRoleEnum.USER,
       entityType: NotificationEntityTypeEnum.BOOKING,
@@ -476,6 +477,38 @@ class NotificationCenterService {
     });
   }
 
+  async notifyBookingTimeoutCancelled(
+    rawBooking: any,
+    timeoutType: "OWNER_RESPONSE_TIMEOUT" | "PAYMENT_TIMEOUT",
+  ) {
+    const booking = await this.hydrateBooking(rawBooking);
+    const isOwnerResponseTimeout = timeoutType === "OWNER_RESPONSE_TIMEOUT";
+
+    await this.createNotificationSafely({
+      recipientId: toId(booking.userId),
+      recipientRole: UserRoleEnum.USER,
+      type: NotificationTypeEnum.BOOKING_CANCELLED,
+      title: isOwnerResponseTimeout
+        ? "Yêu cầu thuê xe đã được hủy tự động"
+        : "Booking đã được hủy do quá hạn thanh toán",
+      message: isOwnerResponseTimeout
+        ? `Mã đặt xe ${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã được hủy vì bên cho thuê không phản hồi trong 10 phút.`
+        : `Mã đặt xe ${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã được hủy vì bạn chưa thanh toán trong 10 phút sau khi chủ xe duyệt.`,
+      entityType: NotificationEntityTypeEnum.BOOKING,
+      entityId: toId(booking),
+      bookingId: toId(booking),
+      carId: toId(booking.carId),
+      actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
+      actionUrl: `/bookings/${toId(booking)}`,
+      metadata: {
+        bookingCode: bookingCode(booking),
+        carName: getBookingCarName(booking),
+        timeoutType,
+      },
+      dedupeKey: `booking-timeout:${timeoutType}:${toId(booking)}`,
+    });
+  }
+
   async notifyRefundCreated(rawRefund: any, rawBooking?: any) {
     const booking = await this.hydrateBooking(rawBooking || rawRefund?.bookingId);
     await this.createNotificationSafely({
@@ -483,7 +516,7 @@ class NotificationCenterService {
       recipientRole: UserRoleEnum.USER,
       type: NotificationTypeEnum.PAYMENT_REFUNDED,
       title: "Yêu cầu hoàn tiền đang chờ xử lý",
-      message: `Yêu cầu hoàn ${formatCurrency(rawRefund?.refundAmount)} cho booking #${bookingCode(booking)} đã được tạo và đang chờ xử lý thủ công.`,
+      message: `Yêu cầu hoàn ${formatCurrency(rawRefund?.refundAmount)} cho mã đặt xe ${bookingCode(booking)} đã được tạo và đang chờ xử lý thủ công.`,
       entityType: NotificationEntityTypeEnum.REFUND,
       entityId: toId(rawRefund),
       bookingId: toId(booking),
@@ -512,7 +545,7 @@ class NotificationCenterService {
       ...owner,
       type: NotificationTypeEnum.REFUND_RECIPIENT_INFO_SUBMITTED,
       title: "Khách đã cung cấp thông tin nhận tiền hoàn",
-      message: `Người thuê đã cung cấp thông tin nhận khoản hoàn ${formatCurrency(rawRefund?.refundAmount)} cho booking #${bookingCode(booking)}. Vui lòng thực hiện hoàn tiền.`,
+      message: `Người thuê đã cung cấp thông tin nhận khoản hoàn ${formatCurrency(rawRefund?.refundAmount)} cho mã đặt xe ${bookingCode(booking)}. Vui lòng thực hiện hoàn tiền.`,
       actorId,
       actorRole: UserRoleEnum.USER,
       entityType: NotificationEntityTypeEnum.REFUND,
@@ -540,7 +573,7 @@ class NotificationCenterService {
       recipientRole: UserRoleEnum.USER,
       type: NotificationTypeEnum.PAYMENT_REFUNDED,
       title: "Chủ xe đã gửi tiền hoàn",
-      message: `Chủ xe đã xác nhận gửi khoản hoàn ${formatCurrency(rawRefund?.refundAmount)} cho booking #${bookingCode(booking)}. Vui lòng kiểm tra và xác nhận đã nhận tiền.`,
+      message: `Chủ xe đã xác nhận gửi khoản hoàn ${formatCurrency(rawRefund?.refundAmount)} cho mã đặt xe ${bookingCode(booking)}. Vui lòng kiểm tra và xác nhận đã nhận tiền.`,
       actorId,
       actorRole:
         booking.ownerType === OwnerTypeEnum.USER
@@ -567,7 +600,7 @@ class NotificationCenterService {
       recipientRole: UserRoleEnum.USER,
       type: NotificationTypeEnum.PAYMENT_REFUNDED,
       title: "Hoàn tiền đã hoàn tất",
-      message: `Khoản hoàn ${formatCurrency(rawRefund?.refundAmount)} cho booking #${bookingCode(booking)} đã được xác nhận hoàn tất.`,
+      message: `Khoản hoàn ${formatCurrency(rawRefund?.refundAmount)} cho mã đặt xe ${bookingCode(booking)} đã được xác nhận hoàn tất.`,
       actorId,
       actorRole: UserRoleEnum.USER,
       entityType: NotificationEntityTypeEnum.REFUND,
@@ -591,7 +624,7 @@ class NotificationCenterService {
       recipientRole: UserRoleEnum.USER,
       type: NotificationTypeEnum.BOOKING_NO_SHOW,
       title: "Booking được đánh dấu không nhận xe",
-      message: `Booking #${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã được chủ xe đánh dấu không nhận xe.`,
+      message: `Mã đặt xe ${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã được chủ xe đánh dấu không nhận xe.`,
       actorId,
       actorRole:
         booking.ownerType === OwnerTypeEnum.USER
@@ -618,7 +651,7 @@ class NotificationCenterService {
       recipientRole: UserRoleEnum.USER,
       type: NotificationTypeEnum.HANDOVER_COMPLETED,
       title: "Xe đã được bàn giao",
-      message: `Booking #${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã chuyển sang trạng thái đang thuê.`,
+      message: `Mã đặt xe ${bookingCode(booking)} cho xe ${getBookingCarName(booking)} đã chuyển sang trạng thái đang thuê.`,
       actorId,
       actorRole:
         booking.ownerType === OwnerTypeEnum.USER
@@ -645,7 +678,7 @@ class NotificationCenterService {
       recipientRole: UserRoleEnum.USER,
       type: NotificationTypeEnum.RETURN_RECEIVED,
       title: "Chủ xe đã tiếp nhận xe trả",
-      message: `Booking #${bookingCode(booking)} đang ở bước kiểm tra sau thuê.`,
+      message: `Mã đặt xe ${bookingCode(booking)} đang ở bước kiểm tra sau thuê.`,
       actorId,
       actorRole:
         booking.ownerType === OwnerTypeEnum.USER
@@ -672,7 +705,7 @@ class NotificationCenterService {
       recipientRole: UserRoleEnum.USER,
       type: NotificationTypeEnum.RETURN_INSPECTION_CLEARED,
       title: "Kiểm tra xe đã hoàn tất",
-      message: `Booking #${bookingCode(booking)} không còn khoản phí phát sinh cần xử lý.`,
+      message: `Mã đặt xe ${bookingCode(booking)} không còn khoản phí phát sinh cần xử lý.`,
       actorId,
       actorRole:
         booking.ownerType === OwnerTypeEnum.USER
@@ -699,7 +732,7 @@ class NotificationCenterService {
       recipientRole: UserRoleEnum.USER,
       type: NotificationTypeEnum.BOOKING_COMPLETED,
       title: "Chuyến thuê hoàn tất, hãy để lại đánh giá",
-      message: `Booking #${bookingCode(booking)} đã hoàn tất. Chia sẻ trải nghiệm của bạn để BQDrive cải thiện dịch vụ.`,
+      message: `Mã đặt xe ${bookingCode(booking)} đã hoàn tất. Chia sẻ trải nghiệm của bạn để BQDrive cải thiện dịch vụ.`,
       actorId,
       actorRole:
         booking.ownerType === OwnerTypeEnum.USER
@@ -762,7 +795,7 @@ class NotificationCenterService {
         recipientId: renterId,
         recipientRole: UserRoleEnum.USER,
         title: "Thanh toán thành công",
-        message: `Bạn đã thanh toán ${paymentLabel} ${formatCurrency(rawPayment?.amount)} cho booking #${bookingCode(booking)}.`,
+        message: `Bạn đã thanh toán ${paymentLabel} ${formatCurrency(rawPayment?.amount)} cho mã đặt xe ${bookingCode(booking)}.`,
         actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
         actionUrl: `/bookings/${toId(booking)}`,
         dedupeKey: `payment-paid:${toId(rawPayment)}:renter`,
@@ -774,7 +807,7 @@ class NotificationCenterService {
       inputs.push({
         ...owner,
         title: "Khách đã thanh toán",
-        message: `Booking #${bookingCode(booking)} đã ghi nhận thanh toán ${paymentLabel} ${formatCurrency(rawPayment?.amount)}.`,
+        message: `Mã đặt xe ${bookingCode(booking)} đã ghi nhận thanh toán ${paymentLabel} ${formatCurrency(rawPayment?.amount)}.`,
         actorId,
         actorRole: UserRoleEnum.USER,
         actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
@@ -794,7 +827,7 @@ class NotificationCenterService {
       recipientRole: UserRoleEnum.USER,
       type: NotificationTypeEnum.CASH_PAYMENT_CONFIRMED,
       title: "Chủ xe đã xác nhận nhận tiền",
-      message: `Booking #${bookingCode(booking)} đã ghi nhận thanh toán tiền mặt ${formatCurrency(rawPayment?.amount)}.`,
+      message: `Mã đặt xe ${bookingCode(booking)} đã ghi nhận thanh toán tiền mặt ${formatCurrency(rawPayment?.amount)}.`,
       actorId,
       actorRole:
         booking.ownerType === OwnerTypeEnum.USER
@@ -827,7 +860,7 @@ class NotificationCenterService {
       recipientRole: UserRoleEnum.USER,
       type: NotificationTypeEnum.EXTRA_CHARGE_CREATED,
       title: "Có phí phát sinh sau chuyến thuê",
-      message: `Booking #${bookingCode(booking)} có phí phát sinh ${formatCurrency(extraCharge.amount)} cần xử lý.`,
+      message: `Mã đặt xe ${bookingCode(booking)} có phí phát sinh ${formatCurrency(extraCharge.amount)} cần xử lý.`,
       actorId,
       actorRole:
         extraCharge.ownerType === OwnerTypeEnum.USER
@@ -875,7 +908,7 @@ class NotificationCenterService {
         recipientId: toId(extraCharge.renterId || booking.userId),
         recipientRole: UserRoleEnum.USER,
         title: "Đã thanh toán phí phát sinh",
-        message: `Phí phát sinh ${formatCurrency(extraCharge.amount)} của booking #${bookingCode(booking)} đã được ghi nhận.`,
+        message: `Phí phát sinh ${formatCurrency(extraCharge.amount)} của mã đặt xe ${bookingCode(booking)} đã được ghi nhận.`,
         actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
         actionUrl: `/bookings/${toId(booking)}`,
         dedupeKey: `extra-charge-paid:${toId(extraCharge)}:renter`,
@@ -887,7 +920,7 @@ class NotificationCenterService {
       inputs.push({
         ...owner,
         title: "Khách đã thanh toán phí phát sinh",
-        message: `Booking #${bookingCode(booking)} đã thanh toán phí phát sinh ${formatCurrency(extraCharge.amount)}.`,
+        message: `Mã đặt xe ${bookingCode(booking)} đã thanh toán phí phát sinh ${formatCurrency(extraCharge.amount)}.`,
         actorId,
         actorRole: UserRoleEnum.USER,
         actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
@@ -913,7 +946,7 @@ class NotificationCenterService {
       recipientRole: UserRoleEnum.USER,
       type: NotificationTypeEnum.EXTRA_CHARGE_CANCELLED,
       title: "Phí phát sinh đã được hủy",
-      message: `Phí phát sinh ${formatCurrency(extraCharge.amount)} của booking #${bookingCode(booking)} đã được hủy.`,
+      message: `Phí phát sinh ${formatCurrency(extraCharge.amount)} của mã đặt xe ${bookingCode(booking)} đã được hủy.`,
       actorId,
       actorRole:
         extraCharge.ownerType === OwnerTypeEnum.USER
@@ -1016,6 +1049,155 @@ class NotificationCenterService {
         reason: reason || "",
       },
       dedupeKey: `car-rejected:${toId(car)}:${Date.now()}`,
+    });
+  }
+
+  async notifyBookingExtensionRequested(
+    extension: any,
+    rawBooking: any,
+    actorId?: string,
+  ) {
+    const booking = await this.hydrateBooking(rawBooking);
+    const owner = await this.getOwnerRecipientFromBooking(booking);
+    if (!owner) return;
+
+    await this.createNotificationSafely({
+      ...owner,
+      type: NotificationTypeEnum.BOOKING_EXTENSION_REQUESTED,
+      title: "Khách yêu cầu gia hạn chuyến thuê",
+      message: `Booking ${bookingCode(booking)} yêu cầu đổi giờ trả xe đến ${new Date(extension.requestedEndAt).toLocaleString("vi-VN")}.`,
+      actorId,
+      actorRole: UserRoleEnum.USER,
+      entityType: NotificationEntityTypeEnum.BOOKING_EXTENSION,
+      entityId: toId(extension),
+      bookingId: toId(booking),
+      carId: toId(booking.carId),
+      actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
+      actionUrl: this.getOwnerActionUrl(booking),
+      metadata: {
+        bookingCode: bookingCode(booking),
+        additionalAmount: Number(extension.additionalAmount || 0),
+      },
+      dedupeKey: `booking-extension-requested:${toId(extension)}`,
+    });
+  }
+
+  async notifyBookingExtensionApproved(
+    extension: any,
+    rawBooking: any,
+    actorId?: string,
+  ) {
+    const booking = await this.hydrateBooking(rawBooking);
+    await this.createNotificationSafely({
+      recipientId: toId(booking.userId),
+      recipientRole: UserRoleEnum.USER,
+      type: NotificationTypeEnum.BOOKING_EXTENSION_APPROVED,
+      title: "Yêu cầu gia hạn đã được duyệt",
+      message: `Vui lòng thanh toán ${formatCurrency(extension.additionalAmount)} trước hạn để áp dụng thời gian trả xe mới.`,
+      actorId,
+      actorRole:
+        booking.ownerType === OwnerTypeEnum.USER
+          ? UserRoleEnum.USER
+          : UserRoleEnum.BUSINESS,
+      entityType: NotificationEntityTypeEnum.BOOKING_EXTENSION,
+      entityId: toId(extension),
+      bookingId: toId(booking),
+      carId: toId(booking.carId),
+      actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
+      actionUrl: `/bookings/${toId(booking)}`,
+      metadata: {
+        bookingCode: bookingCode(booking),
+        additionalAmount: Number(extension.additionalAmount || 0),
+      },
+      dedupeKey: `booking-extension-approved:${toId(extension)}`,
+    });
+  }
+
+  async notifyBookingExtensionRejected(
+    extension: any,
+    rawBooking: any,
+    actorId?: string,
+  ) {
+    const booking = await this.hydrateBooking(rawBooking);
+    await this.createNotificationSafely({
+      recipientId: toId(booking.userId),
+      recipientRole: UserRoleEnum.USER,
+      type: NotificationTypeEnum.BOOKING_EXTENSION_REJECTED,
+      title: "Yêu cầu gia hạn bị từ chối",
+      message: `Booking ${bookingCode(booking)} không được gia hạn${extension.rejectReason ? `: ${extension.rejectReason}` : "."}`,
+      actorId,
+      actorRole:
+        booking.ownerType === OwnerTypeEnum.USER
+          ? UserRoleEnum.USER
+          : UserRoleEnum.BUSINESS,
+      entityType: NotificationEntityTypeEnum.BOOKING_EXTENSION,
+      entityId: toId(extension),
+      bookingId: toId(booking),
+      carId: toId(booking.carId),
+      actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
+      actionUrl: `/bookings/${toId(booking)}`,
+      metadata: {
+        bookingCode: bookingCode(booking),
+        reason: String(extension.rejectReason || ""),
+      },
+      dedupeKey: `booking-extension-rejected:${toId(extension)}`,
+    });
+  }
+
+  async notifyBookingExtensionPaid(extension: any, rawBooking: any) {
+    const booking = await this.hydrateBooking(rawBooking);
+    const owner = await this.getOwnerRecipientFromBooking(booking);
+    const common = {
+      type: NotificationTypeEnum.BOOKING_EXTENSION_PAID,
+      title: "Gia hạn chuyến thuê đã được áp dụng",
+      message: `Booking ${bookingCode(booking)} đã gia hạn đến ${new Date(extension.requestedEndAt).toLocaleString("vi-VN")}.`,
+      entityType: NotificationEntityTypeEnum.BOOKING_EXTENSION,
+      entityId: toId(extension),
+      bookingId: toId(booking),
+      carId: toId(booking.carId),
+      actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
+      metadata: {
+        bookingCode: bookingCode(booking),
+        additionalAmount: Number(extension.additionalAmount || 0),
+      },
+    };
+
+    const notifications: NotificationInput[] = [
+      {
+        ...common,
+        recipientId: toId(booking.userId),
+        recipientRole: UserRoleEnum.USER,
+        actionUrl: `/bookings/${toId(booking)}`,
+        dedupeKey: `booking-extension-paid:${toId(extension)}:renter`,
+      },
+    ];
+    if (owner) {
+      notifications.push({
+        ...common,
+        ...owner,
+        actionUrl: this.getOwnerActionUrl(booking),
+        dedupeKey: `booking-extension-paid:${toId(extension)}:owner`,
+      });
+    }
+    await this.createNotificationsSafely(notifications);
+  }
+
+  async notifyBookingExtensionExpired(extension: any, rawBooking: any) {
+    const booking = await this.hydrateBooking(rawBooking);
+    await this.createNotificationSafely({
+      recipientId: toId(booking.userId),
+      recipientRole: UserRoleEnum.USER,
+      type: NotificationTypeEnum.BOOKING_EXTENSION_EXPIRED,
+      title: "Yêu cầu gia hạn đã hết hạn",
+      message: `Yêu cầu gia hạn booking ${bookingCode(booking)} đã hết thời gian thanh toán. Lịch trả xe cũ vẫn được giữ nguyên.`,
+      entityType: NotificationEntityTypeEnum.BOOKING_EXTENSION,
+      entityId: toId(extension),
+      bookingId: toId(booking),
+      carId: toId(booking.carId),
+      actionKey: NotificationActionKeyEnum.VIEW_BOOKING,
+      actionUrl: `/bookings/${toId(booking)}`,
+      metadata: { bookingCode: bookingCode(booking) },
+      dedupeKey: `booking-extension-expired:${toId(extension)}`,
     });
   }
 }

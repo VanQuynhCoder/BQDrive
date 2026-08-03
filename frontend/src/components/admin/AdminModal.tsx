@@ -6,6 +6,7 @@ type AdminModalProps = {
   title: string;
   description?: string;
   children?: ReactNode;
+  footer?: ReactNode;
   confirmText?: string;
   cancelText?: string;
   danger?: boolean;
@@ -19,6 +20,7 @@ export default function AdminModal({
   title,
   description,
   children,
+  footer,
   confirmText = "Xác nhận",
   cancelText = "Hủy",
   danger = false,
@@ -53,28 +55,34 @@ export default function AdminModal({
 
         {children && <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>}
 
-        <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50 px-6 py-5 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-11 rounded-lg border border-slate-200 bg-white px-5 py-2 font-bold text-primary transition hover:border-secondary hover:bg-secondarySoft/70"
-          >
-            {cancelText}
-          </button>
-
-          {onConfirm && (
+        {footer ? (
+          <div className="border-t border-slate-200 bg-slate-50 px-6 py-5">
+            {footer}
+          </div>
+        ) : (
+          <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50 px-6 py-5 sm:flex-row sm:justify-end">
             <button
               type="button"
-              onClick={onConfirm}
-              disabled={loading}
-              className={`min-h-11 rounded-lg bg-secondary px-5 py-2 font-extrabold text-primary shadow-sm transition hover:bg-secondaryLight disabled:cursor-not-allowed disabled:opacity-60 ${
-                danger ? "ring-1 ring-red-200" : ""
-              }`}
+              onClick={onClose}
+              className="min-h-11 rounded-lg border border-slate-200 bg-white px-5 py-2 font-bold text-primary transition hover:border-secondary hover:bg-secondarySoft/70"
             >
-              {loading ? "Đang xử lý..." : confirmText}
+              {cancelText}
             </button>
-          )}
-        </div>
+
+            {onConfirm && (
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={loading}
+                className={`min-h-11 rounded-lg bg-secondary px-5 py-2 font-extrabold text-primary shadow-sm transition hover:bg-secondaryLight disabled:cursor-not-allowed disabled:opacity-60 ${
+                  danger ? "ring-1 ring-red-200" : ""
+                }`}
+              >
+                {loading ? "Đang xử lý..." : confirmText}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

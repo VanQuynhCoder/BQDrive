@@ -36,10 +36,15 @@ type SearchCar = {
   businessId?: {
     businessName?: string;
   } | null;
-  rentalAvailability?: "AVAILABLE" | "HELD_IN_CART" | "PENDING_CONFIRMATION";
+  rentalAvailability?:
+    | "AVAILABLE"
+    | "HELD_IN_CART"
+    | "PENDING_CONFIRMATION"
+    | "CLEANING";
   availabilityLabel?: string;
   isBookable?: boolean;
   unavailableReason?: string;
+  cleaningUntil?: string;
 };
 
 const DEFAULT_START_TIME = "08:00";

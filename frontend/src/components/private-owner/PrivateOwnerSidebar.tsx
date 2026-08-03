@@ -5,6 +5,7 @@
   ClipboardList,
   CreditCard,
   History,
+  FileText,
   Home,
   LogOut,
   MapPinned,
@@ -69,6 +70,7 @@ const navItems = [
     to: "/consignment/booking-history",
     icon: History,
   },
+  { label: "Hợp đồng", to: "/consignment/contracts", icon: FileText },
   { label: "Thanh toán", to: "/consignment/payments", icon: CreditCard },
   {
     label: "Hoàn tiền",

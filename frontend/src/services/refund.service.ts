@@ -31,6 +31,7 @@ export type RefundRecipientInfo = {
 
 export type RefundBooking = {
   _id: string;
+  bookingCode?: string;
   status?: string;
   startDate?: string;
   endDate?: string;

@@ -26,6 +26,7 @@ import {
 import { notifyNotificationSummaryChanged } from "../../services/notification.service";
 import { formatVietnamDateTime } from "../../utils/date.util";
 import { normalizeImageUrl } from "../../utils/image.util";
+import { getBookingDisplayCode } from "../../utils/display.util";
 
 type OwnerRefundsPageProps = {
   title: string;
@@ -283,7 +284,7 @@ function RefundModal({
               Hồ sơ hoàn tiền
             </p>
             <h3 className="mt-1 text-2xl font-extrabold">
-              Booking #{booking?._id?.slice(-8).toUpperCase() || "--"}
+              Booking {getBookingDisplayCode(booking)}
             </h3>
           </div>
           <button
@@ -549,14 +550,23 @@ export default function OwnerRefundsPage({
     if (!refundId || loading || selectedRefund?._id === refundId) return;
 
     const foundRefund = refunds.find((refund) => refund._id === refundId);
-    if (!foundRefund) return;
+    if (!foundRefund) {
+      queueMicrotask(() => setSearchParams({}, { replace: true }));
+      return;
+    }
 
-    const timeoutId = window.setTimeout(() => {
+    queueMicrotask(() => {
+      setSearchParams({}, { replace: true });
       void openRefundDetail(foundRefund);
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [loading, openRefundDetail, refunds, searchParams, selectedRefund?._id]);
+    });
+  }, [
+    loading,
+    openRefundDetail,
+    refunds,
+    searchParams,
+    selectedRefund?._id,
+    setSearchParams,
+  ]);
 
   const stats = useMemo(() => {
     const waitingInfo = refunds.filter(
@@ -584,9 +594,6 @@ export default function OwnerRefundsPage({
   const closeModal = () => {
     if (submittingId || detailLoading) return;
     setSelectedRefund(null);
-    if (searchParams.get("refundId")) {
-      setSearchParams({});
-    }
   };
 
   const submitManualSent = async (payload: ManualRefundSentPayload) => {
@@ -599,9 +606,6 @@ export default function OwnerRefundsPage({
         "Đã ghi nhận thông tin hoàn tiền. Hệ thống đang chờ người thuê xác nhận đã nhận tiền.",
       );
       setSelectedRefund(null);
-      if (searchParams.get("refundId")) {
-        setSearchParams({});
-      }
       await fetchRefunds();
       notifyNotificationSummaryChanged();
     } catch (error) {
@@ -703,8 +707,9 @@ export default function OwnerRefundsPage({
                       <td className="px-5 py-4">
                         <p className="font-extrabold text-primary">
                           #
-                          {booking?._id?.slice(-8).toUpperCase() ||
-                            refund._id.slice(-8).toUpperCase()}
+                          {booking
+                            ? getBookingDisplayCode(booking)
+                            : refund._id.slice(-8).toUpperCase()}
                         </p>
                         <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-slate-500">
                           <CalendarDays size={13} className="text-secondary" />

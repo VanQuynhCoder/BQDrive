@@ -16,7 +16,12 @@ import { Link, useNavigate } from "react-router-dom";
 
 import AuthLayout from "../layouts/AuthLayout";
 import { authService } from "../services/auth.service";
-import { isValidVietnamPhone, normalizePhone } from "../utils/validators";
+import {
+  getEmailValidationError,
+  isValidVietnamPhone,
+  normalizeEmail,
+  normalizePhone,
+} from "../utils/validators";
 
 const inputShellClass =
   "flex min-h-11 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-4 transition focus-within:border-secondary focus-within:bg-white/[0.07] focus-within:ring-4 focus-within:ring-secondary/10";
@@ -77,16 +82,20 @@ export default function RegisterPage() {
   };
 
   const handleSendOtp = async () => {
-    if (!form.email) {
-      toast.error("Vui lòng nhập email");
+    const emailError = getEmailValidationError(form.email);
+    if (emailError) {
+      toast.error(emailError);
       return;
     }
+
+    const normalizedEmail = normalizeEmail(form.email);
+    setForm((current) => ({ ...current, email: normalizedEmail }));
 
     try {
       setSendingOtp(true);
 
       await authService.sendOtp({
-        email: form.email,
+        email: normalizedEmail,
       });
 
       toast.success("OTP đã được gửi tới email");
@@ -104,6 +113,14 @@ export default function RegisterPage() {
       toast.error("Vui lòng nhập đầy để thông tin");
       return;
     }
+
+    const emailError = getEmailValidationError(form.email);
+    if (emailError) {
+      toast.error(emailError);
+      return;
+    }
+
+    const normalizedEmail = normalizeEmail(form.email);
 
     if (!form.otp) {
       toast.error("Vui lòng nhập OTP");
@@ -135,13 +152,13 @@ export default function RegisterPage() {
       setLoading(true);
 
       await authService.verifyOtp({
-        email: form.email,
+        email: normalizedEmail,
         otp: form.otp,
       });
 
       await authService.register({
         name: form.name,
-        email: form.email,
+        email: normalizedEmail,
         phone: normalizePhone(form.phone),
         password: form.password,
       });

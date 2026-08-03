@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   AlertTriangle,
@@ -79,6 +80,8 @@ export default function OwnerCarLocationPage({
   subtitle,
   emptyText,
 }: OwnerCarLocationPageProps) {
+  const [searchParams] = useSearchParams();
+  const requestedCarId = searchParams.get("carId");
   const [cars, setCars] = useState<OwnerMapCar[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -97,18 +100,26 @@ export default function OwnerCarLocationPage({
     [cars, selectedCarId],
   );
 
-  const loadCars = async () => {
+  const loadCars = useCallback(async () => {
     setLoading(true);
     try {
       const data = await ownerCarLocationService.getCarsMap();
       setCars(data);
-      setSelectedCarId((current) => current || data[0]?._id || null);
+      setSelectedCarId((current) => {
+        if (
+          requestedCarId &&
+          data.some((car) => car._id === requestedCarId)
+        ) {
+          return requestedCarId;
+        }
+        return current || data[0]?._id || null;
+      });
     } catch (error) {
       toast.error(getErrorMessage(error, "Không tải được danh sách xe"));
     } finally {
       setLoading(false);
     }
-  };
+  }, [requestedCarId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -116,7 +127,7 @@ export default function OwnerCarLocationPage({
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [loadCars]);
 
   const openLocationConfirm = (
     car: OwnerMapCar,
@@ -241,8 +252,11 @@ export default function OwnerCarLocationPage({
           <p className="mt-4 text-lg font-extrabold text-primary">{emptyText}</p>
         </div>
       ) : (
-        <div className="grid gap-5 xl:grid-cols-[390px_minmax(0,1fr)]">
-          <section className="space-y-3">
+        <div className="grid items-start gap-5 xl:grid-cols-[390px_minmax(0,1fr)]">
+          <section
+            aria-label="Danh sách xe"
+            className="space-y-3 xl:max-h-[708px] xl:overflow-y-auto xl:overscroll-contain xl:pr-2 xl:[scrollbar-gutter:stable]"
+          >
             {cars.map((car) => {
               const active = selectedCarId === car._id;
               const address = getAddress(car);

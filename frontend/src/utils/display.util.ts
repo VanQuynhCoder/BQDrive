@@ -8,6 +8,24 @@
   return map[role || ""] || role || "--";
 }
 
+export function getBookingDisplayCode(
+  booking?: string | { _id?: string | null; bookingCode?: string | null } | null,
+) {
+  if (!booking) return "--";
+
+  if (typeof booking === "object") {
+    const code = String(booking.bookingCode || "").trim().toUpperCase();
+    if (code) return code;
+    booking = String(booking._id || "");
+  }
+
+  const value = String(booking).replace(/^#/, "").trim();
+  if (!value) return "--";
+  if (/^BQD-BK-\d{6}$/i.test(value)) return value.toUpperCase();
+
+  return value.slice(-8).toUpperCase();
+}
+
 export function getBookingStatusLabel(status?: string) {
   return BOOKING_STATUS_LABELS[
     status as keyof typeof BOOKING_STATUS_LABELS
@@ -53,11 +71,32 @@ export function getPaymentTypeLabel(paymentType?: string) {
     DEPOSIT: "Thanh toán cọc",
     FULL: "Thanh toán toàn bộ",
     REMAINING: "Thanh toán phần còn lại",
+    EXTENSION: "Thanh toán gia hạn chuyến thuê",
     EXTRA_CHARGE: "Phí phát sinh",
     REFUND: "Hoàn tiền",
   };
 
   return map[paymentType || ""] || paymentType || "--";
+}
+
+export function getFuelTypeLabel(fuelType?: string) {
+  const map: Record<string, string> = {
+    GASOLINE: "Xăng",
+    DIESEL: "Dầu",
+    ELECTRIC: "Điện",
+    HYBRID: "Hybrid",
+  };
+
+  return map[fuelType || ""] || fuelType || "--";
+}
+
+export function getTransmissionLabel(transmission?: string) {
+  const map: Record<string, string> = {
+    AUTOMATIC: "Số tự động",
+    MANUAL: "Số sàn",
+  };
+
+  return map[transmission || ""] || transmission || "--";
 }
 
 export function getRequestStatusLabel(status?: string) {

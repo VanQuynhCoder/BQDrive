@@ -23,7 +23,8 @@ import {
 type RentalAvailability =
   | "AVAILABLE"
   | "HELD_IN_CART"
-  | "PENDING_CONFIRMATION";
+  | "PENDING_CONFIRMATION"
+  | "CLEANING";
 
 type CarCardProps = {
   car: {
@@ -60,6 +61,7 @@ type CarCardProps = {
     availabilityLabel?: string;
     isBookable?: boolean;
     unavailableReason?: string;
+    cleaningUntil?: string;
     holdingCartId?: string;
     holdExpiredAt?: string;
     resumeBookingId?: string;
@@ -130,6 +132,31 @@ function getAvailabilityInfo(car: CarCardProps["car"], now: number) {
 
   const availability = car.rentalAvailability || "AVAILABLE";
 
+  if (availability === "CLEANING") {
+    const cleaningUntil = car.cleaningUntil
+      ? new Date(car.cleaningUntil).getTime()
+      : 0;
+
+    if (cleaningUntil > now) {
+      return {
+        icon: Clock,
+        label: `Đang vệ sinh đến ${new Date(cleaningUntil).toLocaleTimeString(
+          "vi-VN",
+          { hour: "2-digit", minute: "2-digit" },
+        )}`,
+        badgeClass: "bg-amber-100 text-amber-800 ring-1 ring-amber-200",
+        isBookable: car.isBookable !== false,
+      };
+    }
+
+    return {
+      icon: ShieldCheck,
+      label: "Sẵn sàng",
+      badgeClass: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200",
+      isBookable: true,
+    };
+  }
+
   if (availability === "PENDING_CONFIRMATION") {
     return {
       icon: Clock,
@@ -160,7 +187,7 @@ function getAvailabilityInfo(car: CarCardProps["car"], now: number) {
   return {
     icon: ShieldCheck,
     label: car.availabilityLabel || "Sẵn sàng",
-    badgeClass: "bg-secondarySoft text-primary",
+    badgeClass: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200",
     isBookable: true,
   };
 }
@@ -185,7 +212,7 @@ export default function CarCard({ car, detailSearchParams = "" }: CarCardProps) 
   const canOpenDetail =
     !canOpenCart &&
     !canResumePayment &&
-    availability.isBookable &&
+    (availability.isBookable || car.rentalAvailability === "CLEANING") &&
     Boolean(carId);
   const canInteract = canOpenCart || canResumePayment || canOpenDetail;
   const detailUrl = `/cars/${carId}${detailSearchParams}`;
@@ -196,14 +223,14 @@ export default function CarCard({ car, detailSearchParams = "" }: CarCardProps) 
       : car.businessId?.businessName || "Đối tác BQDrive");
 
   useEffect(() => {
-    if (!car.holdExpiredAt && !car.resumeExpiresAt) return;
+    if (!car.holdExpiredAt && !car.resumeExpiresAt && !car.cleaningUntil) return;
 
     const intervalId = window.setInterval(() => {
       setNow(Date.now());
     }, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [car.holdExpiredAt, car.resumeExpiresAt]);
+  }, [car.cleaningUntil, car.holdExpiredAt, car.resumeExpiresAt]);
 
   return (
     <article
@@ -280,6 +307,15 @@ export default function CarCard({ car, detailSearchParams = "" }: CarCardProps) 
             Có phụ thu cuối tuần/ngày lễ
           </p>
         )}
+
+        {car.rentalAvailability === "CLEANING" &&
+          car.cleaningUntil &&
+          new Date(car.cleaningUntil).getTime() > now && (
+            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold leading-5 text-amber-800">
+              Xe vừa hoàn tất chuyến thuê và cần vệ sinh trước khi giao tiếp.
+              Bạn vẫn có thể chọn giờ nhận sau thời điểm trên.
+            </p>
+          )}
 
         <div className="mt-5 grid grid-cols-2 gap-3 border-y border-border py-4 text-sm text-muted">
           <span className="flex items-center gap-2">

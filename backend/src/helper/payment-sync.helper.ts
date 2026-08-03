@@ -51,6 +51,7 @@ export async function buildPaymentSummaryForBooking(booking: any): Promise<Booki
         PaymentTypeEnum.DEPOSIT,
         PaymentTypeEnum.FULL,
         PaymentTypeEnum.REMAINING,
+        PaymentTypeEnum.EXTENSION,
       ],
     },
   }).select("amount paymentType method status paidAt transactionCode refundedAmount createdAt");
@@ -76,6 +77,7 @@ export async function buildPaymentSummaryForBooking(booking: any): Promise<Booki
           PaymentTypeEnum.DEPOSIT,
           PaymentTypeEnum.FULL,
           PaymentTypeEnum.REMAINING,
+          PaymentTypeEnum.EXTENSION,
         ],
       },
         })

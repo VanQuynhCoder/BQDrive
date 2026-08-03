@@ -28,6 +28,11 @@ import {
 } from "../../helper/mail.helper";
 import { notificationCenterService } from "../../services/notification-center.service";
 import { toCloudinaryCardThumbnailUrl } from "../../services/cloudinary.service";
+import { generateCarCode } from "../../helper/car-code.helper";
+import {
+  getCarCleaningBufferMs,
+  getCarCleaningUnavailableUntil,
+} from "../../helper/booking-availability.helper";
 
 import {
   BookingStatusEnum,
@@ -49,6 +54,7 @@ enum RentalAvailabilityEnum {
   AVAILABLE = "AVAILABLE",
   HELD_IN_CART = "HELD_IN_CART",
   PENDING_CONFIRMATION = "PENDING_CONFIRMATION",
+  CLEANING = "CLEANING",
 }
 
 const BLOCKING_BOOKING_STATUSES = [
@@ -75,6 +81,12 @@ const DETAILED_PICKUP_BOOKING_STATUSES = [
   BookingStatusEnum.AWAITING_EXTRA_CHARGE,
   BookingStatusEnum.COMPLETED,
 ];
+const RENTED_CAR_DETAIL_BOOKING_STATUSES = [
+  BookingStatusEnum.PAID,
+  BookingStatusEnum.IN_PROGRESS,
+  BookingStatusEnum.RETURN_INSPECTION,
+  BookingStatusEnum.AWAITING_EXTRA_CHARGE,
+];
 function cleanSearchText(value?: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -87,6 +99,31 @@ function normalizeCarImagesInput(images: unknown) {
     .filter(Boolean);
 }
 
+const MAX_REGISTRATION_CARD_IMAGES = 2;
+
+function validateRegistrationCardImages(
+  images: string[],
+  options: { required?: boolean; existingImages?: string[] } = {},
+) {
+  if (options.required && images.length === 0) {
+    throw ErrorHelper.requestDataInvalid(
+      "Vui lòng bổ sung ít nhất một ảnh cà vẹt xe",
+    );
+  }
+
+  if (images.length > MAX_REGISTRATION_CARD_IMAGES) {
+    throw ErrorHelper.requestDataInvalid(
+      `Chỉ được lưu tối đa ${MAX_REGISTRATION_CARD_IMAGES} ảnh cà vẹt xe`,
+    );
+  }
+
+  assertNoNewBase64CarImages(
+    images,
+    options.existingImages || [],
+    "Ảnh cà vẹt xe",
+  );
+}
+
 function isBase64CarImage(image?: string) {
   return String(image || "").trim().startsWith("data:image/");
 }
@@ -94,6 +131,7 @@ function isBase64CarImage(image?: string) {
 function assertNoNewBase64CarImages(
   nextImages: string[],
   existingImages: string[] = [],
+  imageLabel = "Ảnh xe",
 ) {
   const existingBase64Images = new Set(
     existingImages.filter((image) => isBase64CarImage(image)),
@@ -104,7 +142,7 @@ function assertNoNewBase64CarImages(
 
   if (newBase64Image) {
     throw ErrorHelper.requestDataInvalid(
-      "Ảnh xe mới cần được upload lên Cloudinary trước khi lưu",
+      `${imageLabel} mới cần được upload lên Cloudinary trước khi lưu`,
     );
   }
 }
@@ -199,6 +237,88 @@ function toOptionalNonNegativeNumber(value: unknown, fieldLabel: string) {
   return nextValue;
 }
 
+function normalizeCarMileagePayload(body: Record<string, unknown>) {
+  const result: {
+    currentOdometerKm?: number;
+    mileagePolicy?: {
+      includedKmPerDay?: number;
+      includedKmPerHour?: number;
+      overageFeePerKm: number;
+      graceKm: number;
+    };
+  } = {};
+
+  const currentOdometerKm = toOptionalNonNegativeNumber(
+    body.currentOdometerKm,
+    "ODO hiện tại",
+  );
+
+  if (
+    currentOdometerKm !== undefined &&
+    !Number.isInteger(currentOdometerKm)
+  ) {
+    throw ErrorHelper.requestDataInvalid(
+      "ODO hiện tại phải là số nguyên không âm",
+    );
+  }
+
+  if (currentOdometerKm !== undefined) {
+    result.currentOdometerKm = currentOdometerKm;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "mileagePolicy")) {
+    const mileagePolicyInput = body.mileagePolicy;
+
+    if (
+      !mileagePolicyInput ||
+      typeof mileagePolicyInput !== "object" ||
+      Array.isArray(mileagePolicyInput)
+    ) {
+      throw ErrorHelper.requestDataInvalid(
+        "Chính sách kilomet không hợp lệ",
+      );
+    }
+
+    const policy = mileagePolicyInput as Record<string, unknown>;
+    const includedKmPerDay = toOptionalNonNegativeNumber(
+      policy.includedKmPerDay,
+      "Giới hạn kilomet mỗi ngày",
+    );
+    const includedKmPerHour = toOptionalNonNegativeNumber(
+      policy.includedKmPerHour,
+      "Giới hạn kilomet mỗi giờ",
+    );
+    const overageFeePerKm =
+      toOptionalNonNegativeNumber(
+        policy.overageFeePerKm,
+        "Phí vượt kilomet",
+      ) ?? 0;
+    const graceKm =
+      toOptionalNonNegativeNumber(policy.graceKm, "Mức kilomet miễn phí") ?? 0;
+
+    if (includedKmPerDay !== undefined && includedKmPerDay <= 0) {
+      throw ErrorHelper.requestDataInvalid(
+        "Giới hạn kilomet mỗi ngày phải lớn hơn 0",
+      );
+    }
+
+    if (includedKmPerHour !== undefined && includedKmPerHour <= 0) {
+      throw ErrorHelper.requestDataInvalid(
+        "Giới hạn kilomet mỗi giờ phải lớn hơn 0",
+      );
+    }
+
+    result.mileagePolicy = {
+      ...(includedKmPerDay !== undefined ? { includedKmPerDay } : {}),
+      ...(includedKmPerHour !== undefined ? { includedKmPerHour } : {}),
+      overageFeePerKm,
+      graceKm,
+    };
+  }
+
+  return result;
+}
+
 function normalizeDeliveryPayload(body: any) {
   const deliveryEnabled = Boolean(body.deliveryEnabled);
   const deliveryBaseFee =
@@ -226,12 +346,23 @@ function normalizeDeliveryPayload(body: any) {
   };
 }
 
-const IMPORTANT_CAR_REVIEW_FIELDS = [
+const OWNER_EDITABLE_CAR_FIELDS = [
   "brandId",
   "name",
   "type",
   "licensePlate",
   "pricing",
+  "allowDailyRental",
+  "allowHourlyRental",
+  "rentalUnit",
+  "seats",
+  "currentOdometerKm",
+  "mileagePolicy",
+  "fuelType",
+  "transmission",
+  "images",
+  "registrationCardImages",
+  "description",
   "pickupAddress",
   "pickupFormattedAddress",
   "pickupPlaceId",
@@ -242,23 +373,69 @@ const IMPORTANT_CAR_REVIEW_FIELDS = [
   "pickupWard",
   "pickupNote",
   "address",
-  "city",
   "province",
+  "city",
   "district",
   "ward",
-  "seats",
-  "fuelType",
-  "transmission",
-  "allowDailyRental",
-  "allowHourlyRental",
-  "rentalUnit",
+  "locationNote",
   "deliveryEnabled",
   "deliveryBaseFee",
   "deliveryFeePerKm",
   "deliveryMaxDistanceKm",
   "deliveryNote",
-  "images",
-];
+] as const;
+
+function pickOwnerEditableCarFields(body: unknown) {
+  const source =
+    body && typeof body === "object"
+      ? (body as Record<string, unknown>)
+      : {};
+  const editableData: Record<string, any> = {};
+
+  OWNER_EDITABLE_CAR_FIELDS.forEach((field) => {
+    if (Object.prototype.hasOwnProperty.call(source, field)) {
+      editableData[field] = source[field];
+    }
+  });
+
+  return editableData;
+}
+
+const CAR_APPROVAL_CHANGE_FIELDS = [
+  ["brandId", "Hãng xe"],
+  ["name", "Tên xe"],
+  ["type", "Loại xe"],
+  ["licensePlate", "Biển số"],
+  ["seats", "Số chỗ"],
+  ["fuelType", "Nhiên liệu"],
+  ["transmission", "Hộp số"],
+  ["allowDailyRental", "Cho thuê theo ngày"],
+  ["allowHourlyRental", "Cho thuê theo giờ"],
+  ["pricing.basePricePerDay", "Giá cơ bản theo ngày"],
+  ["pricing.weekendSurchargePerDay", "Phụ thu cuối tuần theo ngày"],
+  ["pricing.holidaySurchargePerDay", "Phụ thu ngày lễ theo ngày"],
+  ["pricing.basePricePerHour", "Giá cơ bản theo giờ"],
+  ["pricing.weekendSurchargePerHour", "Phụ thu cuối tuần theo giờ"],
+  ["pricing.holidaySurchargePerHour", "Phụ thu ngày lễ theo giờ"],
+  ["currentOdometerKm", "ODO hiện tại"],
+  ["mileagePolicy.includedKmPerDay", "Giới hạn kilomet mỗi ngày"],
+  ["mileagePolicy.includedKmPerHour", "Giới hạn kilomet mỗi giờ"],
+  ["mileagePolicy.overageFeePerKm", "Phí vượt kilomet"],
+  ["mileagePolicy.graceKm", "Mức kilomet miễn tính phí"],
+  ["pickupAddress", "Địa chỉ nhận xe"],
+  ["pickupProvince", "Tỉnh/Thành phố nhận xe"],
+  ["pickupDistrict", "Quận/Huyện nhận xe"],
+  ["pickupWard", "Phường/Xã nhận xe"],
+  ["pickupNote", "Ghi chú nhận xe"],
+  ["deliveryEnabled", "Hỗ trợ giao xe tận nơi"],
+  ["deliveryBaseFee", "Phí mở đầu giao xe"],
+  ["deliveryFeePerKm", "Phí giao xe mỗi kilomet"],
+  ["deliveryMaxDistanceKm", "Khoảng cách giao xe tối đa"],
+  ["deliveryNote", "Ghi chú giao xe"],
+  ["images", "Hình ảnh xe"],
+  ["registrationCardImages", "Ảnh cà vẹt xe"],
+  ["description", "Mô tả xe"],
+] as const;
 
 function normalizeComparableValue(value: any): unknown {
   if (value === undefined || value === null || value === "") return "";
@@ -293,14 +470,45 @@ function normalizeComparableValue(value: any): unknown {
   return String(value);
 }
 
-function hasImportantCarChange(existingCar: any, nextData: Record<string, unknown>) {
-  return IMPORTANT_CAR_REVIEW_FIELDS.some((field) => {
-    if (!(field in nextData)) return false;
+function getNestedValue(source: any, path: string) {
+  return path.split(".").reduce((value, key) => value?.[key], source);
+}
 
-    return (
-      JSON.stringify(normalizeComparableValue(existingCar[field])) !==
-      JSON.stringify(normalizeComparableValue(nextData[field]))
-    );
+function summarizeApprovalValue(field: string, value: unknown) {
+  if (field === "images" || field === "registrationCardImages") {
+    return `${Array.isArray(value) ? value.length : 0} ảnh`;
+  }
+
+  return normalizeComparableValue(value);
+}
+
+function buildCarApprovalChanges(
+  existingCar: any,
+  nextData: Record<string, unknown>,
+) {
+  return CAR_APPROVAL_CHANGE_FIELDS.flatMap(([field, label]) => {
+    const topLevelField = field.split(".")[0] || field;
+    if (!(topLevelField in nextData)) return [];
+
+    const previousValue = getNestedValue(existingCar, field);
+    const currentValue = getNestedValue(nextData, field);
+    const previousSnapshot = summarizeApprovalValue(field, previousValue);
+    const currentSnapshot = summarizeApprovalValue(field, currentValue);
+    if (
+      JSON.stringify(normalizeComparableValue(previousSnapshot)) ===
+      JSON.stringify(normalizeComparableValue(currentSnapshot))
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        field,
+        label,
+        previousValue: previousSnapshot,
+        currentValue: currentSnapshot,
+      },
+    ];
   });
 }
 
@@ -359,6 +567,7 @@ function getDistanceKm(originLat?: number, originLng?: number, destLat?: number,
 
 const HOME_CAR_LIST_PROJECTION = {
   _id: 1,
+  carCode: 1,
   businessId: 1,
   ownerId: 1,
   ownerType: 1,
@@ -435,6 +644,15 @@ class CarRoute extends BaseRoute {
         this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
       ],
       this.route(this.updateCar),
+    );
+
+    this.router.post(
+      "/resubmitCar/:id",
+      [
+        this.authentication,
+        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+      ],
+      this.route(this.resubmitCar),
     );
 
     this.router.delete(
@@ -557,6 +775,46 @@ class CarRoute extends BaseRoute {
     return typeof authUser?.userId === "string" ? authUser.userId : undefined;
   }
 
+  private async canViewRentedCar(car: any, authUser: any) {
+    const authUserId = this.getAuthUserId(authUser);
+
+    if (!authUserId || car.status !== CarStatusEnum.RENTED) {
+      return false;
+    }
+
+    const ownerId = String(car.ownerId?._id || car.ownerId || "");
+    const businessId = String(car.businessId?._id || car.businessId || "");
+    const authRole = String(authUser?.role || "").toUpperCase();
+    const isUserOwner =
+      authRole === UserRoleEnum.USER &&
+      car.ownerType === OwnerTypeEnum.USER &&
+      ownerId === authUserId;
+
+    const [renterBooking, business] = await Promise.all([
+      BookingModel.exists({
+        carId: car._id,
+        userId: authUserId,
+        status: { $in: RENTED_CAR_DETAIL_BOOKING_STATUSES },
+        isDeleted: false,
+      } as any),
+      authRole === UserRoleEnum.BUSINESS
+        ? BusinessModel.findOne({
+            userId: authUserId,
+            isDeleted: false,
+          })
+            .select("_id")
+            .lean()
+        : null,
+    ]);
+    const relatedBusinessId = String(business?._id || "");
+    const isBusinessOwner =
+      authRole === UserRoleEnum.BUSINESS &&
+      Boolean(relatedBusinessId) &&
+      (ownerId === relatedBusinessId || businessId === relatedBusinessId);
+
+    return Boolean(renterBooking) || isUserOwner || isBusinessOwner;
+  }
+
   private async getRentalAvailabilityMap(carIds: unknown[]) {
     const availabilityMap = new Map<string, RentalAvailabilityEnum>();
     const now = new Date();
@@ -633,7 +891,11 @@ class CarRoute extends BaseRoute {
   ) {
     const bookabilityMap = new Map<
       string,
-      { isBookable: boolean; unavailableReason?: string }
+      {
+        isBookable: boolean;
+        unavailableReason?: string;
+        cleaningUntil?: Date;
+      }
     >();
 
     carIds.forEach((carId) => {
@@ -655,7 +917,12 @@ class CarRoute extends BaseRoute {
     await expireAbandonedPendingBookings(now);
     await expireOldCarts(now);
 
-    const [overlapBookingCarIds, overlapCartCarIds] = await Promise.all([
+    const cleaningBufferMs = getCarCleaningBufferMs();
+    const cleaningStartedAfter = new Date(
+      requestedStart.getTime() - cleaningBufferMs,
+    );
+    const [overlapBookingCarIds, overlapCartCarIds, cleaningBookings] =
+      await Promise.all([
       BookingModel.distinct("carId", {
         carId: { $in: carIds },
         ...(currentUserId && ignoreCurrentUserHolds
@@ -678,6 +945,30 @@ class CarRoute extends BaseRoute {
         startDate: { $lt: requestedEnd },
         endDate: { $gt: requestedStart },
       } as any),
+      cleaningBufferMs > 0
+        ? BookingModel.find({
+            carId: { $in: carIds },
+            status: BookingStatusEnum.COMPLETED,
+            isDeleted: false,
+            $or: [
+              {
+                completedAt: {
+                  $gt: cleaningStartedAfter,
+                  $lt: requestedEnd,
+                },
+              },
+              {
+                completedAt: null,
+                updatedAt: {
+                  $gt: cleaningStartedAfter,
+                  $lt: requestedEnd,
+                },
+              },
+            ],
+          } as any)
+            .select("_id carId completedAt updatedAt")
+            .lean()
+        : Promise.resolve([]),
     ]);
 
     [...overlapBookingCarIds, ...overlapCartCarIds].forEach((carId) => {
@@ -685,6 +976,25 @@ class CarRoute extends BaseRoute {
         isBookable: false,
         unavailableReason: "Xe không khả dụng trong thời gian đã chọn",
       });
+    });
+
+    cleaningBookings.forEach((booking) => {
+      const completedAtSource = booking.completedAt ?? booking.updatedAt;
+      if (!completedAtSource) return;
+
+      const completedAt = new Date(completedAtSource);
+      const cleaningUntil = getCarCleaningUnavailableUntil(completedAt);
+
+      if (completedAt < requestedEnd && cleaningUntil > requestedStart) {
+        bookabilityMap.set(String(booking.carId), {
+          isBookable: false,
+          cleaningUntil,
+          unavailableReason: `Xe đang được vệ sinh đến ${cleaningUntil.toLocaleString(
+            "vi-VN",
+            { timeZone: "Asia/Ho_Chi_Minh" },
+          )}. Vui lòng chọn giờ nhận xe sau thời điểm này.`,
+        });
+      }
     });
 
     const selectedRentalMode = normalizeRentalMode(rentalMode);
@@ -730,16 +1040,34 @@ class CarRoute extends BaseRoute {
       return rangeMap;
     }
 
-    const bookings = await BookingModel.find({
-      carId: { $in: carIds },
-      ...(currentUserId ? { userId: { $ne: currentUserId } } : {}),
-      status: { $in: BLOCKING_BOOKING_STATUSES },
-      isDeleted: false,
-      endDate: { $gt: new Date() },
-    } as any)
-      .select("_id carId startDate endDate status")
-      .sort({ startDate: 1 })
-      .lean();
+    const now = new Date();
+    const cleaningBufferMs = getCarCleaningBufferMs();
+    const cleaningStartedAfter = new Date(now.getTime() - cleaningBufferMs);
+    const [bookings, cleaningBookings] = await Promise.all([
+      BookingModel.find({
+        carId: { $in: carIds },
+        ...(currentUserId ? { userId: { $ne: currentUserId } } : {}),
+        status: { $in: BLOCKING_BOOKING_STATUSES },
+        isDeleted: false,
+        endDate: { $gt: now },
+      } as any)
+        .select("_id carId startDate endDate status")
+        .sort({ startDate: 1 })
+        .lean(),
+      cleaningBufferMs > 0
+        ? BookingModel.find({
+            carId: { $in: carIds },
+            status: BookingStatusEnum.COMPLETED,
+            isDeleted: false,
+            $or: [
+              { completedAt: { $gt: cleaningStartedAfter } },
+              { completedAt: null, updatedAt: { $gt: cleaningStartedAfter } },
+            ],
+          } as any)
+            .select("_id carId completedAt updatedAt")
+            .lean()
+        : Promise.resolve([]),
+    ]);
 
     bookings.forEach((booking) => {
       const carId = String(booking.carId);
@@ -754,10 +1082,36 @@ class CarRoute extends BaseRoute {
       rangeMap.set(carId, ranges);
     });
 
+    cleaningBookings.forEach((booking) => {
+      const completedAtSource = booking.completedAt ?? booking.updatedAt;
+      if (!completedAtSource) return;
+
+      const completedAt = new Date(completedAtSource);
+      const cleaningUntil = getCarCleaningUnavailableUntil(completedAt);
+
+      if (cleaningUntil <= now) return;
+
+      const carId = String(booking.carId);
+      const ranges = rangeMap.get(carId) || [];
+      ranges.push({
+        bookingId: booking._id,
+        startDate: completedAt,
+        endDate: cleaningUntil,
+        status: RentalAvailabilityEnum.CLEANING,
+        type: RentalAvailabilityEnum.CLEANING,
+        reason: "Xe cần được vệ sinh sau chuyến thuê trước khi giao cho khách tiếp theo.",
+      });
+      rangeMap.set(carId, ranges);
+    });
+
     return rangeMap;
   }
 
   private getAvailabilityLabel(availability: RentalAvailabilityEnum) {
+    if (availability === RentalAvailabilityEnum.CLEANING) {
+      return "Đang vệ sinh";
+    }
+
     if (availability === RentalAvailabilityEnum.PENDING_CONFIRMATION) {
       return "Đang chờ xác nhận";
     }
@@ -825,14 +1179,17 @@ class CarRoute extends BaseRoute {
   }
 
   private getPublicCarAddress(carData: any, showDetailedUserAddress = false) {
+    const publicCarData = { ...carData };
+    delete publicCarData.registrationCardImages;
+    delete publicCarData.approvalSubmission;
+
     if (
       String(carData.ownerType || "") !== OwnerTypeEnum.USER ||
       showDetailedUserAddress
     ) {
-      return carData;
+      return publicCarData;
     }
 
-    const publicCarData = { ...carData };
     delete publicCarData.pickupAddress;
     delete publicCarData.address;
     delete publicCarData.ward;
@@ -851,7 +1208,11 @@ class CarRoute extends BaseRoute {
   private withRentalAvailability(
     car: any,
     availability: RentalAvailabilityEnum,
-    bookability?: { isBookable: boolean; unavailableReason?: string },
+    bookability?: {
+      isBookable: boolean;
+      unavailableReason?: string;
+      cleaningUntil?: Date;
+    },
     unavailableRanges: any[] = [],
     showDetailedUserAddress = false,
   ) {
@@ -861,16 +1222,36 @@ class CarRoute extends BaseRoute {
       showDetailedUserAddress,
     );
     const isScheduleBookable = bookability?.isBookable !== false;
+    const now = new Date();
+    const activeCleaningRange = unavailableRanges.find(
+      (range) =>
+        String(range.type || range.status || "") ===
+          RentalAvailabilityEnum.CLEANING && new Date(range.endDate) > now,
+    );
+    const effectiveAvailability =
+      availability === RentalAvailabilityEnum.AVAILABLE && activeCleaningRange
+        ? RentalAvailabilityEnum.CLEANING
+        : availability;
+    const cleaningUntil = activeCleaningRange
+      ? new Date(activeCleaningRange.endDate)
+      : bookability?.cleaningUntil;
 
     return {
       ...publicCarData,
-      rentalAvailability: availability,
+      rentalAvailability: effectiveAvailability,
       availabilityLabel: isScheduleBookable
-        ? this.getAvailabilityLabel(availability)
+        ? this.getAvailabilityLabel(effectiveAvailability)
         : "Không khả dụng",
       isBookable:
         availability === RentalAvailabilityEnum.AVAILABLE && isScheduleBookable,
-      unavailableReason: bookability?.unavailableReason,
+      unavailableReason:
+        bookability?.unavailableReason ||
+        (cleaningUntil
+          ? `Xe đang được vệ sinh đến ${cleaningUntil.toLocaleString("vi-VN", {
+              timeZone: "Asia/Ho_Chi_Minh",
+            })}. Bạn có thể chọn giờ nhận xe sau thời điểm này.`
+          : undefined),
+      cleaningUntil: cleaningUntil?.toISOString(),
       unavailableRanges,
     };
   }
@@ -910,7 +1291,11 @@ class CarRoute extends BaseRoute {
     };
   }
 
-  private async assertCarHasNoActiveWork(carId: string, owner: any) {
+  private async assertCarHasNoActiveWork(
+    carId: string,
+    owner: any,
+    actionLabel = "ẩn hoặc hiện",
+  ) {
     await expireAbandonedPendingBookings();
     await expireOldCarts();
 
@@ -937,13 +1322,13 @@ class CarRoute extends BaseRoute {
 
     if (activeContract || activeBooking) {
       throw ErrorHelper.requestDataInvalid(
-        "Không thể ẩn hoặc hiện xe đang có booking hoặc hợp đồng thuê còn hiệu lực",
+        `Không thể ${actionLabel} xe đang có booking hoặc hợp đồng thuê còn hiệu lực`,
       );
     }
 
     if (activeCart) {
       throw ErrorHelper.requestDataInvalid(
-        "Không thể ẩn xe đang được giữ trong giỏ hàng của khách",
+        `Không thể ${actionLabel} xe đang được giữ trong giỏ hàng của khách`,
       );
     }
   }
@@ -983,6 +1368,12 @@ class CarRoute extends BaseRoute {
   async createCar(req: Request, res: Response) {
     const authUser = (req as any).user;
 
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "carCode")) {
+      throw ErrorHelper.requestDataInvalid(
+        "Mã xe do hệ thống tự động tạo và không được gửi từ client",
+      );
+    }
+
     const owner = await this.getOwnerContext(authUser, true);
 
     const {
@@ -999,12 +1390,16 @@ class CarRoute extends BaseRoute {
       description,
     } = req.body;
     const images = normalizeCarImagesInput(req.body.images);
+    const registrationCardImages = normalizeCarImagesInput(
+      req.body.registrationCardImages,
+    );
     const addressFields = normalizeCarAddressFields(req.body);
 
     if (!brandId || !name || !seats) {
       throw ErrorHelper.requestDataInvalid("Thiếu brandId, name hoặc seats");
     }
     assertNoNewBase64CarImages(images);
+    validateRegistrationCardImages(registrationCardImages, { required: true });
     this.validatePickupAddress(addressFields);
     const normalizedLicensePlate = this.validateLicensePlate(licensePlate);
     const plateNumberNormalized = normalizedLicensePlate
@@ -1044,9 +1439,12 @@ class CarRoute extends BaseRoute {
       dailyEnabled,
       hourlyEnabled,
     );
+    const mileagePayload = normalizeCarMileagePayload(req.body);
     const deliveryPayload = normalizeDeliveryPayload(req.body);
+    const carCode = await generateCarCode();
 
     const car = await CarModel.create({
+      carCode,
       ...(owner.business ? { businessId: owner.business._id } : {}),
       ownerId: owner.ownerId,
       ownerType: owner.ownerType,
@@ -1059,6 +1457,7 @@ class CarRoute extends BaseRoute {
         : {}),
       ...(plateNumberNormalized ? { plateNumberNormalized } : {}),
       ...pricingPayload,
+      ...mileagePayload,
       ...deliveryPayload,
       allowDailyRental: dailyEnabled,
       allowHourlyRental: hourlyEnabled,
@@ -1067,8 +1466,16 @@ class CarRoute extends BaseRoute {
       fuelType,
       transmission,
       images,
+      registrationCardImages,
       description,
       ...addressFields,
+      approvalSubmission: {
+        submissionType: "CREATE",
+        submittedAt: new Date(),
+        submittedBy: authUser.userId,
+        submittedByRole: owner.ownerType,
+        changes: [],
+      },
       status: CarStatusEnum.PENDING,
     } as any);
     void sendCarSubmittedToAdminMail(car);
@@ -1166,8 +1573,18 @@ class CarRoute extends BaseRoute {
       }
     }
 
-    if (keyword) {
-      filter.name = { $regex: escapeRegex(String(keyword)), $options: "i" };
+    const normalizedKeyword = cleanSearchText(keyword);
+    if (normalizedKeyword) {
+      const keywordRegex = {
+        $regex: escapeRegex(normalizedKeyword),
+        $options: "i",
+      };
+      filter.$or = [
+        { carCode: keywordRegex },
+        { name: keywordRegex },
+        { licensePlate: keywordRegex },
+        { plateNumberNormalized: keywordRegex },
+      ];
     }
 
     const locationText = cleanSearchText(location);
@@ -1290,7 +1707,12 @@ class CarRoute extends BaseRoute {
           reviewCount: 0,
         },
       }))
-      .filter((car) => !shouldOnlyReturnBookable || car.isBookable !== false)
+      .filter(
+        (car) =>
+          !shouldOnlyReturnBookable ||
+          car.isBookable !== false ||
+          car.rentalAvailability === RentalAvailabilityEnum.CLEANING,
+      )
       .filter((car) => {
         if (!requestedMinRating) return true;
         return Number(car.reviewSummary?.averageRating || 0) >= requestedMinRating;
@@ -1340,7 +1762,6 @@ class CarRoute extends BaseRoute {
 
     const car = await CarModel.findOne({
       _id: id,
-      status: { $in: PUBLIC_CAR_STATUSES },
       isDeleted: false,
     } as any)
       .populate("brandId")
@@ -1348,6 +1769,18 @@ class CarRoute extends BaseRoute {
       .populate("ownerId", "-password -otpCode");
 
     if (!car) {
+      throw ErrorHelper.recordNotFound("Xe");
+    }
+
+    const isPubliclyVisible =
+      car.status === CarStatusEnum.APPROVED &&
+      !car.isHidden &&
+      !(car as any).hiddenByOwner &&
+      !(car as any).hiddenByAdmin;
+    const canViewAsRelatedParty =
+      !isPubliclyVisible && (await this.canViewRentedCar(car, authUser));
+
+    if (!isPubliclyVisible && !canViewAsRelatedParty) {
       throw ErrorHelper.recordNotFound("Xe");
     }
 
@@ -1377,7 +1810,6 @@ class CarRoute extends BaseRoute {
           userId: authUserId,
           status: { $in: BLOCKING_BOOKING_STATUSES },
           isDeleted: false,
-          endDate: { $gt: new Date() },
         } as any)
           .select(
             "_id status startDate endDate rentalMode totalPrice paidAmount depositAmount remainingAmount paymentOption",
@@ -1442,9 +1874,12 @@ class CarRoute extends BaseRoute {
     const authUser = (req as any).user;
     const { id } = req.params;
 
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "carCode")) {
+      throw ErrorHelper.requestDataInvalid("Mã xe không được phép chỉnh sửa");
+    }
+
     const owner = await this.getOwnerContext(authUser);
 
-    const updateData = { ...req.body };
     const existingCar = await CarModel.findOne({
       _id: id,
       ...this.buildOwnerFilter(owner),
@@ -1455,27 +1890,31 @@ class CarRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Xe");
     }
 
-    const [activeBooking, activeContract] = await Promise.all([
-      BookingModel.findOne({
-        carId: id,
-        ...this.buildOwnerFilter(owner),
-        status: { $in: BLOCKING_BOOKING_STATUSES },
-        isDeleted: false,
-      } as any).select("_id"),
-      ContractModel.findOne({
-        carId: id,
-        ...this.buildOwnerFilter(owner),
-        status: { $in: DELETE_BLOCKING_CONTRACT_STATUSES },
-        isDeleted: false,
-      } as any).select("_id"),
-    ]);
+    if (existingCar.status === CarStatusEnum.RENTED) {
+      throw ErrorHelper.requestDataInvalid(UPDATE_CAR_BLOCKED_MESSAGE);
+    }
+
+    await this.assertCarHasNoActiveWork(
+      String(existingCar._id),
+      owner,
+      "chỉnh sửa",
+    );
+
+    const updateData = pickOwnerEditableCarFields(req.body);
+    const mileagePayload = normalizeCarMileagePayload(updateData);
+    delete updateData.currentOdometerKm;
+    delete updateData.mileagePolicy;
+    Object.assign(updateData, mileagePayload);
 
     if (
-      existingCar.status === CarStatusEnum.RENTED ||
-      activeBooking ||
-      activeContract
+      typeof updateData.currentOdometerKm === "number" &&
+      existingCar.currentOdometerKm !== undefined &&
+      existingCar.currentOdometerKm !== null &&
+      updateData.currentOdometerKm < existingCar.currentOdometerKm
     ) {
-      throw ErrorHelper.requestDataInvalid(UPDATE_CAR_BLOCKED_MESSAGE);
+      throw ErrorHelper.requestDataInvalid(
+        "ODO mới không được nhỏ hơn ODO hiện tại",
+      );
     }
 
     if ("images" in updateData) {
@@ -1484,6 +1923,17 @@ class CarRoute extends BaseRoute {
         updateData.images,
         Array.isArray(existingCar.images) ? existingCar.images : [],
       );
+    }
+
+    if ("registrationCardImages" in updateData) {
+      updateData.registrationCardImages = normalizeCarImagesInput(
+        updateData.registrationCardImages,
+      );
+      validateRegistrationCardImages(updateData.registrationCardImages, {
+        existingImages: Array.isArray(existingCar.registrationCardImages)
+          ? existingCar.registrationCardImages
+          : [],
+      });
     }
 
     const addressFields = normalizeCarAddressFields(updateData);
@@ -1568,9 +2018,13 @@ class CarRoute extends BaseRoute {
       ...updateData,
       ...addressFields,
     };
+    const approvalChanges = buildCarApprovalChanges(
+      existingCar,
+      finalUpdateData,
+    );
     const needsReview =
       existingCar.status === CarStatusEnum.APPROVED &&
-      hasImportantCarChange(existingCar, finalUpdateData);
+      approvalChanges.length > 0;
     const nextStatus =
       existingCar.status === CarStatusEnum.APPROVED && !needsReview
         ? CarStatusEnum.APPROVED
@@ -1586,12 +2040,27 @@ class CarRoute extends BaseRoute {
         ...finalUpdateData,
         status: nextStatus,
         rejectReason: "",
+        ...(nextStatus === CarStatusEnum.PENDING && approvalChanges.length > 0
+          ? {
+              approvalSubmission: {
+                submissionType: "UPDATE",
+                submittedAt: new Date(),
+                submittedBy: authUser.userId,
+                submittedByRole: owner.ownerType,
+                changes: approvalChanges,
+              },
+            }
+          : {}),
       },
       { new: true },
     );
 
     if (!car) {
       throw ErrorHelper.recordNotFound("Xe");
+    }
+
+    if (nextStatus === CarStatusEnum.PENDING && approvalChanges.length > 0) {
+      void sendCarSubmittedToAdminMail(car);
     }
 
     return res.status(200).json({
@@ -1602,6 +2071,54 @@ class CarRoute extends BaseRoute {
           ? "Cập nhật xe thành công, vui lòng chờ Admin duyệt lại"
           : "Cập nhật xe thành công",
       data: { car },
+    });
+  }
+
+  async resubmitCar(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const { id } = req.params;
+    const owner = await this.getOwnerContext(authUser);
+
+    const existingCar = await CarModel.findOne({
+      _id: id,
+      ...this.buildOwnerFilter(owner),
+      isDeleted: false,
+    } as any);
+
+    if (!existingCar) {
+      throw ErrorHelper.recordNotFound("Xe");
+    }
+
+    if (existingCar.status !== CarStatusEnum.REJECTED) {
+      throw ErrorHelper.requestDataInvalid(
+        "Chỉ xe bị từ chối mới có thể gửi lại duyệt",
+      );
+    }
+
+    await this.assertCarHasNoActiveWork(
+      String(existingCar._id),
+      owner,
+      "gửi lại duyệt",
+    );
+
+    existingCar.status = CarStatusEnum.PENDING;
+    existingCar.rejectReason = "";
+    (existingCar as any).approvalSubmission = {
+      submissionType: "RESUBMIT",
+      submittedAt: new Date(),
+      submittedBy: authUser.userId,
+      submittedByRole: owner.ownerType,
+      changes: [],
+    };
+    await existingCar.save();
+    await existingCar.populate("brandId");
+    void sendCarSubmittedToAdminMail(existingCar);
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "Đã gửi lại xe để Admin duyệt",
+      data: { car: existingCar },
     });
   }
 
@@ -1621,26 +2138,7 @@ class CarRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Xe");
     }
 
-    const [activeContract, activeBooking] = await Promise.all([
-      ContractModel.findOne({
-        carId: id,
-        ...this.buildOwnerFilter(owner),
-        status: { $in: DELETE_BLOCKING_CONTRACT_STATUSES },
-        isDeleted: false,
-      } as any).select("_id"),
-      BookingModel.findOne({
-        carId: id,
-        ...this.buildOwnerFilter(owner),
-        status: { $in: BLOCKING_BOOKING_STATUSES },
-        isDeleted: false,
-      } as any).select("_id"),
-    ]);
-
-    if (activeContract || activeBooking) {
-      throw ErrorHelper.requestDataInvalid(
-        "Không thể xóa xe đang có booking hoặc hợp đồng thuê còn hiệu lực",
-      );
-    }
+    await this.assertCarHasNoActiveWork(String(existingCar._id), owner, "xóa");
 
     const car = await CarModel.findOneAndUpdate(
       {
@@ -1712,8 +2210,23 @@ class CarRoute extends BaseRoute {
       filter.type = type;
     }
 
-    if (keyword) {
-      filter.name = { $regex: String(keyword), $options: "i" };
+    const normalizedKeyword = cleanSearchText(keyword);
+    if (normalizedKeyword) {
+      const keywordRegex = {
+        $regex: escapeRegex(normalizedKeyword),
+        $options: "i",
+      };
+      filter.$and = [
+        ...(Array.isArray(filter.$and) ? filter.$and : []),
+        {
+          $or: [
+            { carCode: keywordRegex },
+            { name: keywordRegex },
+            { licensePlate: keywordRegex },
+            { plateNumberNormalized: keywordRegex },
+          ],
+        },
+      ];
     }
 
     if (ownerType && ownerType !== "ALL") {
@@ -1751,6 +2264,7 @@ class CarRoute extends BaseRoute {
 
   async getCarReviews(req: Request, res: Response) {
     const carId = String(req.params.carId || "");
+    const viewerUserId = this.getAuthUserId(this.getOptionalAuthUser(req));
     const page = Math.max(1, Number(req.query.page || 1));
     const limit = Math.min(20, Math.max(1, Number(req.query.limit || 6)));
     const rating = Number(req.query.rating || 0);
@@ -1842,6 +2356,13 @@ class CarRoute extends BaseRoute {
           images: review.images || [],
           ownerReply: review.ownerReply || null,
           helpfulCount: review.helpfulCount || 0,
+          isHelpfulByMe: Boolean(
+            viewerUserId &&
+              Array.isArray(review.helpfulBy) &&
+              review.helpfulBy.some(
+                (userId: unknown) => String(userId) === viewerUserId,
+              ),
+          ),
           verifiedRental: true,
           isEdited:
             review.updatedAt &&
@@ -1867,9 +2388,9 @@ class CarRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Xe");
     }
 
-    if (car.status === CarStatusEnum.RENTED) {
+    if (car.status !== CarStatusEnum.PENDING) {
       throw ErrorHelper.requestDataInvalid(
-        "Xe đang được thuê, không thể thay đổi trạng thái duyệt",
+        "Chỉ có thể duyệt xe đang chờ duyệt",
       );
     }
 
@@ -1898,16 +2419,22 @@ class CarRoute extends BaseRoute {
 
   async rejectCar(req: Request, res: Response) {
     const { id } = req.params;
-    const { rejectReason } = req.body;
+    const rejectReason = cleanSearchText(req.body?.rejectReason);
+
+    if (!rejectReason) {
+      throw ErrorHelper.requestDataInvalid(
+        "Vui lòng nhập lý do từ chối xe",
+      );
+    }
 
     const car = await CarModel.findById(id);
     if (!car || car.isDeleted) {
       throw ErrorHelper.recordNotFound("Xe");
     }
 
-    if (car.status === CarStatusEnum.RENTED) {
+    if (car.status !== CarStatusEnum.PENDING) {
       throw ErrorHelper.requestDataInvalid(
-        "Xe đang được thuê, không thể từ chối xe lúc này",
+        "Chỉ có thể từ chối xe đang chờ duyệt",
       );
     }
 

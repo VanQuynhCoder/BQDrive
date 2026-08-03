@@ -42,6 +42,7 @@ export type ReviewItem = {
   status?: "VISIBLE" | "REPORTED" | "HIDDEN" | string;
   report?: ReviewReport | null;
   helpfulCount?: number;
+  isHelpfulByMe?: boolean;
   verifiedRental?: boolean;
   canEdit?: boolean;
   isEdited?: boolean;
@@ -124,6 +125,16 @@ export const reviewService = {
 
   reportReview: async (reviewId: string, reason: string) => {
     const res = await api.post(`/owner/reviews/${reviewId}/report`, { reason });
+    return res.data.data.review as ReviewItem;
+  },
+
+  markReviewHelpful: async (reviewId: string) => {
+    const res = await api.post(`/reviews/${reviewId}/helpful`);
+    return res.data.data.review as ReviewItem;
+  },
+
+  unmarkReviewHelpful: async (reviewId: string) => {
+    const res = await api.delete(`/reviews/${reviewId}/helpful`);
     return res.data.data.review as ReviewItem;
   },
 };

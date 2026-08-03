@@ -33,6 +33,7 @@ import {
   BookingStatusBadge,
   BookingTimeline,
 } from "../components/booking/BookingTimeline";
+import BookingExtensionPanel from "../components/booking/BookingExtensionPanel";
 import PricingBreakdown from "../components/pricing/PricingBreakdown";
 import RouteMap from "../components/maps/RouteMap";
 import { bookingService } from "../services/booking.service";
@@ -58,6 +59,7 @@ import { getFirstCarImage, normalizeImageUrl } from "../utils/image.util";
 import { formatVietnamDateTime } from "../utils/date.util";
 import { formatAddressSnapshot, formatFullAddress } from "../utils/address.util";
 import { getBookingTimelineView } from "../utils/bookingTimeline.util";
+import { getBookingDisplayCode } from "../utils/display.util";
 import type { BookingStatus } from "../constants/status.constants";
 import type { PricingSnapshot } from "../types/pricing";
 
@@ -108,6 +110,7 @@ type BookingOwnerUser = {
 
 type Booking = {
   _id: string;
+  bookingCode?: string;
   carId: BookingCar;
   businessId: BookingBusiness;
   ownerId: BookingBusiness | BookingOwnerUser | string;
@@ -167,8 +170,14 @@ function formatDateTime(date?: string) {
   });
 }
 
-function getShortId(id: string) {
-  return id ? `#${id.slice(-8).toUpperCase()}` : "--";
+function formatDuration(minutes?: number) {
+  const safeMinutes = Math.max(0, Math.round(Number(minutes || 0)));
+  const hours = Math.floor(safeMinutes / 60);
+  const remainingMinutes = safeMinutes % 60;
+
+  if (hours === 0) return `${remainingMinutes} phút`;
+  if (remainingMinutes === 0) return `${hours} giờ`;
+  return `${hours} giờ ${remainingMinutes} phút`;
 }
 
 function getRentalInfo(rentalMode?: string) {
@@ -464,6 +473,7 @@ const extraChargeTypeLabels: Record<ExtraChargeType, string> = {
   DAMAGE: "Phí sửa chữa/hư hỏng",
   LATE_RETURN: "Phí trễ giờ",
   FUEL: "Phí nhiên liệu",
+  OVERAGE_KM: "Phí vượt kilomet",
   OTHER: "Phí khác",
 };
 
@@ -873,8 +883,8 @@ export default function BookingDetailPage() {
 
     if (actionParam === "review" && booking.status === "COMPLETED" && !review) {
       queueMicrotask(() => {
+        setSearchParams({}, { replace: true });
         openReviewModal();
-        setSearchParams({});
       });
       return;
     }
@@ -1109,7 +1119,7 @@ export default function BookingDetailPage() {
             </Link>
             <p className="flex items-center gap-2 text-sm font-bold uppercase text-secondary">
               <Hash size={16} />
-              Booking {getShortId(booking._id)}
+              Mã đặt xe: {getBookingDisplayCode(booking)}
             </p>
             <h1 className="mt-2 text-4xl font-extrabold text-primary md:text-5xl">
               Chi Tiết Đặt Xe
@@ -1146,8 +1156,8 @@ export default function BookingDetailPage() {
                       <h2 className="mt-1 text-3xl font-extrabold text-primary">
                         {car?.name || "Xe BQDrive"}
                       </h2>
-                      <p className="mt-2 text-muted">
-                        {car?.licensePlate || "Biển số đang cập nhật"}
+                      <p className="mt-2 font-extrabold text-primary">
+                        Biển số: {car?.licensePlate || "Đang cập nhật"}
                       </p>
                     </div>
 
@@ -1467,6 +1477,40 @@ export default function BookingDetailPage() {
                             </p>
                           </div>
 
+                          {charge.type === "LATE_RETURN" && charge.lateReturnSnapshot && (
+                            <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                              <p className="text-xs font-extrabold uppercase text-amber-700">
+                                Cách tính phí trả xe trễ
+                              </p>
+                              <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                                <p>
+                                  Dự kiến trả: <strong>{formatDateTime(charge.lateReturnSnapshot.scheduledReturnAt)}</strong>
+                                </p>
+                                <p>
+                                  Thực tế trả: <strong>{formatDateTime(charge.lateReturnSnapshot.actualReturnAt)}</strong>
+                                </p>
+                                <p>
+                                  Trễ: <strong>{formatDuration(charge.lateReturnSnapshot.lateMinutes)}</strong>
+                                </p>
+                                <p>
+                                  Miễn phí: <strong>{charge.lateReturnSnapshot.graceMinutes} phút</strong>
+                                </p>
+                                <p>
+                                  Thời gian tính phí: <strong>{formatDuration(charge.lateReturnSnapshot.chargeableMinutes)}</strong>
+                                </p>
+                                <p>
+                                  Số block: <strong>{charge.lateReturnSnapshot.chargedBlocks}</strong>
+                                </p>
+                                <p>
+                                  Đơn giá: <strong>{formatPrice(charge.lateReturnSnapshot.feePerBlock)} / block {charge.lateReturnSnapshot.blockMinutes} phút</strong>
+                                </p>
+                                <p>
+                                  Tổng phí: <strong>{formatPrice(charge.lateReturnSnapshot.calculatedAmount)}</strong>
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
                           {charge.evidenceImages?.length ? (
                             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
                               {charge.evidenceImages.map((image, index) => (
@@ -1621,6 +1665,15 @@ export default function BookingDetailPage() {
               </section>
             )}
 
+            <BookingExtensionPanel
+              bookingId={booking._id}
+              bookingStatus={booking.status}
+              currentEndAt={booking.endDate}
+              rentalMode={booking.rentalMode}
+              mode="RENTER"
+              onChanged={fetchBooking}
+            />
+
             {canShowRouteMap && (
               <section className="rounded-lg border border-border bg-white p-6 shadow-sm">
                 <p className="text-sm font-bold uppercase text-secondary">
@@ -1689,7 +1742,7 @@ export default function BookingDetailPage() {
               </div>
 
               <div className="my-6 space-y-4 border-y border-border py-5 text-sm">
-                <SummaryRow label="Mã booking" value={getShortId(booking._id)} />
+                <SummaryRow label="Mã booking" value={getBookingDisplayCode(booking)} />
                 <SummaryRow label="Hình thức" value={booking.paymentOption === "FULL" ? "Thanh toán toàn bộ" : "Thanh toán cọc"} />
                 <SummaryRow
                   label="Tiền thuê xe"
@@ -1969,7 +2022,7 @@ export default function BookingDetailPage() {
                     Hủy booking
                   </h2>
                   <p className="mt-1 font-semibold text-white/75">
-                    Booking {getShortId(booking._id)} - {car?.name || "Xe BQDrive"}
+                    Booking {getBookingDisplayCode(booking)} - {car?.name || "Xe BQDrive"}
                   </p>
                 </div>
                 <button
@@ -2123,7 +2176,7 @@ export default function BookingDetailPage() {
                     Đánh giá chuyến thuê
                   </h2>
                   <p className="mt-1 font-semibold text-white/75">
-                    Booking {getShortId(booking._id)} - {car?.name || "Xe BQDrive"}
+                    Booking {getBookingDisplayCode(booking)} - {car?.name || "Xe BQDrive"}
                   </p>
                 </div>
                 <button

@@ -4,6 +4,7 @@ import type { ContractPaymentStatus } from "../constants/status.constants";
 
 export type CustomerPaymentBooking = {
   _id: string;
+  bookingCode?: string;
   status?: string;
 };
 
@@ -68,6 +69,7 @@ export type BookingPaymentHistory = {
 export const paymentService = {
   createPayment: async (data: {
     bookingId?: string;
+    extensionId?: string;
     method?: string;
     paymentType?: string;
   }) => {
@@ -91,6 +93,7 @@ export const paymentService = {
   },
   createMomoPayment: async (data: {
     bookingId?: string;
+    extensionId?: string;
     paymentType: string;
   }) => {
     const res = await api.post("/payments/momo/create", data);
@@ -100,6 +103,7 @@ export const paymentService = {
 
   createVnpayPayment: async (data: {
     bookingId?: string;
+    extensionId?: string;
     paymentType: string;
   }) => {
     const res = await api.post("/payments/vnpay/create", data);

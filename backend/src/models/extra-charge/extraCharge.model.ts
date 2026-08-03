@@ -33,6 +33,17 @@ export type IExtraCharge = BaseDocument & {
     overageFeePerKm: number;
     suggestedOverageAmount: number;
   };
+  lateReturnSnapshot?: {
+    scheduledReturnAt: Date;
+    actualReturnAt: Date;
+    lateMinutes: number;
+    graceMinutes: number;
+    chargeableMinutes: number;
+    blockMinutes: number;
+    chargedBlocks: number;
+    feePerBlock: number;
+    calculatedAmount: number;
+  };
   adjustmentReason?: string;
   status: ExtraChargeStatusEnum;
   paymentId?: mongoose.Types.ObjectId;
@@ -152,6 +163,42 @@ const extraChargeSchema = new mongoose.Schema(
         min: 0,
       },
       suggestedOverageAmount: {
+        type: Number,
+        min: 0,
+      },
+    },
+    lateReturnSnapshot: {
+      scheduledReturnAt: {
+        type: Date,
+      },
+      actualReturnAt: {
+        type: Date,
+      },
+      lateMinutes: {
+        type: Number,
+        min: 0,
+      },
+      graceMinutes: {
+        type: Number,
+        min: 0,
+      },
+      chargeableMinutes: {
+        type: Number,
+        min: 0,
+      },
+      blockMinutes: {
+        type: Number,
+        min: 1,
+      },
+      chargedBlocks: {
+        type: Number,
+        min: 0,
+      },
+      feePerBlock: {
+        type: Number,
+        min: 0,
+      },
+      calculatedAmount: {
         type: Number,
         min: 0,
       },

@@ -4,12 +4,14 @@ import path from "node:path";
 
 import * as ModelConstants from "../constants/model.const";
 import {
+  BookingExtensionStatusEnum,
   BookingStatusEnum,
   CarStatusEnum,
   ContractPaymentStatusEnum,
   ContractStatusEnum,
   PaymentRefundStatusEnum,
   PaymentStatusEnum,
+  PaymentTypeEnum,
   RefundStatusEnum,
 } from "../constants/model.const";
 import {
@@ -18,6 +20,8 @@ import {
   deriveContractPaymentStatus,
   derivePaymentRefundStatus,
 } from "../helper/status.helper";
+import { calculateBookingFinanceAfterExtension } from "../helper/booking-extension.helper";
+import { BookingExtensionModel } from "../models/booking-extension/bookingExtension.model";
 import { BookingModel } from "../models/booking/booking.model";
 import { CarModel } from "../models/car/car.model";
 import { ContractModel } from "../models/contract/contract.model";
@@ -27,6 +31,12 @@ import { RefundModel } from "../models/refund/refund.model";
 function run() {
   const newBooking = new BookingModel();
   assert.equal(newBooking.status, BookingStatusEnum.REQUESTED);
+
+  const newBookingExtension = new BookingExtensionModel();
+  assert.equal(
+    newBookingExtension.status,
+    BookingExtensionStatusEnum.REQUESTED,
+  );
 
   const newPayment = new PaymentModel();
   assert.equal(newPayment.status, PaymentStatusEnum.PENDING);
@@ -70,6 +80,36 @@ function run() {
     "PAID",
     "FAILED",
   ]);
+  assert.deepEqual(Object.values(BookingExtensionStatusEnum), [
+    "REQUESTED",
+    "OWNER_APPROVED",
+    "PAYMENT_PENDING",
+    "PAID",
+    "REJECTED",
+    "CANCELLED",
+    "EXPIRED",
+  ]);
+  assert.equal(
+    Object.values(PaymentTypeEnum).includes(PaymentTypeEnum.EXTENSION),
+    true,
+  );
+
+  assert.deepEqual(
+    calculateBookingFinanceAfterExtension({
+      totalPrice: 400_000,
+      paidAmount: 400_000,
+      additionalAmount: 100_000,
+    }),
+    { totalPrice: 500_000, paidAmount: 500_000, remainingAmount: 0 },
+  );
+  assert.deepEqual(
+    calculateBookingFinanceAfterExtension({
+      totalPrice: 400_000,
+      paidAmount: 120_000,
+      additionalAmount: 100_000,
+    }),
+    { totalPrice: 500_000, paidAmount: 220_000, remainingAmount: 280_000 },
+  );
   assert.deepEqual(Object.values(RefundStatusEnum), [
     "WAITING_FOR_REFUND_INFO",
     "PROCESSING",
@@ -133,6 +173,13 @@ function run() {
       BookingStatusEnum.COMPLETED,
     ),
     true,
+  );
+  assert.equal(
+    canTransitionBookingStatus(
+      "AWAITING_EXTRA_CHARGE",
+      BookingStatusEnum.RETURN_INSPECTION,
+    ),
+    false,
   );
   assert.equal(
     canTransitionBookingStatus("COMPLETED", BookingStatusEnum.IN_PROGRESS),
@@ -236,6 +283,7 @@ function run() {
     new RefundModel({ status: "FAILED" }),
     new RefundModel({ status: "CANCELLED" }),
     new ContractModel({ status: "DRAFT" }),
+    new BookingExtensionModel({ status: "ACTIVE" }),
   ];
 
   for (const document of invalidDocuments) {

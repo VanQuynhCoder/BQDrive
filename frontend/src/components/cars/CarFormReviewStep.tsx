@@ -2,6 +2,10 @@ import { BadgeCheck, Images } from "lucide-react";
 
 import { formatPickupAddress } from "../../utils/address.util";
 import {
+  getFuelTypeLabel,
+  getTransmissionLabel,
+} from "../../utils/display.util";
+import {
   CarReviewGroup,
   ReviewValue,
   type CarFormStep,
@@ -22,6 +26,19 @@ function formatPrice(value?: number | null) {
   return `${new Intl.NumberFormat("vi-VN").format(value)}đ`;
 }
 
+function formatOptionalNumber(value?: string | number | null) {
+  if (
+    value === undefined ||
+    value === null ||
+    (typeof value === "string" && value.trim() === "")
+  ) {
+    return undefined;
+  }
+
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : undefined;
+}
+
 export default function CarFormReviewStep({
   form,
   brands,
@@ -31,6 +48,9 @@ export default function CarFormReviewStep({
     (brand) => brand._id === form.brandId,
   )?.name;
   const imageCount = (form.mainImage ? 1 : 0) + form.galleryImages.length;
+  const currentOdometerKm = formatOptionalNumber(form.currentOdometerKm);
+  const includedKmPerDay = formatOptionalNumber(form.includedKmPerDay);
+  const includedKmPerHour = formatOptionalNumber(form.includedKmPerHour);
 
   return (
     <div className="car-review-step space-y-4">
@@ -96,7 +116,9 @@ export default function CarFormReviewStep({
           <ReviewValue label="Số ghế" value={`${form.seats} chỗ`} />
           <ReviewValue
             label="Nhiên liệu / Hộp số"
-            value={`${form.fuelType} / ${form.transmission || "--"}`}
+            value={`${getFuelTypeLabel(form.fuelType)} / ${getTransmissionLabel(
+              form.transmission,
+            )}`}
           />
         </div>
       </CarReviewGroup>
@@ -163,9 +185,9 @@ export default function CarFormReviewStep({
           <ReviewValue
             label="ODO hiện tại"
             value={
-              form.currentOdometerKm
+              currentOdometerKm !== undefined
                 ? `${new Intl.NumberFormat("vi-VN").format(
-                    Number(form.currentOdometerKm),
+                    currentOdometerKm,
                   )} km`
                 : "Chưa cập nhật"
             }
@@ -174,7 +196,7 @@ export default function CarFormReviewStep({
             label="Giới hạn ngày"
             value={
               form.allowDailyRental
-                ? `${form.includedKmPerDay || "--"} km/ngày`
+                ? `${includedKmPerDay ?? "--"} km/ngày`
                 : "Không áp dụng"
             }
           />
@@ -182,7 +204,7 @@ export default function CarFormReviewStep({
             label="Giới hạn giờ"
             value={
               form.allowHourlyRental
-                ? `${form.includedKmPerHour || "--"} km/giờ`
+                ? `${includedKmPerHour ?? "--"} km/giờ`
                 : "Không áp dụng"
             }
           />
@@ -252,6 +274,14 @@ export default function CarFormReviewStep({
               value={`${form.mainImage ? 1 : 0} ảnh chính, ${form.galleryImages.length} ảnh phụ`}
             />
             <ReviewValue
+              label="Hồ sơ cà vẹt"
+              value={
+                form.registrationCardImages.length > 0
+                  ? `${form.registrationCardImages.length} ảnh`
+                  : "Chưa bổ sung"
+              }
+            />
+            <ReviewValue
               label="Mô tả"
               value={form.description || "Chưa có mô tả"}
             />
@@ -266,6 +296,23 @@ export default function CarFormReviewStep({
                   className="h-20 w-28 rounded-lg border border-slate-200 object-cover transition duration-300 hover:-translate-y-1 hover:border-secondary hover:shadow-md"
                 />
               ))}
+            </div>
+          )}
+          {form.registrationCardImages.length > 0 && (
+            <div className="mt-4 border-t border-slate-200 pt-4">
+              <p className="mb-2 text-xs font-extrabold uppercase text-slate-400">
+                Ảnh cà vẹt gửi Admin kiểm duyệt
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {form.registrationCardImages.map((image, index) => (
+                  <img
+                    key={`${image.slice(0, 32)}-registration-review-${index}`}
+                    src={image}
+                    alt={`Ảnh cà vẹt ${index + 1}`}
+                    className="h-24 w-36 rounded-lg border border-secondary/40 object-cover"
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>
