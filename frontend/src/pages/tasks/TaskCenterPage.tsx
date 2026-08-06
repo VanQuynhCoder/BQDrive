@@ -1,3 +1,4 @@
+// Shared role page: configured by context for ADMIN, BUSINESS, and USER task flows.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,

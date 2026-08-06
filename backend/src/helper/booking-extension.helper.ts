@@ -1,6 +1,6 @@
 import mongoose, { type ClientSession } from "mongoose";
 
-import { ErrorHelper } from "../base/error";
+import { BaseError, ErrorHelper } from "../base/error";
 import {
   BookingExtensionStatusEnum,
   BookingStatusEnum,
@@ -20,14 +20,24 @@ import {
   sendBookingExtensionActivatedMail,
   sendBookingExtensionExpiredMail,
 } from "./mail.helper";
-import { calculateRentalPrice } from "./rental.helper";
+import { calculateRentalPrice, normalizeRentalMode } from "./rental.helper";
 import { deriveContractPaymentStatus } from "./status.helper";
 
 export const BOOKING_EXTENSION_PAYMENT_MINUTES = 10;
+export const HOURLY_EXTENSION_MIN_HOURS = 2;
+export const HOURLY_BOOKING_MAX_TOTAL_HOURS = 8;
+export const HOURLY_BOOKING_MAX_DURATION_MESSAGE =
+  "Thời lượng thuê theo giờ tối đa là 8 giờ. Vui lòng chuyển sang hình thức thuê theo ngày.";
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 const EXTENSION_EXPIRATION_BATCH_SIZE = 25;
 const EXTENSION_EXPIRATION_JOB_INTERVAL_MS = 60 * 1000;
 let extensionExpirationJobStarted = false;
 let extensionExpirationJobRunning = false;
+
+function bookingExtensionDurationError(message: string) {
+  return new BaseError(400, "-3", message, message);
+}
 
 export const ACTIVE_BOOKING_EXTENSION_STATUSES = [
   BookingExtensionStatusEnum.REQUESTED,
@@ -56,6 +66,71 @@ export function calculateBookingFinanceAfterExtension(input: {
     paidAmount,
     remainingAmount: Math.max(totalPrice - paidAmount, 0),
   };
+}
+
+export function assertBookingExtensionDuration(
+  booking: any,
+  requestedEndAt: Date,
+) {
+  const rentalMode = normalizeRentalMode(
+    booking?.rentalMode || booking?.pricingSnapshot?.rentalMode,
+  );
+  const startAt = new Date(booking.startDate);
+  const oldEndAt = new Date(booking.endDate);
+  const requestedEndTime = requestedEndAt.getTime();
+  if (
+    Number.isNaN(startAt.getTime()) ||
+    Number.isNaN(oldEndAt.getTime()) ||
+    Number.isNaN(requestedEndTime)
+  ) {
+    throw ErrorHelper.requestDataInvalid("Thời gian gia hạn không hợp lệ");
+  }
+
+  if (rentalMode === RentalModeEnum.DAILY) {
+    const keepsReturnTime =
+      requestedEndAt.getUTCHours() === oldEndAt.getUTCHours() &&
+      requestedEndAt.getUTCMinutes() === oldEndAt.getUTCMinutes() &&
+      requestedEndAt.getUTCSeconds() === oldEndAt.getUTCSeconds() &&
+      requestedEndAt.getUTCMilliseconds() === oldEndAt.getUTCMilliseconds();
+    const oldEndDate = Date.UTC(
+      oldEndAt.getUTCFullYear(),
+      oldEndAt.getUTCMonth(),
+      oldEndAt.getUTCDate(),
+    );
+    const requestedEndDate = Date.UTC(
+      requestedEndAt.getUTCFullYear(),
+      requestedEndAt.getUTCMonth(),
+      requestedEndAt.getUTCDate(),
+    );
+    const extensionDays = (requestedEndDate - oldEndDate) / DAY_MS;
+
+    if (!keepsReturnTime || extensionDays < 1) {
+      throw bookingExtensionDurationError(
+        "Gia hạn thuê theo ngày chỉ được chọn ngày trả mới và phải giữ nguyên giờ trả hiện tại.",
+      );
+    }
+    return;
+  }
+
+  if (rentalMode !== RentalModeEnum.HOURLY) return;
+
+  const extensionBillableHours = Math.ceil(
+    (requestedEndTime - oldEndAt.getTime()) / HOUR_MS,
+  );
+  if (extensionBillableHours < HOURLY_EXTENSION_MIN_HOURS) {
+    throw bookingExtensionDurationError(
+      "Mỗi lần gia hạn thuê theo giờ tối thiểu là 2 giờ.",
+    );
+  }
+
+  const totalBillableHours = Math.ceil(
+    (requestedEndTime - startAt.getTime()) / HOUR_MS,
+  );
+  if (totalBillableHours > HOURLY_BOOKING_MAX_TOTAL_HOURS) {
+    throw bookingExtensionDurationError(
+      HOURLY_BOOKING_MAX_DURATION_MESSAGE,
+    );
+  }
 }
 
 function buildPricingCarFromBooking(booking: any) {
@@ -95,6 +170,7 @@ export async function calculateBookingExtensionPrice(
   booking: any,
   requestedEndAt: Date,
 ) {
+  assertBookingExtensionDuration(booking, requestedEndAt);
   const oldEndAt = new Date(booking.endDate);
   const result = await calculateRentalPrice(
     buildPricingCarFromBooking(booking),
@@ -170,6 +246,11 @@ export async function prepareBookingExtensionPayment(input: {
           "Thời gian booking đã thay đổi, vui lòng tạo yêu cầu gia hạn mới",
         );
       }
+
+      assertBookingExtensionDuration(
+        booking,
+        new Date(extension.requestedEndAt),
+      );
 
       await PaymentModel.updateMany(
         {
@@ -332,6 +413,11 @@ export async function activatePaidBookingExtension(paymentId: string) {
           "Thời gian trả xe hiện tại không còn khớp yêu cầu gia hạn",
         );
       }
+
+      assertBookingExtensionDuration(
+        booking,
+        new Date(extension.requestedEndAt),
+      );
 
       const lockedCar = await CarModel.findOneAndUpdate(
         { _id: extension.carId, isDeleted: false },

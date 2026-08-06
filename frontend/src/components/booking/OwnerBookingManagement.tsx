@@ -1,3 +1,4 @@
+// Shared owner module: booking management for BUSINESS and USER consignment dashboards.
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
@@ -39,6 +40,7 @@ import { notifyNotificationSummaryChanged } from "../../services/notification.se
 import { formatVietnamDateTime } from "../../utils/date.util";
 import { getBookingStatusLabel } from "../../utils/display.util";
 import { normalizeImageUrl } from "../../utils/image.util";
+import { CASH_PAYMENT_UI_ENABLED } from "../../config/payment.config";
 import { useOwnerBookingList } from "./useOwnerBookingList";
 import OwnerBookingActionModal, {
   type OwnerBookingActionPayload,
@@ -150,6 +152,11 @@ const MUTATION_ACTIONS: OwnerBookingMutationAction[] = [
   "handover",
   "return",
 ];
+
+const INLINE_DETAIL_ACTIONS = new Set<OwnerBookingAction>([
+  "inspection",
+  "extra-charge",
+]);
 
 function isMutationAction(
   action: OwnerBookingAction | null,
@@ -655,10 +662,10 @@ function OwnerBookingActions({
 function OwnerBookingTable({ bookings, onView, onAction }: { bookings: OwnerBookingListItem[]; onView: (id: string) => void; onAction: (id: string, action: OwnerBookingAction) => void }) {
   return (
     <div className="hidden overflow-x-auto md:block">
-      <table className="w-full min-w-[1040px] text-left text-sm">
+      <table className="w-full min-w-[1160px] text-left text-sm">
         <thead className="bg-slate-50 text-xs font-extrabold uppercase text-slate-500">
           <tr>
-            <th className="px-5 py-4">Booking</th><th className="px-5 py-4">Xe</th><th className="px-5 py-4">Khách thuê</th><th className="px-5 py-4">Thời gian thuê</th><th className="px-5 py-4">Thanh toán</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4 text-right">Thao tác</th>
+            <th className="px-5 py-4">Booking</th><th className="px-5 py-4">Xe</th><th className="px-5 py-4">Khách thuê</th><th className="px-5 py-4">Thời gian thuê</th><th className="px-5 py-4">Trả thực tế</th><th className="px-5 py-4">Thanh toán</th><th className="px-5 py-4">Trạng thái</th><th className="px-5 py-4 text-right">Thao tác</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -668,6 +675,7 @@ function OwnerBookingTable({ bookings, onView, onAction }: { bookings: OwnerBook
               <td className="px-5 py-4"><div className="flex items-center gap-3"><CarThumbnail booking={booking} /><div><p className="font-extrabold text-primary">{booking.car.name || "--"}</p><p className="text-xs font-bold text-secondaryDark">{booking.car.carCode || "Chưa được cấp"}</p><p className="text-xs text-slate-500">{booking.car.licensePlate || "--"}</p></div></div></td>
               <td className="px-5 py-4"><div className="flex items-center gap-3"><CustomerAvatar booking={booking} /><span className="font-bold text-primary">{booking.customer.name}</span></div></td>
               <td className="px-5 py-4 text-slate-600"><p><strong className="text-primary">Nhận:</strong> {formatDateTime(booking.startDate)}</p><p className="mt-1"><strong className="text-primary">Trả:</strong> {formatDateTime(booking.endDate)}</p></td>
+              <td className="px-5 py-4"><p className={`font-bold ${booking.actualReturnAt ? "text-primary" : "text-slate-500"}`}>{booking.actualReturnAt ? formatDateTime(booking.actualReturnAt) : "Chưa ghi nhận"}</p></td>
               <td className="px-5 py-4"><p className="font-extrabold text-primary">{formatCurrency(booking.pricing.totalPrice)}</p><p className="mt-1 text-xs text-emerald-700">Đã trả: {formatCurrency(booking.pricing.paidAmount)}</p><p className="text-xs text-amber-700">Còn lại: {formatCurrency(booking.pricing.remainingAmount)}</p></td>
               <td className="px-5 py-4"><AdminStatusBadge label={getBookingStatusLabel(booking.status)} tone={STATUS_TONES[booking.status]} /></td>
               <td className="px-5 py-4 text-right"><OwnerBookingActions booking={booking} onView={onView} onAction={onAction} variant="desktop" /></td>
@@ -686,7 +694,7 @@ function OwnerBookingMobileCards({ bookings, onView, onAction }: { bookings: Own
         <article key={booking._id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase text-slate-400">Mã đặt xe: {booking.bookingCode}</p><p className="mt-1 text-xs text-slate-500">{formatDateTime(booking.createdAt)}</p></div><AdminStatusBadge label={getBookingStatusLabel(booking.status)} tone={STATUS_TONES[booking.status]} /></div>
           <div className="mt-4 flex gap-3"><CarThumbnail booking={booking} /><div className="min-w-0"><h3 className="truncate font-extrabold text-primary">{booking.car.name}</h3><p className="text-xs font-bold text-secondaryDark">{booking.car.carCode || "Chưa được cấp"}</p><p className="text-xs text-slate-500">{booking.car.licensePlate || "--"}</p></div></div>
-          <div className="mt-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-3 text-sm"><div><p className="text-xs font-bold uppercase text-slate-400">Khách thuê</p><p className="mt-1 font-bold text-primary">{booking.customer.name}</p></div><div><p className="text-xs font-bold uppercase text-slate-400">Còn lại</p><p className="mt-1 font-extrabold text-amber-700">{formatCurrency(booking.pricing.remainingAmount)}</p></div><div><p className="text-xs text-slate-500">Nhận xe</p><p className="font-semibold text-primary">{formatDateTime(booking.startDate)}</p></div><div><p className="text-xs text-slate-500">Trả xe</p><p className="font-semibold text-primary">{formatDateTime(booking.endDate)}</p></div></div>
+          <div className="mt-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-3 text-sm"><div><p className="text-xs font-bold uppercase text-slate-400">Khách thuê</p><p className="mt-1 font-bold text-primary">{booking.customer.name}</p></div><div><p className="text-xs font-bold uppercase text-slate-400">Còn lại</p><p className="mt-1 font-extrabold text-amber-700">{formatCurrency(booking.pricing.remainingAmount)}</p></div><div><p className="text-xs text-slate-500">Nhận xe</p><p className="font-semibold text-primary">{formatDateTime(booking.startDate)}</p></div><div><p className="text-xs text-slate-500">Trả dự kiến</p><p className="font-semibold text-primary">{formatDateTime(booking.endDate)}</p></div><div className="col-span-2"><p className="text-xs text-slate-500">Trả thực tế</p><p className={`font-semibold ${booking.actualReturnAt ? "text-primary" : "text-slate-500"}`}>{booking.actualReturnAt ? formatDateTime(booking.actualReturnAt) : "Chưa ghi nhận"}</p></div></div>
           <div className="mt-4"><OwnerBookingActions booking={booking} onView={onView} onAction={onAction} variant="mobile" /></div>
         </article>
       ))}
@@ -854,6 +862,7 @@ function BookingDetailContent({
     "COMPLETED",
   ].includes(detail.status);
   const canConfirmRemainingCash =
+    CASH_PAYMENT_UI_ENABLED &&
     detail.pricing.remainingAmount > 0 &&
     [
       "OWNER_APPROVED",
@@ -992,6 +1001,7 @@ function BookingDetailContent({
       <BookingExtensionPanel
         bookingId={detail._id}
         bookingStatus={detail.status}
+        startAt={detail.startDate}
         currentEndAt={detail.endDate}
         rentalMode={detail.rentalMode}
         mode="OWNER"
@@ -1170,10 +1180,12 @@ export default function OwnerBookingManagement({ eyebrow, title, subtitle }: Own
   const detailFooter = state.detail ? (
     <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
       <button type="button" onClick={state.closeDetail} className="min-h-11 rounded-lg border border-slate-200 bg-white px-5 py-2 font-bold text-primary transition hover:border-secondary hover:bg-secondarySoft/70">Đóng</button>
-      {(state.detail.availableActions || []).map((action) => {
+      {(state.detail.availableActions || [])
+        .filter((action) => !INLINE_DETAIL_ACTIONS.has(action))
+        .map((action) => {
         const Icon = ACTION_ICONS[action];
         return <button key={action} type="button" onClick={() => state.openAction(state.detail!._id, action)} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-5 py-2 font-extrabold transition ${action === "reject" || action === "cancel" || action === "no-show" ? "border border-red-200 bg-white text-red-700 hover:bg-red-50" : "bg-secondary text-primary hover:bg-secondaryLight"}`}><Icon size={18} />{ACTION_LABELS[action]}</button>;
-      })}
+        })}
     </div>
   ) : undefined;
 

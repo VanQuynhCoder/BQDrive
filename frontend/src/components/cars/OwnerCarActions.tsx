@@ -1,3 +1,4 @@
+// Shared owner UI: car action menu used by BUSINESS and USER consignment lists.
 import {
   Edit,
   Eye,

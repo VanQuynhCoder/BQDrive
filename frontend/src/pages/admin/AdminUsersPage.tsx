@@ -219,6 +219,7 @@ export default function AdminUsersPage() {
                 <th className="px-5 py-4">Họ tên</th>
                 <th className="px-5 py-4">Email</th>
                 <th className="px-5 py-4">Số điện thoại</th>
+                <th className="px-5 py-4">GPLX</th>
                 <th className="px-5 py-4">Role</th>
                 <th className="px-5 py-4">Trạng thái</th>
                 <th className="px-5 py-4">Ngày tạo</th>
@@ -243,6 +244,9 @@ export default function AdminUsersPage() {
                     <td className="px-5 py-4 text-slate-600">{user.email}</td>
                     <td className="px-5 py-4 text-slate-600">
                       {user.phone || "--"}
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {user.GPLX || "--"}
                     </td>
                     <td className="px-5 py-4">
                       <AdminStatusBadge tone="blue" label={getRoleLabel(user.role)} />

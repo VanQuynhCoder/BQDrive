@@ -1,4 +1,5 @@
-﻿import api from "./api";
+﻿// Shared contracts plus ADMIN API; selected DTO types are reused by owner services.
+import api from "./api";
 
 import type { CarMileagePolicy } from "./car.service";
 import type { OwnerMapCar } from "./ownerCarLocation.service";
@@ -11,6 +12,7 @@ export type AdminUser = {
   name: string;
   email: string;
   phone?: string;
+  GPLX?: string;
   address?: string;
   province?: string;
   city?: string;

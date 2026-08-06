@@ -11,6 +11,7 @@ import {
 import { assertCarAvailability } from "../../helper/car-availability.helper";
 import {
   ACTIVE_BOOKING_EXTENSION_STATUSES,
+  assertBookingExtensionDuration,
   calculateBookingExtensionPrice,
   expireStaleBookingExtensions,
   getBookingExtensionPaymentDeadline,
@@ -135,16 +136,16 @@ class BookingExtensionRoute extends BaseRoute {
       );
     }
 
+    const quote = await calculateBookingExtensionPrice(
+      booking,
+      requestedEndAt,
+    );
     await assertCarAvailability({
       carId: String(booking.carId),
       start: oldEndAt,
       end: requestedEndAt,
       ignoredBookingId: String(booking._id),
     });
-    const quote = await calculateBookingExtensionPrice(
-      booking,
-      requestedEndAt,
-    );
     if (quote.additionalAmount <= 0) {
       throw ErrorHelper.requestDataInvalid("Chi phí gia hạn không hợp lệ");
     }
@@ -350,6 +351,11 @@ class BookingExtensionRoute extends BaseRoute {
             "Thời gian booking đã thay đổi, không thể duyệt yêu cầu này",
           );
         }
+
+        assertBookingExtensionDuration(
+          approvedBooking,
+          new Date(extension.requestedEndAt),
+        );
 
         await assertCarAvailability({
           carId: String(extension.carId),

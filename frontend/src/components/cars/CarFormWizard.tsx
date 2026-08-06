@@ -1,3 +1,4 @@
+// Shared owner UI: car form wizard used by BUSINESS and USER consignment pages.
 import {
   Check,
   ChevronLeft,
@@ -275,7 +276,7 @@ export function RegistrationCardImagesField({
           {uploading ? "Đang upload..." : "Chọn ảnh cà vẹt"}
           <input
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             multiple
             className="hidden"
             onChange={onFilesChange}
@@ -294,7 +295,7 @@ export function RegistrationCardImagesField({
               <img
                 src={image}
                 alt={`Ảnh cà vẹt xe ${index + 1}`}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
               />
               <span className="absolute bottom-2 left-2 rounded-lg bg-primary/90 px-3 py-1 text-xs font-extrabold text-secondary">
                 {index === 0 ? "Cà vẹt mặt trước" : "Cà vẹt mặt sau"}

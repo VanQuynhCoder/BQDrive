@@ -1,3 +1,4 @@
+// Shared owner types: per-car booking data for BUSINESS and USER consignment modules.
 export type OwnerCarBookingGroup =
   | "ALL"
   | "ACTIVE"

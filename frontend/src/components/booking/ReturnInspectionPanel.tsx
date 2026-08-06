@@ -1,3 +1,4 @@
+// Shared owner module: return inspection for BUSINESS and USER consignment bookings.
 import {
   type ChangeEvent,
   useCallback,

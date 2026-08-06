@@ -21,6 +21,7 @@ import { getFirstCarImage } from "../utils/image.util";
 import { formatAddressSnapshot } from "../utils/address.util";
 import { getBookingDisplayCode } from "../utils/display.util";
 import type { PricingSnapshot } from "../types/pricing";
+import { CASH_PAYMENT_UI_ENABLED } from "../config/payment.config";
 
 type BookingCar = {
   _id: string;
@@ -158,7 +159,7 @@ export default function PaymentPage() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [pageLoading, setPageLoading] = useState(() => Boolean(id));
   const [submitting, setSubmitting] = useState(false);
-  const [method, setMethod] = useState<PaymentMethod>("CASH");
+  const [method, setMethod] = useState<PaymentMethod>("VNPAY");
   const [paymentType, setPaymentType] = useState<PaymentType>("DEPOSIT");
 
   useEffect(() => {
@@ -567,7 +568,9 @@ export default function PaymentPage() {
               </h2>
 
               <div className="grid gap-4 md:grid-cols-2">
-                {paymentMethods.map(({ value, label, description, icon: Icon }) => (
+                {paymentMethods
+                  .filter(({ value }) => CASH_PAYMENT_UI_ENABLED || value !== "CASH")
+                  .map(({ value, label, description, icon: Icon }) => (
                   <button
                     key={value}
                     type="button"
@@ -586,7 +589,7 @@ export default function PaymentPage() {
                       </p>
                     </div>
                   </button>
-                ))}
+                  ))}
               </div>
 
               <div className="mt-6 rounded-lg border border-secondary/20 bg-secondarySoft/25 p-5">

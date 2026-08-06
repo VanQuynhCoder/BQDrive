@@ -1272,7 +1272,7 @@ class CarRoute extends BaseRoute {
     const firstImage = Array.isArray(car.images)
       ? car.images.find((image: unknown) => typeof image === "string" && image.trim()) || ""
       : "";
-    const thumbnail = toCloudinaryCardThumbnailUrl(firstImage);
+    const thumbnail = firstImage;
     const publicCar = { ...car };
 
     delete publicCar.images;
@@ -1773,7 +1773,7 @@ class CarRoute extends BaseRoute {
     }
 
     const isPubliclyVisible =
-      car.status === CarStatusEnum.APPROVED &&
+      PUBLIC_CAR_STATUSES.includes(car.status as CarStatusEnum) &&
       !car.isHidden &&
       !(car as any).hiddenByOwner &&
       !(car as any).hiddenByAdmin;

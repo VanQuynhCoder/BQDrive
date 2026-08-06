@@ -1,3 +1,4 @@
+// Shared owner model: car wizard data and validation for BUSINESS and USER consignment.
 import {
   isValidPlateNumber,
   normalizePlateNumber,

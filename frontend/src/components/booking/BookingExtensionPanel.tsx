@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
+  CalendarDays,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
   Clock3,
   CreditCard,
   History,
@@ -20,10 +22,12 @@ import {
 import { paymentService } from "../../services/payment.service";
 import { notifyNotificationSummaryChanged } from "../../services/notification.service";
 import { formatVietnamDateTime } from "../../utils/date.util";
+import { CASH_PAYMENT_UI_ENABLED } from "../../config/payment.config";
 
 type BookingExtensionPanelProps = {
   bookingId: string;
   bookingStatus: string;
+  startAt: string;
   currentEndAt: string;
   rentalMode?: string;
   mode: "RENTER" | "OWNER";
@@ -35,6 +39,12 @@ const ACTIVE_STATUSES: BookingExtensionStatus[] = [
   "OWNER_APPROVED",
   "PAYMENT_PENDING",
 ];
+
+const HOURLY_EXTENSION_MIN_HOURS = 2;
+const HOURLY_BOOKING_MAX_TOTAL_HOURS = 8;
+const HOURLY_BOOKING_MAX_DURATION_MESSAGE =
+  "Thời lượng thuê theo giờ tối đa là 8 giờ. Vui lòng chuyển sang hình thức thuê theo ngày.";
+const HOUR_MS = 60 * 60_000;
 
 const STATUS_LABELS: Record<BookingExtensionStatus, string> = {
   REQUESTED: "Chờ chủ xe xử lý",
@@ -80,7 +90,7 @@ function toDateTimeLocal(value: Date) {
 function getDefaultRequestedEndAt(endAt: string, rentalMode?: string) {
   const end = new Date(endAt);
   const base = Number.isNaN(end.getTime()) ? new Date() : end;
-  const increment = rentalMode === "HOURLY" ? 60 * 60_000 : 24 * 60 * 60_000;
+  const increment = rentalMode === "HOURLY" ? 2 * 60 * 60_000 : 24 * 60 * 60_000;
   return toDateTimeLocal(new Date(base.getTime() + increment));
 }
 
@@ -132,6 +142,7 @@ function formatDuration(minutes = 0) {
 export default function BookingExtensionPanel({
   bookingId,
   bookingStatus,
+  startAt,
   currentEndAt,
   rentalMode,
   mode,
@@ -188,7 +199,63 @@ export default function BookingExtensionPanel({
   );
   const canRequest =
     mode === "RENTER" && bookingStatus === "IN_PROGRESS" && !activeExtension;
+  const [requestedEndDate = ""] = requestedEndAt.split("T");
+  const currentEndTime = new Date(currentEndAt).getTime();
+  const bookingStartTime = new Date(startAt).getTime();
+  const currentEndLocal = Number.isFinite(currentEndTime)
+    ? toDateTimeLocal(new Date(currentEndTime))
+    : "";
+  const currentEndClock = currentEndLocal.split("T")[1] || "";
+  const minimumDailyExtensionDays = Number.isFinite(currentEndTime)
+    ? Math.max(1, Math.floor(Math.max(0, now - currentEndTime) / (24 * HOUR_MS)) + 1)
+    : 1;
+  const minimumDailyExtensionDate = Number.isFinite(currentEndTime)
+    ? toDateTimeLocal(
+        new Date(currentEndTime + minimumDailyExtensionDays * 24 * HOUR_MS),
+      ).slice(0, 10)
+    : "";
+  const currentTotalBillableHours =
+    Number.isFinite(currentEndTime) && Number.isFinite(bookingStartTime)
+      ? Math.ceil((currentEndTime - bookingStartTime) / HOUR_MS)
+      : HOURLY_BOOKING_MAX_TOTAL_HOURS;
+  const maximumAdditionalHours = Math.max(
+    0,
+    HOURLY_BOOKING_MAX_TOTAL_HOURS - currentTotalBillableHours,
+  );
+  const hourlyExtensionOptions = Array.from(
+    { length: Math.max(0, maximumAdditionalHours - HOURLY_EXTENSION_MIN_HOURS + 1) },
+    (_, index) => HOURLY_EXTENSION_MIN_HOURS + index,
+  );
+  const selectedHourlyExtensionHours =
+    rentalMode === "HOURLY" && Number.isFinite(currentEndTime)
+      ? Math.round((new Date(requestedEndAt).getTime() - currentEndTime) / HOUR_MS)
+      : 0;
+  const hasValidRequestedEnd =
+    rentalMode === "HOURLY"
+      ? hourlyExtensionOptions.includes(selectedHourlyExtensionHours)
+      : Boolean(requestedEndDate && currentEndClock);
+  const getHourlyValidationMessage = (candidateTime: number) => {
+    if (rentalMode !== "HOURLY") return "";
 
+    const extensionBillableHours = Math.ceil(
+      (candidateTime - currentEndTime) / HOUR_MS,
+    );
+    if (extensionBillableHours < HOURLY_EXTENSION_MIN_HOURS) {
+      return "Mỗi lần gia hạn thuê theo giờ tối thiểu là 2 giờ.";
+    }
+
+    const totalBillableHours = Math.ceil(
+      (candidateTime - bookingStartTime) / HOUR_MS,
+    );
+    if (
+      !Number.isFinite(totalBillableHours) ||
+      totalBillableHours > HOURLY_BOOKING_MAX_TOTAL_HOURS
+    ) {
+      return HOURLY_BOOKING_MAX_DURATION_MESSAGE;
+    }
+
+    return "";
+  };
   const refreshAfterAction = async (bookingChanged = false) => {
     await loadExtensions();
     notifyNotificationSummaryChanged();
@@ -204,6 +271,12 @@ export default function BookingExtensionPanel({
       nextEnd <= new Date()
     ) {
       toast.error("Thời gian trả mới phải sau thời gian trả hiện tại.");
+      return;
+    }
+
+    const hourlyValidationMessage = getHourlyValidationMessage(nextEnd.getTime());
+    if (hourlyValidationMessage) {
+      toast.error(hourlyValidationMessage);
       return;
     }
 
@@ -229,6 +302,12 @@ export default function BookingExtensionPanel({
       nextEnd <= new Date()
     ) {
       toast.error("Thời gian trả mới phải sau thời gian trả hiện tại.");
+      return;
+    }
+
+    const hourlyValidationMessage = getHourlyValidationMessage(nextEnd.getTime());
+    if (hourlyValidationMessage) {
+      toast.error(hourlyValidationMessage);
       return;
     }
 
@@ -383,27 +462,125 @@ export default function BookingExtensionPanel({
 
       {requestFormOpen && (
         <div className="mt-4 rounded-lg border border-secondary/35 bg-secondarySoft/30 p-4">
-          <label className="text-sm font-extrabold text-primary" htmlFor={`extension-end-${bookingId}`}>
+          <p className="text-sm font-extrabold text-primary">
             Thời gian trả xe mới
-          </label>
-          <input
-            id={`extension-end-${bookingId}`}
-            type="datetime-local"
-            value={requestedEndAt}
-            min={toDateTimeLocal(new Date())}
-            onChange={(event) => {
-              setRequestedEndAt(event.target.value);
-              setQuote(null);
-            }}
-            className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 font-semibold text-primary outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20"
-          />
+          </p>
+          {rentalMode === "HOURLY" ? (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="block" htmlFor={`extension-hours-${bookingId}`}>
+                <span className="mb-1.5 block text-xs font-bold uppercase text-slate-500">
+                  Số giờ gia hạn
+                </span>
+                <span className="relative flex min-h-12 items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 transition focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
+                  <Clock3 size={18} className="shrink-0 text-secondaryDark" />
+                  <select
+                    id={`extension-hours-${bookingId}`}
+                    value={
+                      hourlyExtensionOptions.includes(selectedHourlyExtensionHours)
+                        ? selectedHourlyExtensionHours
+                        : ""
+                    }
+                    disabled={hourlyExtensionOptions.length === 0}
+                    onChange={(event) => {
+                      const hours = Number(event.target.value);
+                      setRequestedEndAt(
+                        hours > 0
+                          ? toDateTimeLocal(
+                              new Date(currentEndTime + hours * HOUR_MS),
+                            )
+                          : "",
+                      );
+                      setQuote(null);
+                    }}
+                    className="min-h-11 min-w-0 flex-1 appearance-none bg-transparent pr-8 font-semibold text-primary outline-none disabled:text-slate-400"
+                  >
+                    {hourlyExtensionOptions.length === 0 ? (
+                      <option value="">Không thể gia hạn thêm</option>
+                    ) : (
+                      hourlyExtensionOptions.map((hours) => (
+                        <option key={hours} value={hours}>
+                          Thêm {hours} giờ
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <ChevronDown size={18} className="pointer-events-none absolute right-3 text-slate-500" />
+                </span>
+              </label>
+
+              <div>
+                <span className="mb-1.5 block text-xs font-bold uppercase text-slate-500">
+                  Thời gian trả mới
+                </span>
+                <div className="flex min-h-12 items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3">
+                  <CalendarClock size={18} className="shrink-0 text-secondaryDark" />
+                  <span className="font-semibold text-primary">
+                    {hasValidRequestedEnd
+                      ? formatDateTime(new Date(requestedEndAt).toISOString())
+                      : "Chưa có thời gian phù hợp"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="block" htmlFor={`extension-end-date-${bookingId}`}>
+                <span className="mb-1.5 block text-xs font-bold uppercase text-slate-500">
+                  Ngày trả mới
+                </span>
+                <span className="flex min-h-12 items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 transition focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
+                  <CalendarDays size={18} className="shrink-0 text-secondaryDark" />
+                  <input
+                    id={`extension-end-date-${bookingId}`}
+                    type="date"
+                    min={minimumDailyExtensionDate}
+                    value={requestedEndDate}
+                    onChange={(event) => {
+                      const nextDate = event.target.value;
+                      setRequestedEndAt(
+                        nextDate && currentEndClock
+                          ? `${nextDate}T${currentEndClock}`
+                          : "",
+                      );
+                      setQuote(null);
+                    }}
+                    className="min-w-0 flex-1 bg-transparent font-semibold text-primary outline-none"
+                  />
+                </span>
+              </label>
+
+              <div>
+                <span className="mb-1.5 block text-xs font-bold uppercase text-slate-500">
+                  Giờ trả giữ nguyên
+                </span>
+                <div className="flex min-h-12 items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3">
+                  <Clock3 size={18} className="shrink-0 text-secondaryDark" />
+                  <span className="font-semibold text-primary">
+                    {currentEndClock || "--:--"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+          {rentalMode === "HOURLY" && hourlyExtensionOptions.length === 0 && (
+            <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+              {HOURLY_BOOKING_MAX_DURATION_MESSAGE}
+            </p>
+          )}
           <p className="mt-2 text-sm font-semibold text-slate-600">
             Hệ thống sẽ kiểm tra lịch trống và tính chi phí theo bảng giá đã chốt của booking.
+          </p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+            {rentalMode === "HOURLY"
+              ? "Mỗi lần gia hạn tối thiểu 2 giờ và tổng thời lượng booking thuê theo giờ không được vượt quá 8 giờ."
+              : "Booking thuê theo ngày: chỉ chọn ngày trả mới; giờ trả được giữ nguyên theo booking hiện tại."}
           </p>
           <button
             type="button"
             onClick={() => void handleQuote()}
-            disabled={quoteLoading || actionId === "request"}
+            disabled={
+              quoteLoading || actionId === "request" || !hasValidRequestedEnd
+            }
             className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-secondary bg-white px-4 font-extrabold text-primary hover:bg-secondarySoft/30 disabled:opacity-60"
           >
             {quoteLoading && <Loader2 size={18} className="animate-spin" />}
@@ -443,7 +620,7 @@ export default function BookingExtensionPanel({
             <button
               type="button"
               onClick={() => void handleRequest()}
-              disabled={actionId === "request" || !quote}
+              disabled={actionId === "request" || !quote || !hasValidRequestedEnd}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 font-extrabold text-secondary hover:bg-primary/90 disabled:opacity-60"
             >
               {actionId === "request" && <Loader2 size={18} className="animate-spin" />}
@@ -571,9 +748,11 @@ export default function BookingExtensionPanel({
                 {mode === "RENTER" && waitingPayment && !deadlineExpired && (
                   <div className="mt-4 border-t border-slate-200 pt-4">
                     {payment?.method === "CASH" && payment.status === "PENDING" ? (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
-                        Đã chọn tiền mặt. Vui lòng thanh toán cho chủ xe trước khi hết thời hạn để được kích hoạt gia hạn.
-                      </div>
+                      CASH_PAYMENT_UI_ENABLED ? (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+                          Đã chọn tiền mặt. Vui lòng thanh toán cho chủ xe trước khi hết thời hạn để được kích hoạt gia hạn.
+                        </div>
+                      ) : null
                     ) : (
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                         <label className="flex-1 text-sm font-extrabold text-primary">
@@ -585,7 +764,9 @@ export default function BookingExtensionPanel({
                           >
                             <option value="VNPAY">VNPay</option>
                             <option value="MOMO">MoMo</option>
-                            <option value="CASH">Tiền mặt</option>
+                            {CASH_PAYMENT_UI_ENABLED && (
+                              <option value="CASH">Tiền mặt</option>
+                            )}
                           </select>
                         </label>
                         <button
@@ -602,7 +783,8 @@ export default function BookingExtensionPanel({
                   </div>
                 )}
 
-                {mode === "OWNER" &&
+                {CASH_PAYMENT_UI_ENABLED &&
+                  mode === "OWNER" &&
                   extension.status === "PAYMENT_PENDING" &&
                   payment?.method === "CASH" &&
                   payment.status === "PENDING" &&

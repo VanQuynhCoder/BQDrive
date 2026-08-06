@@ -1,3 +1,4 @@
+// Shared utility: pricing display/calculation helpers used across all role views.
 import type { CarPricing, RentalMode } from "../types/pricing";
 
 export function hasPricingNumber(
@@ -59,4 +60,3 @@ export function hasAnySurcharge(pricing?: CarPricing | null) {
     pricing?.holidaySurchargePerHour,
   ].some((value) => hasPricingNumber(value) && value > 0);
 }
-

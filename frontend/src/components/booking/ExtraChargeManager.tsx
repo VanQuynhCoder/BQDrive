@@ -1,3 +1,4 @@
+// Shared owner module: extra-charge handling for BUSINESS and USER consignment bookings.
 import {
   type ChangeEvent,
   useCallback,
@@ -17,6 +18,7 @@ import { notifyNotificationSummaryChanged } from "../../services/notification.se
 import { ownerBookingService } from "../../services/ownerBooking.service";
 import type { OwnerReturnInspection } from "../../types/ownerBooking";
 import { normalizeImageUrl } from "../../utils/image.util";
+import { CASH_PAYMENT_UI_ENABLED } from "../../config/payment.config";
 
 const MAX_EVIDENCE_IMAGES = 5;
 
@@ -665,14 +667,16 @@ export default function ExtraChargeManager({
 
               {charge.status === "PENDING" && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleConfirmCash(charge._id)}
-                    disabled={submitting}
-                    className="rounded-lg bg-primary px-4 py-2 text-sm font-extrabold text-secondary disabled:opacity-60"
-                  >
-                    Xác nhận đã thu tiền mặt
-                  </button>
+                  {CASH_PAYMENT_UI_ENABLED && (
+                    <button
+                      type="button"
+                      onClick={() => handleConfirmCash(charge._id)}
+                      disabled={submitting}
+                      className="rounded-lg bg-primary px-4 py-2 text-sm font-extrabold text-secondary disabled:opacity-60"
+                    >
+                      Xác nhận đã thu tiền mặt
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleCancel(charge._id)}

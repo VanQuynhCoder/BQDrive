@@ -1,3 +1,4 @@
+// Shared owner module: booking actions for BUSINESS and USER consignment flows.
 import { type ChangeEvent, useEffect, useState } from "react";
 import {
   CalendarRange,

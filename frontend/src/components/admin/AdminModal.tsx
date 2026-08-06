@@ -1,4 +1,5 @@
-﻿import { X } from "lucide-react";
+﻿// Shared UI: modal shell used by ADMIN and owner dashboards (BUSINESS/USER consignment).
+import { X } from "lucide-react";
 import type { ReactNode } from "react";
 
 type AdminModalProps = {

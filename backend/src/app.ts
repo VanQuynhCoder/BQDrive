@@ -45,7 +45,7 @@ app.use((error: any, req: any, res: any, next: any) => {
       status: 400,
       code: "-3",
       message: "Dữ liệu không hợp lệ",
-      data: "Mỗi ảnh xe tối đa 5MB",
+      data: "Mỗi ảnh xe tối đa 10MB",
     });
   }
 

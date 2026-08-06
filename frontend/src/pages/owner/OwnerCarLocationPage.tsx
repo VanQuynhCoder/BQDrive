@@ -1,3 +1,4 @@
+// Shared owner page: routed from both BUSINESS and USER consignment layouts.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";

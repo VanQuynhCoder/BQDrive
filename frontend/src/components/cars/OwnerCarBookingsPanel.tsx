@@ -1,3 +1,4 @@
+// Shared owner UI: per-car bookings for BUSINESS and USER consignment management.
 import {
   CalendarDays,
   ChevronLeft,

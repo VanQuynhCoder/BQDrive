@@ -1,3 +1,4 @@
+// Shared owner page: routed from both BUSINESS and USER consignment layouts.
 import { useEffect, useState } from "react";
 import { Eye, FileText, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";

@@ -1,3 +1,4 @@
+// Shared owner page: routed from both BUSINESS and USER consignment layouts.
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CalendarDays, Eye, FileText, Loader2, Search, X } from "lucide-react";

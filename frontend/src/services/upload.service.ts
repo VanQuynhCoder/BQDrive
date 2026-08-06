@@ -1,3 +1,4 @@
+// Shared upload API: car/profile/evidence images used across role-specific forms.
 import api from "./api";
 
 export type UploadedCarImage = {
@@ -17,6 +18,16 @@ function unwrap<T>(response: { data: ApiData<T> }) {
   return response.data.data;
 }
 
+function resolveUploadedImageUrl(url: string) {
+  if (!url || /^(?:https?:|data:|blob:)/i.test(url)) {
+    return url;
+  }
+
+  const apiBaseUrl = String(api.defaults.baseURL || "/api");
+  const absoluteApiBaseUrl = new URL(apiBaseUrl, window.location.origin);
+  return new URL(url, absoluteApiBaseUrl.origin).toString();
+}
+
 export const uploadService = {
   uploadCarImage: async (file: File) => {
     const formData = new FormData();
@@ -28,6 +39,10 @@ export const uploadService = {
       },
     });
 
-    return unwrap<{ image: UploadedCarImage }>(res).image;
+    const image = unwrap<{ image: UploadedCarImage }>(res).image;
+    return {
+      ...image,
+      url: resolveUploadedImageUrl(image.url),
+    };
   },
 };

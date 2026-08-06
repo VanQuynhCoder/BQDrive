@@ -1,3 +1,4 @@
+// Shared owner UI: car performance for BUSINESS and USER consignment management.
 import {
   Activity,
   Banknote,

@@ -1,3 +1,4 @@
+// Shared UI: status badge used across ADMIN, BUSINESS, and USER management screens.
 export type AdminStatusBadgeTone = "green" | "red" | "yellow" | "blue" | "gray";
 
 type AdminStatusBadgeProps = {

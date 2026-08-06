@@ -1,3 +1,4 @@
+// Shared owner hook: car list state for BUSINESS and USER consignment management.
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 

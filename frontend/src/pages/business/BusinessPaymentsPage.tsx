@@ -14,6 +14,7 @@ import {
   getPaymentRefundStatusLabel,
 } from "../../utils/display.util";
 import { formatVietnamDateTime } from "../../utils/date.util";
+import { CASH_PAYMENT_UI_ENABLED } from "../../config/payment.config";
 
 type PaymentFilter = "ALL" | "PENDING" | "PAID" | "FAILED" | "HAS_REFUND";
 
@@ -24,7 +25,7 @@ const filterOptions: Array<{ label: string; value: PaymentFilter }> = [
   { label: "Thất bại", value: "FAILED" },
   { label: "Có hoàn tiền", value: "HAS_REFUND" },
 ];
-const MANUAL_CONFIRM_PAYMENT_METHODS = ["CASH"];
+const MANUAL_CONFIRM_PAYMENT_METHODS = CASH_PAYMENT_UI_ENABLED ? ["CASH"] : [];
 
 function formatCurrency(value?: number) {
   return new Intl.NumberFormat("vi-VN", {

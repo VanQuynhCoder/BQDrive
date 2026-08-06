@@ -1,3 +1,4 @@
+// Shared role page: notification center for ADMIN, BUSINESS, and USER.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BellRing,

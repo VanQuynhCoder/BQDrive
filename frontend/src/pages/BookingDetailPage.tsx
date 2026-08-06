@@ -1668,6 +1668,7 @@ export default function BookingDetailPage() {
             <BookingExtensionPanel
               bookingId={booking._id}
               bookingStatus={booking.status}
+              startAt={booking.startDate}
               currentEndAt={booking.endDate}
               rentalMode={booking.rentalMode}
               mode="RENTER"

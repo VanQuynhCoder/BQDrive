@@ -1,3 +1,4 @@
+// Shared owner hook: booking list state for BUSINESS and USER consignment dashboards.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 

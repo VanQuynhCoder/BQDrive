@@ -1,4 +1,5 @@
-﻿export function getRoleLabel(role?: string) {
+﻿// Shared utility: maps backend enum values to Vietnamese labels across all roles.
+export function getRoleLabel(role?: string) {
   const map: Record<string, string> = {
     ADMIN: "Quản trị viên",
     BUSINESS: "Doanh nghiệp",

@@ -1,4 +1,5 @@
-﻿import api from "./api";
+﻿// Shared payment API: renter payment and owner payment-history flows.
+import api from "./api";
 
 import type { ContractPaymentStatus } from "../constants/status.constants";
 

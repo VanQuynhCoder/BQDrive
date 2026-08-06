@@ -1,4 +1,5 @@
-﻿import api from "./api";
+﻿// Shared authentication API: session and account flows for ADMIN, BUSINESS, and USER.
+import api from "./api";
 
 export type LoginData = {
   email: string;

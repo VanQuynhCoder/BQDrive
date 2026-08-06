@@ -1,3 +1,4 @@
+// Shared map UI: location picker used by renter, BUSINESS, and USER consignment flows.
 import { useEffect, useState } from "react";
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 

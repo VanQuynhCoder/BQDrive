@@ -52,7 +52,9 @@ export const carService = {
   },
 
   getBrands: async () => {
-    const res = await api.get("/brand/getAllBrand");
+    const res = await api.get("/brand/getAllBrand", {
+      params: { includeLogo: true },
+    });
     return res.data.data.brands as PublicBrand[];
   },
 

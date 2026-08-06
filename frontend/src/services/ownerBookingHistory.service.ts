@@ -1,3 +1,4 @@
+// Shared owner API: consumed by BUSINESS and USER consignment history pages.
 import api from "./api";
 
 export type OwnerBookingHistoryPayment = {

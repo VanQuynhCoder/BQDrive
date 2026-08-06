@@ -10,7 +10,6 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   BadgeCheck,
-  Building2,
   CalendarCheck2,
   CalendarDays,
   ChevronDown,
@@ -99,6 +98,44 @@ function ReviewAvatar({
   );
 }
 
+function OwnerIdentityImage({
+  name,
+  image,
+  isBusiness,
+}: {
+  name: string;
+  image?: string;
+  isBusiness: boolean;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUrl = normalizeImageUrl(image);
+  const initial = name.trim().charAt(0).toUpperCase() || "B";
+
+  if (imageUrl && !imageFailed) {
+    return (
+      <img
+        src={imageUrl}
+        alt={isBusiness ? `Logo ${name}` : `Ảnh đại diện ${name}`}
+        onError={() => setImageFailed(true)}
+        className={`h-16 w-16 shrink-0 border-2 border-white/20 bg-white object-cover shadow-sm ${
+          isBusiness ? "rounded-lg" : "rounded-full"
+        }`}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`flex h-16 w-16 shrink-0 items-center justify-center border-2 border-white/20 bg-white/10 text-xl font-extrabold text-secondary ${
+        isBusiness ? "rounded-lg" : "rounded-full"
+      }`}
+      aria-label={isBusiness ? `Logo ${name}` : `Ảnh đại diện ${name}`}
+    >
+      {initial}
+    </div>
+  );
+}
+
 const reviewCriteriaLabels: Array<{ key: keyof ReviewCriteria; label: string }> = [
   { key: "vehicleQuality", label: "Chất lượng xe cao" },
   { key: "cleanliness", label: "Xe sạch sẽ" },
@@ -151,6 +188,7 @@ type CarDetail = {
   } | null;
   businessId?: {
     businessName?: string;
+    logo?: string;
     address?: string;
     province?: string;
     city?: string;
@@ -160,6 +198,8 @@ type CarDetail = {
   ownerId?: {
     name?: string;
     businessName?: string;
+    avatar?: string;
+    logo?: string;
     address?: string;
     province?: string;
     city?: string;
@@ -1722,6 +1762,10 @@ export default function CarDetailPage() {
         "Đối tác BQDrive";
   const ownerLabel =
     car.ownerType === "USER" ? "Chủ xe ký gửi" : "Đơn vị cho thuê";
+  const ownerImage =
+    car.ownerType === "USER"
+      ? car.ownerId?.avatar
+      : car.businessId?.logo || car.ownerId?.logo;
   const canShowDetailedPickupAddress =
     car.ownerType !== "USER" ||
     DETAILED_PICKUP_STATUSES.includes(
@@ -2086,11 +2130,20 @@ export default function CarDetailPage() {
               </div>
 
               <div className="rounded-lg bg-primary p-6 text-white">
-                <Building2 className="text-secondary" size={32} />
-                <p className="mt-5 text-sm text-white/65">{ownerLabel}</p>
-                <h3 className="mt-1 text-2xl font-extrabold">
-                  {ownerName}
-                </h3>
+                <div className="flex items-center gap-4">
+                  <OwnerIdentityImage
+                    key={ownerImage || `${car.ownerType}-${ownerName}`}
+                    name={ownerName}
+                    image={ownerImage}
+                    isBusiness={car.ownerType !== "USER"}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm text-white/65">{ownerLabel}</p>
+                    <h3 className="mt-1 break-words text-2xl font-extrabold">
+                      {ownerName}
+                    </h3>
+                  </div>
+                </div>
                 <p className="mt-3 text-sm leading-6 text-white/70">
                   Chủ xe đã được BQDrive kiểm duyệt trước khi nhận đặt xe từ
                   khách hàng.

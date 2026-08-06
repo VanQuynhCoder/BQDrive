@@ -1,3 +1,4 @@
+// Shared owner types: booking contracts for BUSINESS and USER consignment modules.
 import type { BookingStatus } from "../constants/status.constants";
 
 export type OwnerBookingGroup =
@@ -90,6 +91,7 @@ export type OwnerBookingListItem = {
   };
   startDate: string;
   endDate: string;
+  actualReturnAt?: string | null;
   pickupLocation?: string;
   deliveryType?: string;
   status: BookingStatus;

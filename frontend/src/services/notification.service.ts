@@ -1,4 +1,5 @@
-﻿import api from "./api";
+﻿// Shared notification API: used by ADMIN, BUSINESS, and USER notification/task flows.
+import api from "./api";
 
 export const NOTIFICATION_REFRESH_EVENT = "bqdrive:notifications-refresh";
 export const NOTIFICATION_CENTER_REFRESH_EVENT =

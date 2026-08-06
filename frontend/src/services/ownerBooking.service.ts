@@ -1,3 +1,4 @@
+// Shared owner API: consumed by BUSINESS and USER consignment booking modules.
 import api from "./api";
 import type { CancellationPreview } from "./booking.service";
 import type {

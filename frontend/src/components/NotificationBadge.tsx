@@ -1,4 +1,5 @@
-﻿type NotificationBadgeProps = {
+﻿// Shared UI: notification count badge used by ADMIN, BUSINESS, and USER navigation.
+type NotificationBadgeProps = {
   count: number;
   className?: string;
   title?: string;

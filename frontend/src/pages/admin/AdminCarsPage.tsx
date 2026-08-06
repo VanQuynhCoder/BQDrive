@@ -115,6 +115,24 @@ function getOwnerName(car: AdminCar) {
   return car.businessId?.businessName || car.businessId?.userId?.name || "--";
 }
 
+function getOwnerId(car: AdminCar) {
+  if (car.ownerType === "USER") {
+    return isObject(car.ownerId) && typeof car.ownerId._id === "string"
+      ? car.ownerId._id
+      : typeof car.ownerId === "string"
+        ? car.ownerId
+        : "";
+  }
+
+  if (car.businessId?._id) return car.businessId._id;
+
+  return isObject(car.ownerId) && typeof car.ownerId._id === "string"
+    ? car.ownerId._id
+    : typeof car.ownerId === "string"
+      ? car.ownerId
+      : "";
+}
+
 function getOwnerEmail(car: AdminCar) {
   return getOwnerUser(car)?.email || "--";
 }
@@ -243,6 +261,7 @@ export default function AdminCarsPage() {
   const [detailCar, setDetailCar] = useState<AdminCar | null>(null);
   const [activeDetailImageIndex, setActiveDetailImageIndex] = useState(0);
   const [ownerFilter, setOwnerFilter] = useState<OwnerFilter>("ALL");
+  const [selectedOwnerId, setSelectedOwnerId] = useState("");
   const [registrationCardPreview, setRegistrationCardPreview] =
     useState<RegistrationCardPreview | null>(null);
 
@@ -308,11 +327,38 @@ export default function AdminCarsPage() {
     };
   }, [cars]);
 
-  const filteredCars = useMemo(() => {
-    if (ownerFilter === "ALL") return cars;
+  const ownerOptions = useMemo(() => {
+    if (ownerFilter === "ALL") return [];
 
-    return cars.filter((car) => getOwnerType(car) === ownerFilter);
+    const owners = new Map<string, { id: string; name: string; count: number }>();
+    cars
+      .filter((car) => getOwnerType(car) === ownerFilter)
+      .forEach((car) => {
+        const id = getOwnerId(car);
+        if (!id) return;
+
+        const current = owners.get(id);
+        owners.set(id, {
+          id,
+          name: getOwnerName(car),
+          count: (current?.count || 0) + 1,
+        });
+      });
+
+    return [...owners.values()].sort((left, right) =>
+      left.name.localeCompare(right.name, "vi"),
+    );
   }, [cars, ownerFilter]);
+
+  const filteredCars = useMemo(() => {
+    return cars.filter((car) => {
+      if (ownerFilter !== "ALL" && getOwnerType(car) !== ownerFilter) {
+        return false;
+      }
+
+      return !selectedOwnerId || getOwnerId(car) === selectedOwnerId;
+    });
+  }, [cars, ownerFilter, selectedOwnerId]);
 
   const ownerFilterOptions: Array<{
     value: OwnerFilter;
@@ -480,7 +526,10 @@ export default function AdminCarsPage() {
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => setOwnerFilter(option.value)}
+                    onClick={() => {
+                      setOwnerFilter(option.value);
+                      setSelectedOwnerId("");
+                    }}
                     aria-pressed={active}
                     className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-extrabold transition focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-1 ${
                       active
@@ -502,6 +551,31 @@ export default function AdminCarsPage() {
                 );
               })}
             </div>
+            {ownerFilter !== "ALL" && (
+              <label className="block">
+                <span className="sr-only">
+                  {ownerFilter === "BUSINESS"
+                    ? "Lọc theo doanh nghiệp"
+                    : "Lọc theo người dùng ký gửi"}
+                </span>
+                <select
+                  value={selectedOwnerId}
+                  onChange={(event) => setSelectedOwnerId(event.target.value)}
+                  className="h-11 min-w-60 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-primary outline-none transition focus:border-secondary focus:ring-2 focus:ring-secondary/20"
+                >
+                  <option value="">
+                    {ownerFilter === "BUSINESS"
+                      ? `Tất cả doanh nghiệp (${stats.businessCars} xe)`
+                      : `Tất cả người ký gửi (${stats.privateOwnerCars} xe)`}
+                  </option>
+                  {ownerOptions.map((owner) => (
+                    <option key={owner.id} value={owner.id}>
+                      {owner.name} ({owner.count} xe)
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <AdminStatusBadge
               tone="blue"
               label={`${stats.pendingCars.toLocaleString("vi-VN")} xe chờ duyệt`}

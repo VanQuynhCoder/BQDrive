@@ -1,3 +1,4 @@
+// Shared map API: geocode and route operations for renter and owner flows.
 import api from "./api";
 
 export type GeocodeResult = {

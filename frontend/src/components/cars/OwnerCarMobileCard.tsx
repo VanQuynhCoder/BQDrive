@@ -1,3 +1,4 @@
+// Shared owner UI: mobile car card for BUSINESS and USER consignment lists.
 import { Car, Gauge, MapPin } from "lucide-react";
 
 import AdminStatusBadge from "../admin/AdminStatusBadge";

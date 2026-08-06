@@ -1,4 +1,5 @@
-﻿const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
+﻿// Shared utility: Vietnamese date/time handling for all role screens.
+const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
 const VIETNAM_OFFSET = "+07:00";
 
 export function buildVietnamDateTime(date: string, time: string) {

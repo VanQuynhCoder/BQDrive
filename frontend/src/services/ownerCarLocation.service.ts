@@ -1,3 +1,4 @@
+// Shared owner API: car-map operations for BUSINESS and USER consignment flows.
 import api from "./api";
 
 export type OwnerMapCar = {

@@ -1,3 +1,4 @@
+// Shared owner utility: car list logic for BUSINESS and USER consignment management.
 import type { CarPricing } from "../types/pricing";
 
 export type OwnerCarStatusFilter =

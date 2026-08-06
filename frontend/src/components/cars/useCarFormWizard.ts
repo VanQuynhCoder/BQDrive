@@ -1,3 +1,4 @@
+// Shared owner hook: wizard navigation for BUSINESS and USER consignment car forms.
 import { useState } from "react";
 import toast from "react-hot-toast";
 

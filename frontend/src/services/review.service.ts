@@ -1,3 +1,4 @@
+// Shared review API: renter, owner, and ADMIN review screens.
 import api from "./api";
 
 export type ReviewCriteria = {

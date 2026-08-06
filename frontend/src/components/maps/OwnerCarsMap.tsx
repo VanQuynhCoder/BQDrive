@@ -1,3 +1,4 @@
+// Shared owner map: used by BUSINESS and USER consignment dashboards.
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import L from "leaflet";

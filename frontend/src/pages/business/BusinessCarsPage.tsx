@@ -76,7 +76,12 @@ const fuelTypeOptions = ["GASOLINE", "DIESEL", "ELECTRIC", "HYBRID"];
 const transmissionOptions = ["AUTOMATIC", "MANUAL"];
 const maxGalleryImages = 8;
 const maxRegistrationCardImages = 2;
-const maxCarImageSize = 5 * 1024 * 1024;
+const maxCarImageSize = 10 * 1024 * 1024;
+const supportedCarImageMimeTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 function formatCurrency(value?: number | null) {
   return new Intl.NumberFormat("vi-VN", {
@@ -390,7 +395,7 @@ export default function BusinessCarsPage() {
     if (selectedFiles.length === 0) return;
 
     const invalidFile = selectedFiles.find(
-      (file) => !file.type.startsWith("image/"),
+      (file) => !supportedCarImageMimeTypes.has(file.type),
     );
 
     if (invalidFile) {
@@ -403,7 +408,7 @@ export default function BusinessCarsPage() {
     );
 
     if (oversizeFile) {
-      toast.error("Mỗi ảnh xe tối đa 5MB");
+      toast.error("Mỗi ảnh xe tối đa 10MB");
       return;
     }
 
@@ -440,7 +445,7 @@ export default function BusinessCarsPage() {
     }
 
     const invalidFile = selectedFiles.find(
-      (file) => !file.type.startsWith("image/"),
+      (file) => !supportedCarImageMimeTypes.has(file.type),
     );
 
     if (invalidFile) {
@@ -453,7 +458,7 @@ export default function BusinessCarsPage() {
     );
 
     if (oversizeFile) {
-      toast.error("Mỗi ảnh xe tối đa 5MB");
+      toast.error("Mỗi ảnh xe tối đa 10MB");
       return;
     }
 
@@ -506,12 +511,12 @@ export default function BusinessCarsPage() {
       toast.error("Chỉ được chọn tối đa 2 ảnh cà vẹt xe");
       return;
     }
-    if (selectedFiles.some((file) => !file.type.startsWith("image/"))) {
+    if (selectedFiles.some((file) => !supportedCarImageMimeTypes.has(file.type))) {
       toast.error("Vui lòng chọn file ảnh JPG, PNG hoặc WEBP");
       return;
     }
     if (selectedFiles.some((file) => file.size > maxCarImageSize)) {
-      toast.error("Mỗi ảnh cà vẹt tối đa 5MB");
+      toast.error("Mỗi ảnh cà vẹt tối đa 10MB");
       return;
     }
 
@@ -2154,7 +2159,7 @@ export default function BusinessCarsPage() {
                       {uploadingImages ? "Đang upload..." : "Chọn ảnh chính"}
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
                         className="hidden"
                         onChange={handleMainImageFileChange}
                         disabled={uploadingImages}
@@ -2203,7 +2208,7 @@ export default function BusinessCarsPage() {
                           ảnh phụ mô tả
                         </p>
                         <p className="mt-1 text-sm text-slate-500">
-                          Tối đa {maxGalleryImages} ảnh phụ, mỗi ảnh tối đa 5MB.
+                          Tối đa {maxGalleryImages} ảnh phụ, mỗi ảnh tối đa 10MB.
                         </p>
                       </div>
                     </div>
@@ -2217,7 +2222,7 @@ export default function BusinessCarsPage() {
                       {uploadingImages ? "Đang upload..." : "Chọn ảnh phụ"}
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
                         multiple
                         className="hidden"
                         onChange={handleGalleryImageFileChange}

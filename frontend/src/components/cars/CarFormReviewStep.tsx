@@ -1,3 +1,4 @@
+// Shared owner module: final car-form review for BUSINESS and USER consignment flows.
 import { BadgeCheck, Images } from "lucide-react";
 
 import { formatPickupAddress } from "../../utils/address.util";

@@ -1356,6 +1356,7 @@ class OwnerRoute extends BaseRoute {
       },
       startDate: booking.startDate,
       endDate: booking.endDate,
+      actualReturnAt: booking.actualReturnAt || null,
       pickupLocation:
         delivery.deliveryAddressText ||
         delivery.deliveryFormattedAddress ||
@@ -1517,6 +1518,7 @@ class OwnerRoute extends BaseRoute {
       "carId",
       "startDate",
       "endDate",
+      "actualReturnAt",
       "status",
       "totalPrice",
       "paymentOption",

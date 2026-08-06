@@ -27,7 +27,9 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Users,
   X,
+  Zap,
 } from "lucide-react";
 
 import Header from "../components/Header";
@@ -41,6 +43,7 @@ import {
 import { cartService } from "../services/cart.service";
 import { carService, type PublicBrand } from "../services/car.service";
 import { buildVietnamDateTime } from "../utils/date.util";
+import { normalizeImageUrl } from "../utils/image.util";
 import type { CarPricing } from "../types/pricing";
 
 type RentalAvailability =
@@ -289,10 +292,10 @@ function focusFirstQuickSearchError(errors: QuickSearchErrors) {
 const popularAreas = [
   "Quận 1",
   "Bình Thạnh",
-  "Gò Vấp",
-  "Tân Bình",
+  "Quận 11",
+  "Quận 1",
   "Thủ Đức",
-  "Quận 7",
+  "Quận 5",
   "TP.HCM",
 ];
 const carTypeOptions = [
@@ -417,6 +420,29 @@ function getBrandInitials(name: string) {
     .map((word) => word[0])
     .join("")
     .toUpperCase();
+}
+
+function BrandFilterLogo({ brand }: { brand: PublicBrand }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const logo = normalizeImageUrl(brand.logo);
+
+  if (!logo || imageFailed) {
+    return (
+      <span className="text-xs font-extrabold text-primary" aria-hidden="true">
+        {getBrandInitials(brand.name)}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={logo}
+      alt={`Logo ${brand.name}`}
+      className="h-full w-full object-contain p-1"
+      loading="lazy"
+      onError={() => setImageFailed(true)}
+    />
+  );
 }
 
 export default function HomePage() {
@@ -687,6 +713,26 @@ export default function HomePage() {
     setHomeFilters(nextFilters);
     setAppliedHomeFilters(nextFilters);
   }, []);
+
+  const applySuggestedHomeFilter = useCallback(
+    (suggestion: Partial<HomeFilters>) => {
+      const nextFilters: HomeFilters = {
+        ...emptyHomeFilters,
+        ...suggestion,
+      };
+
+      setHomeFilters(nextFilters);
+      setAppliedHomeFilters(nextFilters);
+      setAppliedSchedule(null);
+      setPickupDate("");
+      setReturnDate("");
+      setPickupTime(DEFAULT_START_TIME);
+      setReturnTime(DEFAULT_END_TIME);
+      setOpenHomeFilterDropdown(null);
+      setHomeCarsPage(1);
+    },
+    [],
+  );
 
   const toggleHomeFilter = (key: keyof HomeFilters, value: string) => {
     setHomeFilters((prev) => ({
@@ -1108,8 +1154,8 @@ export default function HomePage() {
                     : "border-border bg-white text-primary hover:border-secondary/60"
                 }`}
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondarySoft text-xs font-extrabold text-primary">
-                  {getBrandInitials(brand.name)}
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-white">
+                  <BrandFilterLogo brand={brand} />
                 </span>
                 <span className="truncate text-sm font-extrabold">{brand.name}</span>
               </button>
@@ -1407,7 +1453,7 @@ export default function HomePage() {
   const minimumReturnDate = pickupDate || todayDateInput;
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-background">
+    <div className="min-h-screen overflow-x-clip bg-background">
       <Header />
 
       <main className="pt-20">
@@ -1812,25 +1858,101 @@ export default function HomePage() {
             </div>
           )}
           <div className="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
-            <aside className="hidden overflow-hidden rounded-2xl border border-border bg-white shadow-sm lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-6.5rem)] lg:self-start">
-              <div className="border-b border-border px-5 py-4">
-                <p className="flex items-center gap-2 text-sm font-bold uppercase text-secondary">
-                  <SlidersHorizontal size={17} />
-                  Bộ lọc xe
-                </p>
-                <h3 className="mt-1 text-xl font-extrabold text-primary">
-                  Bộ lọc tìm kiếm
-                </h3>
-                {activeFilterCount > 0 && (
-                  <p className="mt-2 text-sm font-bold text-muted">
-                    Đang áp dụng {activeFilterCount} bộ lọc
-                  </p>
-                )}
-              </div>
-              <div className="max-h-[calc(100vh-190px)] overflow-y-auto p-5">
-                {filterContent}
-              </div>
-            </aside>
+           <aside className="hidden space-y-5 lg:block lg:self-start">
+  {/* Bộ lọc */}
+  <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+    <div className="border-b border-border px-5 py-4">
+      <p className="flex items-center gap-2 text-sm font-bold uppercase text-secondary">
+        <SlidersHorizontal size={17} />
+        Bộ lọc xe
+      </p>
+
+      <h3 className="mt-1 text-xl font-extrabold text-primary">
+        Bộ lọc tìm kiếm
+      </h3>
+
+      {activeFilterCount > 0 && (
+        <p className="mt-2 text-sm font-bold text-muted">
+          Đang áp dụng {activeFilterCount} bộ lọc
+        </p>
+      )}
+    </div>
+
+    <div className="max-h-[650px] overflow-y-auto p-5">
+      {filterContent}
+    </div>
+  </div>
+
+  {/* Gợi ý nhanh theo nhu cầu */}
+  <div className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
+    <div className="border-b border-border bg-primary px-5 py-4 text-white">
+      <p className="flex items-center gap-2 text-xs font-extrabold uppercase text-secondary">
+        <Sparkles size={16} aria-hidden="true" />
+        Gợi ý nhanh
+      </p>
+      <h3 className="mt-1 text-lg font-extrabold">Chưa biết chọn xe nào?</h3>
+      <p className="mt-1 text-sm leading-5 text-white/75">
+        Chọn nhu cầu, BQDrive sẽ lọc lại danh sách giúp bạn.
+      </p>
+    </div>
+
+    <div className="space-y-2 p-4">
+      <button
+        type="button"
+        onClick={() => applySuggestedHomeFilter({ seats: "4" })}
+        className="group flex min-h-14 w-full items-center gap-3 rounded-lg border border-border px-3 py-2 text-left transition hover:border-secondary hover:bg-secondarySoft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-soft text-primary transition group-hover:bg-secondary group-hover:text-primary">
+          <Building2 size={18} aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-extrabold text-primary">Đi trong thành phố</span>
+          <span className="block text-xs font-semibold text-muted">Xe nhỏ gọn, 4 chỗ</span>
+        </span>
+        <ArrowRight size={17} className="shrink-0 text-secondary" aria-hidden="true" />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => applySuggestedHomeFilter({ seats: "7" })}
+        className="group flex min-h-14 w-full items-center gap-3 rounded-lg border border-border px-3 py-2 text-left transition hover:border-secondary hover:bg-secondarySoft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-soft text-primary transition group-hover:bg-secondary group-hover:text-primary">
+          <Users size={18} aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-extrabold text-primary">Du lịch gia đình</span>
+          <span className="block text-xs font-semibold text-muted">Không gian rộng, 7 chỗ</span>
+        </span>
+        <ArrowRight size={17} className="shrink-0 text-secondary" aria-hidden="true" />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => applySuggestedHomeFilter({ fuelType: "ELECTRIC" })}
+        className="group flex min-h-14 w-full items-center gap-3 rounded-lg border border-border px-3 py-2 text-left transition hover:border-secondary hover:bg-secondarySoft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-soft text-primary transition group-hover:bg-secondary group-hover:text-primary">
+          <Zap size={18} aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-extrabold text-primary">Xe điện</span>
+          <span className="block text-xs font-semibold text-muted">Êm ái và tiết kiệm</span>
+        </span>
+        <ArrowRight size={17} className="shrink-0 text-secondary" aria-hidden="true" />
+      </button>
+
+      <button
+        type="button"
+        onClick={resetHomeFilters}
+        className="mt-1 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-extrabold text-secondary transition hover:bg-primaryDark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+      >
+        Xem tất cả xe
+        <ArrowRight size={16} aria-hidden="true" />
+      </button>
+    </div>
+  </div>
+</aside>
 
             <div className="min-w-0">
           <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">

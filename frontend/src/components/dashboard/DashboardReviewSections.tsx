@@ -1,3 +1,4 @@
+// Shared dashboard section: rendered for ADMIN, BUSINESS, and USER consignment dashboards.
 import { Link } from "react-router-dom";
 import {
   type LucideIcon,

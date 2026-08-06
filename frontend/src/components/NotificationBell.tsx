@@ -1,3 +1,4 @@
+// Shared UI: notification dropdown used by ADMIN, BUSINESS, and USER layouts.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,

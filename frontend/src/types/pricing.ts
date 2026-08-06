@@ -1,3 +1,4 @@
+// Shared pricing contract: consumed by public, ADMIN, BUSINESS, and USER modules.
 export type RentalMode = "DAILY" | "HOURLY";
 
 export type PricingDateType = "WEEKDAY" | "WEEKEND" | "HOLIDAY";
@@ -43,4 +44,3 @@ export type PricingSnapshot = {
   totalPrice?: number;
   delivery?: PricingDeliverySnapshot;
 };
-

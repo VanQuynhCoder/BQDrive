@@ -1,4 +1,5 @@
-﻿import api from "./api";
+﻿// Shared booking API: renter flows plus booking data reused by owner modules.
+import api from "./api";
 
 export type RenterInfo = {
   fullName: string;
