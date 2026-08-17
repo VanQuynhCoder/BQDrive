@@ -1,3 +1,4 @@
+// Shared role page: configured by context for ADMIN, and USER task flows.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -78,7 +79,6 @@ const typeIcons: Record<string, LucideIcon> = {
   ACTIVE_TRIP: Clock3,
   CAR_REJECTED_NEEDS_UPDATE: AlertTriangle,
   CAR_APPROVAL_REQUIRED: Car,
-  BUSINESS_APPROVAL_REQUIRED: ClipboardCheck,
   REVIEW_REPORT_REQUIRED: FileWarning,
 };
 
@@ -342,7 +342,6 @@ function typeLabel(type: string) {
     ACTIVE_TRIP: "Chuyến thuê đang diễn ra",
     CAR_REJECTED_NEEDS_UPDATE: "Xe bị từ chối",
     CAR_APPROVAL_REQUIRED: "Duyệt xe",
-    BUSINESS_APPROVAL_REQUIRED: "Duyệt doanh nghiệp",
     REVIEW_REPORT_REQUIRED: "Đánh giá bị báo cáo",
     OWNER_REFUND_REQUIRED: "Hoàn tiền",
     OWNER_REFUND_WAITING_INFO: "Chờ thông tin nhận tiền",

@@ -1,10 +1,12 @@
 import {
+  BookingExtensionStatusEnum,
   BookingStatusEnum,
   ContractPaymentStatusEnum,
   ContractStatusEnum,
   PaymentStatusEnum,
   PaymentTypeEnum,
 } from "../constants/model.const";
+import { BookingExtensionModel } from "../models/booking-extension/bookingExtension.model";
 import { BookingModel } from "../models/booking/booking.model";
 import { ContractModel } from "../models/contract/contract.model";
 import { PaymentModel } from "../models/payment/payment.model";
@@ -17,7 +19,7 @@ import {
 
 export type BookingPaymentSummary = {
   totalPrice: number;
-  depositAmount: number;
+  upfrontPaymentAmount: number;
   paidAmount: number;
   remainingAmount: number;
   paymentStatus: ContractPaymentStatusEnum;
@@ -39,9 +41,31 @@ export function getContractStatusForBookingStatus(status?: string) {
   return ContractStatusEnum.ACTIVE;
 }
 
+export function calculateEligiblePaidAmount(input: {
+  paidPayments: any[];
+  appliedExtensionPaymentIds: Iterable<string>;
+  totalPrice: number;
+}) {
+  const appliedExtensionPaymentIds = new Set(input.appliedExtensionPaymentIds);
+  return Math.min(
+    input.paidPayments.reduce((sum, payment) => {
+      if (
+        payment.paymentType === PaymentTypeEnum.EXTENSION &&
+        !appliedExtensionPaymentIds.has(String(payment._id || ""))
+      ) {
+        return sum;
+      }
+      const amount = Number(payment.amount || 0);
+      const refundedAmount = Number(payment.refundedAmount || 0);
+      return sum + Math.max(amount - refundedAmount, 0);
+    }, 0),
+    input.totalPrice,
+  );
+}
+
 export async function buildPaymentSummaryForBooking(booking: any): Promise<BookingPaymentSummary> {
   const totalPrice = Number(booking?.totalPrice || 0);
-  const depositAmount = Number(booking?.depositAmount || 0);
+  const upfrontPaymentAmount = Number(booking?.upfrontPaymentAmount || 0);
 
   const paidPayments = await PaymentModel.find({
     bookingId: booking._id,
@@ -54,17 +78,30 @@ export async function buildPaymentSummaryForBooking(booking: any): Promise<Booki
         PaymentTypeEnum.EXTENSION,
       ],
     },
-  }).select("amount paymentType method status paidAt transactionCode refundedAmount createdAt");
-
-  const paidAmount = Math.min(
-    paidPayments.reduce((sum, payment) => {
-      const amount = Number(payment.amount || 0);
-      const refundedAmount = Number((payment as any).refundedAmount || 0);
-
-      return sum + Math.max(amount - refundedAmount, 0);
-    }, 0),
-    totalPrice,
+  }).select(
+    "amount paymentType extensionId method status paidAt transactionCode refundedAmount createdAt",
   );
+  const extensionIds = paidPayments
+    .filter((payment) => payment.paymentType === PaymentTypeEnum.EXTENSION)
+    .map((payment) => String(payment.extensionId || ""))
+    .filter(Boolean);
+  const appliedExtensions = extensionIds.length
+    ? await BookingExtensionModel.find({
+        _id: { $in: extensionIds },
+        bookingId: booking._id,
+        status: BookingExtensionStatusEnum.APPLIED,
+        isDeleted: false,
+      })
+        .select("_id paymentId")
+        .lean()
+    : [];
+  const paidAmount = calculateEligiblePaidAmount({
+    paidPayments,
+    appliedExtensionPaymentIds: appliedExtensions.map((extension) =>
+      String(extension.paymentId || ""),
+    ),
+    totalPrice,
+  });
   const remainingAmount = Math.max(totalPrice - paidAmount, 0);
 
   const hasPendingPayment =
@@ -84,14 +121,15 @@ export async function buildPaymentSummaryForBooking(booking: any): Promise<Booki
       : false;
   const paymentStatus = deriveContractPaymentStatus({
     totalPrice,
-    depositAmount,
+    upfrontPaymentAmount,
     paidAmount,
+    paymentOption: booking?.paymentOption,
     hasPendingPayment: Boolean(hasPendingPayment),
   });
 
   return {
     totalPrice,
-    depositAmount,
+    upfrontPaymentAmount,
     paidAmount,
     remainingAmount,
     paymentStatus,
@@ -138,10 +176,11 @@ export async function syncPaymentRefundStatus(payment: any) {
     payment?.refundedAmount,
   );
 
-  if (payment.refundStatus !== refundStatus) {
-    payment.refundStatus = refundStatus;
-    await payment.save();
-  }
+  payment.refundStatus = refundStatus;
+
+  // Luôn lưu vì refundedAmount có thể thay đổi
+  // dù refundStatus vẫn giữ nguyên.
+  await payment.save();
 
   return refundStatus;
 }
@@ -172,4 +211,52 @@ export async function syncContractFromBooking(booking: any) {
   );
 
   return summary;
+}
+export function getBookingUpfrontPaymentAmount(booking: any) {
+  const pricingSnapshot = booking?.pricingSnapshot || {};
+
+  // Ưu tiên khoản giữ chỗ canonical đã được lưu khi tạo booking.
+  const storedUpfrontPaymentAmount = Math.max(
+    Number(booking?.upfrontPaymentAmount || 0),
+    0,
+  );
+
+  if (storedUpfrontPaymentAmount > 0) {
+    return storedUpfrontPaymentAmount;
+  }
+
+  // Nếu booking đã có snapshot mới thì dùng đúng snapshot.
+  const upfrontPaymentAmount = Math.max(
+    Number(pricingSnapshot.upfrontPaymentAmount || 0),
+    0,
+  );
+
+  if (upfrontPaymentAmount > 0) {
+    return upfrontPaymentAmount;
+  }
+
+  const rentalSubtotal = Math.max(
+    Number(
+      pricingSnapshot.rentalSubtotal ??
+        pricingSnapshot.subtotal ??
+        0,
+    ),
+    0,
+  );
+
+  const platformFee = Math.max(
+    Number(pricingSnapshot.platformFee || 0),
+    0,
+  );
+
+  const insuranceFee = Math.max(
+    Number(pricingSnapshot.insuranceFee || 0),
+    0,
+  );
+
+  return (
+    Math.round(rentalSubtotal * 0.5) +
+    platformFee +
+    insuranceFee
+  );
 }

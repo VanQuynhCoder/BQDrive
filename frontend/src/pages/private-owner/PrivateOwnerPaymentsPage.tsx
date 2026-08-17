@@ -7,13 +7,13 @@ import {
   privateOwnerService,
   type PrivateOwnerPayment,
 } from "../../services/privateOwner.service";
-import { paymentService } from "../../services/payment.service";
 import {
   getBookingDisplayCode,
   getPaymentMethodLabel,
   getPaymentRefundStatusLabel,
 } from "../../utils/display.util";
 import { formatVietnamDateTime } from "../../utils/date.util";
+import { CASH_PAYMENT_UI_ENABLED } from "../../config/payment.config";
 
 type PaymentFilter = "ALL" | "PENDING" | "PAID" | "FAILED" | "HAS_REFUND";
 
@@ -24,7 +24,7 @@ const filterOptions: Array<{ label: string; value: PaymentFilter }> = [
   { label: "Thất bại", value: "FAILED" },
   { label: "Có hoàn tiền", value: "HAS_REFUND" },
 ];
-const MANUAL_CONFIRM_PAYMENT_METHODS = ["CASH"];
+const MANUAL_CONFIRM_PAYMENT_METHODS = CASH_PAYMENT_UI_ENABLED ? ["CASH"] : [];
 
 function formatCurrency(value?: number) {
   return new Intl.NumberFormat("vi-VN", {
@@ -149,15 +149,19 @@ export default function PrivateOwnerPaymentsPage() {
     return payments.filter((payment) => payment.status === filter);
   }, [filter, payments]);
 
-  const markCashPaymentPaid = async (paymentId: string) => {
-    setUpdatingPaymentId(paymentId);
+  const markCashPaymentPaid = async (payment: PrivateOwnerPayment) => {
+    const bookingId = payment.bookingId?._id;
+    if (!bookingId) {
+      toast.error("Không xác định được booking của giao dịch này");
+      return;
+    }
+
+    setUpdatingPaymentId(payment._id);
 
     try {
-      await paymentService.updatePaymentStatus(paymentId, {
-        status: "PAID",
-      });
+      await privateOwnerService.confirmRemainingCash(bookingId);
       setPayments(await privateOwnerService.getMyPayments());
-      toast.success("Đã ghi nhận thanh toán tiền một");
+      toast.success("Đã ghi nhận thanh toán tiền mặt");
     } catch (error) {
       toast.error(getErrorMessage(error, "Không thể cập nhật thanh toán"));
     } finally {
@@ -291,10 +295,15 @@ export default function PrivateOwnerPaymentsPage() {
                           : "--"}
                       </td>
                       <td className="px-5 py-4">
-                        {MANUAL_CONFIRM_PAYMENT_METHODS.includes(payment.method || "") && payment.status === "PENDING" ? (
+                        {MANUAL_CONFIRM_PAYMENT_METHODS.includes(payment.method || "") &&
+                        payment.paymentType === "REMAINING" &&
+                        ["RETURN_INSPECTION", "AWAITING_EXTRA_CHARGE"].includes(
+                          payment.bookingId?.status || "",
+                        ) &&
+                        payment.status === "PENDING" ? (
                           <button
                             type="button"
-                            onClick={() => markCashPaymentPaid(payment._id)}
+                            onClick={() => void markCashPaymentPaid(payment)}
                             disabled={updatingPaymentId === payment._id}
                             className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-extrabold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                           >

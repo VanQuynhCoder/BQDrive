@@ -1,36 +1,46 @@
-import bcrypt from "bcryptjs";
 import { BaseRoute, Request, Response } from "../../base/baseRoute";
 import { ErrorHelper } from "../../base/error";
 import { getBookingDisplayCode } from "../../helper/booking-code.helper";
-import { UserModel } from "../../models/user/user.model";
-import { BusinessModel } from "../../models/business/business.model";
+import {
+  UserModel,
+  getIdentityVerificationStatus,
+  hasCompleteIdentityProfile,
+} from "../../models/user/user.model";
 import { CarModel } from "../../models/car/car.model";
 import { BookingModel } from "../../models/booking/booking.model";
 import { ContractModel } from "../../models/contract/contract.model";
 import { PaymentModel } from "../../models/payment/payment.model";
 import { ReviewModel, ReviewStatusEnum } from "../../models/review/review.model";
-import { sendOtpMail } from "../../helper/mail.helper";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
-import { cleanAddressText } from "../../helper/address.helper";
 import {
   BookingStatusEnum,
-  BusinessTypeEnum,
   ContractStatusEnum,
-  OwnerTypeEnum,
+  IdentityVerificationStatusEnum,
   PaymentStatusEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
-import { validateEmail, validatePhone } from "../../utils/validators";
-
+import { notificationCenterService } from "../../services/notification-center.service";
 const ACTIVE_BOOKING_STATUSES = [
   BookingStatusEnum.REQUESTED,
   BookingStatusEnum.OWNER_APPROVED,
   BookingStatusEnum.PAYMENT_PENDING,
   BookingStatusEnum.PAID,
   BookingStatusEnum.IN_PROGRESS,
+  BookingStatusEnum.RETURN_INSPECTION,
+  BookingStatusEnum.AWAITING_EXTRA_CHARGE,
 ];
-const TEMP_BUSINESS_NAME = "TEMP_BUSINESS";
-const TEMP_BUSINESS_PASSWORD = "TEMP_BUSINESS_PASSWORD";
+const ADMIN_USER_SECRET_FIELDS = [
+  "-password",
+  "-otpCode",
+  "-otpExpireAt",
+  "-resetPasswordOtpHash",
+  "-resetPasswordOtpExpiresAt",
+  "-resetPasswordOtpVerified",
+  "-resetPasswordOtpVerifiedAt",
+  "-resetPasswordOtpAttempts",
+  "-resetPasswordTokenHash",
+  "-resetPasswordTokenExpiresAt",
+].join(" ");
 
 class AdminRoute extends BaseRoute {
   constructor() {
@@ -42,6 +52,24 @@ class AdminRoute extends BaseRoute {
       "/users",
       [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
       this.route(this.getUsers),
+    );
+
+    this.router.get(
+      "/users/:id",
+      [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
+      this.route(this.getUserDetail),
+    );
+
+    this.router.post(
+      "/users/:id/identity/approve",
+      [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
+      this.route(this.approveUserIdentity),
+    );
+
+    this.router.post(
+      "/users/:id/identity/reject",
+      [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
+      this.route(this.rejectUserIdentity),
     );
 
     this.router.post(
@@ -61,55 +89,11 @@ class AdminRoute extends BaseRoute {
       [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
       this.route(this.deleteUser),
     );
-
-    this.router.get(
-      "/businesses",
-      [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
-      this.route(this.getBusinesses),
-    );
-
     this.router.get(
       "/cars/map",
       [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
       this.route(this.getCarsMap),
     );
-
-    this.router.post(
-      "/business/send-otp",
-      [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
-      this.route(this.sendBusinessOtp),
-    );
-
-    this.router.post(
-      "/business/verify-otp",
-      [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
-      this.route(this.verifyBusinessOtp),
-    );
-
-    this.router.post(
-      "/business/create",
-      [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
-      this.route(this.createBusiness),
-    );
-
-    this.router.post(
-      "/business/block/:id",
-      [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
-      this.route(this.blockBusiness),
-    );
-
-    this.router.post(
-      "/business/unblock/:id",
-      [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
-      this.route(this.unblockBusiness),
-    );
-
-    this.router.delete(
-      "/business/delete/:id",
-      [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
-      this.route(this.deleteBusiness),
-    );
-
     this.router.get(
       "/reviews",
       [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
@@ -129,16 +113,7 @@ class AdminRoute extends BaseRoute {
     );
   }
 
-  private validateBusinessEmail(email: unknown) {
-    return validateEmail(email, "Email doanh nghiệp");
-  }
 
-  private isTempBusinessUser(user: { name?: string; role?: string }) {
-    return (
-      user.name === TEMP_BUSINESS_NAME &&
-      String(user.role).toUpperCase() === UserRoleEnum.BUSINESS
-    );
-  }
 
   private assertObjectId(id: string, message: string) {
     if (!/^[a-f\d]{24}$/i.test(id)) {
@@ -171,195 +146,91 @@ class AdminRoute extends BaseRoute {
   }
 
   private getOwnerName(car: any) {
-    if (car.adminOwnerInfo) {
-      return car.adminOwnerInfo.name || "--";
-    }
-
-    if (car.ownerType === OwnerTypeEnum.BUSINESS) {
-      return (
-        car.ownerId?.businessName ||
-        car.businessId?.businessName ||
-        car.ownerId?.userId?.name ||
-        "--"
-      );
-    }
-
     return car.ownerId?.name || "--";
   }
 
   private getOwnerEmail(car: any) {
-    if (car.adminOwnerInfo) {
-      return car.adminOwnerInfo.email || "--";
-    }
-
-    if (car.ownerType === OwnerTypeEnum.BUSINESS) {
-      return (
-        car.ownerId?.userId?.email ||
-        car.businessId?.userId?.email ||
-        car.ownerId?.email ||
-        "--"
-      );
-    }
-
-    return car.ownerId?.email || "--";
-  }
-
-  private getOwnerPhone(car: any) {
-    if (car.adminOwnerInfo) {
-      return car.adminOwnerInfo.phone || "";
-    }
-
-    if (car.ownerType === OwnerTypeEnum.BUSINESS) {
-      return car.ownerId?.phone || car.businessId?.phone || car.ownerId?.userId?.phone || "";
-    }
-
-    return car.ownerId?.phone || "";
+    return car.ownerId?.email || "";
   }
 
   private getOwnerAddress(car: any) {
-    if (car.adminOwnerInfo) {
-      return car.adminOwnerInfo.address || "";
-    }
-
-    if (car.ownerType === OwnerTypeEnum.BUSINESS) {
-      return (
-        car.ownerId?.address ||
-        car.businessId?.address ||
-        car.ownerId?.userId?.address ||
-        ""
-      );
-    }
-
     return car.ownerId?.address || "";
   }
+  private getOwnerPhone(car: any) {
+  return car.ownerId?.phone || "";
+}
 
-  private toAdminMapCar(car: any) {
-    return {
-      _id: car._id,
-      name: car.name,
-      brandName: car.brandId?.name || "",
-      licensePlate: car.licensePlate || "",
-      pickupAddress: car.pickupAddress || car.address || "",
-      pickupFormattedAddress:
-        car.pickupFormattedAddress || car.pickupAddress || car.address || "",
-      pickupLat: car.pickupLat,
-      pickupLng: car.pickupLng,
-      pickupNote: car.pickupNote || car.locationNote || "",
-      status: car.status,
-      car_status: car.status,
-      approval_status: car.status,
-      ownerType: car.ownerType,
-      ownerName: this.getOwnerName(car),
-      ownerEmail: this.getOwnerEmail(car),
-      ownerPhone: this.getOwnerPhone(car),
-      ownerAddress: this.getOwnerAddress(car),
-      images: [],
-      lastLocationUpdatedAt: car.lastLocationUpdatedAt,
-      locationUpdateCount: car.locationUpdateCount || 0,
-    };
-  }
+private toAdminMapCar(car: any) {
+  return {
+    _id: car._id,
+    name: car.name,
+    brandName: car.brandId?.name || "",
+    licensePlate: car.licensePlate || "",
 
-  private getAdminOwnerInfo(car: any, lookups: {
-    businesses: Map<string, any>;
-    users: Map<string, any>;
-  }) {
-    if (car.ownerType === OwnerTypeEnum.BUSINESS) {
-      const business =
-        lookups.businesses.get(String(car.ownerId || "")) ||
-        lookups.businesses.get(String(car.businessId || ""));
-      const user = business?.userId || {};
+    pickupAddress: car.pickupAddress || car.address || "",
+    pickupFormattedAddress:
+      car.pickupFormattedAddress ||
+      car.pickupAddress ||
+      car.address ||
+      "",
 
-      return {
-        name: business?.businessName || user?.name || "--",
-        email: user?.email || "",
-        phone: business?.phone || user?.phone || "",
-        address: business?.address || user?.address || "",
-      };
-    }
+    pickupLat: car.pickupLat,
+    pickupLng: car.pickupLng,
+    pickupNote: car.pickupNote || car.locationNote || "",
 
-    const user = lookups.users.get(String(car.ownerId || ""));
+    status: car.status,
+    car_status: car.status,
+    approval_status: car.status,
 
-    return {
-      name: user?.name || "--",
-      email: user?.email || "",
-      phone: user?.phone || "",
-      address: user?.address || "",
-    };
-  }
+    // compatibility tạm thời cho frontend
+    ownerType: UserRoleEnum.USER,
+    ownerName: this.getOwnerName(car),
+    ownerEmail: this.getOwnerEmail(car),
+    ownerAddress: this.getOwnerAddress(car),
+    ownerPhone: this.getOwnerPhone(car),
 
-  async getCarsMap(req: Request, res: Response) {
-    const cars = await CarModel.find({ isDeleted: false } as any)
-      .select(
-        [
-          "_id",
-          "name",
-          "licensePlate",
-          "brandId",
-          "businessId",
-          "ownerId",
-          "ownerType",
-          "ownerModel",
-          "pickupAddress",
-          "pickupFormattedAddress",
-          "pickupLat",
-          "pickupLng",
-          "pickupNote",
-          "address",
-          "locationNote",
-          "status",
-          "lastLocationUpdatedAt",
-          "locationUpdateCount",
-        ].join(" "),
-      )
-      .populate("brandId", "name")
-      .sort({ updatedAt: -1 })
-      .lean();
+    images: [],
+    lastLocationUpdatedAt: car.lastLocationUpdatedAt,
+    locationUpdateCount: car.locationUpdateCount || 0,
+  };
+}
+async getCarsMap(req: Request, res: Response) {
+  const cars = await CarModel.find({
+    isDeleted: false,
+  } as any)
+    .select(
+      [
+        "_id",
+        "name",
+        "licensePlate",
+        "brandId",
+        "ownerId",
+        "pickupAddress",
+        "pickupFormattedAddress",
+        "pickupLat",
+        "pickupLng",
+        "pickupNote",
+        "address",
+        "locationNote",
+        "status",
+        "lastLocationUpdatedAt",
+        "locationUpdateCount",
+      ].join(" "),
+    )
+    .populate("brandId", "name")
+    .populate("ownerId", "name email phone address")
+    .sort({ updatedAt: -1 })
+    .lean();
 
-    const businessIds = Array.from(
-      new Set(
-        cars
-          .filter((car) => car.ownerType === OwnerTypeEnum.BUSINESS)
-          .flatMap((car) => [car.ownerId, car.businessId])
-          .filter(Boolean)
-          .map((id) => String(id)),
-      ),
-    );
-    const userIds = Array.from(
-      new Set(
-        cars
-          .filter((car) => car.ownerType === OwnerTypeEnum.USER)
-          .map((car) => String(car.ownerId || ""))
-          .filter(Boolean),
-      ),
-    );
-
-    const [businesses, users] = await Promise.all([
-      BusinessModel.find({ _id: { $in: businessIds }, isDeleted: false } as any)
-        .select("businessName phone address userId")
-        .populate("userId", "name email phone address")
-        .lean(),
-      UserModel.find({ _id: { $in: userIds }, isDeleted: false } as any)
-        .select("name email phone address")
-        .lean(),
-    ]);
-
-    const lookups = {
-      businesses: new Map(businesses.map((business) => [String(business._id), business])),
-      users: new Map(users.map((user) => [String(user._id), user])),
-    };
-    const carsWithOwnerInfo = cars.map((car) => ({
-      ...car,
-      adminOwnerInfo: this.getAdminOwnerInfo(car, lookups),
-    }));
-
-    return res.status(200).json({
-      status: 200,
-      code: "200",
-      message: "success",
-      data: { cars: carsWithOwnerInfo.map((car) => this.toAdminMapCar(car)) },
-    });
-  }
-
+  return res.status(200).json({
+    status: 200,
+    code: "200",
+    message: "success",
+    data: {
+      cars: cars.map((car) => this.toAdminMapCar(car)),
+    },
+  });
+}
   async getReviews(req: Request, res: Response) {
     const status = String(req.query.status || "");
     const filter: any = {};
@@ -426,244 +297,6 @@ class AdminRoute extends BaseRoute {
       data: { review },
     });
   }
-
-  async getBusinesses(req: Request, res: Response) {
-    const businesses = await BusinessModel.find({
-      isDeleted: false,
-    })
-      .populate("userId", "-password -otpCode")
-      .sort({ createdAt: -1 });
-
-    const businessIds = businesses.map((business) => business._id);
-    const carCountRows = await CarModel.aggregate([
-      {
-        $match: {
-          isDeleted: false,
-          $or: [
-            { businessId: { $in: businessIds } },
-            {
-              ownerId: { $in: businessIds },
-              ownerType: OwnerTypeEnum.BUSINESS,
-            },
-          ],
-        },
-      },
-      {
-        $group: {
-          _id: { $ifNull: ["$businessId", "$ownerId"] },
-          totalCars: { $sum: 1 },
-        },
-      },
-    ]);
-    const carCountByBusinessId = new Map(
-      carCountRows.map((item) => [String(item._id), Number(item.totalCars)]),
-    );
-    const businessesWithCounts = businesses.map((business) => ({
-      ...business.toObject(),
-      carCount: carCountByBusinessId.get(String(business._id)) || 0,
-      totalCars: carCountByBusinessId.get(String(business._id)) || 0,
-    }));
-
-    return res.status(200).json({
-      status: 200,
-      code: "200",
-      message: "success",
-      data: { businesses: businessesWithCounts },
-    });
-  }
-
-  async sendBusinessOtp(req: Request, res: Response) {
-    const email = this.validateBusinessEmail(req.body.email);
-
-    const existedUser = await UserModel.findOne({ email });
-
-    if (
-      existedUser &&
-      (existedUser.isDeleted || !this.isTempBusinessUser(existedUser))
-    ) {
-      throw ErrorHelper.userExisted();
-    }
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpireAt = new Date(Date.now() + 5 * 60 * 1000);
-    const temporaryPassword = await bcrypt.hash(
-      `${TEMP_BUSINESS_PASSWORD}_${otp}`,
-      10,
-    );
-
-    if (existedUser) {
-      existedUser.name = TEMP_BUSINESS_NAME;
-      existedUser.password = temporaryPassword;
-      existedUser.role = UserRoleEnum.BUSINESS;
-      existedUser.isVerified = false;
-      existedUser.otpCode = otp;
-      existedUser.otpExpireAt = otpExpireAt;
-      await existedUser.save();
-    } else {
-      await UserModel.create({
-        name: TEMP_BUSINESS_NAME,
-        email,
-        password: temporaryPassword,
-        role: UserRoleEnum.BUSINESS,
-        isVerified: false,
-        otpCode: otp,
-        otpExpireAt,
-      });
-    }
-
-    await sendOtpMail(email, otp);
-
-    return res.status(200).json({
-      status: 200,
-      code: "200",
-      message: "OTP đã được gửi tới email doanh nghiệp",
-      data: null,
-    });
-  }
-
-  async verifyBusinessOtp(req: Request, res: Response) {
-    const email = this.validateBusinessEmail(req.body.email);
-    const otp = typeof req.body.otp === "string" ? req.body.otp.trim() : "";
-
-    if (!otp) {
-      throw ErrorHelper.requestDataInvalid("Thiếu OTP");
-    }
-
-    const user = await UserModel.findOne({
-      email,
-      isDeleted: false,
-    });
-
-    if (!user || !this.isTempBusinessUser(user)) {
-      throw ErrorHelper.requestDataInvalid(
-        "Vui lòng gửi OTP cho email doanh nghiệp trước",
-      );
-    }
-
-    if (!user.otpCode || !user.otpExpireAt) {
-      throw ErrorHelper.requestDataInvalid("Vui lòng gửi OTP trước");
-    }
-
-    if (user.otpCode !== otp) {
-      throw ErrorHelper.requestDataInvalid("OTP không chính xác");
-    }
-
-    if (user.otpExpireAt < new Date()) {
-      throw ErrorHelper.requestDataInvalid("OTP đã hết hạn");
-    }
-
-    user.isVerified = true;
-    user.set("otpCode", undefined);
-    user.set("otpExpireAt", undefined);
-
-    await user.save();
-
-    return res.status(200).json({
-      status: 200,
-      code: "200",
-      message: "Xác thực OTP thành công",
-      data: null,
-    });
-  }
-
-  async createBusiness(req: Request, res: Response) {
-    const businessName =
-      typeof req.body.businessName === "string"
-        ? req.body.businessName.trim()
-        : "";
-    const email = this.validateBusinessEmail(req.body.email);
-    const password =
-      typeof req.body.password === "string" ? req.body.password : "";
-    const phone = validatePhone(req.body.phone);
-    const address =
-      typeof req.body.address === "string" ? req.body.address.trim() : "";
-    const description =
-      typeof req.body.description === "string"
-        ? req.body.description.trim()
-        : "";
-    const city = cleanAddressText(req.body.city);
-    const province = cleanAddressText(req.body.province) || city;
-    const district = cleanAddressText(req.body.district);
-    const ward = cleanAddressText(req.body.ward);
-
-    if (!businessName || !email || !password || !phone || !address) {
-      throw ErrorHelper.requestDataInvalid(
-        "Thiếu businessName, email, password, phone hoặc address",
-      );
-    }
-
-    const user = await UserModel.findOne({
-      email,
-      isDeleted: false,
-    });
-
-    if (!user || !this.isTempBusinessUser(user)) {
-      throw ErrorHelper.requestDataInvalid(
-        "Vui lòng gửi và xác thực OTP cho email doanh nghiệp trước",
-      );
-    }
-
-    if (!user.isVerified) {
-      throw ErrorHelper.requestDataInvalid(
-        "Email doanh nghiệp chưa được xác thực OTP",
-      );
-    }
-
-    const existedBusiness = await BusinessModel.findOne({
-      userId: user._id,
-      isDeleted: false,
-    });
-
-    if (existedBusiness) {
-      throw ErrorHelper.requestDataInvalid("Doanh nghiệp đã tồn tại");
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    user.name = businessName;
-    user.password = hashedPassword;
-    user.phone = phone;
-    user.role = UserRoleEnum.BUSINESS;
-    user.isVerified = true;
-    user.set("otpCode", undefined);
-    user.set("otpExpireAt", undefined);
-
-    await user.save();
-
-    const business = await BusinessModel.create({
-      userId: user._id,
-      businessName,
-      phone,
-      address,
-      city,
-      province,
-      district,
-      ward,
-      description,
-      businessType: BusinessTypeEnum.COMPANY,
-      isApproved: true,
-      isRejected: false,
-    });
-
-    const populatedBusiness = await business.populate(
-      "userId",
-      "-password -otpCode",
-    );
-    const createdUser = await UserModel.findById(user._id).select(
-      "-password -otpCode",
-    );
-
-    return res.status(201).json({
-      status: 201,
-      code: "201",
-      message: "Tạo tài khoản doanh nghiệp thành công",
-      data: {
-        user: createdUser,
-        business: populatedBusiness,
-      },
-    });
-  }
-
   async getUsers(req: Request, res: Response) {
     const { role, keyword, isBlocked } = req.query;
 
@@ -686,7 +319,7 @@ class AdminRoute extends BaseRoute {
     }
 
     const users = await UserModel.find(filter)
-      .select("-password -otpCode")
+      .select(ADMIN_USER_SECRET_FIELDS)
       .populate("blockedBy", "name email role")
       .populate("deletedBy", "name email role")
       .sort({ createdAt: -1 });
@@ -695,7 +328,152 @@ class AdminRoute extends BaseRoute {
       status: 200,
       code: "200",
       message: "success",
-      data: { users },
+      data: { users: users.map((user) => this.toAdminUser(user)) },
+    });
+  }
+
+  private maskIdentityNumber(value: unknown) {
+    const normalized = String(value || "").trim();
+    if (!normalized) return "";
+
+    return `${"*".repeat(Math.max(normalized.length - 3, 0))}${normalized.slice(-3)}`;
+  }
+
+  private toAdminUser(user: any) {
+    const payload = user?.toObject ? user.toObject() : { ...(user || {}) };
+    const hasCccdNumber = Object.prototype.hasOwnProperty.call(payload, "cccdNumber");
+    const hasDriverLicenseNumber = Object.prototype.hasOwnProperty.call(
+      payload,
+      "driverLicenseNumber",
+    );
+
+    return {
+      ...payload,
+      ...(hasCccdNumber
+        ? { cccdNumber: this.maskIdentityNumber(payload.cccdNumber) }
+        : {}),
+      ...(hasDriverLicenseNumber
+        ? {
+            driverLicenseNumber: this.maskIdentityNumber(
+              payload.driverLicenseNumber,
+            ),
+          }
+        : {}),
+      identityVerificationStatus: getIdentityVerificationStatus(payload),
+    };
+  }
+
+  async getUserDetail(req: Request, res: Response) {
+    const id = String(req.params.id || "");
+    this.assertObjectId(id, "ID người dùng không hợp lệ");
+
+    const user = await UserModel.findOne({
+      _id: id,
+      isDeleted: false,
+      role: { $ne: UserRoleEnum.ADMIN },
+    })
+      .select(
+        [
+          ADMIN_USER_SECRET_FIELDS,
+          "+cccdNumber",
+          "+cccdFrontImage",
+          "+cccdBackImage",
+          "+driverLicenseNumber",
+          "+driverLicenseImage",
+        ].join(" "),
+      )
+      .populate("blockedBy", "name email role")
+      .populate("deletedBy", "name email role");
+
+    if (!user) {
+      throw ErrorHelper.recordNotFound("Không tìm thấy người dùng");
+    }
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "success",
+      data: { user: this.toAdminUser(user) },
+    });
+  }
+
+  async approveUserIdentity(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const id = String(req.params.id || "");
+    this.assertObjectId(id, "ID người dùng không hợp lệ");
+
+    const user = await UserModel.findOne({
+      _id: id,
+      role: UserRoleEnum.USER,
+      isDeleted: false,
+    }).select(
+      "+cccdNumber +cccdFrontImage +cccdBackImage +driverLicenseNumber +driverLicenseImage",
+    );
+
+    if (!user) throw ErrorHelper.recordNotFound("Không tìm thấy người dùng");
+    if (!hasCompleteIdentityProfile(user)) {
+      throw ErrorHelper.requestDataInvalid("Hồ sơ chưa đủ CCCD và giấy phép lái xe để duyệt");
+    }
+    if (getIdentityVerificationStatus(user) !== IdentityVerificationStatusEnum.PENDING) {
+      throw ErrorHelper.requestDataInvalid("Chỉ có thể duyệt hồ sơ đang chờ xác minh");
+    }
+
+    user.identityProfileCompleted = true;
+    user.identityVerificationStatus = IdentityVerificationStatusEnum.VERIFIED;
+    user.set("identityVerificationReason", undefined);
+    user.identityReviewedAt = new Date();
+    user.identityReviewedBy = authUser.userId;
+    await user.save();
+
+    void notificationCenterService.notifyIdentityVerified(user, authUser.userId);
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "Đã xác minh hồ sơ định danh",
+      data: { user: this.toAdminUser(user) },
+    });
+  }
+
+  async rejectUserIdentity(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const id = String(req.params.id || "");
+    const reason = String(req.body?.reason || "").trim().slice(0, 500);
+    this.assertObjectId(id, "ID người dùng không hợp lệ");
+
+    if (!reason) {
+      throw ErrorHelper.requestDataInvalid("Vui lòng nhập lý do từ chối hồ sơ");
+    }
+
+    const user = await UserModel.findOne({
+      _id: id,
+      role: UserRoleEnum.USER,
+      isDeleted: false,
+    }).select(
+      "+cccdNumber +cccdFrontImage +cccdBackImage +driverLicenseNumber +driverLicenseImage",
+    );
+
+    if (!user) throw ErrorHelper.recordNotFound("Không tìm thấy người dùng");
+    if (!hasCompleteIdentityProfile(user)) {
+      throw ErrorHelper.requestDataInvalid("Hồ sơ chưa đủ CCCD và giấy phép lái xe để từ chối");
+    }
+    if (getIdentityVerificationStatus(user) !== IdentityVerificationStatusEnum.PENDING) {
+      throw ErrorHelper.requestDataInvalid("Chỉ có thể từ chối hồ sơ đang chờ xác minh");
+    }
+
+    user.identityVerificationStatus = IdentityVerificationStatusEnum.REJECTED;
+    user.identityVerificationReason = reason;
+    user.identityReviewedAt = new Date();
+    user.identityReviewedBy = authUser.userId;
+    await user.save();
+
+    void notificationCenterService.notifyIdentityRejected(user, reason, authUser.userId);
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "Đã từ chối hồ sơ định danh",
+      data: { user: this.toAdminUser(user) },
     });
   }
 
@@ -710,88 +488,6 @@ class AdminRoute extends BaseRoute {
 
     return !!booking;
   }
-
-  private async checkBusinessHasActiveBooking(businessId: string) {
-    await expireAbandonedPendingBookings();
-
-    const booking = await BookingModel.findOne({
-      businessId,
-      status: { $in: ACTIVE_BOOKING_STATUSES },
-      isDeleted: false,
-    } as any);
-
-    return !!booking;
-  }
-
-  private buildBusinessWorkFilter(businessId: string, carIds: unknown[]) {
-    return {
-      $or: [
-        { businessId },
-        {
-          ownerId: businessId,
-          ownerType: OwnerTypeEnum.BUSINESS,
-        },
-        ...(carIds.length > 0 ? [{ carId: { $in: carIds } }] : []),
-      ],
-    };
-  }
-
-  private async getBusinessActiveWorkBlockReason(businessId: string) {
-    await expireAbandonedPendingBookings();
-
-    const carIds = await CarModel.distinct("_id", {
-      isDeleted: false,
-      $or: [
-        { businessId },
-        {
-          ownerId: businessId,
-          ownerType: OwnerTypeEnum.BUSINESS,
-        },
-      ],
-    } as any);
-    const businessWorkFilter = this.buildBusinessWorkFilter(businessId, carIds);
-
-    const activeBooking = await BookingModel.findOne({
-      ...businessWorkFilter,
-      status: { $in: ACTIVE_BOOKING_STATUSES },
-      isDeleted: false,
-    } as any).select("_id");
-
-    if (activeBooking) {
-      return "đang có booking thuê xe chưa hoàn tất";
-    }
-
-    const activeContract = await ContractModel.findOne({
-      ...businessWorkFilter,
-      status: ContractStatusEnum.ACTIVE,
-      isDeleted: false,
-    } as any).select("_id");
-
-    if (activeContract) {
-      return "đang có hợp đồng thuê xe còn hiệu lực";
-    }
-
-    const bookingIds = await BookingModel.distinct("_id", {
-      ...businessWorkFilter,
-      isDeleted: false,
-    } as any);
-
-    if (bookingIds.length === 0) {
-      return "";
-    }
-
-    const pendingPayment = await PaymentModel.findOne({
-      bookingId: { $in: bookingIds },
-      status: PaymentStatusEnum.PENDING,
-    } as any).select("_id");
-
-    if (pendingPayment) {
-      return "đang có thanh toán chưa hoàn tất";
-    }
-
-    return "";
-  }
-
   private async hideCarsByAdmin(filter: Record<string, unknown>) {
     await CarModel.updateMany(
       filter as any,
@@ -824,33 +520,18 @@ class AdminRoute extends BaseRoute {
     );
   }
 
-  private getPrivateOwnerCarFilter(userId: string) {
-    return {
-      ownerId: userId,
-      ownerType: OwnerTypeEnum.USER,
-      isDeleted: false,
-    } as any;
-  }
-
-  private getBusinessCarFilter(businessId: string) {
-    return {
-      $or: [
-        { businessId },
-        {
-          ownerId: businessId,
-          ownerType: OwnerTypeEnum.BUSINESS,
-        },
-      ],
-      isDeleted: false,
-    } as any;
-  }
+private getUserOwnedCarFilter(userId: string) {
+  return {
+    ownerId: userId,
+    isDeleted: false,
+  } as any;
+}
 
   private async checkUserOwnedCarsHaveActiveWork(userId: string) {
     await expireAbandonedPendingBookings();
 
     const carIds = await CarModel.distinct("_id", {
       ownerId: userId,
-      ownerType: OwnerTypeEnum.USER,
       isDeleted: false,
     } as any);
 
@@ -907,7 +588,7 @@ class AdminRoute extends BaseRoute {
 
     if (!user) {
       throw ErrorHelper.requestDataInvalid(
-        "Tài khoản đăng nhập của doanh nghiệp không còn tồn tại. Không thể mở khóa doanh nghiệp mồ côi.",
+        "Tài khoản đăng nhập không còn tồn tại. .",
       );
     }
 
@@ -935,22 +616,6 @@ class AdminRoute extends BaseRoute {
 
     }
 
-    if (user.role === UserRoleEnum.BUSINESS) {
-      const business = await BusinessModel.findOne({
-        userId: user._id,
-        isDeleted: false,
-      });
-      const activeReason = business
-        ? await this.getBusinessActiveWorkBlockReason(String(business._id))
-        : "";
-
-      if (activeReason) {
-        throw ErrorHelper.requestDataInvalid(
-          `Không thể khóa doanh nghiệp vì ${activeReason}`,
-        );
-      }
-    }
-
     user.isBlocked = true;
     user.blockedReason = reason;
     user.blockedAt = new Date();
@@ -960,21 +625,9 @@ class AdminRoute extends BaseRoute {
 
     if (user.role === UserRoleEnum.USER) {
       await this.hideCarsByAdmin(
-        this.getPrivateOwnerCarFilter(String(user._id)),
+        this.getUserOwnedCarFilter (String(user._id)),
       );
-    } else if (user.role === UserRoleEnum.BUSINESS) {
-      const business = await BusinessModel.findOne({
-        userId: user._id,
-        isDeleted: false,
-      });
-
-      if (business) {
-        await this.hideCarsByAdmin(
-          this.getBusinessCarFilter(String(business._id)),
-        );
-      }
     }
-
     return res.status(200).json({
       status: 200,
       code: "200",
@@ -993,7 +646,7 @@ class AdminRoute extends BaseRoute {
 
     if (!user) {
       throw ErrorHelper.requestDataInvalid(
-        "Tài khoản đăng nhập của doanh nghiệp không còn tồn tại. Không thể mở khóa doanh nghiệp mồ côi.",
+        "Tài khoản đăng nhập không còn tồn tại. ",
       );
     }
 
@@ -1010,21 +663,9 @@ class AdminRoute extends BaseRoute {
 
     if (user.role === UserRoleEnum.USER) {
       await this.restoreCarsAfterAdminUnblock(
-        this.getPrivateOwnerCarFilter(String(user._id)),
+        this.getUserOwnedCarFilter (String(user._id)),
       );
-    } else if (user.role === UserRoleEnum.BUSINESS) {
-      const business = await BusinessModel.findOne({
-        userId: user._id,
-        isDeleted: false,
-      });
-
-      if (business) {
-        await this.restoreCarsAfterAdminUnblock(
-          this.getBusinessCarFilter(String(business._id)),
-        );
-      }
     }
-
     return res.status(200).json({
       status: 200,
       code: "200",
@@ -1072,7 +713,7 @@ class AdminRoute extends BaseRoute {
       }
 
       await CarModel.updateMany(
-        this.getPrivateOwnerCarFilter(id),
+        this.getUserOwnedCarFilter(id),
         {
           isDeleted: true,
           isHidden: true,
@@ -1080,38 +721,6 @@ class AdminRoute extends BaseRoute {
         } as any,
       );
     }
-
-    if (user.role === UserRoleEnum.BUSINESS) {
-      const business = await BusinessModel.findOne({
-        userId: user._id,
-        isDeleted: false,
-      });
-
-      if (business) {
-        const activeReason = await this.getBusinessActiveWorkBlockReason(
-          String(business._id),
-        );
-
-        if (activeReason) {
-          throw ErrorHelper.requestDataInvalid(
-            `Không thể xóa doanh nghiệp vì ${activeReason}`,
-          );
-        }
-
-        business.isDeleted = true;
-        await business.save();
-
-        await CarModel.updateMany(
-          this.getBusinessCarFilter(String(business._id)),
-          {
-            isDeleted: true,
-            isHidden: true,
-            hiddenByAdmin: true,
-          },
-        );
-      }
-    }
-
     user.isDeleted = true;
     user.deletedReason = reason;
     user.deletedAt = new Date();
@@ -1126,171 +735,5 @@ class AdminRoute extends BaseRoute {
       data: { user },
     });
   }
-
-  async blockBusiness(req: Request, res: Response) {
-    const authUser = (req as any).user;
-    const id = String(req.params.id);
-    const { reason } = req.body;
-
-    if (!reason) {
-      throw ErrorHelper.requestDataInvalid("Vui lòng nhập lý do khóa doanh nghiệp");
-    }
-
-    const business = await BusinessModel.findOne({
-      _id: id,
-      isDeleted: false,
-    });
-
-    if (!business) {
-      throw ErrorHelper.recordNotFound("Business");
-    }
-
-    const user = await UserModel.findOne({
-      _id: business.userId,
-      isDeleted: false,
-    });
-
-    if (!user) {
-      throw ErrorHelper.requestDataInvalid(
-        "Tài khoản đăng nhập của doanh nghiệp không còn tồn tại. Vui lòng xóa doanh nghiệp mồ côi này thay vì khóa.",
-      );
-    }
-
-    const activeReason = await this.getBusinessActiveWorkBlockReason(id);
-
-    if (activeReason) {
-      throw ErrorHelper.requestDataInvalid(
-        `Không thể khóa doanh nghiệp vì ${activeReason}`,
-      );
-    }
-
-    user.isBlocked = true;
-    user.blockedReason = reason;
-    user.blockedAt = new Date();
-    user.blockedBy = authUser.userId;
-
-    await user.save();
-
-    await this.hideCarsByAdmin(
-      this.getBusinessCarFilter(String(business._id)),
-    );
-
-    return res.status(200).json({
-      status: 200,
-      code: "200",
-      message: "Khóa doanh nghiệp thành công, toàn bộ xe đã được ẩn",
-      data: { business, user },
-    });
-  }
-
-  async unblockBusiness(req: Request, res: Response) {
-    const id = String(req.params.id);
-
-    const business = await BusinessModel.findOne({
-      _id: id,
-      isDeleted: false,
-    });
-
-    if (!business) {
-      throw ErrorHelper.recordNotFound("Business");
-    }
-
-    const user = await UserModel.findOne({
-      _id: business.userId,
-      isDeleted: false,
-    });
-
-    if (!user) throw ErrorHelper.userNotExist();
-
-    user.isBlocked = false;
-    user.blockedReason = "";
-    user.set("blockedAt", undefined);
-    user.set("blockedBy", undefined);
-
-    await user.save();
-
-    await this.restoreCarsAfterAdminUnblock(
-      this.getBusinessCarFilter(String(business._id)),
-    );
-
-    return res.status(200).json({
-      status: 200,
-      code: "200",
-      message: "Mở khóa doanh nghiệp thành công, xe đã được hiển thị lại",
-      data: { business, user },
-    });
-  }
-
-  async deleteBusiness(req: Request, res: Response) {
-    const authUser = (req as any).user;
-    const id = String(req.params.id);
-    const { reason } = req.body;
-
-    if (!reason) {
-      throw ErrorHelper.requestDataInvalid("Vui lòng nhập lý do xóa doanh nghiệp");
-    }
-
-    const business = await BusinessModel.findOne({
-      _id: id,
-      isDeleted: false,
-    });
-
-    if (!business) {
-      throw ErrorHelper.recordNotFound("Business");
-    }
-
-    const activeReason = await this.getBusinessActiveWorkBlockReason(id);
-
-    if (activeReason) {
-      throw ErrorHelper.requestDataInvalid(
-        `Không thể xóa doanh nghiệp vì ${activeReason}`,
-      );
-    }
-
-    const user = await UserModel.findOne({
-      _id: business.userId,
-      isDeleted: false,
-    });
-
-    business.isDeleted = true;
-    await business.save();
-
-    await CarModel.updateMany(
-      {
-        $or: [
-          { businessId: business._id },
-          {
-            ownerId: business._id,
-            ownerType: OwnerTypeEnum.BUSINESS,
-          },
-        ],
-        isDeleted: false,
-      } as any,
-      {
-        isDeleted: true,
-        isHidden: true,
-        hiddenByAdmin: true,
-      },
-    );
-
-    if (user) {
-      user.isDeleted = true;
-      user.deletedReason = reason;
-      user.deletedAt = new Date();
-      user.deletedBy = authUser.userId;
-
-      await user.save();
-    }
-
-    return res.status(200).json({
-      status: 200,
-      code: "200",
-      message: user
-        ? "Xóa mềm doanh nghiệp thành công"
-        : "Xóa mềm doanh nghiệp mồ côi thành công",
-      data: { business, user },
-    });
-  }
 }
-
 export default new AdminRoute().router;

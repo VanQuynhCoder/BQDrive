@@ -4,12 +4,16 @@ export type WelcomeBackUser = {
   email?: string;
   avatar?: string;
   role?: string;
+  identityProfileCompleted?: boolean;
+  driverLicenseClass?: "B" | "B1" | "B2";
 };
 
 export type WelcomeBackPayload = {
   displayName: string;
   avatar?: string;
   role?: string;
+  identityProfileCompleted?: boolean;
+  driverLicenseClass?: "B" | "B1" | "B2";
 };
 
 const WELCOME_BACK_STORAGE_KEY = "bqdrive:welcome-back";
@@ -30,6 +34,8 @@ export function queueWelcomeBack(user: WelcomeBackUser) {
     displayName: getDisplayName(user),
     avatar: user.avatar?.trim() || undefined,
     role: user.role?.trim().toUpperCase() || undefined,
+    identityProfileCompleted: user.identityProfileCompleted === true,
+    driverLicenseClass: user.driverLicenseClass,
   };
 
   try {

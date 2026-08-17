@@ -1,5 +1,4 @@
 import { BaseRoute, Request, Response } from "../../base/baseRoute";
-import { ErrorHelper } from "../../base/error";
 import { getBookingDisplayCode } from "../../helper/booking-code.helper";
 import { expireAbandonedPendingBookings } from "../../helper/booking-hold.helper";
 import { syncRentedCarStatuses } from "../../helper/car-status.helper";
@@ -8,13 +7,11 @@ import {
   CAR_STATUS_VALUES,
   BookingStatusEnum,
   CarStatusEnum,
-  OwnerTypeEnum,
   PaymentStatusEnum,
   RefundStatusEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
 import { BookingModel } from "../../models/booking/booking.model";
-import { BusinessModel } from "../../models/business/business.model";
 import { CarModel } from "../../models/car/car.model";
 import { PaymentModel } from "../../models/payment/payment.model";
 import { RefundModel } from "../../models/refund/refund.model";
@@ -47,13 +44,14 @@ class DashboardRoute extends BaseRoute {
     );
     this.router.get(
       "/business",
-      [this.authentication, this.roleGuard([UserRoleEnum.BUSINESS])],
-      this.route(this.businessDashboard),
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
+      this.route(this.consignmentDashboard),
     );
+
     this.router.get(
       "/business/stats",
-      [this.authentication, this.roleGuard([UserRoleEnum.BUSINESS])],
-      this.route(this.businessDashboard),
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
+      this.route(this.consignmentDashboard),
     );
     this.router.get(
       "/consignment/stats",
@@ -150,17 +148,8 @@ class DashboardRoute extends BaseRoute {
   }
 
   private getOwnerName(car: any) {
-    if (car?.ownerType === OwnerTypeEnum.USER) {
-      return car?.ownerId?.name || "Người dùng ký gửi";
-    }
-
-    return (
-      car?.businessId?.businessName ||
-      car?.ownerId?.businessName ||
-      "Doanh nghiệp"
-    );
-  }
-
+  return car?.ownerId?.name || "Người dùng ký gửi";
+}
   private getCarImage(car: any) {
     return Array.isArray(car?.images) ? car.images.find(Boolean) || "" : "";
   }
@@ -233,9 +222,8 @@ class DashboardRoute extends BaseRoute {
       _id: { $in: Array.from(grouped.keys()) },
       isDeleted: false,
     })
-      .populate("businessId", "businessName")
-      .populate("ownerId", "name businessName")
-      .select("name licensePlate images ownerType businessId ownerId")
+      .populate("ownerId", "name")
+      .select("name licensePlate images ownerId")
       .lean();
 
     const carMap = new Map(cars.map((car: any) => [String(car._id), car]));
@@ -380,190 +368,171 @@ class DashboardRoute extends BaseRoute {
       mostReviewedCars: reviewStats.mostReviewedCars,
     };
   }
-
   async adminDashboard(req: Request, res: Response) {
-    await this.prepareDashboardData();
+  await this.prepareDashboardData();
 
-    const [
-      totalUsers,
-      totalBusinesses,
-      totalCars,
-      totalBookings,
-      consignmentOwnerIds,
-      pendingConsignmentCars,
-      pendingBusinessCars,
-      userConsignmentBookingIds,
-      businessBookingIds,
+  const [
+    totalUsers,
+    totalCars,
+    totalBookings,
+    ownerIds,
+    pendingOwnerCars,
+    ownerBookingIds,
+    carStatusStats,
+    bookingStatusStats,
+    hiddenCars,
+    paymentStats,
+    reviewStats,
+  ] = await Promise.all([
+    UserModel.countDocuments({ isDeleted: false }),
+
+    CarModel.countDocuments({
+      isDeleted: false,
+    }),
+
+    BookingModel.countDocuments({
+      isDeleted: false,
+    }),
+
+    CarModel.distinct("ownerId", {
+      ownerId: { $exists: true, $ne: null },
+      isDeleted: false,
+    } as any),
+
+    CarModel.countDocuments({
+      isDeleted: false,
+      status: CarStatusEnum.PENDING,
+    }),
+
+    BookingModel.distinct("_id", {
+      ownerId: { $exists: true, $ne: null },
+      isDeleted: false,
+    } as any),
+
+    this.countByStatus(
+      CarModel,
+      { isDeleted: false },
+      CAR_STATUS_VALUES,
+    ),
+
+    this.countByStatus(
+      BookingModel,
+      { isDeleted: false },
+      BOOKING_STATUS_VALUES,
+    ),
+
+    this.countHiddenCars({
+      isDeleted: false,
+    }),
+
+    this.getPaymentStats(),
+
+    this.getReviewStats(),
+  ]);
+
+  const ownerPaidPayments = await PaymentModel.find({
+    bookingId: { $in: ownerBookingIds },
+    status: PaymentStatusEnum.PAID,
+  }).select("amount");
+
+  const pendingBookings = this.getStatusCount(
+    bookingStatusStats,
+    BookingStatusEnum.REQUESTED,
+  );
+
+  const ownerRevenue = this.sumAmount(ownerPaidPayments);
+
+  const overview = {
+    totalUsers,
+    totalCars,
+
+    pendingCars: this.getStatusCount(
       carStatusStats,
+      CarStatusEnum.PENDING,
+    ),
+
+    approvedCars: this.getStatusCount(
+      carStatusStats,
+      CarStatusEnum.APPROVED,
+    ),
+
+    rentedCars: this.getStatusCount(
+      carStatusStats,
+      CarStatusEnum.RENTED,
+    ),
+
+    rejectedCars: this.getStatusCount(
+      carStatusStats,
+      CarStatusEnum.REJECTED,
+    ),
+
+    hiddenCars,
+
+    totalBookings,
+    pendingBookings,
+
+    completedBookings: this.getStatusCount(
       bookingStatusStats,
-      hiddenCars,
+      BookingStatusEnum.COMPLETED,
+    ),
+
+    cancelledBookings: this.getStatusCount(
+      bookingStatusStats,
+      BookingStatusEnum.CANCELLED,
+    ),
+
+    noShowBookings: this.getStatusCount(
+      bookingStatusStats,
+      BookingStatusEnum.NO_SHOW,
+    ),
+
+    totalPaidRevenue: paymentStats.paidAmount,
+
+    totalReviews: reviewStats.totalReviews,
+    averageRating: reviewStats.averageRating,
+
+    // Kiến trúc mới
+    totalOwners: ownerIds.length,
+    pendingOwnerCars,
+    ownerRevenue,
+
+    // Compatibility tạm thời cho frontend cũ
+    totalBusinesses: 0,
+    totalConsignmentOwners: ownerIds.length,
+    pendingBusinessCars: 0,
+    pendingConsignmentCars: pendingOwnerCars,
+    businessRevenue: 0,
+    userConsignmentRevenue: ownerRevenue,
+  };
+
+  return res.status(200).json({
+    status: 200,
+    code: "200",
+    message: "success",
+    data: {
+      ...overview,
+      revenue: overview.totalPaidRevenue,
+      overview,
+      bookingStatusStats,
+      carStatusStats,
       paymentStats,
-      reviewStats,
-    ] = await Promise.all([
-      UserModel.countDocuments({ isDeleted: false }),
-      BusinessModel.countDocuments({ isDeleted: false }),
-      CarModel.countDocuments({ isDeleted: false }),
-      BookingModel.countDocuments({ isDeleted: false }),
-      CarModel.distinct("ownerId", {
-        ownerType: OwnerTypeEnum.USER,
-        isDeleted: false,
-      } as any),
-      CarModel.countDocuments({
-        ownerType: OwnerTypeEnum.USER,
-        isDeleted: false,
-        status: CarStatusEnum.PENDING,
-      } as any),
-      CarModel.countDocuments({
-        isDeleted: false,
-        status: CarStatusEnum.PENDING,
-        $or: [
-          { ownerType: OwnerTypeEnum.BUSINESS },
-          { businessId: { $exists: true }, ownerId: { $exists: false } },
-        ],
-      } as any),
-      BookingModel.distinct("_id", {
-        ownerType: OwnerTypeEnum.USER,
-        isDeleted: false,
-      } as any),
-      BookingModel.distinct("_id", {
-        isDeleted: false,
-        $or: [
-          { ownerType: OwnerTypeEnum.BUSINESS },
-          { businessId: { $exists: true }, ownerId: { $exists: false } },
-        ],
-      } as any),
-      this.countByStatus(CarModel, { isDeleted: false }, CAR_STATUS_VALUES),
-      this.countByStatus(
-        BookingModel,
-        { isDeleted: false },
-        BOOKING_STATUS_VALUES,
-      ),
-      this.countHiddenCars({ isDeleted: false }),
-      this.getPaymentStats(),
-      this.getReviewStats(),
-    ]);
-    const [businessPaidPayments, userConsignmentPaidPayments] =
-      await Promise.all([
-        PaymentModel.find({
-          bookingId: { $in: businessBookingIds },
-          status: PaymentStatusEnum.PAID,
-        }).select("amount"),
-        PaymentModel.find({
-          bookingId: { $in: userConsignmentBookingIds },
-          status: PaymentStatusEnum.PAID,
-        }).select("amount"),
-      ]);
-    const pendingBookings = this.getStatusCount(
-      bookingStatusStats,
-      BookingStatusEnum.REQUESTED,
-    );
-    const overview = {
-      totalUsers,
-      totalBusinesses,
-      totalCars,
-      pendingCars: this.getStatusCount(carStatusStats, CarStatusEnum.PENDING),
-      approvedCars: this.getStatusCount(carStatusStats, CarStatusEnum.APPROVED),
-      rentedCars: this.getStatusCount(carStatusStats, CarStatusEnum.RENTED),
-      rejectedCars: this.getStatusCount(carStatusStats, CarStatusEnum.REJECTED),
-      hiddenCars,
-      totalBookings,
-      pendingBookings,
-      completedBookings: this.getStatusCount(
-        bookingStatusStats,
-        BookingStatusEnum.COMPLETED,
-      ),
-      cancelledBookings: this.getStatusCount(
-        bookingStatusStats,
-        BookingStatusEnum.CANCELLED,
-      ),
-      noShowBookings: this.getStatusCount(
-        bookingStatusStats,
-        BookingStatusEnum.NO_SHOW,
-      ),
-      totalPaidRevenue: paymentStats.paidAmount,
-      totalReviews: reviewStats.totalReviews,
-      averageRating: reviewStats.averageRating,
-      totalConsignmentOwners: consignmentOwnerIds.length,
-      pendingConsignmentCars,
-      pendingBusinessCars,
-      businessRevenue: this.sumAmount(businessPaidPayments),
-      userConsignmentRevenue: this.sumAmount(userConsignmentPaidPayments),
-    };
-
-    return res.status(200).json({
-      status: 200,
-      code: "200",
-      message: "success",
-      data: {
-        ...overview,
-        revenue: overview.totalPaidRevenue,
-        overview,
-        bookingStatusStats,
-        carStatusStats,
-        paymentStats,
-        topRatedCars: reviewStats.topRatedCars,
-        lowRatedCars: reviewStats.lowRatedCars,
-        mostReviewedCars: reviewStats.mostReviewedCars,
-      },
-    });
-  }
-
-  async businessDashboard(req: Request, res: Response) {
-    const authUser = (req as any).user;
-    await this.prepareDashboardData();
-
-    const business = await BusinessModel.findOne({
-      userId: authUser.userId,
-      isDeleted: false,
-    });
-
-    if (!business) {
-      throw ErrorHelper.recordNotFound("Business");
-    }
-
-    const carFilter = {
-      isDeleted: false,
-      $or: [
-        { businessId: business._id },
-        { ownerId: business._id, ownerType: OwnerTypeEnum.BUSINESS },
-      ],
-    };
-    const bookingFilter = {
-      isDeleted: false,
-      $or: [
-        { businessId: business._id },
-        { ownerId: business._id, ownerType: OwnerTypeEnum.BUSINESS },
-      ],
-    };
-    const stats = await this.getScopedStats(carFilter, bookingFilter);
-
-    return res.status(200).json({
-      status: 200,
-      code: "200",
-      message: "success",
-      data: {
-        ...stats.overview,
-        revenue: stats.overview.totalPaidRevenue,
-        totalRevenue: stats.overview.totalPaidRevenue,
-        profile: business,
-        business,
-        ...stats,
-      },
-    });
-  }
-
+      topRatedCars: reviewStats.topRatedCars,
+      lowRatedCars: reviewStats.lowRatedCars,
+      mostReviewedCars: reviewStats.mostReviewedCars,
+    },
+  });
+}
   async consignmentDashboard(req: Request, res: Response) {
     const authUser = (req as any).user;
     await this.prepareDashboardData();
 
     const carFilter = {
       ownerId: authUser.userId,
-      ownerType: OwnerTypeEnum.USER,
       isDeleted: false,
     };
+
     const bookingFilter = {
       ownerId: authUser.userId,
-      ownerType: OwnerTypeEnum.USER,
       isDeleted: false,
     };
     const stats = await this.getScopedStats(carFilter, bookingFilter);

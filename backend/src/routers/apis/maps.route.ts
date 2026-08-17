@@ -173,7 +173,7 @@ class MapsRoute extends BaseRoute {
       "/geocode",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([ UserRoleEnum.USER]),
       ],
       this.route(this.geocodeAddress),
     );
@@ -182,7 +182,7 @@ class MapsRoute extends BaseRoute {
       "/reverse-geocode",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.reverseGeocode),
     );

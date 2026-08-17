@@ -1,12 +1,12 @@
 ﻿import {
   BarChart3,
-  Building2,
   CalendarDays,
   Car,
   ClipboardList,
   Factory,
   LogOut,
   MapPinned,
+  MessagesSquare,
   MessageSquareText,
   Tags,
   Users,
@@ -30,7 +30,7 @@ const menuItems = [
     to: "/admin/tasks",
     label: "Việc cần làm",
     icon: ClipboardList,
-    badgeKeys: ["pendingCars", "pendingBusiness", "reportedReviews"],
+    badgeKeys: ["pendingCars", "reportedReviews"],
   },
   {
     to: "/admin/users",
@@ -38,10 +38,9 @@ const menuItems = [
     icon: Users,
   },
   {
-    to: "/admin/businesses",
-    label: "Quản lý Doanh nghiệp",
-    icon: Building2,
-    badgeKeys: ["pendingBusiness"],
+    to: "/admin/support",
+    label: "Hỗ trợ",
+    icon: MessagesSquare,
   },
   {
     to: "/admin/brands",

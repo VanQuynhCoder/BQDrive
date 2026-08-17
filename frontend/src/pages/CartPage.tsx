@@ -425,13 +425,26 @@ export default function CartPage() {
                           </div>
                         </div>
 
-                        <button
-                          onClick={() => handleRemove(item._id)}
-                          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-extrabold text-slate-800 transition hover:bg-slate-200"
-                        >
-                          <Trash2 size={17} />
-                          Xóa Khỏi Giỏ
-                        </button>
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <button
+                            onClick={() => handleCheckout(item._id)}
+                            disabled={Boolean(submittingCartId)}
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-extrabold text-primary transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <CreditCard size={17} />
+                            {submittingCartId === item._id
+                              ? "Đang mở..."
+                              : "Thanh toán xe này"}
+                          </button>
+                          <button
+                            onClick={() => handleRemove(item._id)}
+                            disabled={Boolean(submittingCartId)}
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-extrabold text-slate-800 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Trash2 size={17} />
+                            Xóa Khỏi Giỏ
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -472,7 +485,7 @@ export default function CartPage() {
               <div className="my-6 space-y-4 border-y border-white/15 py-6">
                 <div className="flex justify-between gap-4">
                   <span className="text-white/70">
-                    Tạm tính ({carts.length} xe)
+                    Tổng giá trị ({carts.length} xe)
                   </span>
                   <span className="font-bold">{formatPrice(subtotal)}</span>
                 </div>
@@ -481,9 +494,9 @@ export default function CartPage() {
 
               <div className="flex items-end justify-between gap-4">
                 <div>
-                  <p className="text-xl font-extrabold">Tổng thanh toán</p>
+                  <p className="text-xl font-extrabold">Giá trị giỏ xe</p>
                   <p className="mt-1 text-sm text-white/60">
-                    Bằng tổng tiền thuê của các xe trong giỏ
+                    Mỗi xe được thanh toán riêng trong bước đặt xe.
                   </p>
                 </div>
 
@@ -492,14 +505,10 @@ export default function CartPage() {
                 </p>
               </div>
 
-              <button
-                onClick={() => carts[0] && handleCheckout(carts[0]._id)}
-                disabled={carts.length === 0 || Boolean(submittingCartId)}
-                className="mt-7 flex min-h-12 w-full items-center justify-center gap-3 rounded-lg bg-secondary px-5 py-3 font-extrabold text-primary transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <CreditCard size={21} />
-                {submittingCartId ? "Đang tạo booking..." : "Gửi yêu cầu đặt xe"}
-              </button>
+              <p className="mt-7 rounded-lg border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold leading-6 text-white/75">
+                Hãy chọn nút “Thanh toán xe này” trên đúng chiếc xe bạn muốn
+                đặt. Các xe còn lại vẫn được giữ nguyên trong giỏ.
+              </p>
             </div>
 
             <div className="mt-5 space-y-4 rounded-lg border border-border bg-white p-5">

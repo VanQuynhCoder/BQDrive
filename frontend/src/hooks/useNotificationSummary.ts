@@ -1,4 +1,5 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+﻿// Shared hook: supplies notification/task counters to all role-specific navigation.
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   NOTIFICATION_REFRESH_EVENT,
   notificationService,

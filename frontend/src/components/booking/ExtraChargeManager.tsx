@@ -1,3 +1,4 @@
+// Thành phần quản lý phí phát sinh dành cho người dùng có xe ký gửi.
 import {
   type ChangeEvent,
   useCallback,
@@ -15,10 +16,18 @@ import {
 } from "../../services/extraCharge.service";
 import { notifyNotificationSummaryChanged } from "../../services/notification.service";
 import { ownerBookingService } from "../../services/ownerBooking.service";
+import { uploadService } from "../../services/upload.service";
 import type { OwnerReturnInspection } from "../../types/ownerBooking";
 import { normalizeImageUrl } from "../../utils/image.util";
+import { CASH_PAYMENT_UI_ENABLED } from "../../config/payment.config";
 
 const MAX_EVIDENCE_IMAGES = 5;
+const MAX_EVIDENCE_IMAGE_SIZE = 5 * 1024 * 1024;
+const SUPPORTED_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 const chargeTypes: Array<{ value: ExtraChargeType; label: string }> = [
   { value: "CLEANING", label: "Phí vệ sinh" },
@@ -69,16 +78,6 @@ function getStatusClass(status: string) {
   return "bg-yellow-50 text-amber-700 border-yellow-200";
 }
 
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
 export default function ExtraChargeManager({
   bookingId,
   bookingStatus,
@@ -97,6 +96,7 @@ export default function ExtraChargeManager({
   const [description, setDescription] = useState("");
   const [adjustmentReason, setAdjustmentReason] = useState("");
   const [evidenceImages, setEvidenceImages] = useState<string[]>([]);
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
   const [inspection, setInspection] = useState<OwnerReturnInspection | null>(null);
 
   const canCreate = ["RETURN_INSPECTION", "AWAITING_EXTRA_CHARGE"].includes(
@@ -244,19 +244,38 @@ export default function ExtraChargeManager({
       return;
     }
 
-    const acceptedFiles = files
-      .filter((file) => file.type.startsWith("image/"))
-      .slice(0, availableSlots);
-
-    if (acceptedFiles.length !== files.length) {
-      toast.error("Một số file không phải hình ảnh hoặc vượt quá số lượng cho phép");
+    const acceptedFiles = files.slice(0, availableSlots);
+    const unsupportedFile = acceptedFiles.find(
+      (file) => !SUPPORTED_IMAGE_MIME_TYPES.has(file.type),
+    );
+    if (unsupportedFile) {
+      toast.error("Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP; không hỗ trợ HEIC.");
+      return;
+    }
+    const oversizedFile = acceptedFiles.find(
+      (file) => file.size > MAX_EVIDENCE_IMAGE_SIZE,
+    );
+    if (oversizedFile) {
+      toast.error("Mỗi ảnh bằng chứng không được vượt quá 5 MB.");
+      return;
+    }
+    if (acceptedFiles.length < files.length) {
+      toast.error(`Chỉ được thêm tối đa ${MAX_EVIDENCE_IMAGES} ảnh bằng chứng.`);
     }
 
+    setUploadingEvidence(true);
     try {
-      const images = await Promise.all(acceptedFiles.map(readFileAsDataUrl));
-      setEvidenceImages((current) => [...current, ...images]);
+      const images = await Promise.all(
+        acceptedFiles.map((file) => uploadService.uploadCarImage(file)),
+      );
+      setEvidenceImages((current) => [
+        ...current,
+        ...images.map((image) => image.url),
+      ]);
     } catch {
-      toast.error("Không thể đọc ảnh bằng chứng");
+      toast.error("Không thể tải ảnh bằng chứng lên hệ thống.");
+    } finally {
+      setUploadingEvidence(false);
     }
   };
 
@@ -265,6 +284,10 @@ export default function ExtraChargeManager({
   };
 
   const handleCreate = async () => {
+    if (uploadingEvidence) {
+      toast.error("Vui lòng chờ ảnh bằng chứng tải lên hoàn tất.");
+      return;
+    }
     if (type === "OVERAGE_KM" && !hasValidOverage) {
       showUnavailableOverageMessage();
       return;
@@ -523,14 +546,15 @@ export default function ExtraChargeManager({
                 {evidenceImages.length}/{MAX_EVIDENCE_IMAGES} ảnh
               </span>
             </div>
-            <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-secondary bg-white px-4 text-sm font-extrabold text-primary transition hover:bg-secondarySoft/60">
-              <ImagePlus size={18} className="text-secondary" />
-              Chọn ảnh từ máy
+            <label className={`flex min-h-12 items-center justify-center gap-2 rounded-lg border border-dashed border-secondary bg-white px-4 text-sm font-extrabold text-primary transition ${uploadingEvidence ? "cursor-wait opacity-60" : "cursor-pointer hover:bg-secondarySoft/60"}`}>
+              {uploadingEvidence ? <Loader2 size={18} className="animate-spin text-secondary" /> : <ImagePlus size={18} className="text-secondary" />}
+              {uploadingEvidence ? "Đang tải ảnh..." : "Chọn ảnh từ máy"}
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 multiple
                 className="hidden"
+                disabled={uploadingEvidence}
                 onChange={handleEvidenceChange}
               />
             </label>
@@ -566,13 +590,14 @@ export default function ExtraChargeManager({
             onClick={handleCreate}
             disabled={
               submitting ||
+              uploadingEvidence ||
               (type === "OVERAGE_KM" && !hasValidOverage) ||
               (type === "LATE_RETURN" && !hasValidLateReturn)
             }
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 font-extrabold text-secondary disabled:opacity-60"
           >
-            {submitting && <Loader2 size={16} className="animate-spin" />}
-            Lưu phí phát sinh
+            {(submitting || uploadingEvidence) && <Loader2 size={16} className="animate-spin" />}
+            {uploadingEvidence ? "Đang tải ảnh..." : "Lưu phí phát sinh"}
           </button>
         </div>
       )}
@@ -665,14 +690,16 @@ export default function ExtraChargeManager({
 
               {charge.status === "PENDING" && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleConfirmCash(charge._id)}
-                    disabled={submitting}
-                    className="rounded-lg bg-primary px-4 py-2 text-sm font-extrabold text-secondary disabled:opacity-60"
-                  >
-                    Xác nhận đã thu tiền mặt
-                  </button>
+                  {CASH_PAYMENT_UI_ENABLED && (
+                    <button
+                      type="button"
+                      onClick={() => handleConfirmCash(charge._id)}
+                      disabled={submitting}
+                      className="rounded-lg bg-primary px-4 py-2 text-sm font-extrabold text-secondary disabled:opacity-60"
+                    >
+                      Xác nhận đã thu tiền mặt
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleCancel(charge._id)}

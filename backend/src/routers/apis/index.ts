@@ -1,7 +1,6 @@
 import express from "express";
 import authRoute from "./auth.route";
 import brandRoute from "./brand.route";
-import businessRoute from "./business.route";
 import cartRoute from "./cart.route";
 import bookingRoute from "./booking.route";
 import bookingExtensionRoute from "./booking-extension.route";
@@ -17,6 +16,8 @@ import reviewRoute from "./review.route";
 import taskRoute from "./task.route";
 import uploadRoute from "./upload.route";
 import refundRoute from "./refund.route";
+import chatRoute from "./chat.route";
+import supportRoute from "./support.route";
 const router = express.Router();
 
 function dashboardAlias(targetUrl: string) {
@@ -35,8 +36,6 @@ router.use("/admin/holidays", holidayRoute);
 router.use("/admin/dashboard/stats", dashboardAlias("/admin/stats"));
 router.use("/admin", adminRoute);
 router.use("/brand", brandRoute);
-router.use("/business/dashboard/stats", dashboardAlias("/business/stats"));
-router.use("/business", businessRoute);
 router.use("/cart", cartRoute);
 router.use("/bookings", bookingRoute);
 router.use("/booking-extensions", bookingExtensionRoute);
@@ -52,4 +51,6 @@ router.use("/owner", ownerRoute);
 router.use("/reviews", reviewRoute);
 router.use("/uploads", uploadRoute);
 router.use("/refunds", refundRoute);
+router.use("/chat", chatRoute);
+router.use("/support", supportRoute);
 export default router;

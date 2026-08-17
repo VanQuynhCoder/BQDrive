@@ -4,15 +4,18 @@ export type BookingExtensionStatus =
   | "REQUESTED"
   | "OWNER_APPROVED"
   | "PAYMENT_PENDING"
-  | "PAID"
+  | "APPLIED"
   | "REJECTED"
   | "CANCELLED"
   | "EXPIRED";
 
+export type BookingExtensionRequestType = "EXTENSION" | "PLAN_CONVERSION";
+export type BookingExtensionRentalMode = "HOURLY" | "DAILY";
+
 export type BookingExtensionPayment = {
   _id: string;
   amount: number;
-  method?: "CASH" | "MOMO" | "VNPAY" | string;
+  method?: "MOMO" | "VNPAY" | string;
   status?: "PENDING" | "PAID" | "FAILED" | string;
   paymentType?: string;
   paidAt?: string;
@@ -22,6 +25,10 @@ export type BookingExtension = {
   _id: string;
   bookingId: string;
   carId: string;
+  requestType?: BookingExtensionRequestType;
+  sourceRentalMode?: BookingExtensionRentalMode;
+  targetRentalMode?: BookingExtensionRentalMode;
+  targetIncludedKmPerUnit?: number;
   oldEndAt: string;
   requestedEndAt: string;
   additionalDurationMinutes: number;
@@ -45,7 +52,15 @@ export type BookingExtensionQuote = Pick<
   | "additionalDurationMinutes"
   | "billableUnits"
   | "additionalAmount"
->;
+  | "sourceRentalMode"
+  | "targetRentalMode"
+> & {
+  requestType?: BookingExtensionRequestType;
+  currentContractedTotal?: number;
+  calculatedConvertedTotal?: number;
+  appliedConvertedTotal?: number;
+  dailyUnits?: number;
+};
 
 export const bookingExtensionService = {
   listByBooking: async (bookingId: string) => {
@@ -53,18 +68,26 @@ export const bookingExtensionService = {
     return (response.data.data.extensions || []) as BookingExtension[];
   },
 
-  quote: async (bookingId: string, requestedEndAt: string) => {
+  quote: async (
+    bookingId: string,
+    requestedEndAt: string,
+    requestType: BookingExtensionRequestType = "EXTENSION",
+  ) => {
     const response = await api.post(
       `/booking-extensions/bookings/${bookingId}/quote`,
-      { requestedEndAt },
+      { requestedEndAt, requestType },
     );
     return response.data.data.quote as BookingExtensionQuote;
   },
 
-  request: async (bookingId: string, requestedEndAt: string) => {
+  request: async (
+    bookingId: string,
+    requestedEndAt: string,
+    requestType: BookingExtensionRequestType = "EXTENSION",
+  ) => {
     const response = await api.post(
       `/booking-extensions/bookings/${bookingId}/request`,
-      { requestedEndAt },
+      { requestedEndAt, requestType },
     );
     return response.data.data.extension as BookingExtension;
   },

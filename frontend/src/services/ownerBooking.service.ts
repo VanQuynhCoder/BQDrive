@@ -1,3 +1,4 @@
+// API xử lý booking dành cho người dùng có xe ký gửi.
 import api from "./api";
 import type { CancellationPreview } from "./booking.service";
 import type {

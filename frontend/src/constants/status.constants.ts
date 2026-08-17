@@ -1,3 +1,4 @@
+//Nguồn trạng thái dùng chung cho toàn bộ frontend.
 export const BOOKING_STATUSES = [
   "REQUESTED",
   "OWNER_APPROVED",

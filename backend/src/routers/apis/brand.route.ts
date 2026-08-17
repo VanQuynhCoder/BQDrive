@@ -61,9 +61,13 @@ class BrandRoute extends BaseRoute {
 
   async getAllBrand(req: Request, res: Response) {
     const includeDescription = String(req.query.includeDescription || "") === "true";
+    const includeLogo =
+      includeDescription || String(req.query.includeLogo || "") === "true";
     const fields = includeDescription
       ? "_id name logo description createdAt"
-      : "_id name";
+      : includeLogo
+        ? "_id name logo"
+        : "_id name";
     const brands = await BrandModel.find({
       isDeleted: false,
     })

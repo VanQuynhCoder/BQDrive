@@ -29,6 +29,36 @@ export type RefundRecipientInfo = {
   submittedAt?: string;
 };
 
+export type RefundProviderOperationStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "SUCCEEDED"
+  | "FAILED"
+  | "UNKNOWN";
+
+export type RefundProviderOperation = {
+  paymentId?: string | RefundPayment;
+  provider?: string;
+  refundAmount?: number;
+  refundedAmountBefore?: number;
+  transactionType?: string;
+  originalOrderId?: string;
+  originalTransactionId?: string;
+  originalTransactionDate?: string;
+  requestId?: string;
+  responseId?: string;
+  refundTransactionId?: string;
+  responseCode?: string;
+  responseMessage?: string;
+  transactionStatus?: string;
+  payDate?: string;
+  status?: RefundProviderOperationStatus;
+  failureReason?: string;
+  retryCount?: number;
+  requestedAt?: string;
+  completedAt?: string;
+};
+
 export type RefundBooking = {
   _id: string;
   bookingCode?: string;
@@ -70,6 +100,7 @@ export type RefundRecord = {
   method?: string;
   status: RefundStatus;
   paymentIds?: RefundPayment[];
+  providerOperations?: RefundProviderOperation[];
   failureReason?: string;
   manualRefundMethod?: string;
   manualRefundReference?: string;
@@ -83,6 +114,14 @@ export type RefundRecord = {
   succeededAt?: string;
   failedAt?: string;
   createdAt?: string;
+};
+
+export type CheckVnpayStatusResponse = {
+  refund: RefundRecord;
+  completed: boolean;
+  operationStatus: RefundProviderOperationStatus | null;
+  reason: string | null;
+  message: string;
 };
 
 export type RefundPagination = {
@@ -137,6 +176,15 @@ export const refundService = {
   getDetail: async (refundId: string) => {
     const res = await api.get(`/refunds/${refundId}`);
     return res.data.data.refund as RefundRecord;
+  },
+  checkVnpayStatus: async (
+    refundId: string,
+  ): Promise<CheckVnpayStatusResponse> => {
+    const res = await api.post(`/refunds/${refundId}/check-vnpay-status`);
+    return {
+      ...(res.data.data as Omit<CheckVnpayStatusResponse, "message">),
+      message: String(res.data.message || ""),
+    };
   },
   manualSent: async (
     refundId: string,

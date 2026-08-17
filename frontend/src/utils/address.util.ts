@@ -1,3 +1,4 @@
+// Shared utility: formats pickup/owner addresses for renter, owner, and ADMIN screens.
 export type AddressLike = {
   pickupAddress?: string;
   pickupFormattedAddress?: string;

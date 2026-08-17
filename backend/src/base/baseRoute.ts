@@ -1,16 +1,22 @@
 import express, { Request, Response, NextFunction } from "express";
 
-import { ErrorHelper } from "./error";
+import { BaseError, ErrorHelper } from "./error";
 import { TokenHelper } from "../helper/token.helper";
+import { UserModel } from "../models/user/user.model";
+import { UserRoleEnum } from "../constants/model.const";
 
-function normalizeAuthRole(role?: string) {
-  const normalizedRole = role?.toUpperCase();
+function normalizeAuthRole(role?: unknown): UserRoleEnum | null {
+  const normalizedRole = String(role || "").toUpperCase();
 
-  if (normalizedRole === "ADMIN" || normalizedRole === "BUSINESS") {
-    return normalizedRole;
+  if (normalizedRole === UserRoleEnum.ADMIN) {
+    return UserRoleEnum.ADMIN;
   }
 
-  return "USER";
+  if (normalizedRole === UserRoleEnum.USER) {
+    return UserRoleEnum.USER;
+  }
+
+  return null;
 }
 
 export class BaseRoute {
@@ -32,7 +38,7 @@ export class BaseRoute {
     };
   }
 
-  authentication(req: Request, res: Response, next: NextFunction) {
+  async authentication(req: Request, res: Response, next: NextFunction) {
     try {
       const xToken = req.headers["x-token"];
       const authorization = req.headers.authorization;
@@ -47,16 +53,38 @@ export class BaseRoute {
       }
 
       const decoded = TokenHelper.verifyToken(token) as any;
+      const userId = String(decoded?.userId || "");
 
-      if (decoded?.role) {
-        decoded.role = normalizeAuthRole(decoded.role);
+      if (!userId) {
+        throw ErrorHelper.badToken();
       }
 
+      // Token còn hạn chưa đủ để bảo đảm tài khoản vẫn được phép sử dụng.
+      // Luôn đọc lại User để khóa/xóa mềm có hiệu lực ngay với token cũ.
+      const user = await UserModel.findById(userId)
+        .select("_id role isBlocked isDeleted")
+        .lean();
+
+      if (!user || user.isDeleted) {
+        throw ErrorHelper.userNotExist();
+      }
+
+      if (user.isBlocked) {
+        throw ErrorHelper.userWasBlock();
+      }
+
+      const role = normalizeAuthRole(user.role);
+      if (!role) {
+        throw ErrorHelper.permissionDeny();
+      }
+
+      decoded.userId = String(user._id);
+      decoded.role = role;
       (req as any).user = decoded;
 
       next();
     } catch (error) {
-      next(ErrorHelper.badToken());
+      next(error instanceof BaseError ? error : ErrorHelper.badToken());
     }
   }
   roleGuard(roles: string[]) {
@@ -68,11 +96,13 @@ export class BaseRoute {
           throw ErrorHelper.unauthorized();
         }
 
-        user.role = normalizeAuthRole(user.role);
+        const role = normalizeAuthRole(user.role);
 
-        if (!roles.includes(user.role)) {
+        if (!role || !roles.includes(role)) {
           throw ErrorHelper.permissionDeny();
         }
+
+        user.role = role;
 
         next();
       } catch (error) {

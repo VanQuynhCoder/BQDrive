@@ -1,3 +1,4 @@
+// Kiểu dữ liệu dùng chung cho nghiệp vụ tính giá thuê 
 export type RentalMode = "DAILY" | "HOURLY";
 
 export type PricingDateType = "WEEKDAY" | "WEEKEND" | "HOLIDAY";
@@ -33,14 +34,30 @@ export type PricingDeliverySnapshot = {
 
 export type PricingSnapshot = {
   rentalMode?: RentalMode;
+
   basePricePerUnit?: number;
   weekendSurchargePerUnit?: number;
   holidaySurchargePerUnit?: number;
+
   breakdown?: PricingBreakdownItem[];
+
   subtotal?: number;
   rentalSubtotal?: number;
+
+  rentalDepositRate?: number;
+  rentalDepositAmount?: number;
+
+  platformFeeRate?: number;
+  platformFee?: number;
+
+  insuranceFeePerDay?: number;
+  insuranceDays?: number;
+  insuranceFee?: number;
+
+  upfrontPaymentAmount?: number;
+
   deliveryFee?: number;
   totalPrice?: number;
+
   delivery?: PricingDeliverySnapshot;
 };
-

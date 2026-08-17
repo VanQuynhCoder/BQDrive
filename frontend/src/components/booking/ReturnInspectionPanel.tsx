@@ -1,3 +1,4 @@
+// Thành phần kiểm tra xe khi khách trả xe.
 import {
   type ChangeEvent,
   useCallback,
@@ -16,8 +17,14 @@ import {
 } from "lucide-react";
 
 import { notifyNotificationSummaryChanged } from "../../services/notification.service";
+import { uploadService } from "../../services/upload.service";
 import { formatVietnamDateTime } from "../../utils/date.util";
 import { normalizeImageUrl } from "../../utils/image.util";
+import type {
+  VehicleAccessoriesSnapshot,
+  VehicleConditionChecklist,
+  VehicleDocumentsSnapshot,
+} from "../../types/ownerBooking";
 
 type ReturnInspection = {
   _id: string;
@@ -52,7 +59,12 @@ type ReturnInspection = {
   hasDamage?: boolean;
   hasCleaningIssue?: boolean;
   hasFuelShortage?: boolean;
+  vehicleCondition?: VehicleConditionChecklist;
+  accessoriesSnapshot?: VehicleAccessoriesSnapshot;
+  vehicleDocumentsSnapshot?: VehicleDocumentsSnapshot;
   inspectionStatus?: string;
+  ownerConfirmedAt?: string;
+  renterConfirmedAt?: string;
 };
 
 type CompletionState = {
@@ -61,13 +73,16 @@ type CompletionState = {
 };
 
 type ReceiveReturnPayload = {
-  returnOdometer?: number;
-  returnFuelLevel?: number;
+  returnOdometerKm: number;
+  returnEnergyLevelPercent: number;
   returnPhotos?: string[];
   conditionNotes?: string;
   hasDamage?: boolean;
   hasCleaningIssue?: boolean;
   hasFuelShortage?: boolean;
+  vehicleCondition: VehicleConditionChecklist;
+  accessoriesSnapshot: VehicleAccessoriesSnapshot;
+  vehicleDocumentsSnapshot: VehicleDocumentsSnapshot;
 };
 
 type ReturnInspectionResponse = {
@@ -81,6 +96,9 @@ type Props = {
   plannedReturnAt?: string;
   handoverOdometerKm?: number;
   handoverEnergyLevelPercent?: number;
+  handoverVehicleCondition?: VehicleConditionChecklist;
+  handoverAccessoriesSnapshot?: VehicleAccessoriesSnapshot;
+  handoverVehicleDocumentsSnapshot?: VehicleDocumentsSnapshot;
   getInspection: (id: string) => Promise<ReturnInspectionResponse>;
   receiveReturn: (
     id: string,
@@ -95,7 +113,40 @@ type Props = {
   onCompleted?: () => void;
 };
 
+type PendingChecklist<T> = { [K in keyof T]: boolean | null };
+
 const MAX_RETURN_PHOTOS = 8;
+const MAX_RETURN_PHOTO_SIZE = 5 * 1024 * 1024;
+const SUPPORTED_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+const CONDITION_ITEMS: Array<[keyof VehicleConditionChecklist, string]> = [
+  ["bodyOk", "Thân vỏ, vết trầy xước"],
+  ["glassAndMirrorsOk", "Kính và gương"],
+  ["lightsOk", "Hệ thống đèn"],
+  ["tiresOk", "Lốp xe"],
+  ["interiorClean", "Nội thất sạch sẽ"],
+  ["seatsAndSeatbeltsOk", "Ghế và dây an toàn"],
+  ["airConditioningOk", "Điều hòa"],
+  ["dashboardWarningFree", "Bảng đồng hồ không có cảnh báo bất thường"],
+];
+const ACCESSORY_ITEMS: Array<[
+  Exclude<keyof VehicleAccessoriesSnapshot, "chargingCableApplicable" | "chargingCablePresent">,
+  string,
+]> = [
+  ["vehicleKeysPresent", "Chìa khóa xe"],
+  ["tireSupportKitPresent", "Lốp dự phòng hoặc bộ vá lốp"],
+  ["basicToolkitPresent", "Kích xe và bộ dụng cụ cơ bản"],
+  ["warningTrianglePresent", "Tam giác cảnh báo"],
+];
+const DOCUMENT_ITEMS: Array<[keyof VehicleDocumentsSnapshot, string]> = [
+  ["registrationPresent", "Đăng ký xe hoặc giấy tờ thay thế hợp pháp"],
+  ["inspectionCertificatePresent", "Giấy chứng nhận đăng kiểm"],
+  ["insuranceCertificatePresent", "Giấy chứng nhận bảo hiểm"],
+];
+
 const inspectionStatuses: Record<string, string> = {
   RECEIVED: "Đã tiếp nhận xe trả",
   INSPECTING: "Đang kiểm tra xe",
@@ -107,17 +158,10 @@ const blockerLabels: Record<string, string> = {
   INSPECTION_NOT_CLEARED: "Chưa xác nhận hoàn tất kiểm tra xe.",
   REMAINING_PAYMENT: "Booking vẫn còn tiền thuê chưa thanh toán.",
   PENDING_EXTRA_CHARGE: "Booking vẫn còn phí phát sinh đang chờ xử lý.",
+  OWNER_RETURN_CONFIRMATION_REQUIRED: "Chủ xe chưa xác nhận đã nhận lại xe.",
+  RENTER_RETURN_CONFIRMATION_REQUIRED: "Đang chờ người thuê xác nhận đã trả xe.",
   BOOKING_NOT_ACTIVE: "Booking không còn ở trạng thái có thể hoàn tất.",
 };
-
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
 
 function formatDateTime(value?: string) {
   return value
@@ -143,12 +187,55 @@ function formatCurrency(value = 0) {
   }).format(value);
 }
 
+function ComparisonGroup({
+  title,
+  items,
+  positiveLabel,
+  negativeLabel,
+}: {
+  title: string;
+  items: Array<{ label: string; handover?: boolean; returned?: boolean }>;
+  positiveLabel: string;
+  negativeLabel: string;
+}) {
+  const renderValue = (value?: boolean) => {
+    if (value === undefined) return <span className="text-slate-400">Chưa ghi nhận</span>;
+    return (
+      <span className={value ? "font-extrabold text-emerald-700" : "font-extrabold text-red-700"}>
+        {value ? positiveLabel : negativeLabel}
+      </span>
+    );
+  };
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-slate-200">
+      <h5 className="bg-slate-50 px-3 py-2 text-sm font-extrabold text-primary">{title}</h5>
+      <div className="grid grid-cols-[minmax(0,1fr)_90px_90px] border-t border-slate-200 px-3 py-2 text-xs font-extrabold uppercase text-slate-400">
+        <span>Hạng mục</span><span>Bàn giao</span><span>Nhận lại</span>
+      </div>
+      {items.map((item) => {
+        const changed = item.handover !== undefined && item.returned !== undefined && item.handover !== item.returned;
+        return (
+          <div key={item.label} className={`grid grid-cols-[minmax(0,1fr)_90px_90px] border-t border-slate-100 px-3 py-2 text-xs ${changed ? "bg-amber-50" : "bg-white"}`}>
+            <span className="pr-2 font-bold text-slate-700">{item.label}{changed ? " · Có thay đổi" : ""}</span>
+            {renderValue(item.handover)}
+            {renderValue(item.returned)}
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
 export default function ReturnInspectionPanel({
   bookingId,
   bookingStatus,
   plannedReturnAt,
   handoverOdometerKm,
   handoverEnergyLevelPercent,
+  handoverVehicleCondition,
+  handoverAccessoriesSnapshot,
+  handoverVehicleDocumentsSnapshot,
   getInspection,
   receiveReturn,
   clearInspection,
@@ -163,13 +250,38 @@ export default function ReturnInspectionPanel({
     canComplete: false,
     blockers: [],
   });
+  const [conditionNotes, setConditionNotes] = useState("");
   const [returnOdometer, setReturnOdometer] = useState("");
   const [returnFuelLevel, setReturnFuelLevel] = useState("");
-  const [conditionNotes, setConditionNotes] = useState("");
   const [returnPhotos, setReturnPhotos] = useState<string[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [hasDamage, setHasDamage] = useState(false);
   const [hasCleaningIssue, setHasCleaningIssue] = useState(false);
   const [hasFuelShortage, setHasFuelShortage] = useState(false);
+  const [vehicleCondition, setVehicleCondition] = useState<PendingChecklist<VehicleConditionChecklist>>({
+    bodyOk: null,
+    glassAndMirrorsOk: null,
+    lightsOk: null,
+    tiresOk: null,
+    interiorClean: null,
+    seatsAndSeatbeltsOk: null,
+    airConditioningOk: null,
+    dashboardWarningFree: null,
+  });
+  const cableApplicable = handoverAccessoriesSnapshot?.chargingCableApplicable === true;
+  const [accessoriesSnapshot, setAccessoriesSnapshot] = useState<PendingChecklist<VehicleAccessoriesSnapshot>>({
+    vehicleKeysPresent: null,
+    tireSupportKitPresent: null,
+    basicToolkitPresent: null,
+    warningTrianglePresent: null,
+    chargingCableApplicable: cableApplicable,
+    chargingCablePresent: cableApplicable ? null : false,
+  });
+  const [vehicleDocumentsSnapshot, setVehicleDocumentsSnapshot] = useState<PendingChecklist<VehicleDocumentsSnapshot>>({
+    registrationPresent: null,
+    inspectionCertificatePresent: null,
+    insuranceCertificatePresent: null,
+  });
   const displayedReturnOdometer =
     inspection?.returnOdometerKm ?? inspection?.returnOdometer;
   const displayedReturnEnergy =
@@ -216,12 +328,20 @@ export default function ReturnInspectionPanel({
     const files = Array.from(event.target.files || []);
     event.target.value = "";
     const availableSlots = MAX_RETURN_PHOTOS - returnPhotos.length;
-    const acceptedFiles = files
-      .filter((file) => file.type.startsWith("image/"))
-      .slice(0, availableSlots);
+    const acceptedFiles = files.slice(0, availableSlots);
 
     if (!acceptedFiles.length) {
       toast.error("Vui lòng chọn file hình ảnh hợp lệ.");
+      return;
+    }
+
+    if (acceptedFiles.some((file) => !SUPPORTED_IMAGE_MIME_TYPES.has(file.type))) {
+      toast.error("Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP; không hỗ trợ HEIC.");
+      return;
+    }
+
+    if (acceptedFiles.some((file) => file.size > MAX_RETURN_PHOTO_SIZE)) {
+      toast.error("Mỗi ảnh xe lúc trả không được vượt quá 5 MB.");
       return;
     }
 
@@ -229,8 +349,17 @@ export default function ReturnInspectionPanel({
       toast.error(`Chỉ nhận tối đa ${MAX_RETURN_PHOTOS} ảnh xe lúc trả.`);
     }
 
-    const images = await Promise.all(acceptedFiles.map(readFileAsDataUrl));
-    setReturnPhotos((current) => [...current, ...images]);
+    setUploadingPhotos(true);
+    try {
+      const images = await Promise.all(
+        acceptedFiles.map((file) => uploadService.uploadCarImage(file)),
+      );
+      setReturnPhotos((current) => [...current, ...images.map((image) => image.url)]);
+    } catch {
+      toast.error("Không thể tải ảnh tình trạng xe lên hệ thống.");
+    } finally {
+      setUploadingPhotos(false);
+    }
   };
 
   const handleReceiveReturn = async () => {
@@ -239,26 +368,53 @@ export default function ReturnInspectionPanel({
     const fuel =
       returnFuelLevel.trim() === "" ? undefined : Number(returnFuelLevel);
 
-    if (odometer !== undefined && (!Number.isFinite(odometer) || odometer < 0)) {
+    if (odometer === undefined || !Number.isInteger(odometer) || odometer < 0) {
       toast.error("Số kilomet lúc trả không hợp lệ.");
       return;
     }
 
-    if (fuel !== undefined && (!Number.isFinite(fuel) || fuel < 0 || fuel > 100)) {
+    if (fuel === undefined || !Number.isFinite(fuel) || fuel < 0 || fuel > 100) {
       toast.error("Mức nhiên liệu phải nằm trong khoảng 0 đến 100.");
+      return;
+    }
+
+    if (
+      Object.values(vehicleCondition).some((value) => value === null) ||
+      ACCESSORY_ITEMS.some(([key]) => accessoriesSnapshot[key] === null) ||
+      Object.values(vehicleDocumentsSnapshot).some((value) => value === null) ||
+      (cableApplicable && accessoriesSnapshot.chargingCablePresent === null)
+    ) {
+      toast.error("Vui lòng ghi nhận đầy đủ tình trạng xe, phụ kiện và giấy tờ.");
+      return;
+    }
+    if (
+      Object.values(vehicleCondition).some((value) => value === false) &&
+      !conditionNotes.trim()
+    ) {
+      toast.error("Vui lòng ghi chú cụ thể khi có hạng mục tình trạng xe không đạt.");
       return;
     }
 
     setSubmitting(true);
     try {
       const data = await receiveReturn(bookingId, {
-        returnOdometer: odometer,
-        returnFuelLevel: fuel,
+        returnOdometerKm: Number(odometer),
+        returnEnergyLevelPercent: Number(fuel),
         returnPhotos,
         conditionNotes: conditionNotes.trim(),
         hasDamage,
         hasCleaningIssue,
         hasFuelShortage,
+        vehicleCondition: vehicleCondition as VehicleConditionChecklist,
+        accessoriesSnapshot: {
+          ...accessoriesSnapshot,
+          chargingCableApplicable: cableApplicable,
+          chargingCablePresent: cableApplicable
+            ? Boolean(accessoriesSnapshot.chargingCablePresent)
+            : false,
+        } as VehicleAccessoriesSnapshot,
+        vehicleDocumentsSnapshot:
+          vehicleDocumentsSnapshot as VehicleDocumentsSnapshot,
       });
       setInspection(data.inspection);
       setCompletionState(data.completionState);
@@ -290,7 +446,6 @@ export default function ReturnInspectionPanel({
 
   const handleCompleteBooking = async () => {
     if (!completeBooking || !completionState.canComplete) return;
-
     setSubmitting(true);
     try {
       await completeBooking(bookingId);
@@ -300,7 +455,6 @@ export default function ReturnInspectionPanel({
       onCompleted?.();
     } catch (error) {
       toast.error(getErrorMessage(error, "Không thể hoàn tất booking"));
-      await fetchInspection();
     } finally {
       setSubmitting(false);
     }
@@ -370,6 +524,42 @@ export default function ReturnInspectionPanel({
             </label>
           </div>
 
+          <div className="space-y-4">
+            {[
+              ["Tình trạng xe", CONDITION_ITEMS, vehicleCondition, setVehicleCondition, "Đạt", "Không đạt"],
+              ["Phụ kiện theo xe", ACCESSORY_ITEMS, accessoriesSnapshot, setAccessoriesSnapshot, "Có", "Không có"],
+              ["Giấy tờ theo xe", DOCUMENT_ITEMS, vehicleDocumentsSnapshot, setVehicleDocumentsSnapshot, "Có", "Không có"],
+            ].map(([title, items, values, setter, positiveLabel, negativeLabel]) => (
+              <section key={String(title)} className="space-y-2 rounded-lg border border-yellow-200 bg-white p-3">
+                <p className="font-extrabold text-primary">{String(title)}</p>
+                {(items as Array<[string, string]>).map(([key, label]) => (
+                  <label key={key} className="grid gap-2 text-sm font-bold text-primary sm:grid-cols-[1fr_170px] sm:items-center">
+                    {label}
+                    <select
+                      value={(values as Record<string, boolean | null>)[key] === null ? "" : String((values as Record<string, boolean | null>)[key])}
+                      onChange={(event) => (setter as React.Dispatch<React.SetStateAction<Record<string, boolean | null>>>)((current) => ({ ...current, [key]: event.target.value === "true" }))}
+                      className="h-10 rounded-lg border border-slate-200 bg-white px-3 font-bold outline-none focus:border-secondary"
+                    >
+                      <option value="">Chọn trạng thái</option>
+                      <option value="true">{String(positiveLabel)}</option>
+                      <option value="false">{String(negativeLabel)}</option>
+                    </select>
+                  </label>
+                ))}
+              </section>
+            ))}
+            {cableApplicable && (
+              <label className="grid gap-2 rounded-lg border border-yellow-200 bg-white p-3 text-sm font-bold text-primary sm:grid-cols-[1fr_170px] sm:items-center">
+                Cáp sạc
+                <select value={accessoriesSnapshot.chargingCablePresent === null ? "" : String(accessoriesSnapshot.chargingCablePresent)} onChange={(event) => setAccessoriesSnapshot((current) => ({ ...current, chargingCablePresent: event.target.value === "true" }))} className="h-10 rounded-lg border border-slate-200 bg-white px-3 font-bold outline-none focus:border-secondary">
+                  <option value="">Chọn trạng thái</option>
+                  <option value="true">Có</option>
+                  <option value="false">Không có</option>
+                </select>
+              </label>
+            )}
+          </div>
+
           <div className="grid gap-2 sm:grid-cols-3">
             {[
               ["hasDamage", "Có hư hỏng"],
@@ -423,7 +613,7 @@ export default function ReturnInspectionPanel({
               Chọn ảnh xe lúc trả
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 multiple
                 className="hidden"
                 onChange={handlePhotosChange}
@@ -531,6 +721,19 @@ export default function ReturnInspectionPanel({
                   : "--"}
               </p>
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-extrabold uppercase text-primary">Đối chiếu bàn giao và nhận lại</p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">Khác biệt chỉ được đánh dấu để chủ xe xem xét, không tự động tạo phụ phí.</p>
+            </div>
+            <ComparisonGroup title="Tình trạng xe" positiveLabel="Đạt" negativeLabel="Không đạt" items={CONDITION_ITEMS.map(([key, label]) => ({ label, handover: handoverVehicleCondition?.[key], returned: inspection.vehicleCondition?.[key] }))} />
+            <ComparisonGroup title="Phụ kiện theo xe" positiveLabel="Có" negativeLabel="Không có" items={[
+              ...ACCESSORY_ITEMS.map(([key, label]) => ({ label, handover: handoverAccessoriesSnapshot?.[key], returned: inspection.accessoriesSnapshot?.[key] })),
+              ...((handoverAccessoriesSnapshot?.chargingCableApplicable || inspection.accessoriesSnapshot?.chargingCableApplicable) ? [{ label: "Cáp sạc", handover: handoverAccessoriesSnapshot?.chargingCablePresent, returned: inspection.accessoriesSnapshot?.chargingCablePresent }] : []),
+            ]} />
+            <ComparisonGroup title="Giấy tờ theo xe" positiveLabel="Có" negativeLabel="Không có" items={DOCUMENT_ITEMS.map(([key, label]) => ({ label, handover: handoverVehicleDocumentsSnapshot?.[key], returned: inspection.vehicleDocumentsSnapshot?.[key] }))} />
           </div>
 
           {inspection.lateReturnCalculation && (
@@ -739,33 +942,58 @@ export default function ReturnInspectionPanel({
             </div>
           )}
 
-          {inspection.inspectionStatus !== "CLEARED" &&
-            !hasPendingExtraCharge && (
+          <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm sm:grid-cols-2">
+            <div>
+              <p className="font-extrabold text-primary">Bên nhận lại xe — Owner</p>
+              <p className="mt-1 font-semibold text-slate-600">
+                {inspection.ownerConfirmedAt
+                  ? `✓ Đã xác nhận ${formatDateTime(inspection.ownerConfirmedAt)}`
+                  : "Chưa xác nhận"}
+              </p>
+            </div>
+            <div>
+              <p className="font-extrabold text-primary">Bên trả xe — Renter</p>
+              <p className="mt-1 font-semibold text-slate-600">
+                {inspection.renterConfirmedAt
+                  ? `✓ Đã xác nhận ${formatDateTime(inspection.renterConfirmedAt)}`
+                  : inspection.ownerConfirmedAt
+                    ? "Đang chờ người thuê xác nhận đã trả xe"
+                    : "Chưa thể xác nhận trước owner"}
+              </p>
+            </div>
+          </div>
+
+          {!inspection.ownerConfirmedAt && (
             <button
               type="button"
               onClick={handleClearInspection}
-              disabled={submitting}
+              disabled={submitting || uploadingPhotos}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-5 font-extrabold text-primary disabled:opacity-60"
             >
               {submitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-              Xác nhận không có phát sinh / đã xử lý xong
+              Xác nhận đã nhận lại xe
             </button>
           )}
 
-          {inspection.inspectionStatus === "CLEARED" &&
-            completeBooking &&
-            completionState.canComplete && (
+          {inspection.ownerConfirmedAt && inspection.renterConfirmedAt && (
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="print:hidden inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-primary bg-white px-5 font-extrabold text-primary"
+            >
+              In biên bản
+            </button>
+          )}
+
+          {inspection.ownerConfirmedAt && inspection.renterConfirmedAt &&
+            completionState.canComplete && completeBooking && (
               <button
                 type="button"
                 onClick={handleCompleteBooking}
                 disabled={submitting}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 font-extrabold text-secondary transition hover:bg-primaryDark disabled:opacity-60"
+                className="print:hidden inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 font-extrabold text-secondary disabled:opacity-60"
               >
-                {submitting ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <CheckCircle2 size={16} />
-                )}
+                {submitting && <Loader2 size={16} className="animate-spin" />}
                 Hoàn tất chuyến
               </button>
             )}

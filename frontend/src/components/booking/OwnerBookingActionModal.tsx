@@ -1,3 +1,4 @@
+// Modal xử lý các thao tác booking dành cho chủ xe ký gửi.
 import { type ChangeEvent, useEffect, useState } from "react";
 import {
   CalendarRange,
@@ -16,6 +17,9 @@ import type {
   OwnerBookingDetail,
   OwnerHandoverPayload,
   OwnerReturnPayload,
+  VehicleAccessoriesSnapshot,
+  VehicleConditionChecklist,
+  VehicleDocumentsSnapshot,
 } from "../../types/ownerBooking";
 import { formatVietnamDateTime } from "../../utils/date.util";
 import { normalizeImageUrl } from "../../utils/image.util";
@@ -35,7 +39,7 @@ type Props = {
   onSubmit: (
     action: OwnerBookingMutationAction,
     payload: OwnerBookingActionPayload,
-  ) => Promise<void>;
+  ) => Promise<unknown>;
 };
 
 const ACTION_COPY: Record<
@@ -60,7 +64,7 @@ const ACTION_COPY: Record<
   },
   handover: {
     title: "Bàn giao xe",
-    description: "Ghi nhận ODO và mức nhiên liệu/năng lượng tại thời điểm giao xe.",
+    description: "Có thể bàn giao sớm tối đa 15 phút trước giờ nhận xe. Lập biên bản tình trạng xe và xác nhận bàn giao để chờ người thuê xác nhận nhận xe.",
     confirmText: "Xác nhận bàn giao",
   },
   return: {
@@ -79,6 +83,87 @@ function formatDateTime(value?: string) {
 
 const OWNER_RESPONSE_TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_ODO_IMAGE_SIZE = 5 * 1024 * 1024;
+const SUPPORTED_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+type PendingChecklist<T> = { [K in keyof T]: boolean | null };
+
+const VEHICLE_CONDITION_ITEMS: Array<[
+  keyof VehicleConditionChecklist,
+  string,
+]> = [
+  ["bodyOk", "Thân vỏ, vết trầy xước"],
+  ["glassAndMirrorsOk", "Kính và gương"],
+  ["lightsOk", "Hệ thống đèn"],
+  ["tiresOk", "Lốp xe"],
+  ["interiorClean", "Nội thất sạch sẽ"],
+  ["seatsAndSeatbeltsOk", "Ghế và dây an toàn"],
+  ["airConditioningOk", "Điều hòa"],
+  ["dashboardWarningFree", "Bảng đồng hồ không có cảnh báo bất thường"],
+];
+
+const VEHICLE_ACCESSORY_ITEMS: Array<[
+  Exclude<keyof VehicleAccessoriesSnapshot, "chargingCableApplicable" | "chargingCablePresent">,
+  string,
+]> = [
+  ["vehicleKeysPresent", "Chìa khóa xe"],
+  ["tireSupportKitPresent", "Lốp dự phòng hoặc bộ vá lốp"],
+  ["basicToolkitPresent", "Kích xe và bộ dụng cụ cơ bản"],
+  ["warningTrianglePresent", "Tam giác cảnh báo"],
+];
+
+const VEHICLE_DOCUMENT_ITEMS: Array<[
+  keyof VehicleDocumentsSnapshot,
+  string,
+]> = [
+  ["registrationPresent", "Đăng ký xe hoặc giấy tờ thay thế hợp pháp"],
+  ["inspectionCertificatePresent", "Giấy chứng nhận đăng kiểm"],
+  ["insuranceCertificatePresent", "Giấy chứng nhận bảo hiểm"],
+];
+
+function ChecklistChoice({
+  label,
+  value,
+  positiveLabel,
+  negativeLabel,
+  onChange,
+}: {
+  label: string;
+  value: boolean | null;
+  positiveLabel: string;
+  negativeLabel: string;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+      <span className="text-sm font-bold text-primary">{label}</span>
+      <div className="flex shrink-0 gap-2">
+        {[
+          [true, positiveLabel],
+          [false, negativeLabel],
+        ].map(([choice, choiceLabel]) => (
+          <button
+            key={String(choice)}
+            type="button"
+            onClick={() => onChange(Boolean(choice))}
+            className={`rounded-md border px-3 py-1.5 text-xs font-extrabold transition ${
+              value === choice
+                ? choice
+                  ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                  : "border-red-400 bg-red-50 text-red-700"
+                : "border-slate-200 text-slate-500 hover:border-secondary"
+            }`}
+          >
+            {String(choiceLabel)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function BookingApprovalDeadline({ createdAt }: { createdAt?: string }) {
   const [now, setNow] = useState(0);
@@ -210,13 +295,64 @@ export default function OwnerBookingActionModal({
       ? String(detail.handoverSnapshot.handoverEnergyLevelPercent)
       : "",
   );
+  const [preparationOdometer, setPreparationOdometer] = useState(() =>
+    action === "handover" &&
+    detail?.currentOdometerKm !== null &&
+    detail?.currentOdometerKm !== undefined
+      ? String(detail.currentOdometerKm)
+      : "",
+  );
+  const [preparationEnergyPercent, setPreparationEnergyPercent] = useState("");
+  const [preparationNotes, setPreparationNotes] = useState("");
   const [conditionNotes, setConditionNotes] = useState("");
   const [hasDamage, setHasDamage] = useState(false);
   const [hasCleaningIssue, setHasCleaningIssue] = useState(false);
   const [hasFuelShortage, setHasFuelShortage] = useState(false);
-  const [returnDashboardImage, setReturnDashboardImage] = useState("");
-  const [uploadingReturnImage, setUploadingReturnImage] = useState(false);
+  const [dashboardImage, setDashboardImage] = useState("");
+  const [uploadingDashboardImage, setUploadingDashboardImage] = useState(false);
   const [validationError, setValidationError] = useState("");
+  const isElectricVehicle = detail?.car.fuelType === "ELECTRIC";
+  const handoverCableApplicable =
+    detail?.handoverSnapshot?.accessoriesSnapshot?.chargingCableApplicable;
+  const initialCableApplicability =
+    action === "return" && typeof handoverCableApplicable === "boolean"
+      ? handoverCableApplicable
+      : isElectricVehicle
+        ? null
+        : false;
+  const [chargingCableApplicable, setChargingCableApplicable] = useState<boolean | null>(
+    initialCableApplicability,
+  );
+  const cableApplicable = chargingCableApplicable === true;
+  const [vehicleCondition, setVehicleCondition] = useState<
+    PendingChecklist<VehicleConditionChecklist>
+  >({
+    bodyOk: null,
+    glassAndMirrorsOk: null,
+    lightsOk: null,
+    tiresOk: null,
+    interiorClean: null,
+    seatsAndSeatbeltsOk: null,
+    airConditioningOk: null,
+    dashboardWarningFree: null,
+  });
+  const [accessoriesSnapshot, setAccessoriesSnapshot] = useState<
+    PendingChecklist<VehicleAccessoriesSnapshot>
+  >({
+    vehicleKeysPresent: null,
+    tireSupportKitPresent: null,
+    basicToolkitPresent: null,
+    warningTrianglePresent: null,
+    chargingCableApplicable: initialCableApplicability,
+    chargingCablePresent: cableApplicable ? null : false,
+  });
+  const [vehicleDocumentsSnapshot, setVehicleDocumentsSnapshot] = useState<
+    PendingChecklist<VehicleDocumentsSnapshot>
+  >({
+    registrationPresent: null,
+    inspectionCertificatePresent: null,
+    insuranceCertificatePresent: null,
+  });
 
   if (!action || !detail) return null;
 
@@ -258,7 +394,7 @@ export default function OwnerBookingActionModal({
     return { normalizedOdometer, normalizedEnergy };
   };
 
-  const handleReturnDashboardImageChange = async (
+  const handleDashboardImageChange = async (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
@@ -267,8 +403,8 @@ export default function OwnerBookingActionModal({
     if (!file) return;
     setValidationError("");
 
-    if (!file.type.startsWith("image/")) {
-      setValidationError("Vui lòng chọn đúng file hình ảnh ODO.");
+    if (!SUPPORTED_IMAGE_MIME_TYPES.has(file.type)) {
+      setValidationError("Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP; không hỗ trợ HEIC.");
       return;
     }
 
@@ -277,16 +413,16 @@ export default function OwnerBookingActionModal({
       return;
     }
 
-    setUploadingReturnImage(true);
+    setUploadingDashboardImage(true);
     try {
       const uploadedImage = await uploadService.uploadCarImage(file);
-      setReturnDashboardImage(uploadedImage.url);
+      setDashboardImage(uploadedImage.url);
     } catch {
       setValidationError(
         "Không thể tải ảnh ODO lên hệ thống. Vui lòng thử lại.",
       );
     } finally {
-      setUploadingReturnImage(false);
+      setUploadingDashboardImage(false);
     }
   };
 
@@ -325,27 +461,100 @@ export default function OwnerBookingActionModal({
     const vehicleState = parseVehicleState();
     if (!vehicleState) return;
 
-    if (action === "handover") {
-      await onSubmit(action, {
-        handoverOdometerKm: vehicleState.normalizedOdometer,
-        handoverEnergyLevelPercent: vehicleState.normalizedEnergy,
-      });
+    if (conditionNotes.trim().length > 1000) {
+      setValidationError("Ghi chú tình trạng xe không được vượt quá 1000 ký tự.");
       return;
     }
 
-    if (conditionNotes.trim().length > 1000) {
-      setValidationError("Ghi chú tình trạng xe không được vượt quá 1000 ký tự.");
+    if (Object.values(vehicleCondition).some((value) => value === null)) {
+      setValidationError("Vui lòng ghi nhận đầy đủ từng mục tình trạng xe.");
+      return;
+    }
+    if (
+      VEHICLE_ACCESSORY_ITEMS.some(([key]) => accessoriesSnapshot[key] === null) ||
+      chargingCableApplicable === null ||
+      (cableApplicable && accessoriesSnapshot.chargingCablePresent === null)
+    ) {
+      setValidationError("Vui lòng ghi nhận đầy đủ từng phụ kiện theo xe.");
+      return;
+    }
+    if (Object.values(vehicleDocumentsSnapshot).some((value) => value === null)) {
+      setValidationError("Vui lòng ghi nhận đầy đủ từng giấy tờ theo xe.");
+      return;
+    }
+    if (
+      Object.values(vehicleCondition).some((value) => value === false) &&
+      !conditionNotes.trim()
+    ) {
+      setValidationError("Vui lòng mô tả trong ghi chú khi có mục tình trạng xe không đạt.");
+      return;
+    }
+
+    const completedVehicleCondition =
+      vehicleCondition as VehicleConditionChecklist;
+    const completedAccessoriesSnapshot = {
+      ...accessoriesSnapshot,
+      chargingCableApplicable: Boolean(chargingCableApplicable),
+      chargingCablePresent: cableApplicable
+        ? Boolean(accessoriesSnapshot.chargingCablePresent)
+        : false,
+    } as VehicleAccessoriesSnapshot;
+    const completedVehicleDocumentsSnapshot =
+      vehicleDocumentsSnapshot as VehicleDocumentsSnapshot;
+
+    if (action === "handover") {
+      const normalizedPreparationOdometer = Number(preparationOdometer);
+      const normalizedPreparationEnergy = Number(preparationEnergyPercent);
+      if (
+        !Number.isInteger(normalizedPreparationOdometer) ||
+        normalizedPreparationOdometer < 0
+      ) {
+        setValidationError("ODO kiểm tra trước khi giao phải là số nguyên không âm.");
+        return;
+      }
+      if (
+        !Number.isFinite(normalizedPreparationEnergy) ||
+        normalizedPreparationEnergy < 0 ||
+        normalizedPreparationEnergy > 100
+      ) {
+        setValidationError("Mức nhiên liệu/pin trước khi giao phải từ 0 đến 100%.");
+        return;
+      }
+      if (preparationNotes.trim().length > 1000) {
+        setValidationError("Ghi chú trước khi giao không được vượt quá 1000 ký tự.");
+        return;
+      }
+      await onSubmit(action, {
+        preparation: {
+          odometerKm: normalizedPreparationOdometer,
+          energyLevelPercent: normalizedPreparationEnergy,
+          images: dashboardImage ? [dashboardImage] : undefined,
+          dashboardImage: dashboardImage || undefined,
+          note: preparationNotes.trim() || undefined,
+        },
+        handoverOdometerKm: vehicleState.normalizedOdometer,
+        handoverEnergyLevelPercent: vehicleState.normalizedEnergy,
+        handoverPhotos: dashboardImage ? [dashboardImage] : undefined,
+        handoverDashboardImage: dashboardImage || undefined,
+        handoverConditionNotes: conditionNotes.trim() || undefined,
+        vehicleCondition: completedVehicleCondition,
+        accessoriesSnapshot: completedAccessoriesSnapshot,
+        vehicleDocumentsSnapshot: completedVehicleDocumentsSnapshot,
+      });
       return;
     }
 
     await onSubmit(action, {
       returnOdometerKm: vehicleState.normalizedOdometer,
       returnEnergyLevelPercent: vehicleState.normalizedEnergy,
-      returnDashboardImage: returnDashboardImage || undefined,
+      returnDashboardImage: dashboardImage || undefined,
       conditionNotes: conditionNotes.trim(),
       hasDamage,
       hasCleaningIssue,
       hasFuelShortage,
+      vehicleCondition: completedVehicleCondition,
+      accessoriesSnapshot: completedAccessoriesSnapshot,
+      vehicleDocumentsSnapshot: completedVehicleDocumentsSnapshot,
     });
   };
 
@@ -356,7 +565,7 @@ export default function OwnerBookingActionModal({
       description={copy.description}
       confirmText={copy.confirmText}
       danger={action === "reject" || action === "no-show"}
-      loading={loading || uploadingReturnImage}
+      loading={loading || uploadingDashboardImage}
       onClose={onClose}
       onConfirm={() => void handleSubmit()}
     >
@@ -428,6 +637,20 @@ export default function OwnerBookingActionModal({
           </div>
         )}
 
+        {action === "handover" && (
+          <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div>
+              <p className="font-extrabold text-primary">I. Kiểm tra trước khi đi giao</p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">Ghi nhận tình trạng xe trước khi mang xe đến điểm hẹn.</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block"><span className="text-sm font-extrabold text-primary">ODO trước khi đi giao (km) *</span><input inputMode="numeric" value={preparationOdometer} onChange={(event) => setPreparationOdometer(event.target.value.replace(/[^0-9]/g, ""))} className="mt-2 h-12 w-full rounded-lg border border-slate-200 bg-white px-3 font-bold outline-none focus:border-secondary" /></label>
+              <label className="block"><span className="text-sm font-extrabold text-primary">Nhiên liệu/pin trước khi đi giao (%) *</span><input type="number" min={0} max={100} value={preparationEnergyPercent} onChange={(event) => setPreparationEnergyPercent(event.target.value)} className="mt-2 h-12 w-full rounded-lg border border-slate-200 bg-white px-3 font-bold outline-none focus:border-secondary" /></label>
+            </div>
+            <label className="block"><span className="text-sm font-extrabold text-primary">Ghi chú trước khi đi giao</span><textarea value={preparationNotes} onChange={(event) => setPreparationNotes(event.target.value)} rows={2} maxLength={1000} placeholder="Ví dụ: ngoại thất sạch, không phát hiện vết xước mới." className="mt-2 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm font-semibold outline-none focus:border-secondary" /></label>
+          </div>
+        )}
+
         {(action === "handover" || action === "return") && (
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
@@ -463,35 +686,77 @@ export default function OwnerBookingActionModal({
           </div>
         )}
 
-        {action === "return" && (
+        {(action === "handover" || action === "return") && (
+          <div className="space-y-4">
+            <section className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div>
+                <p className="font-extrabold text-primary">Tình trạng xe</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">Chọn rõ Đạt hoặc Không đạt cho từng mục. Không đạt vẫn được lưu nếu đã mô tả trong ghi chú.</p>
+              </div>
+              {VEHICLE_CONDITION_ITEMS.map(([key, label]) => (
+                <ChecklistChoice key={key} label={label} value={vehicleCondition[key]} positiveLabel="Đạt" negativeLabel="Không đạt" onChange={(value) => setVehicleCondition((current) => ({ ...current, [key]: value }))} />
+              ))}
+            </section>
+
+            <section className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <p className="font-extrabold text-primary">Phụ kiện theo xe</p>
+              {VEHICLE_ACCESSORY_ITEMS.map(([key, label]) => (
+                <ChecklistChoice key={key} label={label} value={accessoriesSnapshot[key]} positiveLabel="Có" negativeLabel="Không có" onChange={(value) => setAccessoriesSnapshot((current) => ({ ...current, [key]: value }))} />
+              ))}
+              {action === "handover" && isElectricVehicle && (
+                <ChecklistChoice label="Xe thực tế có áp dụng cáp sạc đi kèm" value={chargingCableApplicable} positiveLabel="Có áp dụng" negativeLabel="Không áp dụng" onChange={(value) => {
+                  setChargingCableApplicable(value);
+                  setAccessoriesSnapshot((current) => ({
+                    ...current,
+                    chargingCableApplicable: value,
+                    chargingCablePresent: value ? null : false,
+                  }));
+                }} />
+              )}
+              {cableApplicable && (
+                <ChecklistChoice label="Cáp sạc" value={accessoriesSnapshot.chargingCablePresent} positiveLabel="Có" negativeLabel="Không có" onChange={(value) => setAccessoriesSnapshot((current) => ({ ...current, chargingCablePresent: value }))} />
+              )}
+              {!cableApplicable && <p className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-500">Cáp sạc: Không áp dụng với xe này.</p>}
+            </section>
+
+            <section className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <p className="font-extrabold text-primary">Giấy tờ theo xe</p>
+              {VEHICLE_DOCUMENT_ITEMS.map(([key, label]) => (
+                <ChecklistChoice key={key} label={label} value={vehicleDocumentsSnapshot[key]} positiveLabel="Có" negativeLabel="Không có" onChange={(value) => setVehicleDocumentsSnapshot((current) => ({ ...current, [key]: value }))} />
+              ))}
+            </section>
+          </div>
+        )}
+
+        {(action === "handover" || action === "return") && (
           <div className="space-y-4">
             <div>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-extrabold text-primary">
-                    Ảnh đồng hồ ODO khi nhận xe
+                    Ảnh đồng hồ ODO {action === "handover" ? "khi bàn giao" : "khi nhận xe"}
                   </p>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
                     Ảnh giúp đối chiếu số kilomet đã nhập. Hỗ trợ JPG, PNG, WEBP tối đa 5 MB.
                   </p>
                 </div>
-                {returnDashboardImage && (
+                {dashboardImage && (
                   <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-700">
                     Đã tải ảnh
                   </span>
                 )}
               </div>
 
-              {returnDashboardImage ? (
+              {dashboardImage ? (
                 <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                   <img
-                    src={normalizeImageUrl(returnDashboardImage)}
-                    alt="Ảnh đồng hồ ODO khi nhận xe trả"
+                    src={normalizeImageUrl(dashboardImage)}
+                    alt={action === "handover" ? "Ảnh đồng hồ ODO khi bàn giao" : "Ảnh đồng hồ ODO khi nhận xe trả"}
                     className="h-44 w-full object-contain"
                   />
                   <button
                     type="button"
-                    onClick={() => setReturnDashboardImage("")}
+                    onClick={() => setDashboardImage("")}
                     className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white shadow-lg transition hover:bg-red-600"
                     aria-label="Xóa ảnh đồng hồ ODO"
                     title="Xóa ảnh"
@@ -500,21 +765,21 @@ export default function OwnerBookingActionModal({
                   </button>
                 </div>
               ) : (
-                <label className={`flex min-h-24 items-center justify-center gap-3 rounded-lg border border-dashed border-secondary/60 bg-yellow-50 px-4 text-sm font-extrabold text-primary transition hover:bg-yellow-100 ${uploadingReturnImage ? "cursor-wait opacity-70" : "cursor-pointer"}`}>
-                  {uploadingReturnImage ? (
+                <label className={`flex min-h-24 items-center justify-center gap-3 rounded-lg border border-dashed border-secondary/60 bg-yellow-50 px-4 text-sm font-extrabold text-primary transition hover:bg-yellow-100 ${uploadingDashboardImage ? "cursor-wait opacity-70" : "cursor-pointer"}`}>
+                  {uploadingDashboardImage ? (
                     <Loader2 size={21} className="animate-spin text-secondaryDark" />
                   ) : (
                     <ImagePlus size={21} className="text-secondaryDark" />
                   )}
-                  {uploadingReturnImage
+                  {uploadingDashboardImage
                     ? "Đang tải ảnh ODO..."
                     : "Chọn ảnh đồng hồ ODO"}
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    disabled={uploadingReturnImage}
+                    disabled={uploadingDashboardImage}
                     className="hidden"
-                    onChange={handleReturnDashboardImageChange}
+                    onChange={handleDashboardImageChange}
                   />
                 </label>
               )}
@@ -531,7 +796,7 @@ export default function OwnerBookingActionModal({
                 className="mt-2 w-full rounded-lg border border-slate-200 p-3 text-sm font-semibold outline-none transition focus:border-secondary focus:ring-2 focus:ring-secondary/20"
               />
             </label>
-            <div className="grid gap-2 sm:grid-cols-3">
+            {action === "return" && <div className="grid gap-2 sm:grid-cols-3">
               {[
                 ["Có hư hỏng", hasDamage, setHasDamage],
                 ["Cần vệ sinh", hasCleaningIssue, setHasCleaningIssue],
@@ -547,8 +812,14 @@ export default function OwnerBookingActionModal({
                   {String(label)}
                 </label>
               ))}
-            </div>
+            </div>}
           </div>
+        )}
+
+        {action === "handover" && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold leading-6 text-primary">
+            Bên giao xác nhận đã bàn giao xe và các hạng mục được ghi nhận trong biên bản. Sau khi xác nhận, dữ liệu biên bản sẽ được khóa để chờ người thuê xác nhận.
+          </p>
         )}
 
         {validationError && (

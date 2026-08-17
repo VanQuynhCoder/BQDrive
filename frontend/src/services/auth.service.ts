@@ -1,4 +1,5 @@
-﻿import api from "./api";
+﻿// Shared authentication API: session and account flows for ADMIN and USER.
+import api from "./api";
 
 export type LoginData = {
   email: string;
@@ -40,6 +41,17 @@ export type CurrentUserProfile = {
   district?: string;
   ward?: string;
   bio?: string;
+  cccdNumber?: string;
+  cccdFrontImage?: string;
+  cccdBackImage?: string;
+  driverLicenseNumber?: string;
+  driverLicenseImage?: string;
+  driverLicenseClass?: "B" | "B1" | "B2";
+  identityProfileCompleted?: boolean;
+  identityVerificationStatus?: "INCOMPLETE" | "PENDING" | "VERIFIED" | "REJECTED";
+  identityVerificationReason?: string;
+  identitySubmittedAt?: string;
+  identityReviewedAt?: string;
   role: string;
   hasLocalPassword?: boolean;
   createdAt?: string;
@@ -55,6 +67,12 @@ export type UpdateUserProfileData = {
   district?: string;
   ward?: string;
   bio?: string;
+  cccdNumber?: string;
+  cccdFrontImage?: string;
+  cccdBackImage?: string;
+  driverLicenseNumber?: string;
+  driverLicenseImage?: string;
+  driverLicenseClass?: "B" | "B1" | "B2";
 };
 
 export type ChangePasswordData = {
@@ -66,13 +84,12 @@ export type ChangePasswordData = {
 function normalizeUserRole(role?: string) {
   const normalizedRole = role?.toUpperCase();
 
-  if (normalizedRole === "ADMIN" || normalizedRole === "BUSINESS") {
-    return normalizedRole;
+  if (normalizedRole === "ADMIN") {
+    return "ADMIN";
   }
 
   return "USER";
 }
-
 function normalizeUser<T extends { role?: string }>(user: T): T & { role: string } {
   return {
     ...user,
@@ -80,11 +97,24 @@ function normalizeUser<T extends { role?: string }>(user: T): T & { role: string
   };
 }
 
+function toSessionUser<T extends { role?: string }>(user: T) {
+  const {
+    cccdNumber,
+    cccdFrontImage,
+    cccdBackImage,
+    driverLicenseNumber,
+    driverLicenseImage,
+    ...safeUser
+  } = user as T & Record<string, unknown>;
+
+  return safeUser;
+}
+
 function persistUser<T extends { role?: string }>(
   user: T,
   emitUpdate = true,
 ): T & { role: string } {
-  const normalizedUser = normalizeUser(user);
+  const normalizedUser = normalizeUser(toSessionUser(user) as T);
   localStorage.setItem("user", JSON.stringify(normalizedUser));
   localStorage.setItem("role", normalizedUser.role);
   if (emitUpdate) {
@@ -139,17 +169,19 @@ export const authService = {
     return res.data;
   },
 
-  getProfile: async () => {
-    const res = await api.get("/auth/profile");
-    return {
-      user: normalizeUser(res.data.data.user) as CurrentUserProfile,
-      business: res.data.data.business,
-    };
-  },
+getProfile: async () => {
+  const res = await api.get("/auth/profile");
+
+  return {
+    user: normalizeUser(res.data.data.user) as CurrentUserProfile,
+  };
+},
 
   updateUserProfile: async (data: UpdateUserProfileData) => {
     const res = await api.patch("/auth/profile", data);
-    return persistUser(res.data.data.user) as CurrentUserProfile;
+    const updatedUser = normalizeUser(res.data.data.user) as CurrentUserProfile;
+    persistUser(updatedUser);
+    return updatedUser;
   },
 
   changePassword: async (data: ChangePasswordData) => {
@@ -200,7 +232,5 @@ export const authService = {
     return role;
   },
 };
-
-
 
 

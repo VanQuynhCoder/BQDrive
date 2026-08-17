@@ -10,6 +10,129 @@ body {
   color: #0f172a;
 }
 
+@keyframes home-hero-background-drift {
+  0%,
+  100% {
+    transform: scale(1.03) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: scale(1.09) translate3d(-1.2%, -0.8%, 0);
+  }
+}
+
+@keyframes home-hero-ambient-drift {
+  0%,
+  100% {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+    opacity: 0.64;
+  }
+  50% {
+    transform: translate3d(2%, 2%, 0) scale(1.08);
+    opacity: 0.95;
+  }
+}
+
+@keyframes home-hero-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes home-hero-card-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(22px, 18px, 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.home-hero-image {
+  animation: home-hero-background-drift 18s ease-in-out infinite;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.home-hero-ambient {
+  position: absolute;
+  inset: -18%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 76% 24%, rgb(250 204 21 / 0.28), transparent 19%),
+    radial-gradient(circle at 23% 73%, rgb(56 189 248 / 0.13), transparent 24%);
+  animation: home-hero-ambient-drift 14s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.home-hero-reveal,
+.home-hero-stat {
+  opacity: 0;
+  animation: home-hero-reveal 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.home-hero-reveal-1 {
+  animation-delay: 70ms;
+}
+
+.home-hero-reveal-2 {
+  animation-delay: 140ms;
+}
+
+.home-hero-reveal-3 {
+  animation-delay: 210ms;
+}
+
+.home-hero-reveal-4 {
+  animation-delay: 290ms;
+}
+
+.home-hero-stat:nth-child(1) {
+  animation-delay: 390ms;
+}
+
+.home-hero-stat:nth-child(2) {
+  animation-delay: 470ms;
+}
+
+.home-hero-stat:nth-child(3) {
+  animation-delay: 550ms;
+}
+
+.home-hero-search-card {
+  animation: home-hero-card-enter 760ms cubic-bezier(0.22, 1, 0.36, 1) 220ms both;
+  transition: box-shadow 250ms ease, transform 250ms ease;
+}
+
+@media (hover: hover) {
+  .home-hero-search-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 28px 55px rgb(2 6 23 / 0.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero-image,
+  .home-hero-ambient,
+  .home-hero-reveal,
+  .home-hero-stat,
+  .home-hero-search-card {
+    animation: none;
+    transition: none;
+  }
+
+  .home-hero-reveal,
+  .home-hero-stat {
+    opacity: 1;
+  }
+}
+
 @keyframes step-card-spotlight {
   0%,
   18%,

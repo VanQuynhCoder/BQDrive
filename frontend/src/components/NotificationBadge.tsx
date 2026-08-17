@@ -1,4 +1,5 @@
-﻿type NotificationBadgeProps = {
+﻿// Thành phần hiển thị số lượng thông báo chưa xử lý.
+type NotificationBadgeProps = {
   count: number;
   className?: string;
   title?: string;

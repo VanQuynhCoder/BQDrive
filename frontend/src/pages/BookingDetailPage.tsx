@@ -4,6 +4,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   ArrowLeft,
+  ArrowRight,
   BadgeCheck,
   Ban,
   Building2,
@@ -12,12 +13,16 @@ import {
   CheckCircle2,
   CircleDashed,
   Clock3,
+  ChevronDown,
+  ChevronUp,
   CreditCard,
   Fuel,
+  FileText,
   Gauge,
   Hash,
   Loader2,
   MapPin,
+  Printer,
   ReceiptText,
   ShieldCheck,
   Star,
@@ -34,10 +39,19 @@ import {
   BookingTimeline,
 } from "../components/booking/BookingTimeline";
 import BookingExtensionPanel from "../components/booking/BookingExtensionPanel";
+import BookingChatPanel, {
+  canOpenBookingChat,
+  isBookingChatReadOnly,
+} from "../components/booking/BookingChatPanel";
 import PricingBreakdown from "../components/pricing/PricingBreakdown";
 import RouteMap from "../components/maps/RouteMap";
 import { bookingService } from "../services/booking.service";
 import type { CancellationPreview } from "../services/booking.service";
+import { authService } from "../services/auth.service";
+import {
+  contractService,
+  type RentalContract,
+} from "../services/contract.service";
 import { notifyNotificationSummaryChanged } from "../services/notification.service";
 import {
   reviewService,
@@ -50,10 +64,13 @@ import {
   type ExtraChargeType,
 } from "../services/extraCharge.service";
 import { refundService } from "../services/refund.service";
+import { uploadService } from "../services/upload.service";
 import type {
+  RefundProviderOperation,
   RefundRecipientInfo,
   RefundRecipientInfoPayload,
   RefundRecipientMethod,
+  RefundStatus,
 } from "../services/refund.service";
 import { getFirstCarImage, normalizeImageUrl } from "../utils/image.util";
 import { formatVietnamDateTime } from "../utils/date.util";
@@ -62,11 +79,17 @@ import { getBookingTimelineView } from "../utils/bookingTimeline.util";
 import { getBookingDisplayCode } from "../utils/display.util";
 import type { BookingStatus } from "../constants/status.constants";
 import type { PricingSnapshot } from "../types/pricing";
+import type {
+  VehicleAccessoriesSnapshot,
+  VehicleConditionChecklist,
+  VehicleDocumentsSnapshot,
+} from "../types/ownerBooking";
 
 type BookingCar = {
   _id: string;
   name?: string;
   licensePlate?: string;
+  type?: string;
   seats?: number;
   fuelType?: string;
   transmission?: string;
@@ -85,17 +108,6 @@ type BookingCar = {
   locationNote?: string;
 };
 
-type BookingBusiness = {
-  _id: string;
-  businessName?: string;
-  phone?: string;
-  address: string;
-  province?: string;
-  city?: string;
-  district?: string;
-  ward?: string;
-};
-
 type BookingOwnerUser = {
   _id: string;
   name?: string;
@@ -112,14 +124,19 @@ type Booking = {
   _id: string;
   bookingCode?: string;
   carId: BookingCar;
-  businessId: BookingBusiness;
-  ownerId: BookingBusiness | BookingOwnerUser | string;
-  ownerType?: "BUSINESS" | "USER" | string;
+  ownerId: BookingOwnerUser | string;
   startDate: string;
   endDate: string;
   rentalMode?: string;
+  rentalPlanConversionSnapshot?: {
+    sourceRentalMode?: string;
+    targetRentalMode?: string;
+    effectiveFrom?: string;
+    convertedAt?: string;
+    extensionId?: string;
+  };
   totalPrice?: number;
-  depositAmount: number;
+  upfrontPaymentAmount: number;
   remainingAmount: number;
   paidAmount: number;
   paymentOption: "DEPOSIT" | "FULL" | string;
@@ -145,6 +162,49 @@ type Booking = {
   pricingSnapshot?: PricingSnapshot;
   pickupAddressSnapshot: string;
   returnAddressSnapshot: string;
+  renterInfo?: {
+    fullName?: string;
+  };
+  handoverSnapshot?: {
+    preparation?: {
+      odometerKm: number;
+      energyLevelPercent: number;
+      images?: string[];
+      dashboardImage?: string;
+      note?: string;
+      recordedAt?: string;
+    };
+    handoverOdometerKm: number;
+    handoverEnergyLevelPercent: number;
+    handoverPhotos?: string[];
+    handoverDashboardImage?: string;
+    handoverConditionNotes?: string;
+    vehicleCondition?: VehicleConditionChecklist;
+    accessoriesSnapshot?: VehicleAccessoriesSnapshot;
+    vehicleDocumentsSnapshot?: VehicleDocumentsSnapshot;
+    handoverRecordedAt?: string;
+    ownerConfirmedAt?: string;
+    renterConfirmedAt?: string;
+  };
+};
+
+type ReturnInspectionRecord = {
+  _id: string;
+  actualReturnAt?: string;
+  returnOdometerKm?: number;
+  returnEnergyLevelPercent?: number;
+  returnDashboardImage?: string;
+  returnPhotos?: string[];
+  conditionNotes?: string;
+  distanceTravelledKm?: number;
+  hasDamage?: boolean;
+  hasCleaningIssue?: boolean;
+  hasFuelShortage?: boolean;
+  vehicleCondition?: VehicleConditionChecklist;
+  accessoriesSnapshot?: VehicleAccessoriesSnapshot;
+  vehicleDocumentsSnapshot?: VehicleDocumentsSnapshot;
+  ownerConfirmedAt?: string;
+  renterConfirmedAt?: string;
 };
 
 function formatPrice(price?: number) {
@@ -199,6 +259,11 @@ function getRentalInfo(rentalMode?: string) {
 const HOUR_MS = 1000 * 60 * 60;
 const maxReviewImages = 3;
 const maxReviewImageSize = 5 * 1024 * 1024;
+const supportedReviewImageMimeTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 const reviewCriteriaOptions: Array<{
   key: keyof ReviewCriteria;
@@ -239,24 +304,6 @@ const reviewCriteriaOptions: Array<{
 
 function getSelectedReviewCriteria(criteria?: ReviewCriteria) {
   return reviewCriteriaOptions.filter((item) => criteria?.[item.key]);
-}
-
-function readReviewImage(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result);
-        return;
-      }
-
-      reject(new Error("Invalid image result"));
-    };
-
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
 }
 
 function calculateRentalTime(rentalMode: string | undefined, start: string, end: string) {
@@ -316,6 +363,16 @@ function getStatusInfo(status: BookingStatus) {
       badgeClass: "bg-secondarySoft text-primary",
       panelClass: "border-secondary/40 bg-secondarySoft text-primary",
       icon: CheckCircle2,
+    };
+  }
+
+  if (value === "IN_PROGRESS") {
+    return {
+      label: "Đang thuê",
+      detail: "Chuyến thuê đang diễn ra. Vui lòng trả xe đúng thời gian.",
+      badgeClass: "bg-primary text-secondary",
+      panelClass: "border-primary/15 bg-primary text-secondary",
+      icon: CarFront,
     };
   }
 
@@ -392,8 +449,26 @@ function getPaymentInfo(booking: Booking) {
   const totalPrice = booking.totalPrice || 0;
   const paidAmount = booking.paidAmount || 0;
   const isFullPayment = booking.paymentOption === "FULL";
-  const depositAmount =
-    booking.depositAmount || (!isFullPayment ? Math.round(totalPrice * 0.3) : 0);
+  const platformFee = Number(booking.pricingSnapshot?.platformFee ?? 0);
+  const insuranceFee = Number(booking.pricingSnapshot?.insuranceFee ?? 0);
+  const deliveryFee = Number(
+    booking.pricingSnapshot?.deliveryFee ??
+      booking.pricingSnapshot?.delivery?.deliveryFee ??
+      0,
+  );
+  const rentalSubtotal = Number(
+    booking.pricingSnapshot?.rentalSubtotal ??
+      booking.pricingSnapshot?.subtotal ??
+      Math.max(totalPrice - platformFee - insuranceFee - deliveryFee, 0),
+  );
+  const rentalDepositAmount = Number(
+    booking.pricingSnapshot?.rentalDepositAmount ??
+      Math.round(rentalSubtotal * 0.5),
+  );
+  const upfrontPaymentAmount = Number(
+    booking.pricingSnapshot?.upfrontPaymentAmount ??
+      rentalDepositAmount + platformFee + insuranceFee,
+  );
   const outstandingAmount = Math.max(
     booking.remainingAmount || totalPrice - paidAmount,
     0,
@@ -407,22 +482,31 @@ function getPaymentInfo(booking: Booking) {
       nextAmount: 0,
       totalPrice,
       paidAmount,
-      depositAmount,
-      remainingAfterDeposit: 0,
+      rentalSubtotal,
+      rentalDepositAmount,
+      platformFee,
+      insuranceFee,
+      deliveryFee,
+      upfrontPaymentAmount,
       outstandingAmount,
     };
   }
 
   if (paidAmount > 0) {
     return {
-      label: "Đã thanh toán cọc",
-      detail: "Booking đã ghi nhận tiền cọc, vẫn còn phần tiền cần thanh toán.",
+      label: "Đã thanh toán giữ chỗ",
+      detail:
+        "Booking đã ghi nhận khoản thanh toán giữ chỗ, vẫn còn phần tiền cần thanh toán.",
       badgeClass: "bg-primary text-secondary",
       nextAmount: outstandingAmount,
       totalPrice,
       paidAmount,
-      depositAmount,
-      remainingAfterDeposit: outstandingAmount,
+      rentalSubtotal,
+      rentalDepositAmount,
+      platformFee,
+      insuranceFee,
+      deliveryFee,
+      upfrontPaymentAmount,
       outstandingAmount,
     };
   }
@@ -432,15 +516,129 @@ function getPaymentInfo(booking: Booking) {
     detail:
       isFullPayment
         ? "Booking chọn thanh toán toàn bộ."
-        : "Booking chọn thanh toán cọc.",
+        : "Booking chọn thanh toán giữ chỗ.",
     badgeClass: "bg-amber-50 text-amber-700",
-    nextAmount: isFullPayment ? totalPrice : depositAmount,
+    nextAmount: isFullPayment ? totalPrice : upfrontPaymentAmount,
     totalPrice,
     paidAmount,
-    depositAmount,
-    remainingAfterDeposit: Math.max(totalPrice - depositAmount, 0),
+    rentalSubtotal,
+    rentalDepositAmount,
+    platformFee,
+    insuranceFee,
+    deliveryFee,
+    upfrontPaymentAmount,
     outstandingAmount,
   };
+}
+
+type VehicleRecordData = {
+  vehicleCondition?: VehicleConditionChecklist;
+  accessoriesSnapshot?: VehicleAccessoriesSnapshot;
+  vehicleDocumentsSnapshot?: VehicleDocumentsSnapshot;
+};
+
+const VEHICLE_RECORD_GROUPS = [
+  {
+    title: "Tình trạng xe",
+    field: "vehicleCondition",
+    positive: "Đạt",
+    negative: "Không đạt",
+    labels: {
+      bodyOk: "Thân vỏ, vết trầy xước",
+      glassAndMirrorsOk: "Kính và gương",
+      lightsOk: "Hệ thống đèn",
+      tiresOk: "Lốp xe",
+      interiorClean: "Nội thất sạch sẽ",
+      seatsAndSeatbeltsOk: "Ghế và dây an toàn",
+      airConditioningOk: "Điều hòa",
+      dashboardWarningFree: "Bảng đồng hồ không có cảnh báo bất thường",
+    },
+  },
+  {
+    title: "Phụ kiện theo xe",
+    field: "accessoriesSnapshot",
+    positive: "Có",
+    negative: "Không có",
+    labels: {
+      vehicleKeysPresent: "Chìa khóa xe",
+      tireSupportKitPresent: "Lốp dự phòng hoặc bộ vá lốp",
+      basicToolkitPresent: "Kích xe và bộ dụng cụ cơ bản",
+      warningTrianglePresent: "Tam giác cảnh báo",
+      chargingCablePresent: "Cáp sạc",
+    },
+  },
+  {
+    title: "Giấy tờ theo xe",
+    field: "vehicleDocumentsSnapshot",
+    positive: "Có",
+    negative: "Không có",
+    labels: {
+      registrationPresent: "Đăng ký xe hoặc giấy tờ thay thế hợp pháp",
+      inspectionCertificatePresent: "Giấy chứng nhận đăng kiểm",
+      insuranceCertificatePresent: "Giấy chứng nhận bảo hiểm",
+    },
+  },
+] as const;
+
+function VehicleRecordChecklist({
+  handoverRecord,
+  returnRecord,
+}: {
+  handoverRecord: VehicleRecordData;
+  returnRecord?: VehicleRecordData;
+}) {
+  return (
+    <div className="mt-5 space-y-3">
+      {VEHICLE_RECORD_GROUPS.map((group) => {
+        const handoverValues = handoverRecord[group.field] as Record<string, boolean> | undefined;
+        const returnValues = returnRecord?.[group.field] as Record<string, boolean> | undefined;
+        const rows = Object.entries(group.labels).filter(([key]) => {
+          if (key !== "chargingCablePresent") return true;
+          return Boolean(
+            handoverRecord.accessoriesSnapshot?.chargingCableApplicable ||
+              returnRecord?.accessoriesSnapshot?.chargingCableApplicable,
+          );
+        });
+        const renderStatus = (value?: boolean) => value === undefined ? (
+          <span className="text-slate-400">Chưa ghi nhận</span>
+        ) : (
+          <span className={value ? "font-extrabold text-emerald-700" : "font-extrabold text-red-700"}>
+            {value ? group.positive : group.negative}
+          </span>
+        );
+
+        return (
+          <section key={group.field} className="overflow-hidden rounded-xl border border-slate-200">
+            <h4 className="bg-slate-50 px-4 py-2.5 text-sm font-extrabold text-primary">{group.title}</h4>
+            <div className={`grid gap-2 border-t border-slate-200 px-4 py-2 text-[10px] font-extrabold uppercase text-slate-400 ${returnRecord ? "grid-cols-[minmax(0,1fr)_85px_85px]" : "grid-cols-[minmax(0,1fr)_100px]"}`}>
+              <span>Hạng mục</span><span>Bàn giao</span>{returnRecord && <span>Nhận lại</span>}
+            </div>
+            {rows.map(([key, label]) => {
+              const before = handoverValues?.[key];
+              const after = returnValues?.[key];
+              const changed = Boolean(returnRecord) && before !== undefined && after !== undefined && before !== after;
+              return (
+                <div key={key} className={`grid gap-2 border-t border-slate-100 px-4 py-2 text-xs ${returnRecord ? "grid-cols-[minmax(0,1fr)_85px_85px]" : "grid-cols-[minmax(0,1fr)_100px]"} ${changed ? "bg-amber-50" : "bg-white"}`}>
+                  <span className="font-semibold text-slate-700">{label}{changed ? " · Có thay đổi" : ""}</span>
+                  {renderStatus(before)}
+                  {returnRecord && renderStatus(after)}
+                </div>
+              );
+            })}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function getActionErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const response = (error as { response?: { data?: { message?: unknown; data?: unknown } } }).response;
+    if (typeof response?.data?.data === "string") return response.data.data;
+    if (typeof response?.data?.message === "string") return response.data.message;
+  }
+  return fallback;
 }
 
 function canPayBooking(booking: Booking, nextAmount: number) {
@@ -482,14 +680,17 @@ type BookingRefund = {
   refundAmount: number;
   cancellationFee: number;
   paidAmountAtCancellation: number;
-  status: string;
+  status: RefundStatus;
   method: string;
   policyRuleApplied: string;
+  reasonCode?: string;
   reasonText?: string;
+  providerOperations?: RefundProviderOperation[];
   recipientInfo?: RefundRecipientInfo;
   manualRefundReference?: string;
   manualRefundSentAt?: string;
   renterConfirmedAt?: string;
+  succeededAt?: string;
   createdAt?: string;
 };
 
@@ -518,11 +719,15 @@ function getExtraChargeStatusMeta(status?: string) {
   };
 }
 
-function getRefundStatusLabel(status?: string) {
+function getRefundStatusLabel(status?: string, method?: string) {
+  if (status === "PROCESSING" && method === "VNPAY") {
+    return "Đang xử lý hoàn tiền qua VNPay";
+  }
+
   const labels: Record<string, string> = {
     WAITING_FOR_REFUND_INFO: "Chờ cung cấp thông tin nhận tiền",
     PROCESSING: "Chủ xe đã gửi, chờ xác nhận",
-    SUCCEEDED: "Đã hoàn tất",
+    SUCCEEDED: "Hoàn tiền thành công",
     MANUAL_REQUIRED: "Chờ hoàn thủ công",
   };
 
@@ -531,13 +736,26 @@ function getRefundStatusLabel(status?: string) {
 
 function getCancellationPolicyLabel(rule?: string) {
   const labels: Record<string, string> = {
-    NO_PAID_AMOUNT: "Chưa thanh toán, không phát sinh hoàn tiền",
-    RENTER_CANCEL_BEFORE_OWNER_APPROVAL: "Khách hủy trước khi chủ xe duyệt, hoàn 100%",
-    FULL_REFUND_BEFORE_48_HOURS: "Hủy trước giờ thuê từ 48 giờ, hoàn 100%",
-    PARTIAL_REFUND_24_TO_48_HOURS: "Hủy trước giờ thuê 24-48 giờ, hoàn 80%",
-    LATE_CANCEL_KEEP_DEPOSIT: "Hủy sát giờ, giữ lại tiền cọc",
-    OWNER_CANCEL_FULL_REFUND: "Chủ xe hủy, hoàn 100%",
-    PAYMENT_AFTER_CANCEL_FULL_REFUND: "Thanh toán đến sau khi booking đã hủy, hoàn 100%",
+    NO_PAID_AMOUNT:
+      "Chưa thanh toán, không phát sinh hoàn tiền",
+
+    RENTER_CANCEL_WITHIN_60_MINUTES:
+      "Khách hủy trong vòng 60 phút sau lần thanh toán thành công đầu tiên, hoàn 100%",
+
+    RENTER_CANCEL_AFTER_60_MINUTES_KEEP_DEPOSIT_AND_PLATFORM_FEE:
+      "Khách hủy sau 60 phút: giữ cọc thuê xe và phí dịch vụ BQDrive, hoàn phần còn lại",
+
+    OWNER_CANCEL_FULL_REFUND:
+      "Chủ xe hủy, hoàn 100% số tiền khách đã thanh toán",
+
+    PAYMENT_AFTER_CANCEL_FULL_REFUND:
+      "Thanh toán được ghi nhận sau khi chuyến đã hủy. Hệ thống đã tạo yêu cầu hoàn lại toàn bộ số tiền.",
+
+    PAYMENT_AFTER_BOOKING_CANCELLED:
+      "Thanh toán được ghi nhận sau khi chuyến đã hủy. Hệ thống đã tạo yêu cầu hoàn lại toàn bộ số tiền.",
+
+    NO_SHOW_KEEP_DEPOSIT_AND_PLATFORM_FEE:
+      "Khách không đến nhận xe: giữ cọc thuê xe và phí dịch vụ BQDrive, hoàn phần còn lại",
   };
 
   return labels[rule || ""] || rule || "--";
@@ -562,11 +780,13 @@ export default function BookingDetailPage() {
   const [reviewComment, setReviewComment] = useState("");
   const [reviewCriteria, setReviewCriteria] = useState<ReviewCriteria>({});
   const [reviewImages, setReviewImages] = useState<string[]>([]);
+  const [reviewImagesUploading, setReviewImagesUploading] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
   const [extraChargeLoading, setExtraChargeLoading] = useState(false);
   const [extraChargePayingId, setExtraChargePayingId] = useState("");
   const [refundConfirmingId, setRefundConfirmingId] = useState("");
+  const [refundCheckingId, setRefundCheckingId] = useState("");
   const [refundRecipientSubmittingId, setRefundRecipientSubmittingId] =
     useState("");
   const [refundRecipientModalOpen, setRefundRecipientModalOpen] = useState(false);
@@ -580,6 +800,14 @@ export default function BookingDetailPage() {
   const [refundWalletHolderName, setRefundWalletHolderName] = useState("");
   const [refundCashNote, setRefundCashNote] = useState("");
   const [refundRecipientAccepted, setRefundRecipientAccepted] = useState(false);
+  const [returnInspection, setReturnInspection] =
+    useState<ReturnInspectionRecord | null>(null);
+  const [rentalContract, setRentalContract] = useState<RentalContract | null>(null);
+  const [handoverExpanded, setHandoverExpanded] = useState(false);
+  const [returnExpanded, setReturnExpanded] = useState(false);
+  const [printDocument, setPrintDocument] = useState<"handover" | "return" | null>(null);
+  const [handoverConfirming, setHandoverConfirming] = useState(false);
+  const [returnConfirming, setReturnConfirming] = useState(false);
 
   const fetchExtraCharges = useCallback(async (bookingId: string) => {
     setExtraChargeLoading(true);
@@ -603,6 +831,27 @@ export default function BookingDetailPage() {
       setBooking(foundBooking || null);
       if (foundBooking?._id) {
         await fetchExtraCharges(foundBooking._id);
+        try {
+          const contracts = await contractService.getMyContracts();
+          const matchedContract = contracts.find((contract) => {
+            const contractBookingId =
+              typeof contract.bookingId === "string"
+                ? contract.bookingId
+                : contract.bookingId?._id;
+            return contractBookingId === foundBooking._id;
+          });
+          setRentalContract(matchedContract || null);
+        } catch {
+          setRentalContract(null);
+        }
+        try {
+          const inspectionData = await bookingService.getReturnInspection(
+            foundBooking._id,
+          );
+          setReturnInspection(inspectionData.inspection || null);
+        } catch {
+          setReturnInspection(null);
+        }
       }
       if (foundBooking?.status === "COMPLETED") {
         const foundReview = await reviewService.getBookingReview(foundBooking._id);
@@ -628,6 +877,12 @@ export default function BookingDetailPage() {
       setLoading(false);
     }
   }, [fetchExtraCharges, id]);
+
+  useEffect(() => {
+    const clearPrintDocument = () => setPrintDocument(null);
+    window.addEventListener("afterprint", clearPrintDocument);
+    return () => window.removeEventListener("afterprint", clearPrintDocument);
+  }, []);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -750,6 +1005,81 @@ export default function BookingDetailPage() {
       toast.error("Không thể xác nhận nhận tiền hoàn");
     } finally {
       setRefundConfirmingId("");
+    }
+  };
+
+  const handleConfirmHandoverReceived = async () => {
+    if (!booking || handoverConfirming) return;
+    setHandoverConfirming(true);
+    try {
+      await bookingService.confirmHandoverReceived(booking._id);
+      toast.success("Đã xác nhận nhận xe.");
+      notifyNotificationSummaryChanged();
+      await fetchBooking();
+    } catch (error) {
+      toast.error(getActionErrorMessage(error, "Không thể xác nhận nhận xe."));
+    } finally {
+      setHandoverConfirming(false);
+    }
+  };
+
+  const handleConfirmReturn = async () => {
+    if (!booking || returnConfirming) return;
+    setReturnConfirming(true);
+    try {
+      await bookingService.confirmReturn(booking._id);
+      toast.success("Đã xác nhận trả xe.");
+      notifyNotificationSummaryChanged();
+      await fetchBooking();
+    } catch (error) {
+      toast.error(getActionErrorMessage(error, "Không thể xác nhận trả xe."));
+    } finally {
+      setReturnConfirming(false);
+    }
+  };
+
+  const handlePrintDocument = (document: "handover" | "return") => {
+    setPrintDocument(document);
+    window.requestAnimationFrame(() => window.print());
+  };
+
+  const openTripDocument = (document: "handover" | "return") => {
+    if (document === "handover") setHandoverExpanded(true);
+    else setReturnExpanded(true);
+    window.requestAnimationFrame(() => {
+      globalThis.document.getElementById("trip-documents")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  };
+
+  const handleCheckVnpayRefundStatus = async (refundId: string) => {
+    if (refundCheckingId) return;
+
+    setRefundCheckingId(refundId);
+    try {
+      const result = await refundService.checkVnpayStatus(refundId);
+      const hasUnknownOperation = result.refund.providerOperations?.some(
+        (operation) =>
+          operation.provider?.toUpperCase() === "VNPAY" &&
+          operation.status === "UNKNOWN",
+      );
+
+      if (result.completed || result.refund.status === "SUCCEEDED") {
+        toast.success(result.message || "Hoàn tiền đã được xác nhận thành công.");
+      } else if (result.operationStatus === "UNKNOWN" || hasUnknownOperation) {
+        toast(result.message || "Chưa xác định được trạng thái cuối cùng. Bạn có thể kiểm tra lại sau.");
+      } else {
+        toast(result.message || "Yêu cầu hoàn tiền vẫn đang được VNPay xử lý.");
+      }
+
+      await fetchBooking();
+      notifyNotificationSummaryChanged();
+    } catch {
+      toast.error("Không thể kiểm tra trạng thái hoàn tiền lúc này.");
+    } finally {
+      setRefundCheckingId("");
     }
   };
 
@@ -921,8 +1251,8 @@ export default function BookingDetailPage() {
     }
 
     const validFiles = files.slice(0, availableSlots).filter((file) => {
-      if (!file.type.startsWith("image/")) {
-        toast.error(`${file.name} không phải là ảnh hợp lệ.`);
+      if (!supportedReviewImageMimeTypes.has(file.type)) {
+        toast.error(`${file.name}: chỉ hỗ trợ JPG, PNG hoặc WEBP; không hỗ trợ HEIC.`);
         return false;
       }
 
@@ -934,12 +1264,26 @@ export default function BookingDetailPage() {
       return true;
     });
 
-    const images = await Promise.all(validFiles.map(readReviewImage));
-    setReviewImages((current) => [...current, ...images].slice(0, maxReviewImages));
+    if (!validFiles.length) return;
+
+    setReviewImagesUploading(true);
+    try {
+      const images = await Promise.all(
+        validFiles.map((file) => uploadService.uploadCarImage(file)),
+      );
+      setReviewImages((current) => [
+        ...current,
+        ...images.map((image) => image.url),
+      ].slice(0, maxReviewImages));
+    } catch {
+      toast.error("Không thể tải ảnh đánh giá lên hệ thống.");
+    } finally {
+      setReviewImagesUploading(false);
+    }
   };
 
   const handleSubmitReview = async () => {
-    if (!booking || reviewSubmitting) return;
+    if (!booking || reviewSubmitting || reviewImagesUploading) return;
 
     if (!reviewRating) {
       toast.error("Vui lòng chọn điểm tổng thể từ 1 đến 5 sao");
@@ -1033,19 +1377,20 @@ export default function BookingDetailPage() {
 
   const car = booking.carId;
   const ownerUser =
-    booking.ownerType === "USER" && typeof booking.ownerId === "object"
+    booking.ownerId &&
+    typeof booking.ownerId === "object"
       ? (booking.ownerId as BookingOwnerUser)
       : undefined;
-  const ownerName =
-    booking.ownerType === "USER"
-      ? ownerUser?.name || "Người dùng ký gửi"
-      : booking.businessId.businessName || "Đối tác BQDrive";
-  const ownerAddress =
-    booking.ownerType === "USER"
-      ? formatFullAddress(ownerUser, "Địa chỉ liên hệ sẽ theo hợp đồng.")
-      : formatFullAddress(booking.businessId, "Thông tin địa chỉ đang được cập nhật.");
-  const ownerPhone =
-    booking.ownerType === "USER" ? ownerUser?.phone : booking.businessId.phone;
+
+  const ownerName = ownerUser?.name || "Chủ xe ký gửi";
+  const currentUserId = authService.getCurrentUser()?._id || "";
+
+  const ownerAddress = formatFullAddress(
+    ownerUser,
+    "Địa chỉ liên hệ sẽ theo hợp đồng.",
+  );
+
+const ownerPhone = ownerUser?.phone;
   const pickupAddress = formatAddressSnapshot(
     booking.pickupAddressSnapshot,
     car,
@@ -1102,12 +1447,119 @@ export default function BookingDetailPage() {
     .filter((charge) => charge.status === "PENDING")
     .reduce((sum, charge) => sum + Number(charge.amount || 0), 0);
   const latestRefund = booking.refunds?.[0];
+  const vnpayOperations = latestRefund?.providerOperations?.filter(
+    (operation) => operation.provider?.toUpperCase() === "VNPAY",
+  ) || [];
+  const activeVnpayOperation = latestRefund?.providerOperations?.find(
+    (operation) =>
+      operation.provider?.toUpperCase() === "VNPAY" &&
+      (operation.status === "PROCESSING" || operation.status === "UNKNOWN"),
+  );
+  const planConversion = booking.rentalPlanConversionSnapshot;
+  const vnpayOperation =
+    activeVnpayOperation ||
+    vnpayOperations.find((operation) => operation.status === "SUCCEEDED") ||
+    vnpayOperations.find((operation) => operation.status === "PENDING") ||
+    vnpayOperations[0];
+  const isVnpayRefund = Boolean(
+    latestRefund &&
+      (latestRefund.method?.toUpperCase() === "VNPAY" ||
+        vnpayOperations.length > 0),
+  );
+  const vnpayTrackerState = !isVnpayRefund
+    ? null
+    : latestRefund?.status === "SUCCEEDED" || vnpayOperation?.status === "SUCCEEDED"
+      ? "SUCCEEDED"
+      : latestRefund?.status === "MANUAL_REQUIRED" || vnpayOperation?.status === "FAILED"
+        ? "MANUAL_REQUIRED"
+      : vnpayOperation?.status === "UNKNOWN"
+        ? "UNKNOWN"
+        : latestRefund?.status === "PROCESSING" ||
+            vnpayOperation?.status === "PROCESSING"
+          ? "PROCESSING"
+          : vnpayOperation?.status === "PENDING"
+            ? "PENDING"
+            : null;
+  const vnpayCompletedAt =
+    vnpayOperation?.completedAt || latestRefund?.succeededAt;
+  const vnpayProcessingMessage =
+    vnpayOperation?.transactionStatus === "06"
+      ? "VNPay đã gửi yêu cầu hoàn tiền sang ngân hàng và đang chờ xử lý."
+      : vnpayOperation?.transactionStatus === "05"
+        ? "VNPay đang xử lý yêu cầu hoàn tiền."
+        : "Yêu cầu hoàn tiền đã được gửi và chưa có kết quả cuối cùng.";
+  const canCheckVnpayRefund = Boolean(
+    latestRefund?.method === "VNPAY" &&
+      latestRefund.status === "PROCESSING" &&
+      activeVnpayOperation,
+  );
+  const handover = booking.handoverSnapshot;
+  const handoverOfficial = Boolean(
+    handover?.ownerConfirmedAt && handover?.renterConfirmedAt,
+  );
+  const canConfirmHandover = Boolean(
+    handover?.ownerConfirmedAt && !handover?.renterConfirmedAt,
+  );
+  const returnOfficial = Boolean(
+    returnInspection?.ownerConfirmedAt && returnInspection?.renterConfirmedAt,
+  );
+  const canConfirmReturn = Boolean(
+    returnInspection?.ownerConfirmedAt && !returnInspection?.renterConfirmedAt,
+  );
+  const preparationEnergy = Math.min(
+    100,
+    Math.max(
+      0,
+      Number(
+        handover?.preparation?.energyLevelPercent ??
+          handover?.handoverEnergyLevelPercent ??
+          0,
+      ),
+    ),
+  );
+  const handoverEnergy = Math.min(
+    100,
+    Math.max(0, Number(handover?.handoverEnergyLevelPercent ?? 0)),
+  );
+  const returnEnergy = Math.min(
+    100,
+    Math.max(0, Number(returnInspection?.returnEnergyLevelPercent ?? 0)),
+  );
+  const handoverImages = handover
+    ? Array.from(
+        new Set([
+          ...(handover.preparation?.images || []),
+          ...(handover.preparation?.dashboardImage
+            ? [handover.preparation.dashboardImage]
+            : []),
+          ...(handover.handoverPhotos || []),
+          ...(handover.handoverDashboardImage
+            ? [handover.handoverDashboardImage]
+            : []),
+        ]),
+      )
+    : [];
+  const returnImages = returnInspection
+    ? Array.from(
+        new Set([
+          ...(returnInspection.returnPhotos || []),
+          ...(returnInspection.returnDashboardImage
+            ? [returnInspection.returnDashboardImage]
+            : []),
+        ]),
+      )
+    : [];
+  const returnStageStarted = [
+    "RETURN_INSPECTION",
+    "AWAITING_EXTRA_CHARGE",
+    "COMPLETED",
+  ].includes(booking.status || "");
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background">
-      <Header />
+      <div className="print:hidden"><Header /></div>
 
-      <main className="mx-auto max-w-7xl px-6 pb-20 pt-28">
+      <main className={`mx-auto max-w-7xl px-6 pb-20 pt-28 ${printDocument ? "print:hidden" : ""}`}>
         <div className="mb-6 flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-center md:justify-between">
           <div>
             <Link
@@ -1134,6 +1586,42 @@ export default function BookingDetailPage() {
 
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_370px]">
           <section className="space-y-6">
+            {canConfirmHandover && (
+              <article className="print:hidden overflow-hidden rounded-2xl border border-secondary/40 bg-white shadow-sm">
+                <div className="h-1 bg-secondary" />
+                <div className="p-5 sm:p-6">
+                  <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-4">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondarySoft text-primary">
+                        <CarFront size={22} />
+                      </span>
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-wider text-secondaryDark">Cần bạn xác nhận</p>
+                        <h2 className="mt-1 text-xl font-extrabold text-primary">Xác nhận đã nhận xe</h2>
+                        <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">Chủ xe đã hoàn tất biên bản bàn giao. Vui lòng kiểm tra tình trạng xe, phụ kiện và giấy tờ trước khi xác nhận nhận xe.</p>
+                        <p className="mt-3 max-w-2xl rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold leading-6 text-primary">Tôi xác nhận đã kiểm tra và tiếp nhận xe cùng tình trạng, phụ kiện và giấy tờ được ghi nhận trong biên bản bàn giao.</p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                      <button type="button" onClick={() => openTripDocument("handover")} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 font-extrabold text-primary transition hover:bg-slate-50">
+                        <FileText size={17} /> Xem biên bản
+                      </button>
+                      <button type="button" onClick={() => void handleConfirmHandoverReceived()} disabled={handoverConfirming} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-5 font-extrabold text-primary transition hover:brightness-95 disabled:opacity-60">
+                        {handoverConfirming ? <Loader2 size={17} className="animate-spin" /> : <CheckCircle2 size={17} />} Xác nhận đã nhận xe
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            )}
+
+            {!handover && booking.status === "PAID" && (
+              <div className="print:hidden flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600">
+                <Clock3 size={18} className="shrink-0 text-secondaryDark" />
+                Chủ xe đang chuẩn bị biên bản bàn giao.
+              </div>
+            )}
+
             <article className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
               <div className="grid gap-0 md:grid-cols-[320px_minmax(0,1fr)]">
                 <div className="relative min-h-72 overflow-hidden">
@@ -1174,7 +1662,15 @@ export default function BookingDetailPage() {
                   <div className="mt-6 grid gap-4 border-y border-border py-5 sm:grid-cols-2 lg:grid-cols-4">
                     <InfoLine icon={CalendarDays} label="Nhận xe" value={formatDateTime(booking.startDate)} />
                     <InfoLine icon={CalendarDays} label="Trả xe" value={formatDateTime(booking.endDate)} />
-                    <InfoLine icon={Clock3} label={rental.label} value={`${rentalTime} ${rental.unit}`} />
+                    <InfoLine
+                      icon={Clock3}
+                      label={planConversion ? "Gói thuê hiện tại" : rental.label}
+                      value={
+                        planConversion
+                          ? `Theo ngày từ ${formatDateTime(planConversion.effectiveFrom)}`
+                          : `${rentalTime} ${rental.unit}`
+                      }
+                    />
                     <InfoLine
                       icon={Wallet}
                       label="Giá cơ bản"
@@ -1267,33 +1763,36 @@ export default function BookingDetailPage() {
                       booking.noShowReason ||
                       bookingTimeline.nextActionText}
                   </p>
-                  {booking.status === "NO_SHOW" && paymentPaidAmount > 0 && (
-                    <p className="mt-3">
-                      Booking đã được đánh dấu không nhận xe. Chính sách xử lý
-                      cọc/thanh toán sẽ được thực hiện theo quy định của hệ
-                      thống hoặc chủ xe.
-                    </p>
-                  )}
+
                 </div>
               )}
 
-              {booking.status === "CANCELLED" && booking.cancellationSummary && (
+             {["CANCELLED", "NO_SHOW"].includes(booking.status || "") &&
+  booking.cancellationSummary && (
                 <div id="booking-refund" className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
                       <p className="text-sm font-bold uppercase text-secondary">
                         Hoàn tiền
                       </p>
-                      <h3 className="mt-1 text-xl font-extrabold text-primary">
-                        Trạng thái hoàn tiền sau hủy
+                        <h3 className="mt-1 text-xl font-extrabold text-primary">
+                        {booking.status === "NO_SHOW"
+                          ? "Hoàn tiền sau khi khách không nhận xe"
+                          : "Trạng thái hoàn tiền sau hủy"}
                       </h3>
+
                       <p className="mt-2 text-sm font-semibold leading-6 text-muted">
-                        Booking đã hủy không còn giữ lịch xe. Hoàn tiền được xử lý bằng hồ sơ riêng.
+                        {booking.status === "NO_SHOW"
+                          ? "Booking đã được ghi nhận khách không đến nhận xe. Khoản được hoàn sẽ được xử lý bằng hồ sơ hoàn tiền riêng."
+                          : "Booking đã hủy không còn giữ lịch xe. Hoàn tiền được xử lý bằng hồ sơ riêng."}
                       </p>
                     </div>
                     <span className="rounded-full bg-secondarySoft px-4 py-2 text-sm font-extrabold text-primary">
                       {latestRefund
-                        ? getRefundStatusLabel(latestRefund.status)
+                        ? getRefundStatusLabel(
+                            latestRefund.status,
+                            latestRefund.method,
+                          )
                         : booking.cancellationSummary.refundRequired
                           ? "Chờ tạo hồ sơ hoàn"
                           : "Không cần hoàn"}
@@ -1302,21 +1801,46 @@ export default function BookingDetailPage() {
 
                   <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
                     <SummaryTile
-                      label="Đã thanh toán lúc hủy"
-                      value={formatPrice(booking.cancellationSummary.paidAmountAtCancellation)}
+                      label={
+                        booking.status === "NO_SHOW"
+                          ? "Đã thanh toán khi ghi nhận"
+                          : "Đã thanh toán lúc hủy"
+                      }
+                      value={formatPrice(
+                        booking.cancellationSummary.paidAmountAtCancellation,
+                      )}
+                    />
+
+                    <SummaryTile
+                      label={
+                        booking.status === "NO_SHOW"
+                          ? "Khoản được giữ lại"
+                          : "Phí hủy"
+                      }
+                      value={formatPrice(
+                        booking.cancellationSummary.cancellationFee,
+                      )}
                     />
                     <SummaryTile
-                      label="Phí hủy"
-                      value={formatPrice(booking.cancellationSummary.cancellationFee)}
-                    />
-                    <SummaryTile
-                      label="Dự kiến hoàn"
-                      value={formatPrice(booking.cancellationSummary.refundAmount)}
+                      label={
+                        latestRefund?.status === "SUCCEEDED"
+                          ? "Đã hoàn"
+                          : "Dự kiến hoàn"
+                      }
+                      value={formatPrice(
+                        latestRefund?.status === "SUCCEEDED"
+                          ? latestRefund.refundAmount
+                          : booking.cancellationSummary.refundAmount,
+                      )}
                     />
                     <SummaryTile
                       label="Chính sách"
                       value={getCancellationPolicyLabel(
-                        booking.cancellationSummary.policyRuleApplied,
+                        latestRefund?.reasonCode ===
+                          "PAYMENT_AFTER_BOOKING_CANCELLED"
+                          ? latestRefund.reasonCode
+                          : latestRefund?.policyRuleApplied ||
+                              booking.cancellationSummary.policyRuleApplied,
                       )}
                     />
                   </div>
@@ -1325,6 +1849,189 @@ export default function BookingDetailPage() {
                     <div className="mt-4 rounded-lg border border-dashed border-border bg-slate-50 px-4 py-3 text-sm font-semibold leading-6 text-slate-600">
                       <p>Mã refund: #{latestRefund._id.slice(-8).toUpperCase()}</p>
                       <p>Phương thức xử lý: {latestRefund.method}</p>
+                      {latestRefund.status === "SUCCEEDED" && !isVnpayRefund && (
+                        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
+                          <p className="font-extrabold">Hoàn tiền thành công</p>
+                          <p className="mt-1">
+                            Số tiền đã hoàn: {formatPrice(latestRefund.refundAmount)}
+                          </p>
+                        </div>
+                      )}
+                      {vnpayTrackerState && (
+                        <div
+                          className={`mt-3 rounded-xl border p-4 ${
+                            vnpayTrackerState === "SUCCEEDED"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                              : vnpayTrackerState === "PROCESSING"
+                                ? "border-sky-200 bg-sky-50 text-sky-900"
+                                : vnpayTrackerState === "MANUAL_REQUIRED"
+                                  ? "border-amber-200 bg-amber-50 text-amber-900"
+                                : "border-slate-200 bg-slate-50 text-slate-700"
+                          }`}
+                        >
+                          <p className="text-xs font-extrabold uppercase tracking-wide text-secondary">
+                            Hoàn tiền qua VNPay
+                          </p>
+                          <h4 className="mt-1 text-lg font-extrabold text-primary">
+                            {vnpayTrackerState === "SUCCEEDED"
+                              ? "Hoàn tiền thành công"
+                              : vnpayTrackerState === "MANUAL_REQUIRED"
+                                ? "VNPay từ chối hoàn tiền tự động"
+                              : vnpayTrackerState === "UNKNOWN"
+                                ? "Chưa xác định trạng thái hoàn tiền"
+                                : vnpayTrackerState === "PENDING"
+                                  ? "Đã tạo yêu cầu hoàn tiền"
+                                  : "VNPay đang xử lý yêu cầu hoàn tiền"}
+                          </h4>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+                            {vnpayTrackerState === "SUCCEEDED"
+                              ? "VNPay đã xác nhận hoàn tiền thành công."
+                              : vnpayTrackerState === "MANUAL_REQUIRED"
+                                ? "Khoản hoàn sẽ được xử lý theo luồng hoàn tiền thủ công."
+                              : vnpayTrackerState === "UNKNOWN"
+                                ? "Chưa nhận được trạng thái cuối cùng từ VNPay. Bạn có thể kiểm tra lại."
+                              : vnpayTrackerState === "PENDING"
+                                  ? "Yêu cầu hoàn tiền đã được tạo và đang chờ gửi hoặc xử lý bởi VNPay."
+                                  : vnpayProcessingMessage}
+                          </p>
+
+                          <div className="mt-5 flex items-start">
+                            <div className="flex min-w-0 flex-1 flex-col items-center text-center">
+                              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+                                <CheckCircle2 size={21} />
+                              </span>
+                              <p className="mt-2 text-xs font-extrabold leading-5 text-primary">
+                                {vnpayTrackerState === "PENDING"
+                                  ? "Đã tạo yêu cầu"
+                                  : "Đã gửi yêu cầu"}
+                              </p>
+                            </div>
+                            <div className="mt-5 h-0.5 w-5 shrink-0 bg-emerald-400 sm:flex-1" />
+                            <div className="flex min-w-0 flex-1 flex-col items-center text-center">
+                              <span
+                                className={`flex h-10 w-10 items-center justify-center rounded-full shadow-sm ${
+                                  vnpayTrackerState === "SUCCEEDED"
+                                    ? "bg-emerald-600 text-white"
+                                    : vnpayTrackerState === "PROCESSING"
+                                      ? "bg-sky-600 text-white"
+                                      : vnpayTrackerState === "MANUAL_REQUIRED"
+                                        ? "bg-amber-500 text-white"
+                                      : "bg-white text-slate-500 ring-1 ring-slate-300"
+                                }`}
+                              >
+                                {vnpayTrackerState === "SUCCEEDED" ? (
+                                  <CheckCircle2 size={21} />
+                                ) : vnpayTrackerState === "PROCESSING" ? (
+                                  <Clock3 size={21} />
+                                ) : vnpayTrackerState === "MANUAL_REQUIRED" ? (
+                                  <XCircle size={21} />
+                                ) : vnpayTrackerState === "UNKNOWN" ? (
+                                  <span className="text-lg font-extrabold">?</span>
+                                ) : (
+                                  <Clock3 size={20} />
+                                )}
+                              </span>
+                              <p className="mt-2 text-xs font-extrabold leading-5 text-primary">
+                                {vnpayTrackerState === "SUCCEEDED"
+                                  ? "VNPay đã xử lý"
+                                  : vnpayTrackerState === "MANUAL_REQUIRED"
+                                    ? "Cần xử lý thủ công"
+                                  : vnpayTrackerState === "UNKNOWN"
+                                    ? "Chưa xác định trạng thái"
+                                    : vnpayTrackerState === "PENDING"
+                                      ? "Chờ gửi/xử lý"
+                                      : "VNPay đang xử lý"}
+                              </p>
+                            </div>
+                            <div
+                              className={`mt-5 h-0.5 w-5 shrink-0 sm:flex-1 ${
+                                vnpayTrackerState === "SUCCEEDED"
+                                  ? "bg-emerald-400"
+                                  : "bg-slate-200"
+                              }`}
+                            />
+                            <div className="flex min-w-0 flex-1 flex-col items-center text-center">
+                              <span
+                                className={`flex h-10 w-10 items-center justify-center rounded-full shadow-sm ${
+                                  vnpayTrackerState === "SUCCEEDED"
+                                    ? "bg-emerald-600 text-white"
+                                    : "bg-white text-slate-400 ring-1 ring-slate-300"
+                                }`}
+                              >
+                                {vnpayTrackerState === "SUCCEEDED" ? (
+                                  <CheckCircle2 size={21} />
+                                ) : (
+                                  <CircleDashed size={20} />
+                                )}
+                              </span>
+                              <p className="mt-2 text-xs font-extrabold leading-5 text-primary">
+                                {vnpayTrackerState === "SUCCEEDED"
+                                  ? "Hoàn tiền thành công"
+                                  : vnpayTrackerState === "MANUAL_REQUIRED"
+                                    ? "Chờ xử lý thủ công"
+                                  : "Hoàn tất"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-5 grid gap-3 rounded-lg border border-white/70 bg-white/75 p-3 text-sm sm:grid-cols-3">
+                            <div>
+                              <p className="text-xs font-bold uppercase text-slate-400">
+                                Số tiền hoàn
+                              </p>
+                              <p className="mt-1 font-extrabold text-primary">
+                                {formatPrice(latestRefund.refundAmount)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold uppercase text-slate-400">
+                                Phương thức hoàn
+                              </p>
+                              <p className="mt-1 font-extrabold text-primary">VNPay</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold uppercase text-slate-400">
+                                Trạng thái
+                              </p>
+                              <p className="mt-1 font-extrabold text-primary">
+                                {vnpayTrackerState === "SUCCEEDED"
+                                  ? "Hoàn tiền thành công"
+                                  : vnpayTrackerState === "MANUAL_REQUIRED"
+                                    ? "Cần hoàn thủ công"
+                                  : vnpayTrackerState === "UNKNOWN"
+                                    ? "Chưa xác định"
+                                    : vnpayTrackerState === "PENDING"
+                                      ? "Chờ gửi/xử lý"
+                                      : "Đang xử lý"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {vnpayTrackerState === "SUCCEEDED" && vnpayCompletedAt && (
+                            <p className="mt-3 text-sm font-semibold text-emerald-800">
+                              Hoàn tất lúc {formatDateTime(vnpayCompletedAt)}
+                            </p>
+                          )}
+
+                          {canCheckVnpayRefund && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleCheckVnpayRefundStatus(latestRefund._id)
+                              }
+                              disabled={Boolean(refundCheckingId)}
+                              className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-extrabold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {refundCheckingId === latestRefund._id && (
+                                <Loader2 size={18} className="animate-spin" />
+                              )}
+                              {refundCheckingId === latestRefund._id
+                                ? "Đang kiểm tra với VNPay..."
+                                : "Kiểm tra trạng thái"}
+                            </button>
+                          )}
+                        </div>
+                      )}
                       {latestRefund.status === "WAITING_FOR_REFUND_INFO" && (
                         <div className="mt-3 rounded-lg border border-secondary/30 bg-secondarySoft/35 p-4">
                           <p className="font-extrabold text-primary">
@@ -1394,7 +2101,8 @@ export default function BookingDetailPage() {
                       {latestRefund.manualRefundReference && (
                         <p>Mã tham chiếu thủ công: {latestRefund.manualRefundReference}</p>
                       )}
-                      {latestRefund.status === "PROCESSING" && (
+                      {latestRefund.status === "PROCESSING" &&
+                        latestRefund.method !== "VNPAY" && (
                         <button
                           type="button"
                           onClick={() => handleConfirmRefundReceived(latestRefund._id)}
@@ -1406,11 +2114,85 @@ export default function BookingDetailPage() {
                           )}
                           Tôi đã nhận tiền hoàn
                         </button>
-                      )}
+                        )}
                     </div>
                   )}
                 </div>
               )}
+            </section>
+
+            <section id="trip-documents" className="print:hidden overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+              <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
+                <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-secondaryDark">Tài liệu</p>
+                <h2 className="mt-1 text-2xl font-extrabold text-primary">Hồ sơ chuyến thuê</h2>
+                <p className="mt-2 text-sm font-semibold text-slate-500">Các tài liệu được lưu theo tiến trình thực tế của booking.</p>
+              </div>
+
+              <div className="divide-y divide-slate-200">
+                {rentalContract ? (
+                  <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700"><CheckCircle2 size={18} /></span>
+                      <div><h3 className="font-extrabold text-primary">Hợp đồng thuê xe</h3><p className="mt-1 text-sm font-semibold text-slate-500">{rentalContract.contractCode} · Đã tạo trên hệ thống</p></div>
+                    </div>
+                    <Link to={`/contracts/${rentalContract._id}`} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-extrabold text-primary transition hover:bg-slate-50"><FileText size={16} /> Xem</Link>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3 px-5 py-4 sm:px-6"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400"><CircleDashed size={18} /></span><div><h3 className="font-extrabold text-primary">Hợp đồng thuê xe</h3><p className="mt-1 text-sm font-semibold text-slate-500">Chưa có hợp đồng phù hợp với booking này.</p></div></div>
+                )}
+
+                <div>
+                  <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${handoverOfficial ? "bg-emerald-50 text-emerald-700" : handover?.ownerConfirmedAt ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-400"}`}>{handoverOfficial ? <CheckCircle2 size={18} /> : <CircleDashed size={18} />}</span>
+                      <div><h3 className="font-semibold text-slate-900">Biên bản bàn giao xe</h3><p className="mt-1 text-sm font-medium text-slate-500">{handoverOfficial ? `Đã xác nhận hai bên · Hoàn tất ${formatDateTime(handover?.renterConfirmedAt)}` : handover?.ownerConfirmedAt ? "Chờ người thuê xác nhận" : "Chưa lập biên bản"}</p></div>
+                    </div>
+                    {handover && <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setHandoverExpanded((value) => !value)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50">{handoverExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />} {handoverExpanded ? "Thu gọn" : "Xem"}</button>{handoverOfficial && <button type="button" onClick={() => handlePrintDocument("handover")} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-800 transition hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700"><Printer size={16} /> In</button>}</div>}
+                  </div>
+
+                  {handoverExpanded && handover && (
+                    <div className="border-t border-slate-100 bg-slate-50/70 p-4 sm:p-6">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5 sm:p-6">
+                        <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-wide text-amber-500">Biên bản bàn giao xe</p><h3 className="mt-1.5 text-xl font-bold text-slate-900">{car?.name || "Xe thuê"}</h3><p className="mt-1 text-sm font-medium text-slate-500">{getBookingDisplayCode(booking)} · {car?.licensePlate || "Chưa cập nhật biển số"}</p></div><span className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${handoverOfficial ? "border-emerald-100 bg-emerald-50 text-emerald-700" : "border-amber-100 bg-amber-50 text-amber-700"}`}><CheckCircle2 size={14} /> {handoverOfficial ? "Đã xác nhận hai bên" : "Chờ người thuê xác nhận"}</span></div>
+
+                        <div className="mt-5 grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_36px_minmax(0,1fr)]">
+                          <div className="rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300"><p className="text-sm font-semibold text-slate-800">Trước khi đi giao</p><div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2"><div><p className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500"><Gauge size={14} className="text-slate-400" /> ODO</p><p className="mt-1.5 text-2xl font-bold text-slate-900">{new Intl.NumberFormat("vi-VN").format(handover.preparation?.odometerKm ?? handover.handoverOdometerKm)} <span className="text-sm font-semibold text-slate-500">km</span></p></div><div><p className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500"><Fuel size={14} className="text-slate-400" /> Nhiên liệu / pin</p><p className="mt-1.5 text-2xl font-bold text-slate-900">{preparationEnergy}%</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-secondary" style={{ width: `${preparationEnergy}%` }} /></div></div></div><div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-400"><FileText size={13} /> Ghi chú</p><p className="mt-1.5 text-sm font-medium leading-6 text-slate-700">{handover.preparation?.note || "Không có ghi chú thêm."}</p></div></div>
+                          <div className="flex items-center justify-center text-amber-400"><ArrowRight size={22} strokeWidth={2.4} className="rotate-90 lg:rotate-0" /></div>
+                          <div className="rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300"><p className="text-sm font-semibold text-slate-800">Khi khách nhận xe</p><div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2"><div><p className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500"><Gauge size={14} className="text-slate-400" /> ODO</p><p className="mt-1.5 text-2xl font-bold text-slate-900">{new Intl.NumberFormat("vi-VN").format(handover.handoverOdometerKm)} <span className="text-sm font-semibold text-slate-500">km</span></p></div><div><p className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500"><Fuel size={14} className="text-slate-400" /> Nhiên liệu / pin</p><p className="mt-1.5 text-2xl font-bold text-slate-900">{handoverEnergy}%</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-secondary" style={{ width: `${handoverEnergy}%` }} /></div></div></div><div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-400"><FileText size={13} /> Ghi chú</p><p className="mt-1.5 text-sm font-medium leading-6 text-slate-700">{handover.handoverConditionNotes || "Không có ghi chú thêm."}</p></div></div>
+                        </div>
+
+                        <VehicleRecordChecklist handoverRecord={handover} />
+                        {handoverImages.length > 0 && <div className="mt-5"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Ảnh hiện trạng</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{handoverImages.slice(0, 8).map((image, index) => <a key={`${image}-${index}`} href={normalizeImageUrl(image)} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-xl border border-slate-200 bg-slate-50"><img src={normalizeImageUrl(image)} alt={`Ảnh tình trạng bàn giao ${index + 1}`} className="h-24 w-full object-cover transition group-hover:scale-105" /></a>)}</div></div>}
+
+                        <div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Bên giao</p><p className="mt-2 font-bold text-slate-900">{typeof booking.ownerId === "string" ? "Chủ xe" : booking.ownerId?.name || "Chủ xe"}</p><p className="mt-2 flex items-center gap-2 text-sm font-semibold text-emerald-700"><CheckCircle2 size={16} className="text-emerald-600" /> Đã xác nhận trên hệ thống</p><p className="mt-1 text-sm font-medium text-slate-500">{formatDateTime(handover.ownerConfirmedAt)}</p></div><div className={`rounded-xl border p-4 ${handover.renterConfirmedAt ? "border-emerald-100 bg-emerald-50/40" : "border-amber-100 bg-amber-50/40"}`}><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Bên nhận</p><p className="mt-2 font-bold text-slate-900">{booking.renterInfo?.fullName || "Người thuê"}</p><p className={`mt-2 flex items-center gap-2 text-sm font-semibold ${handover.renterConfirmedAt ? "text-emerald-700" : "text-amber-700"}`}>{handover.renterConfirmedAt ? <CheckCircle2 size={16} className="text-emerald-600" /> : <Clock3 size={16} />} {handover.renterConfirmedAt ? "Đã xác nhận trên hệ thống" : "Đang chờ xác nhận"}</p><p className="mt-1 text-sm font-medium text-slate-500">{formatDateTime(handover.renterConfirmedAt)}</p></div></div>
+                        <div className="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between"><p className="flex items-center gap-2 text-sm font-medium text-slate-500"><ShieldCheck size={16} className="shrink-0 text-slate-400" /> Biên bản được xác nhận điện tử trên hệ thống BQDrive.</p>{handoverOfficial && <button type="button" onClick={() => handlePrintDocument("handover")} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-800 transition hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700"><Printer size={16} /> In biên bản</button>}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <div className="flex min-w-0 items-start gap-3"><span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${returnOfficial ? "bg-emerald-50 text-emerald-700" : returnInspection ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-400"}`}>{returnOfficial ? <CheckCircle2 size={18} /> : <CircleDashed size={18} />}</span><div><h3 className="font-semibold text-slate-800">Biên bản kiểm tra khi trả xe</h3><p className="mt-1 text-sm font-medium text-slate-500">{returnOfficial ? `Đã xác nhận hai bên · Hoàn tất ${formatDateTime(returnInspection?.renterConfirmedAt)}` : returnInspection?.ownerConfirmedAt ? "Chờ người thuê xác nhận" : returnInspection ? "Đang kiểm tra tình trạng xe" : returnStageStarted ? "Đang chờ lập biên bản kiểm tra" : "Chưa đến giai đoạn trả xe"}</p></div></div>
+                    {returnInspection && <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setReturnExpanded((value) => !value)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-extrabold text-primary">{returnExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />} {returnExpanded ? "Thu gọn" : "Xem"}</button>{returnOfficial && <button type="button" onClick={() => handlePrintDocument("return")} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-extrabold text-primary"><Printer size={16} /> In</button>}</div>}
+                  </div>
+
+                  {returnExpanded && returnInspection && (
+                    <div className="border-t border-slate-100 bg-slate-50/70 p-4 sm:p-6"><div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"><div className="flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-secondaryDark">Biên bản kiểm tra khi trả xe</p><h3 className="mt-1 text-xl font-extrabold text-primary">Đối chiếu tình trạng xe</h3><p className="mt-1 text-sm font-semibold text-slate-500">{getBookingDisplayCode(booking)} · {car?.name || "Xe thuê"}</p></div>{returnOfficial && <span className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-extrabold text-emerald-700"><CheckCircle2 size={14} /> Đã xác nhận hai bên</span>}</div>
+                    <div className="mt-5 grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_36px_minmax(0,1fr)]"><div className="rounded-xl border border-slate-200 p-4"><p className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Lúc giao</p><p className="mt-4 text-xs font-bold uppercase text-slate-400">ODO</p><p className="mt-1 text-2xl font-extrabold text-primary">{handover ? new Intl.NumberFormat("vi-VN").format(handover.handoverOdometerKm) : "--"} <span className="text-sm text-slate-500">km</span></p><p className="mt-4 text-xs font-bold uppercase text-slate-400">Nhiên liệu / pin</p><p className="mt-1 text-2xl font-extrabold text-primary">{handoverEnergy}%</p><div className="mt-2 h-1.5 rounded-full bg-slate-100"><div className="h-full rounded-full bg-secondary" style={{ width: `${handoverEnergy}%` }} /></div></div><div className="flex items-center justify-center text-slate-300"><ArrowRight size={22} className="rotate-90 lg:rotate-0" /></div><div className="rounded-xl border border-slate-200 p-4"><p className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Lúc trả</p><p className="mt-4 text-xs font-bold uppercase text-slate-400">ODO</p><p className="mt-1 text-2xl font-extrabold text-primary">{returnInspection.returnOdometerKm !== undefined ? new Intl.NumberFormat("vi-VN").format(returnInspection.returnOdometerKm) : "--"} <span className="text-sm text-slate-500">km</span></p><p className="mt-4 text-xs font-bold uppercase text-slate-400">Nhiên liệu / pin</p><p className="mt-1 text-2xl font-extrabold text-primary">{returnInspection.returnEnergyLevelPercent !== undefined ? `${returnEnergy}%` : "--"}</p><div className="mt-2 h-1.5 rounded-full bg-slate-100"><div className="h-full rounded-full bg-secondary" style={{ width: `${returnEnergy}%` }} /></div></div></div></div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="rounded-lg bg-slate-50 p-3"><p className="text-xs font-bold uppercase text-slate-400">Quãng đường sử dụng</p><p className="mt-1 font-extrabold text-primary">{returnInspection.distanceTravelledKm ?? "--"} km</p></div><div className="rounded-lg bg-slate-50 p-3"><p className="text-xs font-bold uppercase text-slate-400">Hư hỏng mới</p><p className="mt-1 font-extrabold text-primary">{returnInspection.hasDamage ? "Có" : "Không"}</p></div><div className="rounded-lg bg-slate-50 p-3"><p className="text-xs font-bold uppercase text-slate-400">Ghi chú</p><p className="mt-1 text-sm font-semibold text-slate-600">{returnInspection.conditionNotes || "Không có ghi chú."}</p></div></div>
+                    {handover && <><VehicleRecordChecklist handoverRecord={handover} returnRecord={returnInspection} /><p className="mt-2 text-xs font-semibold text-slate-500">Khác biệt chỉ dùng để đối chiếu, không tự động tạo phụ phí.</p></>}
+                    {returnImages.length > 0 && <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{returnImages.slice(0, 8).map((image, index) => <a key={`${image}-${index}`} href={normalizeImageUrl(image)} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border border-slate-200"><img src={normalizeImageUrl(image)} alt={`Ảnh xe lúc trả ${index + 1}`} className="h-24 w-full object-cover" /></a>)}</div>}
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="rounded-xl border border-slate-200 p-4"><p className="text-xs font-bold uppercase text-slate-400">Bên nhận lại xe — Owner</p><p className="mt-2 font-extrabold text-primary">{ownerName}</p><p className="mt-2 text-sm font-semibold text-slate-600">{returnInspection.ownerConfirmedAt ? `✓ Đã xác nhận ${formatDateTime(returnInspection.ownerConfirmedAt)}` : "Chưa xác nhận"}</p></div><div className="rounded-xl border border-slate-200 p-4"><p className="text-xs font-bold uppercase text-slate-400">Bên trả xe — Renter</p><p className="mt-2 font-extrabold text-primary">{booking.renterInfo?.fullName || "Người thuê"}</p><p className="mt-2 text-sm font-semibold text-slate-600">{returnInspection.renterConfirmedAt ? `✓ Đã xác nhận ${formatDateTime(returnInspection.renterConfirmedAt)}` : "Chưa xác nhận"}</p></div></div>
+                    {returnOfficial && (
+                      <div className="mt-5 flex justify-end border-t border-slate-200 pt-4">
+                        <button type="button" onClick={() => handlePrintDocument("return")} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-extrabold text-primary"><Printer size={16} /> In biên bản</button>
+                      </div>
+                    )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </section>
 
             {(extraChargeLoading || extraCharges.length > 0) && (
@@ -1668,6 +2450,7 @@ export default function BookingDetailPage() {
             <BookingExtensionPanel
               bookingId={booking._id}
               bookingStatus={booking.status}
+              startAt={booking.startDate}
               currentEndAt={booking.endDate}
               rentalMode={booking.rentalMode}
               mode="RENTER"
@@ -1693,32 +2476,9 @@ export default function BookingDetailPage() {
               </section>
             )}
 
-            <section id="booking-timeline" className="rounded-lg border border-border bg-white p-6 shadow-sm">
-              <p className="text-sm font-bold uppercase text-secondary">
-                Đơn vị cho thuê
-              </p>
-              <div className="mt-4 flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary text-secondary">
-                  <Building2 size={24} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-extrabold text-primary">
-                    {ownerName}
-                  </h2>
-                  <p className="mt-1 text-sm leading-6 text-muted">
-                    {ownerAddress}
-                  </p>
-                  {ownerPhone && (
-                    <p className="mt-1 text-sm font-semibold text-primary">
-                      {ownerPhone}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
           </section>
 
-          <aside id="booking-payment-summary" className="lg:sticky lg:top-28 lg:self-start">
+          <aside id="booking-payment-summary" className="space-y-4 lg:self-start">
             <div className="rounded-lg border border-border bg-white p-6 shadow-xl shadow-slate-900/10">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -1743,20 +2503,30 @@ export default function BookingDetailPage() {
 
               <div className="my-6 space-y-4 border-y border-border py-5 text-sm">
                 <SummaryRow label="Mã booking" value={getBookingDisplayCode(booking)} />
-                <SummaryRow label="Hình thức" value={booking.paymentOption === "FULL" ? "Thanh toán toàn bộ" : "Thanh toán cọc"} />
+                <SummaryRow label="Hình thức" value={booking.paymentOption === "FULL" ? "Thanh toán toàn bộ" : "Thanh toán giữ chỗ"} />
                 <SummaryRow
                   label="Tiền thuê xe"
-                  value={formatPrice(
-                    booking.pricingSnapshot?.rentalSubtotal ?? booking.totalPrice,
-                  )}
+                  value={formatPrice(paymentInfo.rentalSubtotal)}
+                />
+                <SummaryRow
+                  label="Tiền cọc thuê xe (50% tiền thuê)"
+                  value={formatPrice(paymentInfo.rentalDepositAmount)}
+                />
+                <SummaryRow
+                  label="Phí nền tảng"
+                  value={formatPrice(paymentInfo.platformFee)}
+                />
+                <SummaryRow
+                  label="Phí bảo hiểm"
+                  value={formatPrice(paymentInfo.insuranceFee)}
                 />
                 <SummaryRow
                   label="Phí giao xe"
-                  value={formatPrice(booking.pricingSnapshot?.deliveryFee || 0)}
+                  value={formatPrice(paymentInfo.deliveryFee)}
                 />
                 <SummaryRow label="Tổng tiền" value={formatPrice(paymentInfo.totalPrice)} />
                 {booking.paymentOption !== "FULL" && (
-                  <SummaryRow label="Tiền cọc" value={formatPrice(paymentInfo.depositAmount)} />
+                  <SummaryRow label="Thanh toán giữ chỗ" value={formatPrice(paymentInfo.upfrontPaymentAmount)} />
                 )}
                 <SummaryRow label="Đã thanh toán" value={formatPrice(paymentInfo.paidAmount)} />
                 <SummaryRow label="Còn phải thanh toán" value={formatPrice(paymentInfo.outstandingAmount)} strong />
@@ -1804,11 +2574,155 @@ export default function BookingDetailPage() {
                 {paymentInfo.detail}
               </p>
             </div>
+
+            <section className="rounded-lg border border-border bg-white p-5 shadow-sm">
+              <p className="text-sm font-bold uppercase text-secondary">
+                Đơn vị cho thuê
+              </p>
+              <div className="mt-4 flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-secondary">
+                  <Building2 size={21} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg font-extrabold text-primary">
+                    {ownerName}
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-muted">
+                    {ownerAddress}
+                  </p>
+                  {ownerPhone && (
+                    <p className="mt-1 text-sm font-semibold text-primary">
+                      {ownerPhone}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {canOpenBookingChat(booking.status) && (
+              <BookingChatPanel
+                open
+                variant="embedded"
+                bookingId={booking._id}
+                bookingCode={getBookingDisplayCode(booking)}
+                carName={car?.name}
+                counterpartName={ownerName}
+                currentUserId={currentUserId}
+                readOnly={isBookingChatReadOnly(booking.status)}
+              />
+            )}
+
+            {canConfirmReturn && (
+              <article className="print:hidden overflow-hidden rounded-2xl border border-secondary/40 bg-white shadow-sm">
+                <div className="h-1 bg-secondary" />
+                <div className="p-5 sm:p-6">
+                  <div className="flex items-start gap-4">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondarySoft text-primary">
+                      <CheckCircle2 size={22} />
+                    </span>
+                    <div>
+                      <p className="text-xs font-extrabold uppercase tracking-wider text-secondaryDark">
+                        Cần bạn xác nhận
+                      </p>
+                      <h2 className="mt-1 text-xl font-extrabold text-primary">
+                        Xác nhận đã trả xe
+                      </h2>
+                      <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+                        Chủ xe đã xác nhận nhận lại xe. Hãy xem và đối chiếu đầy đủ biên bản kiểm tra trước khi xác nhận.
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold leading-6 text-primary">
+                    Tôi xác nhận đã xem và đồng ý với tình trạng xe, phụ kiện và giấy tờ được ghi nhận trong biên bản trả xe.
+                  </p>
+
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={() => openTripDocument("return")}
+                      className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 font-extrabold text-primary"
+                    >
+                      <FileText size={17} /> Xem biên bản
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleConfirmReturn()}
+                      disabled={returnConfirming}
+                      className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-secondary px-5 font-extrabold text-primary disabled:opacity-60"
+                    >
+                      {returnConfirming ? (
+                        <Loader2 size={17} className="animate-spin" />
+                      ) : (
+                        <CheckCircle2 size={17} />
+                      )}
+                      Xác nhận đã trả xe
+                    </button>
+                  </div>
+                </div>
+              </article>
+            )}
           </aside>
         </div>
       </main>
 
-      <Footer />
+      {printDocument && (
+        <article className="hidden bg-white p-8 text-slate-950 print:block">
+          <header className="border-b-2 border-slate-900 pb-5 text-center">
+            <p className="text-sm font-extrabold uppercase tracking-[0.22em]">BQDrive</p>
+            <h1 className="mt-2 text-2xl font-extrabold uppercase">
+              {printDocument === "handover"
+                ? "Biên bản bàn giao xe"
+                : "Biên bản kiểm tra khi trả xe"}
+            </h1>
+            <p className="mt-2 text-sm">Mã booking: {getBookingDisplayCode(booking)}</p>
+          </header>
+
+          <section className="mt-6">
+            <h2 className="font-extrabold uppercase">I. Thông tin chuyến thuê</h2>
+            <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+              <p><strong>Người thuê:</strong> {booking.renterInfo?.fullName || "Người thuê"}</p>
+              <p><strong>Chủ xe:</strong> {ownerName}</p>
+              <p><strong>Nhận xe:</strong> {formatDateTime(booking.startDate)}</p>
+              <p><strong>Trả xe:</strong> {formatDateTime(booking.endDate)}</p>
+              <p className="col-span-2"><strong>Địa điểm nhận:</strong> {pickupAddress}</p>
+            </div>
+          </section>
+
+          <section className="mt-6">
+            <h2 className="font-extrabold uppercase">II. Thông tin xe</h2>
+            <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+               <p><strong>Xe:</strong> {car?.name || "--"}</p>
+               <p><strong>Biển số:</strong> {car?.licensePlate || "--"}</p>
+               <p><strong>Loại xe:</strong> {getSpecLabel(car?.type)}</p>
+               <p><strong>Loại nhiên liệu:</strong> {getSpecLabel(car?.fuelType)}</p>
+               <p><strong>Hộp số:</strong> {getSpecLabel(car?.transmission)}</p>
+               <p><strong>Số chỗ:</strong> {car?.seats || "--"}</p>
+            </div>
+          </section>
+
+          {printDocument === "handover" && handover ? (
+            <>
+              <section className="mt-6"><h2 className="font-extrabold uppercase">III. Tình trạng trước khi giao</h2><div className="mt-3 grid grid-cols-2 gap-3 border border-slate-300 p-4 text-sm"><p><strong>ODO:</strong> {new Intl.NumberFormat("vi-VN").format(handover.preparation?.odometerKm ?? handover.handoverOdometerKm)} km</p><p><strong>Nhiên liệu/pin:</strong> {preparationEnergy}%</p><p className="col-span-2"><strong>Ghi chú:</strong> {handover.preparation?.note || "Không có ghi chú thêm."}</p></div></section>
+               <section className="mt-6"><h2 className="font-extrabold uppercase">IV. Tình trạng khi khách nhận</h2><div className="mt-3 grid grid-cols-2 gap-3 border border-slate-300 p-4 text-sm"><p><strong>ODO:</strong> {new Intl.NumberFormat("vi-VN").format(handover.handoverOdometerKm)} km</p><p><strong>Nhiên liệu/pin:</strong> {handoverEnergy}%</p><p className="col-span-2"><strong>Ghi chú:</strong> {handover.handoverConditionNotes || "Không có ghi chú thêm."}</p></div></section>
+               <section className="mt-6"><h2 className="font-extrabold uppercase">V. Checklist bàn giao</h2><VehicleRecordChecklist handoverRecord={handover} /></section>
+               {handoverImages.length > 0 && <section className="mt-6"><h2 className="font-extrabold uppercase">Ảnh hiện trạng</h2><div className="mt-3 grid grid-cols-4 gap-3">{handoverImages.slice(0, 8).map((image, index) => <img key={`${image}-${index}`} src={normalizeImageUrl(image)} alt={`Ảnh bàn giao ${index + 1}`} className="h-24 w-full border border-slate-300 object-cover" />)}</div></section>}
+               <section className="mt-6"><h2 className="font-extrabold uppercase">VI. Xác nhận hai bên</h2><div className="mt-3 grid grid-cols-2 gap-4 text-sm"><div className="border border-slate-300 p-4"><p className="font-extrabold uppercase">Bên giao</p><p className="mt-2 font-bold">{ownerName}</p><p className="mt-2">Đã xác nhận trên hệ thống</p><p>{formatDateTime(handover.ownerConfirmedAt)}</p></div><div className="border border-slate-300 p-4"><p className="font-extrabold uppercase">Bên nhận</p><p className="mt-2 font-bold">{booking.renterInfo?.fullName || "Người thuê"}</p><p className="mt-2">Đã xác nhận trên hệ thống</p><p>{formatDateTime(handover.renterConfirmedAt)}</p></div></div></section>
+            </>
+          ) : printDocument === "return" && returnInspection ? (
+            <>
+              <section className="mt-6"><h2 className="font-extrabold uppercase">III. Đối chiếu lúc giao / lúc trả</h2><div className="mt-3 grid grid-cols-2 gap-4 text-sm"><div className="border border-slate-300 p-4"><p className="font-extrabold uppercase">Lúc giao</p><p className="mt-2"><strong>ODO:</strong> {handover ? new Intl.NumberFormat("vi-VN").format(handover.handoverOdometerKm) : "--"} km</p><p><strong>Nhiên liệu/pin:</strong> {handoverEnergy}%</p></div><div className="border border-slate-300 p-4"><p className="font-extrabold uppercase">Lúc trả</p><p className="mt-2"><strong>ODO:</strong> {returnInspection.returnOdometerKm !== undefined ? new Intl.NumberFormat("vi-VN").format(returnInspection.returnOdometerKm) : "--"} km</p><p><strong>Nhiên liệu/pin:</strong> {returnInspection.returnEnergyLevelPercent !== undefined ? `${returnEnergy}%` : "--"}</p></div></div></section>
+               <section className="mt-6"><h2 className="font-extrabold uppercase">IV. Kết quả kiểm tra</h2><div className="mt-3 border border-slate-300 p-4 text-sm"><p><strong>Quãng đường sử dụng:</strong> {returnInspection.distanceTravelledKm ?? "--"} km</p><p><strong>Hư hỏng mới:</strong> {returnInspection.hasDamage ? "Có" : "Không"}</p><p><strong>Cần vệ sinh:</strong> {returnInspection.hasCleaningIssue ? "Có" : "Không"}</p><p><strong>Ghi chú:</strong> {returnInspection.conditionNotes || "Không có ghi chú."}</p></div></section>
+               {handover && <section className="mt-6"><h2 className="font-extrabold uppercase">V. Checklist đối chiếu</h2><VehicleRecordChecklist handoverRecord={handover} returnRecord={returnInspection} /><p className="mt-2 text-xs font-semibold">Khác biệt chỉ dùng để đối chiếu, không tự động tạo phụ phí.</p></section>}
+               <section className="mt-6"><h2 className="font-extrabold uppercase">VI. Xác nhận hai bên</h2><div className="mt-3 grid grid-cols-2 gap-4 text-sm"><div className="border border-slate-300 p-4"><p className="font-extrabold uppercase">Bên nhận lại xe</p><p className="mt-2 font-bold">{ownerName}</p><p>{formatDateTime(returnInspection.ownerConfirmedAt)}</p></div><div className="border border-slate-300 p-4"><p className="font-extrabold uppercase">Bên trả xe</p><p className="mt-2 font-bold">{booking.renterInfo?.fullName || "Người thuê"}</p><p>{formatDateTime(returnInspection.renterConfirmedAt)}</p></div></div></section>
+            </>
+          ) : null}
+
+          <p className="mt-8 border-t border-slate-300 pt-4 text-center text-xs font-semibold">Biên bản được xác nhận điện tử trên hệ thống BQDrive.</p>
+        </article>
+      )}
+
+      <div className="print:hidden"><Footer /></div>
 
       {refundRecipientModalOpen && latestRefund && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 px-4">
@@ -1838,7 +2752,7 @@ export default function BookingDetailPage() {
 
             <div className="space-y-5 p-6">
               <div className="rounded-xl border border-secondary/30 bg-secondarySoft/30 p-4 text-sm font-semibold leading-6 text-primary">
-                Thông tin này chỉ dùng để chủ xe hoàn tiền cho booking đã hủy.
+                Thông tin này chỉ dùng để chủ xe xử lý khoản hoàn tiền của booking này.
                 Không nhập OTP, mã PIN, mật khẩu, CVV hoặc thông tin đăng nhập.
               </div>
 
@@ -2312,13 +3226,14 @@ export default function BookingDetailPage() {
                 <p className="mt-1 text-sm font-semibold leading-6 text-muted">
                   Không tải ảnh giấy tờ cá nhân, bằng lái, CCCD hoặc thông tin thanh toán.
                 </p>
-                <label className="mt-3 flex min-h-12 cursor-pointer items-center justify-center rounded-xl border border-dashed border-secondary/50 bg-secondarySoft/30 px-4 py-3 text-sm font-extrabold text-primary transition hover:bg-secondarySoft">
-                  Chọn ảnh đánh giá
+                <label className={`mt-3 flex min-h-12 items-center justify-center rounded-xl border border-dashed border-secondary/50 bg-secondarySoft/30 px-4 py-3 text-sm font-extrabold text-primary transition ${reviewImagesUploading ? "cursor-wait opacity-60" : "cursor-pointer hover:bg-secondarySoft"}`}>
+                  {reviewImagesUploading ? "Đang tải ảnh đánh giá..." : "Chọn ảnh đánh giá"}
                   <input
                     type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    accept="image/jpeg,image/png,image/webp"
                     multiple
                     className="hidden"
+                    disabled={reviewImagesUploading}
                     onChange={handleReviewImageChange}
                   />
                 </label>
@@ -2361,11 +3276,11 @@ export default function BookingDetailPage() {
               <button
                 type="button"
                 onClick={handleSubmitReview}
-                disabled={reviewSubmitting}
+                disabled={reviewSubmitting || reviewImagesUploading}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-2 font-extrabold text-primary transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {reviewSubmitting && <Loader2 size={18} className="animate-spin" />}
-                Gửi đánh giá
+                {(reviewSubmitting || reviewImagesUploading) && <Loader2 size={18} className="animate-spin" />}
+                {reviewImagesUploading ? "Đang tải ảnh..." : "Gửi đánh giá"}
               </button>
             </div>
           </div>

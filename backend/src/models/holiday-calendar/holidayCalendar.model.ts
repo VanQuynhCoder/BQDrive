@@ -2,14 +2,23 @@ import mongoose from "mongoose";
 import { BaseDocument } from "../../base/baseModel";
 
 export type IHolidayCalendar = BaseDocument & {
+  /** Tên ngày lễ dùng trong bảng giá và lịch đặt xe. */
   name: string;
+  /** Ngày đơn của kỳ nghỉ, nếu cấu hình theo một ngày. */
   date?: Date;
+  /** Ngày bắt đầu kỳ nghỉ. */
   startDate: Date;
+  /** Ngày kết thúc kỳ nghỉ. */
   endDate: Date;
+  /** Quốc gia áp dụng lịch ngày lễ. */
   country: string;
+  /** Loại ngày lễ hoặc quy tắc giá tương ứng. */
   type: string;
+  /** Cho phép/vô hiệu hóa kỳ nghỉ trong tính giá. */
   isActive: boolean;
+  /** Ghi chú quản trị cho kỳ nghỉ. */
   note?: string;
+  /** Xóa mềm cấu hình, không làm mất lịch sử. */
   isDeleted?: boolean;
 };
 

@@ -1,3 +1,4 @@
+// Thành phần thống kê đánh giá dùng trong bảng điều khiển.
 import { Link } from "react-router-dom";
 import {
   type LucideIcon,

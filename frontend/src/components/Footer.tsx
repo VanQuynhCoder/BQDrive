@@ -281,9 +281,9 @@ export default function Footer() {
                 </span>
               </Link>
               <p className="mt-5 max-w-md text-sm font-semibold leading-7 text-slate-300">
-                BQDrive là nền tảng kết nối người thuê xe với các doanh nghiệp
-                và chủ xe uy tín, hướng đến trải nghiệm thuê xe thuận tiện, minh
-                bạch và an toàn.
+                  BQDrive là nền tảng kết nối người thuê xe với các chủ xe ký gửi
+                  uy tín, hướng đến trải nghiệm thuê xe thuận tiện, minh bạch và
+                  an toàn.
               </p>
 
               {socialLinks.length > 0 && (

@@ -1,3 +1,4 @@
+//  Trang quản lý hoàn tiền dành cho người dùng có xe ký gửi.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useSearchParams } from "react-router-dom";
@@ -21,7 +22,6 @@ import {
   type RefundBooking,
   type RefundRecord,
   type RefundRecipientInfo,
-  type RefundStatus,
 } from "../../services/refund.service";
 import { notifyNotificationSummaryChanged } from "../../services/notification.service";
 import { formatVietnamDateTime } from "../../utils/date.util";
@@ -45,7 +45,7 @@ const refundFilters: Array<{ label: string; value: RefundFilter }> = [
   { label: "Tất cả", value: "ALL" },
   { label: "Chờ thông tin", value: "WAITING_FOR_REFUND_INFO" },
   { label: "Cần xử lý", value: "MANUAL_REQUIRED" },
-  { label: "Chờ khách xác nhận", value: "PROCESSING" },
+  { label: "Đang xử lý / chờ xác nhận", value: "PROCESSING" },
   { label: "Đã hoàn tất", value: "SUCCEEDED" },
 ];
 
@@ -92,7 +92,24 @@ function getBooking(refund: RefundRecord): RefundBooking | null {
     : null;
 }
 
-function getRefundStatusMeta(status?: RefundStatus) {
+function isManualRefund(refund: Pick<RefundRecord, "manualRefundSentAt">) {
+  return Boolean(refund.manualRefundSentAt);
+}
+
+function isAutomaticVnpayRefund(
+  refund: Pick<RefundRecord, "method" | "manualRefundSentAt" | "providerOperations">,
+) {
+  return (
+    String(refund.method || "").toUpperCase() === "VNPAY" &&
+    !isManualRefund(refund) &&
+    Array.isArray(refund.providerOperations) &&
+    refund.providerOperations.length > 0
+  );
+}
+
+function getRefundStatusMeta(refund: Pick<RefundRecord, "status" | "method" | "manualRefundSentAt" | "providerOperations">) {
+  const { status } = refund;
+  const automaticVnpay = isAutomaticVnpayRefund(refund);
   const map: Record<
     string,
     { label: string; tone: "green" | "red" | "yellow" | "blue" | "gray" }
@@ -102,8 +119,20 @@ function getRefundStatusMeta(status?: RefundStatus) {
       tone: "yellow",
     },
     MANUAL_REQUIRED: { label: "Chờ chủ xe hoàn tiền", tone: "yellow" },
-    PROCESSING: { label: "Đã gửi tiền, chờ khách xác nhận", tone: "blue" },
-    SUCCEEDED: { label: "Đã hoàn tiền", tone: "green" },
+    PROCESSING: {
+      label:
+        automaticVnpay
+          ? "VNPay đang xử lý hoàn tiền"
+          : "Đã gửi tiền, chờ khách xác nhận",
+      tone: "blue",
+    },
+    SUCCEEDED: {
+      label:
+        automaticVnpay
+          ? "VNPay đã hoàn tiền"
+          : "Đã hoàn tiền",
+      tone: "green",
+    },
   };
 
   return map[status || ""] || { label: status || "--", tone: "gray" as const };
@@ -123,21 +152,27 @@ function getPaymentMethodText(refund: RefundRecord) {
 
 function getPolicyLabel(policy?: string) {
   const map: Record<string, string> = {
-    NO_PAID_AMOUNT: "Chưa thanh toán, không phát sinh hoàn tiền",
-    RENTER_CANCEL_BEFORE_OWNER_APPROVAL:
-      "Khách hủy trước khi chủ xe duyệt, hoàn 100%",
-    FULL_REFUND_BEFORE_48_HOURS: "Hủy trước giờ thuê từ 48 giờ, hoàn 100%",
-    PARTIAL_REFUND_24_TO_48_HOURS:
-      "Hủy trước giờ thuê 24-48 giờ, hoàn 80%",
-    LATE_CANCEL_KEEP_DEPOSIT: "Hủy sát giờ, giữ lại tiền cọc",
-    OWNER_CANCEL_FULL_REFUND: "Chủ xe hủy, hoàn 100%",
+    NO_PAID_AMOUNT:
+      "Chưa thanh toán, không phát sinh hoàn tiền",
+
+    RENTER_CANCEL_WITHIN_60_MINUTES:
+      "Khách hủy trong vòng 60 phút sau thanh toán đầu tiên, hoàn 100%",
+
+    RENTER_CANCEL_AFTER_60_MINUTES_KEEP_DEPOSIT_AND_PLATFORM_FEE:
+      "Khách hủy sau 60 phút: giữ cọc thuê xe và phí dịch vụ BQDrive",
+
+    OWNER_CANCEL_FULL_REFUND:
+      "Chủ xe hủy, hoàn 100% số tiền khách đã thanh toán",
+
     PAYMENT_AFTER_CANCEL_FULL_REFUND:
       "Thanh toán đến sau khi booking đã hủy, hoàn 100%",
+
+    NO_SHOW_KEEP_DEPOSIT_AND_PLATFORM_FEE:
+      "Khách không đến nhận xe: giữ cọc thuê xe và phí dịch vụ BQDrive",
   };
 
   return map[policy || ""] || policy || "--";
 }
-
 function StatCard({
   label,
   value,
@@ -246,7 +281,7 @@ function RefundModal({
   onSubmit: (payload: ManualRefundSentPayload) => Promise<void>;
 }) {
   const booking = getBooking(refund);
-  const status = getRefundStatusMeta(refund.status);
+  const status = getRefundStatusMeta(refund);
   const car = booking?.carId;
   const renter = booking?.userId;
   const carImage = normalizeImageUrl(car?.images?.find(Boolean));
@@ -458,9 +493,13 @@ function RefundModal({
           {["PROCESSING", "SUCCEEDED"].includes(refund.status) && (
             <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold leading-6 text-slate-700">
               {refund.status === "PROCESSING" &&
-                "Bạn đã xác nhận gửi tiền. Hệ thống đang chờ người thuê xác nhận đã nhận tiền."}
+                (isAutomaticVnpayRefund(refund)
+                  ? "Yêu cầu hoàn tiền đã được gửi tới VNPay và đang chờ cổng thanh toán xác nhận. Không cần người thuê xác nhận thêm trên hệ thống."
+                  : "Bạn đã xác nhận gửi tiền. Hệ thống đang chờ người thuê xác nhận đã nhận tiền.")}
               {refund.status === "SUCCEEDED" &&
-                "Người thuê đã xác nhận nhận tiền hoàn. Hồ sơ hoàn tiền đã hoàn tất."}
+                (isAutomaticVnpayRefund(refund)
+                  ? "VNPay đã xác nhận hoàn tiền thành công. Hồ sơ hoàn tiền đã hoàn tất."
+                  : "Người thuê đã xác nhận nhận tiền hoàn. Hồ sơ hoàn tiền đã hoàn tất.")}
             </div>
           )}
         </div>
@@ -700,7 +739,7 @@ export default function OwnerRefundsPage({
                   const booking = getBooking(refund);
                   const car = booking?.carId;
                   const renter = booking?.userId;
-                  const status = getRefundStatusMeta(refund.status);
+                  const status = getRefundStatusMeta(refund);
 
                   return (
                     <tr key={refund._id} className="align-top">

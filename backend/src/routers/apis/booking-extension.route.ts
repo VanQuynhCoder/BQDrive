@@ -3,30 +3,39 @@ import mongoose, { type ClientSession } from "mongoose";
 import { BaseRoute, Request, Response } from "../../base/baseRoute";
 import { ErrorHelper } from "../../base/error";
 import {
+  BookingExtensionRequestTypeEnum,
   BookingExtensionStatusEnum,
   BookingStatusEnum,
-  OwnerTypeEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
 import { assertCarAvailability } from "../../helper/car-availability.helper";
 import {
   ACTIVE_BOOKING_EXTENSION_STATUSES,
+  assertCanRequestBookingExtension,
+  assertBookingHasDailyRatePlanSnapshot,
+  assertBookingExtensionRequestDuration,
+  assertBookingExtensionStillWithinCurrentRentalTime,
+  assertBookingPlanConversionQuoteIsCurrent,
+  assertBookingPlanConversionRequestTiming,
+  applyZeroPaymentBookingExtension,
+  calculateBookingPlanConversionPrice,
   calculateBookingExtensionPrice,
   expireStaleBookingExtensions,
   getBookingExtensionPaymentDeadline,
 } from "../../helper/booking-extension.helper";
 import {
+  sendBookingExtensionActivatedMail,
   sendBookingExtensionApprovedMail,
   sendBookingExtensionRejectedMail,
   sendBookingExtensionRequestedMail,
 } from "../../helper/mail.helper";
 import { BookingExtensionModel } from "../../models/booking-extension/bookingExtension.model";
 import { BookingModel } from "../../models/booking/booking.model";
-import { BusinessModel } from "../../models/business/business.model";
+
 import { CarModel } from "../../models/car/car.model";
 import { notificationCenterService } from "../../services/notification-center.service";
 
-const OWNER_ROLES = [UserRoleEnum.BUSINESS, UserRoleEnum.USER];
+const OWNER_ROLES = [UserRoleEnum.USER];
 const RENTER_ROLES = [UserRoleEnum.USER];
 
 class BookingExtensionRoute extends BaseRoute {
@@ -63,21 +72,11 @@ class BookingExtensionRoute extends BaseRoute {
     );
   }
 
-  private async getOwnerContext(authUser: any, session?: ClientSession) {
-    if (authUser.role === UserRoleEnum.BUSINESS) {
-      const query = BusinessModel.findOne({
-        userId: authUser.userId,
-        isDeleted: false,
-      }).select("_id");
-      if (session) query.session(session);
-      const business = await query;
-
-      if (!business) throw ErrorHelper.recordNotFound("Doanh nghiệp");
-      return { ownerId: business._id, ownerType: OwnerTypeEnum.BUSINESS };
-    }
-
-    return { ownerId: authUser.userId, ownerType: OwnerTypeEnum.USER };
-  }
+ private async getOwnerContext(authUser: any, _session?: ClientSession) {
+  return {
+    ownerId: authUser.userId,
+  };
+}
 
   private async findOwnerBooking(
     bookingId: string,
@@ -85,10 +84,10 @@ class BookingExtensionRoute extends BaseRoute {
     session?: ClientSession,
   ) {
     const owner = await this.getOwnerContext(authUser, session);
+
     const query = BookingModel.findOne({
       _id: bookingId,
       ownerId: owner.ownerId,
-      ownerType: owner.ownerType,
       isDeleted: false,
     });
     if (session) query.session(session);
@@ -121,6 +120,7 @@ class BookingExtensionRoute extends BaseRoute {
     bookingId: string,
     userId: string,
     rawRequestedEndAt: unknown,
+    rawRequestType: unknown,
   ) {
     const requestedEndAt = new Date(String(rawRequestedEndAt || ""));
     if (Number.isNaN(requestedEndAt.getTime())) {
@@ -129,23 +129,52 @@ class BookingExtensionRoute extends BaseRoute {
 
     const booking = await this.findRenterInProgressBooking(bookingId, userId);
     const oldEndAt = new Date(booking.endDate);
-    if (requestedEndAt <= oldEndAt || requestedEndAt <= new Date()) {
+    const now = new Date();
+    if (requestedEndAt <= oldEndAt || requestedEndAt <= now) {
       throw ErrorHelper.requestDataInvalid(
         "Thời gian trả xe mới phải sau thời gian trả hiện tại và sau thời điểm hiện tại",
       );
     }
 
+    const requestType = String(
+      rawRequestType || BookingExtensionRequestTypeEnum.EXTENSION,
+    );
+    if (
+      !Object.values(BookingExtensionRequestTypeEnum).includes(
+        requestType as BookingExtensionRequestTypeEnum,
+      )
+    ) {
+      throw ErrorHelper.requestDataInvalid("Loại yêu cầu gia hạn không hợp lệ");
+    }
+
+    if (requestType === BookingExtensionRequestTypeEnum.PLAN_CONVERSION) {
+      assertBookingPlanConversionRequestTiming(booking, requestedEndAt, now);
+    } else {
+      assertCanRequestBookingExtension(booking, now);
+    }
+
+    const quote: any =
+      requestType === BookingExtensionRequestTypeEnum.PLAN_CONVERSION
+        ? await calculateBookingPlanConversionPrice(booking, requestedEndAt)
+        : await calculateBookingExtensionPrice(booking, requestedEndAt);
+    if (requestType === BookingExtensionRequestTypeEnum.PLAN_CONVERSION) {
+      const carRevision = await CarModel.findOne({
+        _id: booking.carId,
+        isDeleted: false,
+      }).select("bookingRevision");
+      if (!carRevision) throw ErrorHelper.recordNotFound("Xe");
+      quote.carBookingRevision = Number(carRevision.bookingRevision || 0);
+    }
     await assertCarAvailability({
       carId: String(booking.carId),
       start: oldEndAt,
       end: requestedEndAt,
       ignoredBookingId: String(booking._id),
     });
-    const quote = await calculateBookingExtensionPrice(
-      booking,
-      requestedEndAt,
-    );
-    if (quote.additionalAmount <= 0) {
+    if (
+      requestType !== BookingExtensionRequestTypeEnum.PLAN_CONVERSION &&
+      quote.additionalAmount <= 0
+    ) {
       throw ErrorHelper.requestDataInvalid("Chi phí gia hạn không hợp lệ");
     }
     return { booking, quote };
@@ -157,6 +186,7 @@ class BookingExtensionRoute extends BaseRoute {
       String(req.params.bookingId),
       String(authUser.userId),
       req.body?.requestedEndAt,
+      req.body?.requestType,
     );
 
     return res.status(200).json({
@@ -176,6 +206,7 @@ class BookingExtensionRoute extends BaseRoute {
       bookingId,
       String(authUser.userId),
       req.body?.requestedEndAt,
+      req.body?.requestType,
     );
 
     const activeExtension = await BookingExtensionModel.findOne({
@@ -220,7 +251,10 @@ class BookingExtensionRoute extends BaseRoute {
     return res.status(201).json({
       status: 201,
       code: "201",
-      message: "Đã gửi yêu cầu gia hạn đến chủ xe",
+      message:
+        quote.requestType === BookingExtensionRequestTypeEnum.PLAN_CONVERSION
+          ? "Đã gửi yêu cầu chuyển sang gói ngày đến chủ xe"
+          : "Đã gửi yêu cầu gia hạn đến chủ xe",
       data: { extension },
     });
   }
@@ -286,7 +320,11 @@ class BookingExtensionRoute extends BaseRoute {
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Đã hủy yêu cầu gia hạn",
+      message:
+        extension.requestType ===
+        BookingExtensionRequestTypeEnum.PLAN_CONVERSION
+          ? "Đã hủy yêu cầu chuyển gói"
+          : "Đã hủy yêu cầu gia hạn",
       data: { extension },
     });
   }
@@ -321,16 +359,49 @@ class BookingExtensionRoute extends BaseRoute {
 
     await expireStaleBookingExtensions();
     const session = await mongoose.startSession();
+    const isZeroPaymentConversion =
+      extension.requestType ===
+        BookingExtensionRequestTypeEnum.PLAN_CONVERSION &&
+      Number(extension.additionalAmount || 0) === 0;
     let approvedExtension: any;
     let approvedBooking = booking;
     try {
       await session.withTransaction(async () => {
+        const isPlanConversion =
+          extension.requestType ===
+          BookingExtensionRequestTypeEnum.PLAN_CONVERSION;
+        const expectedCarRevision = Number(extension.carBookingRevision);
+        if (isPlanConversion && !Number.isFinite(expectedCarRevision)) {
+          throw ErrorHelper.requestDataInvalid(
+            "Yêu cầu chuyển gói thiếu phiên bản lịch xe tại thời điểm báo giá. Vui lòng tạo yêu cầu mới.",
+          );
+        }
+        const carLockFilter: any = {
+          _id: extension.carId,
+          isDeleted: false,
+        };
+        if (isPlanConversion) {
+          if (expectedCarRevision === 0) {
+            carLockFilter.$or = [
+              { bookingRevision: 0 },
+              { bookingRevision: { $exists: false } },
+            ];
+          } else {
+            carLockFilter.bookingRevision = expectedCarRevision;
+          }
+        }
         const lockedCar = await CarModel.findOneAndUpdate(
-          { _id: extension.carId, isDeleted: false },
+          carLockFilter,
           { $inc: { bookingRevision: 1 } },
           { new: true, session },
         );
-        if (!lockedCar) throw ErrorHelper.recordNotFound("Xe");
+        if (!lockedCar) {
+          throw ErrorHelper.requestDataInvalid(
+            isPlanConversion
+              ? "Lịch xe đã thay đổi sau khi báo giá. Vui lòng tạo yêu cầu chuyển gói mới."
+              : "Không tìm thấy xe để duyệt gia hạn.",
+          );
+        }
 
         approvedBooking = await this.findOwnerBooking(
           String(extension.bookingId),
@@ -351,6 +422,19 @@ class BookingExtensionRoute extends BaseRoute {
           );
         }
 
+        assertBookingExtensionStillWithinCurrentRentalTime(approvedBooking);
+        assertBookingExtensionRequestDuration(
+          approvedBooking,
+          extension,
+        );
+        if (isPlanConversion) {
+          assertBookingHasDailyRatePlanSnapshot(approvedBooking);
+          await assertBookingPlanConversionQuoteIsCurrent(
+            approvedBooking,
+            extension,
+          );
+        }
+
         await assertCarAvailability({
           carId: String(extension.carId),
           start: new Date(extension.oldEndAt),
@@ -360,6 +444,7 @@ class BookingExtensionRoute extends BaseRoute {
           session,
         });
 
+        const approvedAt = new Date();
         approvedExtension = await BookingExtensionModel.findOneAndUpdate(
           {
             _id: extension._id,
@@ -370,8 +455,11 @@ class BookingExtensionRoute extends BaseRoute {
             $set: {
               status: BookingExtensionStatusEnum.OWNER_APPROVED,
               approvedBy: authUser.userId,
-              ownerRespondedAt: new Date(),
-              paymentDeadlineAt: getBookingExtensionPaymentDeadline(),
+              ownerRespondedAt: approvedAt,
+              paymentDeadlineAt: getBookingExtensionPaymentDeadline(
+                approvedAt,
+                new Date(approvedBooking.endDate),
+              ),
             },
           },
           { new: true, session },
@@ -381,22 +469,52 @@ class BookingExtensionRoute extends BaseRoute {
             "Yêu cầu gia hạn đã được xử lý trước đó",
           );
         }
+
+        if (isZeroPaymentConversion) {
+          const applied = await applyZeroPaymentBookingExtension(
+            String(approvedExtension._id),
+            {
+              session,
+              notifyAfterApply: false,
+              carAlreadyLocked: true,
+            },
+          );
+          approvedExtension = applied.extension;
+          approvedBooking = applied.booking;
+        }
       });
     } finally {
       await session.endSession();
     }
 
-    void notificationCenterService.notifyBookingExtensionApproved(
-      approvedExtension,
-      approvedBooking,
-      String(authUser.userId),
-    );
-    void sendBookingExtensionApprovedMail(approvedBooking, approvedExtension);
+    if (isZeroPaymentConversion) {
+      void notificationCenterService.notifyBookingExtensionPaid(
+        approvedExtension,
+        approvedBooking,
+      );
+      void sendBookingExtensionActivatedMail(
+        approvedBooking,
+        approvedExtension,
+      );
+    } else {
+      void notificationCenterService.notifyBookingExtensionApproved(
+        approvedExtension,
+        approvedBooking,
+        String(authUser.userId),
+      );
+      void sendBookingExtensionApprovedMail(approvedBooking, approvedExtension);
+    }
 
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Đã duyệt yêu cầu gia hạn",
+      message:
+        approvedExtension.status === BookingExtensionStatusEnum.APPLIED
+          ? "Đã áp dụng yêu cầu chuyển sang gói ngày không phát sinh thanh toán"
+          : approvedExtension.requestType ===
+              BookingExtensionRequestTypeEnum.PLAN_CONVERSION
+            ? "Đã duyệt yêu cầu chuyển sang gói ngày"
+          : "Đã duyệt yêu cầu gia hạn",
       data: { extension: approvedExtension },
     });
   }
@@ -452,7 +570,11 @@ class BookingExtensionRoute extends BaseRoute {
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Đã từ chối yêu cầu gia hạn",
+      message:
+        rejectedExtension.requestType ===
+        BookingExtensionRequestTypeEnum.PLAN_CONVERSION
+          ? "Đã từ chối yêu cầu chuyển gói"
+          : "Đã từ chối yêu cầu gia hạn",
       data: { extension: rejectedExtension },
     });
   }

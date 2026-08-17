@@ -1,3 +1,4 @@
+//Thành phần hiển thị booking theo từng xe của chủ xe ký gửi.
 import {
   CalendarDays,
   ChevronLeft,

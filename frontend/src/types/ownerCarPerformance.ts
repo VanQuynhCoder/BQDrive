@@ -1,3 +1,4 @@
+//  Kiểu dữ liệu thống kê hiệu quả hoạt động của xe ký gửi.
 export type OwnerCarPerformanceRange =
   | "today"
   | "7d"

@@ -6,6 +6,7 @@ import {
   CreditCard,
   Fuel,
   Gauge,
+  ImageOff,
   MapPin,
   ShieldCheck,
   Users,
@@ -42,7 +43,6 @@ type CarCardProps = {
     images?: string[];
     image?: string;
     ownerName?: string;
-    ownerType?: "BUSINESS" | "USER" | string;
     pickupProvince?: string;
     pickupDistrict?: string;
     pickupWard?: string;
@@ -54,14 +54,12 @@ type CarCardProps = {
     brandId?: {
       name?: string;
     } | null;
-    businessId?: {
-      businessName?: string;
-    } | null;
     rentalAvailability?: RentalAvailability;
     availabilityLabel?: string;
     isBookable?: boolean;
     unavailableReason?: string;
     cleaningUntil?: string;
+    requiresScheduleCheck?: boolean;
     holdingCartId?: string;
     holdExpiredAt?: string;
     resumeBookingId?: string;
@@ -69,9 +67,6 @@ type CarCardProps = {
   };
   detailSearchParams?: string;
 };
-
-const fallbackImage =
-  "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?q=80&w=1200";
 
 function getRentalPrice(car: CarCardProps["car"]) {
   return getBaseRentalPrice(car);
@@ -98,7 +93,7 @@ function getPrimaryImage(car: CarCardProps["car"]) {
     ? car.images.find((image) => typeof image === "string" && image.trim())
     : "";
 
-  return normalizeImageUrl(uploadedImage || car.image) || fallbackImage;
+  return normalizeImageUrl(uploadedImage || car.image);
 }
 
 function getAvailabilityInfo(car: CarCardProps["car"], now: number) {
@@ -175,6 +170,15 @@ function getAvailabilityInfo(car: CarCardProps["car"], now: number) {
     };
   }
 
+  if (car.requiresScheduleCheck) {
+    return {
+      icon: Clock,
+      label: car.availabilityLabel || "Kiểm tra lịch thuê",
+      badgeClass: "bg-slate-100 text-slate-700 ring-1 ring-slate-200",
+      isBookable: true,
+    };
+  }
+
   if (car.isBookable === false) {
     return {
       icon: Clock,
@@ -194,9 +198,11 @@ function getAvailabilityInfo(car: CarCardProps["car"], now: number) {
 
 export default function CarCard({ car, detailSearchParams = "" }: CarCardProps) {
   const [now, setNow] = useState(() => Date.now());
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const rental = getRentalPrice(car);
   const carId = car._id || car.id;
   const image = getPrimaryImage(car);
+  const imageFailed = Boolean(image && failedImageUrl === image);
   const availability = getAvailabilityInfo(car, now);
   const AvailabilityIcon = availability.icon;
   const canOpenCart =
@@ -216,11 +222,7 @@ export default function CarCard({ car, detailSearchParams = "" }: CarCardProps) 
     Boolean(carId);
   const canInteract = canOpenCart || canResumePayment || canOpenDetail;
   const detailUrl = `/cars/${carId}${detailSearchParams}`;
-  const ownerName =
-    car.ownerName ||
-    (car.ownerType === "USER"
-      ? "Người dùng ký gửi"
-      : car.businessId?.businessName || "Đối tác BQDrive");
+  const ownerName = car.ownerName || "Chủ xe ký gửi";
 
   useEffect(() => {
     if (!car.holdExpiredAt && !car.resumeExpiresAt && !car.cleaningUntil) return;
@@ -238,19 +240,24 @@ export default function CarCard({ car, detailSearchParams = "" }: CarCardProps) 
         canInteract ? "hover:-translate-y-1 hover:shadow-xl" : ""
       }`}
     >
-      <div className="relative aspect-[16/10] overflow-hidden">
-        <img
-          src={image}
-          alt={car.name}
-          loading="lazy"
-          decoding="async"
-          onError={(event) => {
-            event.currentTarget.src = fallbackImage;
-          }}
-          className={`h-full w-full object-cover transition duration-500 ${
-            canInteract ? "group-hover:scale-105" : "opacity-80 grayscale-[0.15]"
-          }`}
-        />
+      <div className="relative aspect-[16/10] overflow-hidden bg-white">
+        {!image || imageFailed ? (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-100 text-slate-500">
+            <ImageOff size={30} aria-hidden="true" />
+            <span className="text-sm font-bold">Ảnh xe không khả dụng</span>
+          </div>
+        ) : (
+          <img
+            src={image}
+            alt={car.name}
+            loading="lazy"
+            decoding="async"
+            onError={() => setFailedImageUrl(image)}
+            className={`h-full w-full object-contain ${
+              canInteract ? "" : "opacity-80 grayscale-[0.15]"
+            }`}
+          />
+        )}
 
         <div className="absolute left-4 top-4 flex flex-wrap gap-2">
           <span
@@ -307,15 +314,6 @@ export default function CarCard({ car, detailSearchParams = "" }: CarCardProps) 
             Có phụ thu cuối tuần/ngày lễ
           </p>
         )}
-
-        {car.rentalAvailability === "CLEANING" &&
-          car.cleaningUntil &&
-          new Date(car.cleaningUntil).getTime() > now && (
-            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold leading-5 text-amber-800">
-              Xe vừa hoàn tất chuyến thuê và cần vệ sinh trước khi giao tiếp.
-              Bạn vẫn có thể chọn giờ nhận sau thời điểm trên.
-            </p>
-          )}
 
         <div className="mt-5 grid grid-cols-2 gap-3 border-y border-border py-4 text-sm text-muted">
           <span className="flex items-center gap-2">

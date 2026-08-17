@@ -1,3 +1,4 @@
+//  Bước kiểm tra lại thông tin trước khi gửi xe để xét duyệt.
 import { BadgeCheck, Images } from "lucide-react";
 
 import { formatPickupAddress } from "../../utils/address.util";

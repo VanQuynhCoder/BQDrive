@@ -31,6 +31,19 @@ export function normalizePhone(value: string) {
   return onlyDigits(value, 10);
 }
 
+export function normalizeOtp(value: string) {
+  return onlyDigits(value, 6);
+}
+
+export function getOtpValidationError(value: string) {
+  const otp = normalizeOtp(value);
+
+  if (!otp) return "Vui lòng nhập OTP";
+  if (!/^\d{6}$/.test(otp)) return "OTP phải gồm đúng 6 chữ số";
+
+  return "";
+}
+
 export function isValidVietnamPhone(value: string) {
   return PHONE_PATTERN.test(value);
 }

@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import {
   ArrowLeft,
   CheckCircle2,
-  Clock3,
   Info,
   RotateCcw,
   ShieldCheck,
@@ -13,42 +12,52 @@ import Footer from "../components/Footer";
 
 const policyCards = [
   {
-    title: "Trước giờ nhận xe từ 48 giờ",
-    description: "Khách được hoàn 100% số tiền đã thanh toán.",
+    title: "Chuyến chưa phát sinh thanh toán",
+    description:
+      "Nếu trạng thái booking cho phép hủy và chuyến chưa có khoản thanh toán thành công, bạn có thể hủy mà không phát sinh thủ tục hoàn tiền.",
+    className: "border-sky-100 bg-sky-50 text-sky-700",
+    icon: Info,
+  },
+  {
+    title: "Hủy trong vòng 60 phút",
+    description:
+      "Nếu người thuê hủy trong vòng 60 phút kể từ lần thanh toán thành công đầu tiên, hệ thống hoàn 100% số tiền đã thanh toán và không thu phí hủy.",
     className: "border-emerald-100 bg-emerald-50 text-emerald-700",
     icon: CheckCircle2,
   },
   {
-    title: "Trước giờ nhận xe 24-48 giờ",
-    description: "Khách được hoàn 80%, hệ thống giữ 20% làm phí hủy.",
-    className: "border-yellow-200 bg-yellow-50 text-amber-700",
-    icon: Clock3,
-  },
-  {
-    title: "Hủy sát giờ, dưới 24 giờ",
+    title: "Hủy sau 60 phút",
     description:
-      "Hệ thống giữ tiền cọc. Nếu khách chỉ mới thanh toán cọc thì có thể không phát sinh hoàn tiền.",
+      "Sau 60 phút kể từ lần thanh toán thành công đầu tiên, hệ thống giữ tiền cọc thuê xe bằng 50% tiền thuê và phí nền tảng bằng 10% tiền thuê. Phần còn lại đủ điều kiện được hoàn lại.",
     className: "border-red-100 bg-red-50 text-red-700",
     icon: RotateCcw,
   },
 ];
-
 const examples = [
   {
-    title: "Ví dụ 1: Đã cọc 180.000đ, hủy trước 48 giờ",
-    text: "Phí hủy: 0đ. Dự kiến hoàn: 180.000đ. Hệ thống sẽ tạo hồ sơ hoàn tiền để khách cung cấp thông tin nhận tiền.",
+    title: "Ví dụ 1: Hủy trong 60 phút từ lần thanh toán đầu tiên",
+    text:
+      "Tiền thuê 600.000đ, tiền cọc thuê xe 300.000đ, phí nền tảng 60.000đ và bảo hiểm 60.000đ. Khách đã thanh toán giữ chỗ 420.000đ và hủy đúng thời hạn miễn phí nên được hoàn đủ 420.000đ.",
   },
   {
-    title: "Ví dụ 2: Đã cọc 180.000đ, hủy sát giờ",
-    text: "Phí hủy: 180.000đ. Dự kiến hoàn: 0đ. Booking vẫn được hủy, nhưng không tạo hồ sơ hoàn tiền.",
+    title: "Ví dụ 2: Thanh toán giữ chỗ 420.000đ, hủy sau 60 phút",
+    text:
+      "Hệ thống giữ tiền cọc thuê xe 300.000đ và phí nền tảng 60.000đ, tổng cộng giữ 360.000đ. Phí bảo hiểm 60.000đ được hoàn lại, nên số tiền dự kiến hoàn là 60.000đ.",
   },
   {
-    title: "Ví dụ 3: Đã thanh toán đủ 600.000đ, hủy sát giờ",
-    text: "Nếu tiền cọc là 180.000đ, hệ thống giữ 180.000đ và dự kiến hoàn 420.000đ.",
+    title: "Ví dụ 3: Đã thanh toán đủ 720.000đ, hủy sau 60 phút",
+    text:
+      "Hệ thống giữ tiền cọc thuê xe 300.000đ và phí nền tảng 60.000đ. Phần tiền thuê vượt cọc 300.000đ cùng phí bảo hiểm 60.000đ được hoàn lại, nên số tiền dự kiến hoàn là 360.000đ.",
   },
   {
     title: "Ví dụ 4: Chủ xe hủy booking",
-    text: "Khách được hoàn lại số tiền đã thanh toán theo chính sách của hệ thống, thông thường là hoàn 100%.",
+    text:
+      "Nếu chủ xe hủy booking, khách được hoàn 100% số tiền đã thanh toán.",
+  },
+  {
+    title: "Ví dụ 5: Khách không đến nhận xe",
+    text:
+      "Sau thời gian chờ nhận xe, nếu booking được ghi nhận NO_SHOW thì hệ thống giữ cọc thuê xe và phí BQDrive. Phần tiền còn lại đủ điều kiện sẽ được tạo hồ sơ hoàn tiền.",
   },
 ];
 
@@ -136,14 +145,15 @@ export default function CancellationPolicyPage() {
             >
               Hủy booking minh bạch, xem trước số tiền hoàn trước khi xác nhận
             </h1>
-            <p
-              className="policy-fade-up mt-4 max-w-3xl text-base font-semibold leading-8 text-white/75"
-              style={{ animationDelay: "160ms" }}
-            >
-              BQDrive tính phí hủy dựa trên thời điểm hủy so với giờ nhận xe và
-              số tiền khách đã thanh toán. Khi hủy booking, hệ thống luôn hiển
-              thị phần xem trước để bạn kiểm tra trước khi xác nhận.
-            </p>
+                <p
+                  className="policy-fade-up mt-4 max-w-3xl text-base font-semibold leading-8 text-white/75"
+                  style={{ animationDelay: "160ms" }}
+                >
+                  BQDrive áp dụng chính sách hoàn tiền dựa trên thời điểm hủy tính từ
+                  lần thanh toán thành công đầu tiên và số tiền khách đã thanh
+                  toán. Trước khi xác nhận hủy, hệ thống hiển thị số tiền được giữ lại
+                  và số tiền dự kiến hoàn.
+                </p>
           </div>
 
           <div className="space-y-8 px-6 py-8 sm:px-8">
@@ -154,7 +164,7 @@ export default function CancellationPolicyPage() {
                     Khi nào được hoàn tiền?
                   </p>
                   <h2 className="mt-1 text-2xl font-extrabold text-primary">
-                    Áp dụng theo thời điểm hủy booking
+                    Áp dụng từ lần thanh toán thành công đầu tiên
                   </h2>
                 </div>
                 <span className="inline-flex w-fit items-center gap-2 rounded-full bg-secondarySoft px-4 py-2 text-sm font-extrabold text-primary transition hover:-translate-y-0.5">
@@ -225,13 +235,31 @@ export default function CancellationPolicyPage() {
                   <h2 className="text-lg font-extrabold text-primary">
                     Lưu ý khi hủy booking
                   </h2>
-                  <p className="mt-2 text-sm font-semibold leading-7 text-muted">
-                    Số tiền hiển thị ở mục “Dự kiến hoàn” trong popup hủy là kết
-                    quả hệ thống đã tính theo booking hiện tại của bạn. Nếu số
-                    tiền này bằng 0đ, hệ thống sẽ hủy booking nhưng không tạo hồ
-                    sơ hoàn tiền. Nếu có phát sinh hoàn tiền, khách cần cung cấp
-                    thông tin nhận tiền để chủ xe hoặc doanh nghiệp xử lý hoàn
-                    thủ công.
+                  <p className="mt-2 text-sm font-semibold leading-6 text-muted">
+                    Số tiền dự kiến hoàn được hệ thống tính theo booking và các khoản
+                    khách đã thanh toán. Nếu số tiền hoàn bằng 0đ, hệ thống không phát
+                    sinh thủ tục hoàn tiền.
+                  </p>
+                  <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-semibold leading-6 text-muted">
+                    <li>
+                      Phí bảo hiểm 30.000đ/ngày của chuyến chưa được sử dụng được
+                      tính vào phần có thể hoàn theo kết quả hệ thống xác định.
+                    </li>
+                    <li>
+                      Phí giao xe chỉ không được hoàn nếu dịch vụ giao xe đã thực tế
+                      được thực hiện. Nếu dịch vụ chưa được thực hiện, khoản phí này
+                      được tính vào phần có thể hoàn.
+                    </li>
+                    <li>
+                      Nếu chủ xe hủy chuyến, khách thuê được hoàn lại toàn bộ số tiền
+                      đã thanh toán.
+                    </li>
+                  </ul>
+                  <p className="mt-3 text-sm font-semibold leading-6 text-muted">
+                    Khi có tiền cần hoàn, hệ thống tạo yêu cầu hoàn tiền và ưu tiên xử
+                    lý tự động qua VNPay nếu đủ điều kiện giao dịch. Trường hợp không
+                    thể hoàn tự động có thể được chuyển sang quy trình hoàn thủ công;
+                    người thuê không cần tự truy cập VNPay để yêu cầu hoàn tiền.
                   </p>
                 </div>
               </div>

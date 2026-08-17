@@ -1,11 +1,17 @@
 import multer from "multer";
 
-import { BaseRoute, Request, Response } from "../../base/baseRoute";
+import { BaseRoute, NextFunction, Request, Response } from "../../base/baseRoute";
 import { ErrorHelper } from "../../base/error";
 import { UserRoleEnum } from "../../constants/model.const";
-import { uploadCarImageBuffer } from "../../services/cloudinary.service";
+import {
+  findGridFsIdentityDocument,
+  findGridFsCarImage,
+  type IdentityDocumentKind,
+  uploadIdentityDocumentToGridFs,
+  uploadCarImageToGridFs,
+} from "../../services/cloudinary.service";
 
-const MAX_CAR_IMAGE_SIZE = 5 * 1024 * 1024;
+const MAX_CAR_IMAGE_SIZE = 10 * 1024 * 1024;
 
 const carImageUpload = multer({
   storage: multer.memoryStorage(),
@@ -27,14 +33,38 @@ const carImageUpload = multer({
 
 class UploadRoute extends BaseRoute {
   customRouting() {
+    this.router.get(
+      "/car-images/:fileId",
+      this.route(this.getCarImage),
+    );
+
     this.router.post(
       "/car-image",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([ UserRoleEnum.USER]),
         carImageUpload.single("image"),
       ],
       this.route(this.uploadCarImage),
+    );
+
+    this.router.get(
+      "/identity-documents/:fileId",
+      [
+        this.authentication,
+        this.roleGuard([UserRoleEnum.USER, UserRoleEnum.ADMIN]),
+      ],
+      this.route(this.getIdentityDocument),
+    );
+
+    this.router.post(
+      "/identity-documents",
+      [
+        this.authentication,
+        this.roleGuard([UserRoleEnum.USER]),
+        carImageUpload.single("image"),
+      ],
+      this.route(this.uploadIdentityDocument),
     );
   }
 
@@ -45,7 +75,7 @@ class UploadRoute extends BaseRoute {
       throw ErrorHelper.requestDataInvalid("Vui lòng chọn ảnh xe");
     }
 
-    const image = await uploadCarImageBuffer({
+    const image = await uploadCarImageToGridFs({
       buffer: file.buffer,
       mimetype: file.mimetype,
     });
@@ -56,6 +86,86 @@ class UploadRoute extends BaseRoute {
       message: "Upload ảnh xe thành công",
       data: { image },
     });
+  }
+
+  async getCarImage(req: Request, res: Response, next: NextFunction) {
+    const storedImage = await findGridFsCarImage(String(req.params.fileId || ""));
+
+    if (!storedImage) {
+      throw ErrorHelper.recordNotFound("Không tìm thấy ảnh xe");
+    }
+
+    const { bucket, file } = storedImage;
+    const contentType = String(file.metadata?.contentType || "image/jpeg");
+    const etag = `"${String(file._id)}-${file.length}"`;
+
+    if (req.headers["if-none-match"] === etag) {
+      return res.status(304).end();
+    }
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Length", String(file.length));
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.setHeader("ETag", etag);
+
+    const downloadStream = bucket.openDownloadStream(file._id);
+    downloadStream.once("error", next);
+    downloadStream.pipe(res);
+  }
+
+  async uploadIdentityDocument(req: Request, res: Response) {
+    const file = req.file;
+    const authUser = (req as any).user;
+    const kind = String(req.body?.kind || "").trim() as IdentityDocumentKind;
+
+    if (!file) {
+      throw ErrorHelper.requestDataInvalid("Vui lòng chọn ảnh giấy tờ");
+    }
+
+    if (!["CCCD_FRONT", "CCCD_BACK", "DRIVER_LICENSE"].includes(kind)) {
+      throw ErrorHelper.requestDataInvalid("Loại giấy tờ không hợp lệ");
+    }
+
+    const image = await uploadIdentityDocumentToGridFs({
+      buffer: file.buffer,
+      mimetype: file.mimetype,
+      ownerId: String(authUser.userId),
+      kind,
+    });
+
+    return res.status(201).json({
+      status: 201,
+      code: "201",
+      message: "Upload ảnh giấy tờ thành công",
+      data: { image },
+    });
+  }
+
+  async getIdentityDocument(req: Request, res: Response, next: NextFunction) {
+    const authUser = (req as any).user;
+    const ownerId =
+      authUser.role === UserRoleEnum.ADMIN
+        ? undefined
+        : String(authUser.userId || "");
+    const storedImage = await findGridFsIdentityDocument(
+      String(req.params.fileId || ""),
+      ownerId,
+    );
+
+    if (!storedImage) {
+      throw ErrorHelper.recordNotFound("Không tìm thấy ảnh giấy tờ");
+    }
+
+    const { bucket, file } = storedImage;
+    const contentType = String(file.metadata?.contentType || "image/jpeg");
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Length", String(file.length));
+    res.setHeader("Cache-Control", "private, no-store");
+
+    const downloadStream = bucket.openDownloadStream(file._id);
+    downloadStream.once("error", next);
+    downloadStream.pipe(res);
   }
 }
 

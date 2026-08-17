@@ -1,3 +1,4 @@
+// Trang quản lý vị trí xe dành cho người dùng có xe ký gửi.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";

@@ -1,3 +1,4 @@
+// Trang trung tâm thông báo dành cho quản trị viên và người dùng.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BellRing,

@@ -5,9 +5,13 @@ import {
   RentalUnitEnum,
 } from "../constants/model.const";
 import { HolidayCalendarModel } from "../models/holiday-calendar/holidayCalendar.model";
+import {
+  DAY_MS,
+  HOUR_MS,
+  HOURLY_RENTAL_MAX_TOTAL_HOURS,
+  HOURLY_RENTAL_MIN_HOURS,
+} from "../constants/rental-policy.const";
 
-const HOUR_MS = 1000 * 60 * 60;
-const DAY_MS = HOUR_MS * 24;
 
 export function normalizeRentalMode(mode?: string) {
   if (mode === RentalModeEnum.HOURLY || mode === RentalUnitEnum.HOUR) {
@@ -174,6 +178,7 @@ export async function calculateRentalPrice(
   start: Date,
   end: Date,
   rentalMode?: string,
+  hourlyMinHours: number = HOURLY_RENTAL_MIN_HOURS,
 ) {
   const diffMs = end.getTime() - start.getTime();
 
@@ -201,9 +206,12 @@ export async function calculateRentalPrice(
 
     const totalHours = Math.max(1, Math.ceil(diffHours));
 
-    if (totalHours < 2 || totalHours > 24) {
+    if (
+      totalHours < hourlyMinHours ||
+      totalHours > HOURLY_RENTAL_MAX_TOTAL_HOURS
+    ) {
       throw ErrorHelper.requestDataInvalid(
-        "Thuê theo giờ chỉ hỗ trợ từ 2 đến 24 giờ",
+        `Thuê theo giờ chỉ hỗ trợ từ ${hourlyMinHours} đến ${HOURLY_RENTAL_MAX_TOTAL_HOURS} giờ`,
       );
     }
 

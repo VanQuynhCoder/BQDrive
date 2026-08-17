@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 
 import { BaseRoute, Request, Response } from "../../base/baseRoute";
 import { ErrorHelper } from "../../base/error";
-import { BusinessModel } from "../../models/business/business.model";
 import { CarModel } from "../../models/car/car.model";
 import { BookingModel } from "../../models/booking/booking.model";
 import { UserModel } from "../../models/user/user.model";
@@ -18,7 +17,6 @@ import {
   BookingStatusEnum,
   ExtraChargeStatusEnum,
   ExtraChargeTypeEnum,
-  OwnerTypeEnum,
   PaymentMethodEnum,
   PaymentOptionEnum,
   PaymentStatusEnum,
@@ -37,6 +35,9 @@ import {
   sendExtraChargePaidMail,
   sendNewExtraChargeMail,
 } from "../../helper/mail.helper";
+import {
+  getBookingUpfrontPaymentAmount,
+} from "../../helper/payment-sync.helper";
 
 const OWNER_CAR_BOOKING_GROUPS = [
   "ALL",
@@ -360,7 +361,7 @@ class OwnerRoute extends BaseRoute {
       "/cars/map",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.getOwnerCarsMap),
     );
@@ -369,7 +370,7 @@ class OwnerRoute extends BaseRoute {
       "/cars/:id/location",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([ UserRoleEnum.USER]),
       ],
       this.route(this.updateCarLocation),
     );
@@ -378,7 +379,7 @@ class OwnerRoute extends BaseRoute {
       "/cars/:carId/bookings",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([ UserRoleEnum.USER]),
       ],
       this.route(this.getOwnerCarBookings),
     );
@@ -387,7 +388,7 @@ class OwnerRoute extends BaseRoute {
       "/cars/:carId/performance",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.getOwnerCarPerformance),
     );
@@ -396,7 +397,7 @@ class OwnerRoute extends BaseRoute {
       "/reviews",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.getOwnerReviews),
     );
@@ -405,7 +406,7 @@ class OwnerRoute extends BaseRoute {
       "/reviews/statistics",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.getOwnerReviewStatistics),
     );
@@ -414,7 +415,7 @@ class OwnerRoute extends BaseRoute {
       "/bookings",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.getOwnerBookings),
     );
@@ -423,7 +424,7 @@ class OwnerRoute extends BaseRoute {
       "/bookings/:bookingId",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([ UserRoleEnum.USER]),
       ],
       this.route(this.getOwnerBookingDetail),
     );
@@ -432,7 +433,7 @@ class OwnerRoute extends BaseRoute {
       "/reviews/:id/reply",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([ UserRoleEnum.USER]),
       ],
       this.route(this.replyReview),
     );
@@ -441,7 +442,7 @@ class OwnerRoute extends BaseRoute {
       "/reviews/:id/reply",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([ UserRoleEnum.USER]),
       ],
       this.route(this.replyReview),
     );
@@ -450,7 +451,7 @@ class OwnerRoute extends BaseRoute {
       "/reviews/:id/report",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([ UserRoleEnum.USER]),
       ],
       this.route(this.reportReview),
     );
@@ -459,7 +460,7 @@ class OwnerRoute extends BaseRoute {
       "/bookings/:bookingId/extra-charges",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([ UserRoleEnum.USER]),
       ],
       this.route(this.getExtraCharges),
     );
@@ -468,7 +469,7 @@ class OwnerRoute extends BaseRoute {
       "/bookings/:bookingId/extra-charges",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([ UserRoleEnum.USER]),
       ],
       this.route(this.createExtraCharge),
     );
@@ -477,7 +478,7 @@ class OwnerRoute extends BaseRoute {
       "/extra-charges/:id/confirm-cash",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([ UserRoleEnum.USER]),
       ],
       this.route(this.confirmExtraChargeCash),
     );
@@ -486,70 +487,32 @@ class OwnerRoute extends BaseRoute {
       "/extra-charges/:id/cancel",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([ UserRoleEnum.USER]),
       ],
       this.route(this.cancelExtraCharge),
     );
   }
 
-  private async getOwnerContext(authUser: any): Promise<{
-    role: OwnerTypeEnum;
-    userId: mongoose.Types.ObjectId;
-    businessId?: mongoose.Types.ObjectId;
-    filter: any;
-  }> {
-    if (authUser.role === UserRoleEnum.BUSINESS) {
-      const business = await BusinessModel.findOne({
-        userId: authUser.userId,
-        isDeleted: false,
-      }).select("_id businessName");
+private async getOwnerContext(authUser: any): Promise<{
+  userId: mongoose.Types.ObjectId;
+  filter: any;
+}> {
+  const userId = String(authUser.userId || "");
 
-      if (!business) {
-        throw ErrorHelper.permissionDeny();
-      }
-
-      return {
-        role: OwnerTypeEnum.BUSINESS,
-        userId: new mongoose.Types.ObjectId(authUser.userId),
-        businessId: business._id,
-        filter: {
-          isDeleted: false,
-          $or: [
-            {
-              ownerId: business._id,
-              ownerType: OwnerTypeEnum.BUSINESS,
-            },
-            {
-              businessId: business._id,
-            },
-          ],
-        },
-      };
-    }
-
-    const userId = String(authUser.userId);
-    const userObjectId = mongoose.Types.ObjectId.isValid(userId)
-      ? new mongoose.Types.ObjectId(userId)
-      : null;
-
-    return {
-      role: OwnerTypeEnum.USER,
-      userId: userObjectId || new mongoose.Types.ObjectId(),
-      filter: {
-        isDeleted: false,
-        ownerType: OwnerTypeEnum.USER,
-        $or: [
-          ...(userObjectId ? [{ ownerId: userObjectId }] : []),
-          {
-            $expr: {
-              $eq: [{ $toString: "$ownerId" }, userId],
-            },
-          },
-        ],
-      },
-    };
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw ErrorHelper.permissionDeny();
   }
 
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+
+  return {
+    userId: userObjectId,
+    filter: {
+      isDeleted: false,
+      ownerId: userObjectId,
+    },
+  };
+}
   private toMapCar(car: any) {
     return {
       _id: car._id,
@@ -565,7 +528,7 @@ class OwnerRoute extends BaseRoute {
       status: car.status,
       car_status: car.status,
       approval_status: car.status,
-      ownerType: car.ownerType,
+      ownerType: UserRoleEnum.USER,
       images: car.images || [],
       lastLocationUpdatedAt: car.lastLocationUpdatedAt,
       locationUpdateCount: car.locationUpdateCount || 0,
@@ -1219,7 +1182,7 @@ class OwnerRoute extends BaseRoute {
 
     car.lastLocationUpdatedAt = now;
     car.lastLocationUpdatedBy = owner.userId;
-    car.lastLocationUpdatedByRole = owner.role;
+    car.lastLocationUpdatedByRole = UserRoleEnum.USER;
     car.locationUpdateCount = (car.locationUpdateCount || 0) + 1;
     car.locationHistory = [
       ...(car.locationHistory || []),
@@ -1231,8 +1194,8 @@ class OwnerRoute extends BaseRoute {
         oldAddress,
         newAddress,
         updatedBy: owner.userId,
-        updatedByRole: owner.role,
-        updatedAt: now,
+        updatedByRole: UserRoleEnum.USER,
+        updatedAt: new Date(),
       },
     ].slice(-30);
 
@@ -1247,21 +1210,13 @@ class OwnerRoute extends BaseRoute {
     });
   }
 
-  private buildOwnerBookingFilter(owner: Awaited<ReturnType<OwnerRoute["getOwnerContext"]>>) {
-    if (owner.role === OwnerTypeEnum.BUSINESS && owner.businessId) {
-      return {
-        $or: [
-          { ownerId: owner.businessId, ownerType: OwnerTypeEnum.BUSINESS },
-          { businessId: owner.businessId },
-        ],
-      };
-    }
-
-    return {
-      ownerId: owner.userId,
-      ownerType: OwnerTypeEnum.USER,
-    };
-  }
+private buildOwnerBookingFilter(
+  owner: Awaited<ReturnType<OwnerRoute["getOwnerContext"]>>,
+) {
+  return {
+    ownerId: owner.userId,
+  };
+}
 
   private async findOwnerBooking(bookingId: string, owner: Awaited<ReturnType<OwnerRoute["getOwnerContext"]>>) {
     const booking = await BookingModel.findOne({
@@ -1277,10 +1232,7 @@ class OwnerRoute extends BaseRoute {
     return booking;
   }
 
-  private getOwnerBookingAvailableActions(
-    booking: any,
-    hasPendingManualHandoverPayment = false,
-  ) {
+  private getOwnerBookingAvailableActions(booking: any) {
     if (booking.status === BookingStatusEnum.REQUESTED) {
       return ["approve", "reject"];
     }
@@ -1290,11 +1242,19 @@ class OwnerRoute extends BaseRoute {
     }
 
     if (booking.status === BookingStatusEnum.RETURN_INSPECTION) {
-      return ["inspection"];
+      const actions = ["inspection"];
+      if (Number(booking.remainingAmount || 0) > 0) {
+        actions.push("confirm-remaining");
+      }
+      return actions;
     }
 
     if (booking.status === BookingStatusEnum.AWAITING_EXTRA_CHARGE) {
-      return ["extra-charge"];
+      const actions = ["extra-charge"];
+      if (Number(booking.remainingAmount || 0) > 0) {
+        actions.push("confirm-remaining");
+      }
+      return actions;
     }
 
     if (
@@ -1309,13 +1269,15 @@ class OwnerRoute extends BaseRoute {
       const requiredAmount =
         booking.paymentOption === PaymentOptionEnum.FULL
           ? totalPrice
-          : Number(booking.depositAmount || Math.round(totalPrice * 0.3));
+          : Number(
+              booking.upfrontPaymentAmount ||
+                getBookingUpfrontPaymentAmount(booking),
+            );
 
-      if (
-        Number(booking.paidAmount || 0) >= requiredAmount ||
-        hasPendingManualHandoverPayment
-      ) {
-        actions.unshift("handover");
+      if (Number(booking.paidAmount || 0) >= requiredAmount) {
+        if (!booking.handoverSnapshot?.ownerConfirmedAt) {
+          actions.unshift("handover");
+        }
       }
 
       const pickupAt = new Date(booking.startDate).getTime();
@@ -1330,10 +1292,7 @@ class OwnerRoute extends BaseRoute {
     return [];
   }
 
-  private toOwnerBookingListItem(
-    booking: any,
-    hasPendingManualHandoverPayment = false,
-  ) {
+  private toOwnerBookingListItem(booking: any) {
     const car = booking.carId || {};
     const customer = booking.userId || {};
     const renterInfo = booking.renterInfo || {};
@@ -1348,6 +1307,10 @@ class OwnerRoute extends BaseRoute {
         name: car.name || "",
         licensePlate: car.licensePlate || "",
         image: Array.isArray(car.images) ? car.images[0] || null : null,
+        type: car.type || "",
+        seats: Number(car.seats || 0),
+        fuelType: car.fuelType || "",
+        transmission: car.transmission || "",
       },
       customer: {
         _id: String(customer._id || customer || ""),
@@ -1356,6 +1319,7 @@ class OwnerRoute extends BaseRoute {
       },
       startDate: booking.startDate,
       endDate: booking.endDate,
+      actualReturnAt: booking.actualReturnAt || null,
       pickupLocation:
         delivery.deliveryAddressText ||
         delivery.deliveryFormattedAddress ||
@@ -1364,28 +1328,29 @@ class OwnerRoute extends BaseRoute {
         "",
       deliveryType: delivery.deliveryType || "PICKUP_AT_CAR_LOCATION",
       status: booking.status,
-      availableActions: this.getOwnerBookingAvailableActions(
-        booking,
-        hasPendingManualHandoverPayment,
-      ),
+      availableActions: this.getOwnerBookingAvailableActions(booking),
       pricing: {
         totalPrice: Number(booking.totalPrice || 0),
         paidAmount: Number(booking.paidAmount || 0),
         remainingAmount: Math.max(Number(booking.remainingAmount || 0), 0),
+      },
+      identityStatus: {
+        identityProfileCompleted:
+          booking.renterEligibilitySnapshot?.identityProfileCompleted === true,
+        identityVerificationStatus:
+          booking.renterEligibilitySnapshot?.identityVerificationStatus || null,
+        driverLicenseClass:
+          booking.renterEligibilitySnapshot?.driverLicenseClass || null,
+        licenseEligible:
+          booking.renterEligibilitySnapshot?.licenseEligible === true,
       },
       createdAt: booking.createdAt,
       updatedAt: booking.updatedAt,
     };
   }
 
-  private toOwnerBookingDetail(
-    booking: any,
-    hasPendingManualHandoverPayment = false,
-  ) {
-    const item = this.toOwnerBookingListItem(
-      booking,
-      hasPendingManualHandoverPayment,
-    );
+  private toOwnerBookingDetail(booking: any) {
+    const item = this.toOwnerBookingListItem(booking);
     const customer = booking.userId || {};
     const renterInfo = booking.renterInfo || {};
     const delivery = booking.pricingSnapshot?.delivery || {};
@@ -1397,12 +1362,15 @@ class OwnerRoute extends BaseRoute {
         email: renterInfo.email || customer.email || "",
         phone: renterInfo.phone || customer.phone || "",
       },
-      identityDocuments: {
-        cccdNumber: renterInfo.cccdNumber || "",
-        cccdFrontImage: renterInfo.cccdFrontImage || "",
-        cccdBackImage: renterInfo.cccdBackImage || "",
-        driverLicenseNumber: renterInfo.driverLicenseNumber || "",
-        driverLicenseImage: renterInfo.driverLicenseImage || "",
+      identityStatus: {
+        identityProfileCompleted:
+          booking.renterEligibilitySnapshot?.identityProfileCompleted === true,
+        identityVerificationStatus:
+          booking.renterEligibilitySnapshot?.identityVerificationStatus || null,
+        driverLicenseClass:
+          booking.renterEligibilitySnapshot?.driverLicenseClass || null,
+        licenseEligible:
+          booking.renterEligibilitySnapshot?.licenseEligible === true,
       },
       actualPickupAt: booking.actualPickupAt || null,
       actualReturnAt: booking.actualReturnAt || null,
@@ -1517,15 +1485,17 @@ class OwnerRoute extends BaseRoute {
       "carId",
       "startDate",
       "endDate",
+      "actualReturnAt",
       "status",
       "totalPrice",
       "paymentOption",
-      "depositAmount",
+      "upfrontPaymentAmount",
       "paidAmount",
       "remainingAmount",
       "pickupAddressSnapshot",
       "pricingSnapshot.delivery",
       "renterInfo.fullName",
+      "renterEligibilitySnapshot",
       "createdAt",
       "updatedAt",
     ].join(" ");
@@ -1536,7 +1506,7 @@ class OwnerRoute extends BaseRoute {
     const [bookings, totalItems, statusCountRows] = await Promise.all([
       BookingModel.find(bookingFilter as any)
         .select(projection)
-        .populate("carId", "carCode name licensePlate images")
+        .populate("carId", "carCode name licensePlate images type seats fuelType transmission")
         .populate("userId", "name avatar")
         .sort(sortMap[sort])
         .skip((page - 1) * limit)
@@ -1566,30 +1536,13 @@ class OwnerRoute extends BaseRoute {
       CLOSED: countStatuses(OWNER_BOOKING_GROUP_STATUSES.CLOSED),
     };
 
-    const pendingManualPayments = bookings.length
-      ? await PaymentModel.find({
-          bookingId: { $in: bookings.map((booking) => booking._id) },
-          method: PaymentMethodEnum.CASH,
-          paymentType: { $in: [PaymentTypeEnum.DEPOSIT, PaymentTypeEnum.FULL] },
-          status: PaymentStatusEnum.PENDING,
-        })
-          .select("bookingId")
-          .lean()
-      : [];
-    const pendingManualBookingIds = new Set(
-      pendingManualPayments.map((payment) => String(payment.bookingId)),
-    );
-
     return res.status(200).json({
       status: 200,
       code: "200",
       message: "success",
       data: {
         bookings: bookings.map((booking) =>
-          this.toOwnerBookingListItem(
-            booking,
-            pendingManualBookingIds.has(String(booking._id)),
-          ),
+          this.toOwnerBookingListItem(booking),
         ),
         pagination: {
           page,
@@ -1633,25 +1586,21 @@ class OwnerRoute extends BaseRoute {
           "paidAmount",
           "remainingAmount",
           "paymentOption",
-          "depositAmount",
+          "upfrontPaymentAmount",
           "pickupAddressSnapshot",
           "returnAddressSnapshot",
           "pricingSnapshot.delivery",
           "renterInfo.fullName",
           "renterInfo.email",
           "renterInfo.phone",
-          "renterInfo.cccdNumber",
-          "renterInfo.cccdFrontImage",
-          "renterInfo.cccdBackImage",
-          "renterInfo.driverLicenseNumber",
-          "renterInfo.driverLicenseImage",
+           "renterEligibilitySnapshot",
           "renterInfo.note",
           "note",
           "createdAt",
           "updatedAt",
         ].join(" "),
       )
-      .populate("carId", "carCode name licensePlate images currentOdometerKm")
+      .populate("carId", "carCode name licensePlate images currentOdometerKm type seats fuelType transmission")
       .populate("userId", "name email phone avatar")
       .lean();
 
@@ -1659,41 +1608,23 @@ class OwnerRoute extends BaseRoute {
       throw ErrorHelper.permissionDeny();
     }
 
-    const hasPendingManualHandoverPayment = Boolean(
-      await PaymentModel.exists({
-        bookingId: booking._id,
-        method: PaymentMethodEnum.CASH,
-        paymentType: { $in: [PaymentTypeEnum.DEPOSIT, PaymentTypeEnum.FULL] },
-        status: PaymentStatusEnum.PENDING,
-      }),
-    );
-
     return res.status(200).json({
       status: 200,
       code: "200",
       message: "success",
       data: {
-        booking: this.toOwnerBookingDetail(
-          booking,
-          hasPendingManualHandoverPayment,
-        ),
+        booking: this.toOwnerBookingDetail(booking),
       },
     });
   }
 
-  private buildExtraChargeOwnerFilter(owner: Awaited<ReturnType<OwnerRoute["getOwnerContext"]>>) {
-    if (owner.role === OwnerTypeEnum.BUSINESS && owner.businessId) {
-      return {
-        ownerId: owner.businessId,
-        ownerType: OwnerTypeEnum.BUSINESS,
-      };
-    }
-
-    return {
-      ownerId: owner.userId,
-      ownerType: OwnerTypeEnum.USER,
-    };
-  }
+private buildExtraChargeOwnerFilter(
+  owner: Awaited<ReturnType<OwnerRoute["getOwnerContext"]>>,
+) {
+  return {
+    ownerId: owner.userId,
+  };
+}
 
   private normalizeReviewContent(value: unknown, fieldName: string) {
     const text = typeof value === "string" ? value.trim() : "";
@@ -2075,13 +2006,7 @@ class OwnerRoute extends BaseRoute {
               bookingId: booking._id,
               carId: booking.carId,
               renterId: booking.userId,
-              ownerId:
-                owner.role === OwnerTypeEnum.BUSINESS && owner.businessId
-                  ? owner.businessId
-                  : owner.userId,
-              ownerType: owner.role,
-              ownerModel:
-                owner.role === OwnerTypeEnum.BUSINESS ? "Business" : "User",
+              ownerId: owner.userId,
               type,
               amount: resolvedAmount,
               description,
@@ -2175,7 +2100,7 @@ class OwnerRoute extends BaseRoute {
               paymentMethod: PaymentMethodEnum.CASH,
               paidAt,
               confirmedBy: owner.userId,
-              confirmedByRole: owner.role,
+              confirmedByRole: UserRoleEnum.USER,
             },
           },
           { new: true, session },
@@ -2199,7 +2124,7 @@ class OwnerRoute extends BaseRoute {
               status: PaymentStatusEnum.PAID,
               paidAt,
               confirmedBy: owner.userId,
-              confirmedByRole: owner.role,
+              confirmedByRole: UserRoleEnum.USER,
               note: "Chủ xe xác nhận đã thu phí phát sinh bằng tiền mặt",
             },
           ],
@@ -2226,9 +2151,22 @@ class OwnerRoute extends BaseRoute {
             } as any,
             {
               $set: {
-                inspectionStatus: ReturnInspectionStatusEnum.CLEARED,
-                inspectedAt: paidAt,
-                inspectedBy: owner.userId,
+                // Đã xử lý hết phụ phí, quay lại bước kiểm tra xe.
+                inspectionStatus: ReturnInspectionStatusEnum.INSPECTING,
+              },
+            },
+            { session },
+          );
+
+          await BookingModel.updateOne(
+            {
+              _id: extraCharge.bookingId,
+              status: BookingStatusEnum.AWAITING_EXTRA_CHARGE,
+              isDeleted: false,
+            } as any,
+            {
+              $set: {
+                status: BookingStatusEnum.RETURN_INSPECTION,
               },
             },
             { session },
@@ -2305,9 +2243,22 @@ class OwnerRoute extends BaseRoute {
             } as any,
             {
               $set: {
-                inspectionStatus: ReturnInspectionStatusEnum.CLEARED,
-                inspectedAt: new Date(),
-                inspectedBy: owner.userId,
+                // Không còn phụ phí chờ xử lý, tiếp tục kiểm tra xe.
+                inspectionStatus: ReturnInspectionStatusEnum.INSPECTING,
+              },
+            },
+            { session },
+          );
+
+          await BookingModel.updateOne(
+            {
+              _id: extraCharge.bookingId,
+              status: BookingStatusEnum.AWAITING_EXTRA_CHARGE,
+              isDeleted: false,
+            } as any,
+            {
+              $set: {
+                status: BookingStatusEnum.RETURN_INSPECTION,
               },
             },
             { session },

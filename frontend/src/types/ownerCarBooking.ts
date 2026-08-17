@@ -1,3 +1,4 @@
+//  Kiểu dữ liệu booking theo từng xe của chủ xe ký gửi.
 export type OwnerCarBookingGroup =
   | "ALL"
   | "ACTIVE"

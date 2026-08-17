@@ -1,4 +1,5 @@
-﻿import { X } from "lucide-react";
+﻿ //Khung modal dùng chung cho khu vực quản trị và quản lý xe ký gửi.
+import { X } from "lucide-react";
 import type { ReactNode } from "react";
 
 type AdminModalProps = {

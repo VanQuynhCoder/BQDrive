@@ -1,3 +1,4 @@
+//Hook quản lý trạng thái danh sách xe ký gửi.
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 

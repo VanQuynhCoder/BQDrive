@@ -8,106 +8,186 @@ import {
   FuelTypeEnum,
   TransmissionEnum,
   RentalUnitEnum,
-  OwnerTypeEnum,
+  UserRoleEnum,
 } from "../../constants/model.const";
 
 export type ICarPricing = {
+  /** Giá thuê theo ngày trước phụ thu. */
   basePricePerDay?: number;
+  /** Phụ thu cuối tuần theo ngày. */
   weekendSurchargePerDay: number;
+  /** Phụ thu ngày lễ theo ngày. */
   holidaySurchargePerDay: number;
+  /** Giá thuê theo giờ trước phụ thu. */
   basePricePerHour?: number;
+  /** Phụ thu cuối tuần theo giờ. */
   weekendSurchargePerHour?: number;
+  /** Phụ thu ngày lễ theo giờ. */
   holidaySurchargePerHour?: number;
 };
 
 export type ICarApprovalChange = {
+  /** Tên field xe thay đổi trong lần gửi duyệt. */
   field: string;
+  /** Nhãn thân thiện dùng trong lịch sử kiểm duyệt. */
   label: string;
+  /** Giá trị trước khi chỉnh sửa. */
   previousValue?: unknown;
+  /** Giá trị mới gửi admin duyệt. */
   currentValue?: unknown;
 };
 
 export type ICarApprovalSubmission = {
+  /** Loại gửi: tạo mới, cập nhật hoặc gửi lại sau từ chối. */
   submissionType: "CREATE" | "UPDATE" | "RESUBMIT";
+  /** Thời điểm User gửi hồ sơ xe. */
   submittedAt: Date;
+  /** User/admin thực hiện gửi hồ sơ. */
   submittedBy?: mongoose.Types.ObjectId;
-  submittedByRole: OwnerTypeEnum;
+  /** Vai trò của người gửi hồ sơ. */
+  submittedByRole: UserRoleEnum;
+  /** Các thay đổi cần admin xem xét. */
   changes: ICarApprovalChange[];
 };
 
 export type ICar = BaseDocument & {
+  /** Mã xe hiển thị và tra cứu ổn định. */
   carCode?: string;
+  /** User chủ xe ký gửi, không phải role BUSINESS. */
   ownerId: mongoose.Types.ObjectId;
-  ownerType: OwnerTypeEnum;
-  ownerModel: string;
-  businessId?: mongoose.Types.ObjectId;
+  /** Thương hiệu tham chiếu đến Brand. */
   brandId: mongoose.Types.ObjectId;
+  /** Tên/model xe hiển thị trên marketplace. */
   name: string;
+  /** Phân loại xe. */
   type: string;
+  /** Biển số xe; dữ liệu nhạy cảm tương đối khi hiển thị công khai. */
   licensePlate?: string;
+  /** Biển số chuẩn hóa để tìm kiếm/chống trùng. */
   plateNumberNormalized?: string;
+  /** Cấu hình giá thuê và các phụ thu. */
   pricing: ICarPricing;
+  /** Xe có cho thuê theo ngày không. */
   allowDailyRental?: boolean;
+  /** Xe có cho thuê theo giờ không. */
   allowHourlyRental?: boolean;
+  /** Đơn vị giá chính của xe. */
   rentalUnit: string;
+  /** Số chỗ ngồi. */
   seats: number;
+  /** ODO hiện tại được cập nhật sau bàn giao/trả xe. */
   currentOdometerKm?: number | null;
+  /** Chính sách km bao gồm và phí vượt km. */
   mileagePolicy?: {
+    /** Số km bao gồm cho mỗi ngày. */
     includedKmPerDay?: number;
+    /** Số km bao gồm cho mỗi giờ. */
     includedKmPerHour?: number;
+    /** Phí tính cho mỗi km vượt. */
     overageFeePerKm: number;
+    /** Số km miễn trừ trước khi tính vượt. */
     graceKm: number;
   };
+  /** Loại nhiên liệu/năng lượng của xe. */
   fuelType?: string;
+  /** Kiểu hộp số. */
   transmission?: string;
+  /** Ảnh xe dùng trên trang công khai. */
   images?: string[];
+  /** Ảnh giấy đăng ký xe phục vụ kiểm duyệt. */
   registrationCardImages?: string[];
+  /** Mô tả tiện ích và tình trạng xe. */
   description?: string;
+  /** Địa chỉ nhận xe dạng gốc. */
   pickupAddress?: string;
+  /** Địa chỉ nhận xe đã định dạng. */
   pickupFormattedAddress?: string;
+  /** Place ID từ bộ mã hóa địa điểm, nếu có. */
   pickupPlaceId?: string;
+  /** Vĩ độ điểm nhận xe; có thể bị ẩn theo policy privacy. */
   pickupLat?: number;
+  /** Kinh độ điểm nhận xe; có thể bị ẩn theo policy privacy. */
   pickupLng?: number;
+  /** Tỉnh/thành của điểm nhận xe. */
   pickupProvince?: string;
+  /** Quận/huyện của điểm nhận xe. */
   pickupDistrict?: string;
+  /** Phường/xã của điểm nhận xe. */
   pickupWard?: string;
+  /** Ghi chú hướng dẫn nhận xe. */
   pickupNote?: string;
+  /** Chuỗi vị trí thân thiện cho giao diện. */
   pickupLocationText?: string;
+  /** Địa chỉ legacy của xe. */
   address?: string;
+  /** Tỉnh/thành legacy của xe. */
   province?: string;
+  /** Thành phố legacy của xe. */
   city?: string;
+  /** Quận/huyện legacy của xe. */
   district?: string;
+  /** Phường/xã legacy của xe. */
   ward?: string;
+  /** Ghi chú vị trí legacy. */
   locationNote?: string;
+  /** Vĩ độ vị trí chính xác, chỉ trả khi đủ điều kiện. */
   latitude?: number;
+  /** Kinh độ vị trí chính xác, chỉ trả khi đủ điều kiện. */
   longitude?: number;
+  /** Lần cuối vị trí chính xác được cập nhật. */
   lastLocationUpdatedAt?: Date;
+  /** User/admin cập nhật vị trí gần nhất. */
   lastLocationUpdatedBy?: mongoose.Types.ObjectId;
-  lastLocationUpdatedByRole?: OwnerTypeEnum;
+  /** Vai trò người cập nhật vị trí. */
+  lastLocationUpdatedByRole?: UserRoleEnum;
+  /** Số lần cập nhật vị trí để audit. */
   locationUpdateCount?: number;
+  /** Lịch sử thay đổi vị trí, phục vụ audit và không dùng để công khai. */
   locationHistory?: Array<{
+    /** Vĩ độ cũ. */
     oldLat?: number;
+    /** Kinh độ cũ. */
     oldLng?: number;
+    /** Vĩ độ mới. */
     newLat: number;
+    /** Kinh độ mới. */
     newLng: number;
+    /** Địa chỉ cũ. */
     oldAddress?: string;
+    /** Địa chỉ mới. */
     newAddress?: string;
+    /** User/admin cập nhật. */
     updatedBy: mongoose.Types.ObjectId;
-    updatedByRole: OwnerTypeEnum;
+    /** Vai trò người cập nhật. */
+    updatedByRole: UserRoleEnum;
+    /** Thời điểm cập nhật. */
     updatedAt: Date;
   }>;
+  /** Cho phép cung cấp dịch vụ giao xe. */
   deliveryEnabled?: boolean;
+  /** Phí giao xe cố định ban đầu. */
   deliveryBaseFee?: number;
+  /** Phí giao theo mỗi km. */
   deliveryFeePerKm?: number;
+  /** Khoảng cách giao xe tối đa. */
   deliveryMaxDistanceKm?: number;
+  /** Ghi chú điều kiện giao xe. */
   deliveryNote?: string;
+  /** Phiên bản dữ liệu dùng chống cập nhật booking cạnh tranh. */
   bookingRevision?: number;
+  /** Snapshot lần gửi duyệt xe gần nhất. */
   approvalSubmission?: ICarApprovalSubmission;
+  /** Trạng thái nghiệp vụ/kiểm duyệt của xe. */
   status: string;
+  /** Lý do admin từ chối xe. */
   rejectReason?: string;
+  /** Cờ ẩn xe khỏi danh sách. */
   isHidden?: boolean;
+  /** Xe bị chủ xe chủ động ẩn. */
   hiddenByOwner?: boolean;
+  /** Xe bị admin ẩn do kiểm duyệt hoặc vi phạm. */
   hiddenByAdmin?: boolean;
+  /** Xóa mềm xe, giữ lại booking lịch sử. */
   isDeleted?: boolean;
 };
 
@@ -121,24 +201,11 @@ const carSchema = new mongoose.Schema(
       trim: true,
       uppercase: true,
     },
-    businessId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Business",
-    },
+
     ownerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      refPath: "ownerModel",
-    },
-    ownerType: {
-      type: String,
-      enum: Object.values(OwnerTypeEnum),
-      required: true,
-    },
-    ownerModel: {
-      type: String,
-      enum: ["User", "Business"],
-      required: true,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
     },
     brandId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -341,7 +408,11 @@ const carSchema = new mongoose.Schema(
     },
     lastLocationUpdatedByRole: {
       type: String,
-      enum: [OwnerTypeEnum.BUSINESS, OwnerTypeEnum.USER],
+  enum: [
+    UserRoleEnum.ADMIN,
+    UserRoleEnum.USER,
+  ],
+
     },
     locationUpdateCount: {
       type: Number,
@@ -379,7 +450,11 @@ const carSchema = new mongoose.Schema(
         },
         updatedByRole: {
           type: String,
-          enum: [OwnerTypeEnum.BUSINESS, OwnerTypeEnum.USER],
+           enum: [
+    UserRoleEnum.ADMIN,
+    UserRoleEnum.USER,
+  ],
+
           required: true,
         },
         updatedAt: {
@@ -428,10 +503,13 @@ const carSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
       },
-      submittedByRole: {
-        type: String,
-        enum: [OwnerTypeEnum.BUSINESS, OwnerTypeEnum.USER],
-      },
+     submittedByRole: {
+  type: String,
+  enum: [
+    UserRoleEnum.ADMIN,
+    UserRoleEnum.USER,
+  ],
+},
       changes: [
         {
           field: {
@@ -481,7 +559,11 @@ const carSchema = new mongoose.Schema(
 
 carSchema.index({ status: 1, isDeleted: 1, isHidden: 1, createdAt: -1 });
 carSchema.index({ brandId: 1, status: 1, isDeleted: 1 });
-carSchema.index({ ownerId: 1, ownerType: 1, isDeleted: 1, createdAt: -1 });
+carSchema.index({
+  ownerId: 1,
+  isDeleted: 1,
+  createdAt: -1,
+});
 
 const CarModel = mongoose.model<ICar>("Car", carSchema);
 

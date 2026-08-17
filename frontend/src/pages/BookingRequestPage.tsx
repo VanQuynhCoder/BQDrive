@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
+import type { FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   ArrowLeft,
   CarFront,
-  FileImage,
-  IdCard,
   LocateFixed,
   Loader2,
   MapPinned,
@@ -29,15 +27,7 @@ import { cartService } from "../services/cart.service";
 import { mapService } from "../services/map.service";
 import { getFirstCarImage } from "../utils/image.util";
 import { formatVietnamDateTime } from "../utils/date.util";
-import {
-  isValidCccd,
-  isValidDriverLicense,
-  isValidEmail,
-  isValidVietnamPhone,
-  normalizeCccd,
-  normalizeDriverLicense,
-  normalizePhone,
-} from "../utils/validators";
+import { normalizePhone } from "../utils/validators";
 
 type BookingRequestState =
   | {
@@ -107,7 +97,6 @@ type DeliveryAddressSource =
   | "MAP_PIN";
 
 const storageKey = "bqdrive.bookingRequest";
-const maxDocumentImageSize = 2 * 1024 * 1024;
 
 function getErrorMessage(error: unknown, fallback: string) {
   const apiError = error as ApiError;
@@ -139,27 +128,6 @@ function getBookingConflictMessage(error: unknown) {
   );
 }
 
-function readImageAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result);
-        return;
-      }
-
-      reject(new Error("Invalid image result"));
-    };
-    reader.onerror = () => reject(reader.error || new Error("Cannot read image"));
-    reader.readAsDataURL(file);
-  });
-}
-
-function getDigits(value: string) {
-  return value.replace(/\D/g, "");
-}
-
 function getInitialState(locationState: unknown): BookingRequestState | null {
   if (locationState && typeof locationState === "object") {
     const nextState = locationState as BookingRequestState;
@@ -185,11 +153,6 @@ function getCurrentUserForm() {
     fullName: user?.name || "",
     phone: normalizePhone(user?.phone || ""),
     email: user?.email || "",
-    cccdNumber: "",
-    cccdFrontImage: "",
-    cccdBackImage: "",
-    driverLicenseNumber: "",
-    driverLicenseImage: "",
     note: "",
   };
 }
@@ -213,7 +176,7 @@ export default function BookingRequestPage() {
   );
   const [form, setForm] = useState<RenterInfo>(() => getCurrentUserForm());
   const [submitting, setSubmitting] = useState(false);
-  const [readingField, setReadingField] = useState<keyof RenterInfo | null>(null);
+  const currentUser = authService.getCurrentUser();
   const [deliveryType, setDeliveryType] = useState<
     "PICKUP_AT_CAR_LOCATION" | "DELIVERY_TO_CUSTOMER"
   >("PICKUP_AT_CAR_LOCATION");
@@ -225,6 +188,7 @@ export default function BookingRequestPage() {
   const [deliveryLat, setDeliveryLat] = useState<number | undefined>();
   const [deliveryLng, setDeliveryLng] = useState<number | undefined>();
   const [deliveryQuote, setDeliveryQuote] = useState<Awaited<ReturnType<typeof bookingService.quoteBooking>> | null>(null);
+  const [deliveryQuoteError, setDeliveryQuoteError] = useState("");
   const [calculatingDelivery, setCalculatingDelivery] = useState(false);
   const [findingDeliveryLocation, setFindingDeliveryLocation] = useState(false);
   const [showDeliveryMap, setShowDeliveryMap] = useState(false);
@@ -329,6 +293,7 @@ export default function BookingRequestPage() {
     if (!delivery) return null;
 
     setCalculatingDelivery(true);
+    setDeliveryQuoteError("");
     try {
       const quote = await bookingService.quoteBooking({
         carId: summary.car._id,
@@ -341,7 +306,12 @@ export default function BookingRequestPage() {
       toast.success("Đã tính phí giao xe");
       return quote;
     } catch (error) {
-      toast.error(getErrorMessage(error, "Không thể tính phí giao xe"));
+      const message = getErrorMessage(
+        error,
+        "Không thể tính phí giao xe lúc này. Vui lòng thử lại hoặc chọn nhận xe tại địa điểm của chủ xe.",
+      );
+      setDeliveryQuoteError(message);
+      toast.error(message);
       return null;
     } finally {
       setCalculatingDelivery(false);
@@ -495,121 +465,40 @@ export default function BookingRequestPage() {
     });
   };
 
-  const handleImageChange = async (
-    field: keyof RenterInfo,
-    event: ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Vui lòng chọn file ảnh");
-      return;
-    }
-
-    if (file.size > maxDocumentImageSize) {
-      toast.error("Ảnh giấy tờ tối đa 2MB");
-      return;
-    }
-
-    try {
-      setReadingField(field);
-      updateForm(field, await readImageAsDataUrl(file));
-    } catch {
-      toast.error("Không thể đọc file ảnh");
-    } finally {
-      setReadingField(null);
-    }
-  };
-
-  const validateForm = () => {
-    const payload = {
-      fullName: form.fullName.trim(),
-      phone: normalizePhone(form.phone),
-      email: form.email.trim(),
-      cccdNumber: normalizeCccd(form.cccdNumber),
-      cccdFrontImage: form.cccdFrontImage.trim(),
-      cccdBackImage: form.cccdBackImage.trim(),
-      driverLicenseNumber: normalizeDriverLicense(form.driverLicenseNumber),
-      driverLicenseImage: form.driverLicenseImage.trim(),
-      note: form.note?.trim(),
-    };
-
-    if (
-      !payload.fullName ||
-      !payload.phone ||
-      !payload.email ||
-      !payload.cccdNumber ||
-      !payload.cccdFrontImage ||
-      !payload.cccdBackImage ||
-      !payload.driverLicenseNumber ||
-      !payload.driverLicenseImage
-    ) {
-      toast.error("Vui lòng hoàn tất thông tin người thuê trước khi gửi yêu cầu đặt xe.");
-      return null;
-    }
-
-    if (payload.fullName.length < 2) {
-      toast.error("Họ tên người thuê phải có ít nhất 2 ký tự");
-      return null;
-    }
-
-    if (!isValidEmail(payload.email)) {
-      toast.error("Email người thuê không hợp lệ");
-      return null;
-    }
-
-    if (!isValidVietnamPhone(payload.phone)) {
-      toast.error("Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.");
-      return null;
-    }
-
-    if (!isValidCccd(payload.cccdNumber)) {
-      toast.error("CCCD phải gồm đúng 12 chữ số.");
-      return null;
-    }
-
-    if (!isValidDriverLicense(payload.driverLicenseNumber)) {
-      toast.error("Số bằng lái xe phải gồm đúng 12 chữ số.");
-      return null;
-    }
-
-    if ((payload.note || "").length > 500) {
-      toast.error("Ghi chú không được vượt quá 500 ký tự");
-      return null;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
-      toast.error("Email người thuê không hợp lệ");
-      return null;
-    }
-
-    if (getDigits(payload.phone).length < 10) {
-      toast.error("Số điện thoại phải có ít nhất 10 số");
-      return null;
-    }
-
-    if (getDigits(payload.cccdNumber).length < 9) {
-      toast.error("CCCD/CMND phải có ít nhất 9 số");
-      return null;
-    }
-
-    if (payload.driverLicenseNumber.length < 5) {
-      toast.error("Số bằng lái xe không hợp lệ");
-      return null;
-    }
-
-    return payload;
-  };
-
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!requestState || submitting) return;
 
-    const renterInfo = validateForm();
-    if (!renterInfo) return;
+    if (!currentUser?.identityProfileCompleted) {
+      toast.error("Vui lòng cập nhật thông tin cá nhân trước khi đặt xe.");
+      navigate("/profile");
+      return;
+    }
+
+    if (currentUser.identityVerificationStatus === "PENDING") {
+      toast.error("Hồ sơ giấy tờ đang chờ BQDrive xác minh.");
+      navigate("/profile");
+      return;
+    }
+
+    if (currentUser.identityVerificationStatus === "REJECTED") {
+      toast.error("Hồ sơ giấy tờ chưa được chấp nhận. Vui lòng cập nhật lại.");
+      navigate("/profile");
+      return;
+    }
+
+    if (currentUser.identityVerificationStatus !== "VERIFIED") {
+      toast.error("Vui lòng hoàn thiện và chờ BQDrive xác minh hồ sơ trước khi đặt xe.");
+      navigate("/profile");
+      return;
+    }
+
+    const renterInfo: RenterInfo = {
+      fullName: form.fullName.trim(),
+      phone: normalizePhone(form.phone),
+      email: form.email.trim(),
+      note: form.note?.trim(),
+    };
 
     let deliveryPayload: BookingDeliveryPayload | null = {
       deliveryType: "PICKUP_AT_CAR_LOCATION",
@@ -751,14 +640,40 @@ export default function BookingRequestPage() {
                   onChange={(value) => updateForm("email", value)}
                   inputMode="email"
                 />
-                <TextField
-                  label="Số CCCD/CMND *"
-                  value={form.cccdNumber}
-                  onChange={(value) => updateForm("cccdNumber", normalizeCccd(value))}
-                  inputMode="numeric"
-                  maxLength={12}
-                />
               </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-white p-6 shadow-sm md:p-8">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-primary">
+                    Hồ sơ giấy tờ
+                  </h2>
+                  <p className="mt-1 text-sm text-muted">
+                    {currentUser?.identityVerificationStatus === "VERIFIED"
+                      ? "Hồ sơ đã được BQDrive xác minh."
+                      : currentUser?.identityVerificationStatus === "PENDING"
+                        ? "Hồ sơ đang chờ BQDrive xác minh."
+                        : currentUser?.identityVerificationStatus === "REJECTED"
+                          ? "Hồ sơ chưa được chấp nhận. Vui lòng cập nhật lại giấy tờ."
+                          : "Vui lòng cập nhật hồ sơ trước khi gửi yêu cầu đặt xe."}
+                  </p>
+                  {currentUser?.driverLicenseClass && (
+                    <p className="mt-2 text-sm font-extrabold text-primary">
+                      Hạng GPLX: {currentUser.driverLicenseClass}
+                    </p>
+                  )}
+                </div>
+                <ShieldCheck className="shrink-0 text-secondary" size={28} />
+              </div>
+              {currentUser?.identityVerificationStatus !== "VERIFIED" && (
+                <Link
+                  to="/profile"
+                  className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-extrabold text-secondary transition hover:bg-primaryDark"
+                >
+                  CẬP NHẬT HỒ SƠ
+                </Link>
+              )}
             </div>
 
             <div className="rounded-lg border border-border bg-white p-6 shadow-sm md:p-8">
@@ -782,6 +697,7 @@ export default function BookingRequestPage() {
                   onClick={() => {
                     setDeliveryType("PICKUP_AT_CAR_LOCATION");
                     setDeliveryQuote(null);
+                    setDeliveryQuoteError("");
                   }}
                   className={`rounded-xl border px-4 py-4 text-left transition ${
                     deliveryType === "PICKUP_AT_CAR_LOCATION"
@@ -804,6 +720,7 @@ export default function BookingRequestPage() {
                     if (!deliverySupported) return;
                     setDeliveryType("DELIVERY_TO_CUSTOMER");
                     setDeliveryQuote(null);
+                    setDeliveryQuoteError("");
                   }}
                   className={`rounded-xl border px-4 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
                     deliveryType === "DELIVERY_TO_CUSTOMER"
@@ -838,6 +755,7 @@ export default function BookingRequestPage() {
                             : prev,
                         );
                         setDeliveryQuote(null);
+                        setDeliveryQuoteError("");
                       }}
                       onKeyDown={(event) => {
                         if (event.key === "Enter") {
@@ -935,6 +853,33 @@ export default function BookingRequestPage() {
                     )}
                     Tính phí giao xe
                   </button>
+                  {deliveryQuoteError && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900">
+                      <p className="font-extrabold">Chưa thể tính phí giao xe</p>
+                      <p className="mt-1">{deliveryQuoteError}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void calculateDeliveryQuote()}
+                          disabled={calculatingDelivery}
+                          className="rounded-lg border border-amber-300 bg-white px-4 py-2 font-extrabold text-primary transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Thử lại
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeliveryType("PICKUP_AT_CAR_LOCATION");
+                            setDeliveryQuote(null);
+                            setDeliveryQuoteError("");
+                          }}
+                          className="rounded-lg border border-slate-300 bg-white px-4 py-2 font-extrabold text-primary transition hover:bg-slate-100"
+                        >
+                          Nhận xe tại địa điểm chủ xe
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {deliveryQuote?.delivery && (
                     <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
                       <p className="font-extrabold text-primary">
@@ -980,12 +925,15 @@ export default function BookingRequestPage() {
                       </div>
                       <div className="mt-4 flex items-center justify-between rounded-lg bg-secondarySoft px-4 py-3">
                         <span className="font-extrabold text-primary">
-                          Phí giao xe
+                          Phí giao xe tạm tính
                         </span>
                         <span className="text-lg font-extrabold text-primary">
                           {formatPrice(deliveryQuote.deliveryFee)}
                         </span>
                       </div>
+                      <p className="mt-3 text-xs font-semibold leading-5 text-slate-500">
+                        Phí chính thức được xác nhận khi gửi yêu cầu đặt xe.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -993,67 +941,21 @@ export default function BookingRequestPage() {
             </div>
 
             <div className="rounded-lg border border-border bg-white p-6 shadow-sm md:p-8">
-              <div className="mb-6 flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-primary">
-                  <IdCard size={24} />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-extrabold text-primary">
-                    Ảnh giấy tờ
-                  </h2>
-                  <p className="text-sm text-muted">
-                    Ảnh chỉ hiển thị cho bạn và chủ xe liên quan đến booking.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <ImageField
-                  label="CCCD mặt trước *"
-                  value={form.cccdFrontImage}
-                  loading={readingField === "cccdFrontImage"}
-                  onChange={(event) => handleImageChange("cccdFrontImage", event)}
-                />
-                <ImageField
-                  label="CCCD mặt sau *"
-                  value={form.cccdBackImage}
-                  loading={readingField === "cccdBackImage"}
-                  onChange={(event) => handleImageChange("cccdBackImage", event)}
-                />
-                <ImageField
-                  label="Ảnh bằng lái *"
-                  value={form.driverLicenseImage}
-                  loading={readingField === "driverLicenseImage"}
-                  onChange={(event) => handleImageChange("driverLicenseImage", event)}
-                />
-              </div>
-
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <TextField
-                  label="Số bằng lái xe *"
-                  value={form.driverLicenseNumber}
-                  onChange={(value) =>
-                    updateForm("driverLicenseNumber", normalizeDriverLicense(value))
+              <label className="block">
+                <span className="mb-2 block text-sm font-extrabold text-primary">
+                  Ghi chú
+                </span>
+                <textarea
+                  value={form.note || ""}
+                  onChange={(event) =>
+                    updateForm("note", event.target.value.slice(0, 500))
                   }
-                  inputMode="numeric"
-                  maxLength={12}
+                  maxLength={500}
+                  rows={4}
+                  className="w-full rounded-lg border border-border px-4 py-3 font-semibold text-primary outline-none transition focus:border-secondary focus:ring-4 focus:ring-secondary/10"
+                  placeholder="Yêu cầu thêm khi nhận xe..."
                 />
-                <label className="block">
-                  <span className="mb-2 block text-sm font-extrabold text-primary">
-                    Ghi chú
-                  </span>
-                  <textarea
-                    value={form.note || ""}
-                    onChange={(event) =>
-                      updateForm("note", event.target.value.slice(0, 500))
-                    }
-                    maxLength={500}
-                    rows={4}
-                    className="w-full rounded-lg border border-border px-4 py-3 font-semibold text-primary outline-none transition focus:border-secondary focus:ring-4 focus:ring-secondary/10"
-                    placeholder="Yêu cầu thêm khi nhận xe..."
-                  />
-                </label>
-              </div>
+              </label>
             </div>
           </section>
 
@@ -1089,7 +991,7 @@ export default function BookingRequestPage() {
                   label="Tiền thuê xe"
                   value={formatPrice(deliveryQuote?.rentalSubtotal ?? summary.totalPrice)}
                 />
-                <SummaryRow label="Phí giao xe" value={formatPrice(deliveryFee)} />
+                <SummaryRow label="Phí giao xe tạm tính" value={formatPrice(deliveryFee)} />
                 <SummaryRow label="Tổng thanh toán" value={formatPrice(displayTotalPrice)} />
               </div>
 
@@ -1105,7 +1007,7 @@ export default function BookingRequestPage() {
 
               <button
                 type="submit"
-                disabled={submitting || Boolean(readingField)}
+                disabled={submitting}
                 className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-secondary px-5 py-3 font-extrabold text-primary transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting && <Loader2 size={20} className="animate-spin" />}
@@ -1149,39 +1051,6 @@ function TextField({
         maxLength={maxLength}
         className="min-h-12 w-full rounded-lg border border-border px-4 font-semibold text-primary outline-none transition focus:border-secondary focus:ring-4 focus:ring-secondary/10"
       />
-    </label>
-  );
-}
-
-function ImageField({
-  label,
-  value,
-  loading,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  loading: boolean;
-  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-extrabold text-primary">
-        {label}
-      </span>
-      <span className="flex min-h-40 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-soft/50 text-center transition hover:border-secondary hover:bg-secondarySoft/30">
-        {loading ? (
-          <Loader2 size={24} className="animate-spin text-secondary" />
-        ) : value ? (
-          <img src={value} alt={label} className="h-40 w-full object-cover" />
-        ) : (
-          <span className="flex flex-col items-center gap-2 px-4 text-sm font-bold text-muted">
-            <FileImage size={24} className="text-secondary" />
-            Chọn ảnh
-          </span>
-        )}
-      </span>
-      <input type="file" accept="image/*" onChange={onChange} className="hidden" />
     </label>
   );
 }

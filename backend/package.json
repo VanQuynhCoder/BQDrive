@@ -7,11 +7,16 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "audit:business-removal": "npm run build && node dist/scripts/audit-business-removal.js",
+    "migrate:business-to-user": "npm run build && node dist/scripts/migrate-business-to-user.js",
     "seed:admin": "ts-node-dev --transpile-only src/seeds/admin.seed.ts",
     "migrate:car-images:dry": "npm run build && node dist/scripts/migrate-car-images-to-cloudinary.js --dry-run",
     "migrate:car-images": "npm run build && node dist/scripts/migrate-car-images-to-cloudinary.js",
     "audit:statuses": "npm run build && node dist/scripts/audit-status-values.js",
-    "test:statuses": "npm run build && node dist/scripts/verify-status-rules.js"
+    "test:statuses": "npm run build && node dist/scripts/verify-status-rules.js",
+    "test:rental-policy": "node -r ts-node/register/transpile-only src/scripts/verify-rental-policy.ts",
+    "test:booking-rate-plan-snapshot": "node -r ts-node/register/transpile-only src/scripts/verify-booking-rate-plan-snapshot.ts",
+    "test:booking-plan-conversion": "node -r ts-node/register/transpile-only src/scripts/verify-booking-plan-conversion.ts"
   },
   "keywords": [],
   "author": "",
@@ -32,7 +37,8 @@
     "nodemailer": "^8.0.10",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
-    "qs": "^6.15.2"
+    "qs": "^6.15.2",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

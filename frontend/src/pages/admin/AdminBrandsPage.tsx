@@ -17,6 +17,11 @@ const emptyForm: BrandForm = {
   logo: "",
   description: "",
 };
+const supportedLogoImageMimeTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 function readImageAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -96,8 +101,8 @@ export default function AdminBrandsPage() {
 
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      toast.error("Vui lòng chọn file ảnh");
+    if (!supportedLogoImageMimeTypes.has(file.type)) {
+      toast.error("Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP; không hỗ trợ HEIC.");
       return;
     }
 
@@ -248,7 +253,7 @@ export default function AdminBrandsPage() {
                       Chọn ảnh
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
                         className="hidden"
                         onChange={handleLogoFileChange}
                       />

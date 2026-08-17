@@ -1,10 +1,18 @@
-﻿import api from "./api";
+﻿// Shared contracts plus ADMIN API; selected DTO types are reused by owner services.
+import api from "./api";
 
 import type { CarMileagePolicy } from "./car.service";
 import type { OwnerMapCar } from "./ownerCarLocation.service";
 import type { CarPricing } from "../types/pricing";
 
-export type UserRole = "USER" | "BUSINESS" | "ADMIN";
+export type UserRole = "USER" | "ADMIN";
+
+export type AdminUserReference = {
+  _id: string;
+  name?: string;
+  email?: string;
+  role?: UserRole;
+};
 
 export type AdminUser = {
   _id: string;
@@ -16,28 +24,28 @@ export type AdminUser = {
   city?: string;
   district?: string;
   ward?: string;
+  avatar?: string;
+  bio?: string;
+  cccdNumber?: string;
+  cccdFrontImage?: string;
+  cccdBackImage?: string;
+  driverLicenseNumber?: string;
+  driverLicenseImage?: string;
+  driverLicenseClass?: "B" | "B1" | "B2";
+  identityProfileCompleted?: boolean;
+  identityVerificationStatus?: "INCOMPLETE" | "PENDING" | "VERIFIED" | "REJECTED";
+  identityVerificationReason?: string;
+  identitySubmittedAt?: string;
+  identityReviewedAt?: string;
+  identityReviewedBy?: AdminUserReference | string;
   role: UserRole;
   isBlocked: boolean;
+  blockedReason?: string;
+  blockedAt?: string;
+  blockedBy?: AdminUserReference | string;
+  isVerified?: boolean;
   createdAt?: string;
-};
-
-export type AdminBusiness = {
-  _id: string;
-  businessName: string;
-  businessType?: string;
-  phone?: string;
-  address?: string;
-  province?: string;
-  city?: string;
-  district?: string;
-  ward?: string;
-  description?: string;
-  isApproved: boolean;
-  isRejected: boolean;
-  userId?: AdminUser | null;
-  carCount: number;
-  totalCars: number;
-  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type AdminBrand = {
@@ -55,10 +63,7 @@ export type AdminCar = {
   type?: string;
   licensePlate?: string;
   brandId: AdminBrand;
-  ownerId: AdminUser | AdminBusiness | string;
-  ownerType?: "USER" | "BUSINESS" | string;
-  ownerModel?: "User" | "Business" | string;
-  businessId?: AdminBusiness;
+  ownerId: AdminUser | string;
   pricing?: CarPricing;
   allowDailyRental?: boolean;
   allowHourlyRental?: boolean;
@@ -73,7 +78,7 @@ export type AdminCar = {
   approvalSubmission?: {
     submissionType: "CREATE" | "UPDATE" | "RESUBMIT";
     submittedAt?: string;
-    submittedByRole?: "USER" | "BUSINESS" | string;
+    submittedByRole?: string;
     changes?: Array<{
       field: string;
       label: string;
@@ -143,17 +148,16 @@ export type HolidayPayload = {
 
 export type DashboardStats = {
   totalUsers: number;
-  totalBusinesses: number;
+
   totalPrivateOwners: number;
   totalConsignmentOwners: number;
   totalCars: number;
   pendingCars: number;
   pendingConsignmentCars: number;
-  pendingBusinessCars: number;
+
   pendingBookings: number;
   totalBookings?: number;
   revenue?: number;
-  businessRevenue?: number;
   userConsignmentRevenue?: number;
   approvedCars?: number;
   rentedCars?: number;
@@ -176,7 +180,7 @@ export type DashboardStats = {
 
 export type DashboardOverview = {
   totalUsers?: number;
-  totalBusinesses?: number;
+
   totalCars?: number;
   pendingCars?: number;
   approvedCars?: number;
@@ -193,7 +197,6 @@ export type DashboardOverview = {
   averageRating?: number;
   totalConsignmentOwners?: number;
   pendingConsignmentCars?: number;
-  pendingBusinessCars?: number;
 };
 
 export type DashboardPaymentStats = {
@@ -214,27 +217,6 @@ export type RatedCar = {
   latestReviewAt?: string;
 };
 
-export type SendBusinessOtpData = {
-  email: string;
-};
-
-export type VerifyBusinessOtpData = {
-  email: string;
-  otp: string;
-};
-
-export type CreateBusinessData = {
-  businessName: string;
-  email: string;
-  password: string;
-  phone?: string;
-  address?: string;
-  province?: string;
-  city?: string;
-  district?: string;
-  ward?: string;
-  description?: string;
-};
 
 type UsersParams = {
   role?: string;
@@ -243,12 +225,10 @@ type UsersParams = {
 
 type CarsParams = {
   status?: string;
-  ownerType?: string;
   brandId?: string;
   type?: string;
   keyword?: string;
 };
-
 type ApiData<T> = {
   data: T;
 };
@@ -268,6 +248,21 @@ export const adminService = {
     return unwrap<{ users: AdminUser[] }>(res).users;
   },
 
+  getUserDetail: async (id: string) => {
+    const res = await api.get(`/admin/users/${id}`);
+    return unwrap<{ user: AdminUser }>(res).user;
+  },
+
+  approveUserIdentity: async (id: string) => {
+    const res = await api.post(`/admin/users/${id}/identity/approve`);
+    return unwrap<{ user: AdminUser }>(res).user;
+  },
+
+  rejectUserIdentity: async (id: string, reason: string) => {
+    const res = await api.post(`/admin/users/${id}/identity/reject`, { reason });
+    return unwrap<{ user: AdminUser }>(res).user;
+  },
+
   blockUser: async (id: string, reason: string) => {
     const res = await api.post(`/admin/users/block/${id}`, { reason });
     return unwrap<{ user: AdminUser }>(res).user;
@@ -284,49 +279,6 @@ export const adminService = {
     });
     return unwrap<{ user: AdminUser }>(res).user;
   },
-
-  getBusinesses: async () => {
-    try {
-      const res = await api.get("/admin/businesses");
-      return unwrap<{ businesses: AdminBusiness[] }>(res).businesses;
-    } catch {
-      const res = await api.get("/business/getAllBusiness");
-      return unwrap<{ businesses: AdminBusiness[] }>(res).businesses;
-    }
-  },
-
-  sendBusinessOtp: async (data: SendBusinessOtpData) => {
-    const res = await api.post("/admin/business/send-otp", data);
-    return res.data;
-  },
-
-  verifyBusinessOtp: async (data: VerifyBusinessOtpData) => {
-    const res = await api.post("/admin/business/verify-otp", data);
-    return res.data;
-  },
-
-  createBusiness: async (data: CreateBusinessData) => {
-    const res = await api.post("/admin/business/create", data);
-    return unwrap<{ user: AdminUser; business: AdminBusiness }>(res);
-  },
-
-  blockBusiness: async (id: string, reason: string) => {
-    const res = await api.post(`/admin/business/block/${id}`, { reason });
-    return unwrap<{ business: AdminBusiness }>(res).business;
-  },
-
-  unblockBusiness: async (id: string) => {
-    const res = await api.post(`/admin/business/unblock/${id}`);
-    return unwrap<{ business: AdminBusiness }>(res).business;
-  },
-
-  deleteBusiness: async (id: string, reason: string) => {
-    const res = await api.delete(`/admin/business/delete/${id}`, {
-      data: { reason },
-    });
-    return unwrap<{ business: AdminBusiness }>(res).business;
-  },
-
   getBrands: async () => {
     const res = await api.get("/brand/getAllBrand", {
       params: { includeDescription: true },
@@ -419,8 +371,6 @@ export const adminService = {
     return unwrap<{ holiday: AdminHoliday }>(res).holiday;
   },
 };
-
-
 
 
 

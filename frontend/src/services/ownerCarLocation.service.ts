@@ -1,3 +1,4 @@
+// API quản lý vị trí xe dành cho người dùng có xe ký gửi.
 import api from "./api";
 
 export type OwnerMapCar = {
@@ -13,7 +14,6 @@ export type OwnerMapCar = {
   status: string;
   car_status?: string;
   approval_status?: string;
-  ownerType?: string;
   ownerName?: string;
   ownerEmail?: string;
   ownerPhone?: string;

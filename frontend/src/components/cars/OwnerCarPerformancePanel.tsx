@@ -1,3 +1,4 @@
+// Thành phần hiển thị hiệu quả hoạt động của xe ký gửi.
 import {
   Activity,
   Banknote,

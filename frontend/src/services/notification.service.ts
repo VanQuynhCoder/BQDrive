@@ -1,4 +1,5 @@
-﻿import api from "./api";
+﻿// Shared notification API: used by ADMIN and USER notification/task flows.
+import api from "./api";
 
 export const NOTIFICATION_REFRESH_EVENT = "bqdrive:notifications-refresh";
 export const NOTIFICATION_CENTER_REFRESH_EVENT =
@@ -7,8 +8,7 @@ export const NOTIFICATION_CENTER_REFRESH_EVENT =
 export type NotificationSeverity = "info" | "warning" | "danger" | "success";
 export type TaskGroup = "ACTION_REQUIRED" | "WAITING";
 export type TaskPriority = "HIGH" | "MEDIUM" | "LOW";
-export type TaskContext = "admin" | "business" | "customer" | "consignment";
-
+export type TaskContext = "admin" | "customer" | "consignment";
 export type ActionCenterTask = {
   id: string;
   type: string;
@@ -19,7 +19,7 @@ export type ActionCenterTask = {
   title: string;
   description: string;
   detail?: string;
-  entityType: "BOOKING" | "CAR" | "BUSINESS" | "REVIEW";
+  entityType: "BOOKING" | "CAR" | "REVIEW";
   entityId: string;
   bookingId?: string;
   carId?: string;
@@ -50,7 +50,7 @@ export type ActionCenterTask = {
     renterName?: string;
     renterEmail?: string;
     ownerName?: string;
-    businessName?: string;
+    
     phone?: string;
     [key: string]: unknown;
   };
@@ -86,7 +86,7 @@ export type ActionCenterResponse = {
 export type PersistentNotification = {
   _id: string;
   recipientId: string;
-  recipientRole: "ADMIN" | "BUSINESS" | "USER";
+  recipientRole: "ADMIN" | "USER";
   type: string;
   title: string;
   message: string;

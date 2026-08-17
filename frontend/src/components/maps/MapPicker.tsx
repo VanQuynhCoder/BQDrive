@@ -1,3 +1,4 @@
+//  Thành phần chọn vị trí trên bản đồ dùng trong các luồng của hệ thống.
 import { useEffect, useState } from "react";
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 

@@ -9,21 +9,48 @@ import {
 } from "../../constants/model.const";
 
 export type IPayment = BaseDocument & {
+  /** Booking gốc của giao dịch; vẫn giữ khi giao dịch là phụ phí/gia hạn. */
   bookingId: mongoose.Types.ObjectId;
+  /** Phụ phí được thanh toán, nếu có. */
   extraChargeId?: mongoose.Types.ObjectId;
+  /** Yêu cầu gia hạn được thanh toán, nếu có. */
   extensionId?: mongoose.Types.ObjectId;
+  /** User trả tiền. */
   userId: mongoose.Types.ObjectId;
+  /** Số tiền của giao dịch, đơn vị VND. */
   amount: number;
+  /** Kênh thanh toán như VNPAY, MANUAL, CASH. */
   method: string;
+  /** Trạng thái giao dịch thanh toán. */
   status: string;
+  /** Mục đích giao dịch: cọc, toàn bộ, phần còn lại, phụ phí... */
   paymentType: string;
+  /** Thời điểm hệ thống ghi nhận thanh toán thành công. */
   paidAt?: Date;
+  /** Mã giao dịch nội bộ hoặc mã đối soát. */
   transactionCode?: string;
+  // Mã đơn hàng BQDrive gửi sang cổng thanh toán.
+  gatewayOrderId?: string;
+
+// Mã giao dịch do cổng thanh toán trả về sau khi thanh toán.
+  gatewayTransactionId?: string;
+
+// Thời điểm tạo giao dịch gốc theo định dạng của cổng thanh toán.
+  gatewayTransactionDate?: string;
+
+// Thời điểm cổng thanh toán ghi nhận thanh toán thành công.
+  gatewayPayDate?: string;
+  /** Tổng số tiền của Payment đã hoàn. */
   refundedAmount?: number;
+  /** Trạng thái hoàn tiền riêng của Payment. */
   refundStatus: PaymentRefundStatusEnum;
+  /** User/admin xác nhận giao dịch thủ công. */
   confirmedBy?: mongoose.Types.ObjectId;
+  /** Vai trò người xác nhận thủ công. */
   confirmedByRole?: string;
+  /** Ghi chú đối soát hoặc thanh toán. */
   note?: string;
+  /** Thời điểm đã gửi nhắc thanh toán phần còn lại. */
   remainingPaymentReminderSentAt?: Date;
 };
 
@@ -76,10 +103,26 @@ const paymentSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    refundedAmount: {
-      type: Number,
-      default: 0,
-      min: 0,
+    gatewayOrderId: {
+      type: String,
+      trim: true,
+    },
+    gatewayTransactionId: {
+      type: String,
+      trim: true,
+    },
+    gatewayTransactionDate: {
+      type: String,
+      trim: true,
+    },
+    gatewayPayDate: {
+      type: String,
+      trim: true,
+    },
+      refundedAmount: {
+        type: Number,
+        default: 0,
+        min: 0,
     },
     refundStatus: {
       type: String,

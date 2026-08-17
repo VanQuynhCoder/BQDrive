@@ -1,4 +1,5 @@
-﻿import api from "./api";
+﻿// Shared payment API: renter payment and owner payment-history flows.
+import api from "./api";
 
 import type { ContractPaymentStatus } from "../constants/status.constants";
 
@@ -51,13 +52,12 @@ export type BookingPaymentHistory = {
     image?: string;
   };
   owner: {
-    _id?: string;
-    type?: "BUSINESS" | "USER" | string;
-    name?: string;
-    phone?: string;
-  };
+  _id?: string;
+  name?: string;
+  phone?: string;
+};
   totalPrice: number;
-  depositAmount: number;
+  upfrontPaymentAmount: number;
   paidAmount: number;
   remainingAmount: number;
   paymentSummaryStatus: ContractPaymentStatus | (string & {});

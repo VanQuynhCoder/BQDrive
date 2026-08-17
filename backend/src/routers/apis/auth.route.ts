@@ -2,10 +2,16 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { BaseRoute, Request, Response } from "../../base/baseRoute";
 import { ErrorHelper } from "../../base/error";
-import { UserModel } from "../../models/user/user.model";
-import { BusinessModel } from "../../models/business/business.model";
+import {
+  UserModel,
+  getIdentityVerificationStatus,
+  type DriverLicenseClass,
+} from "../../models/user/user.model";
 import { TokenHelper } from "../../helper/token.helper";
-import { UserRoleEnum } from "../../constants/model.const";
+import {
+  IdentityVerificationStatusEnum,
+  UserRoleEnum,
+} from "../../constants/model.const";
 import {
   sendOtpMail,
   sendPasswordChangedMail,
@@ -20,6 +26,16 @@ const RESET_PASSWORD_GENERIC_MESSAGE =
 const RESET_PASSWORD_OTP_TTL_MS = 5 * 60 * 1000;
 const RESET_PASSWORD_TOKEN_TTL_MS = 10 * 60 * 1000;
 const RESET_PASSWORD_MAX_ATTEMPTS = 5;
+const DELETED_ACCOUNT_MESSAGE =
+  "Tài khoản sử dụng email này đã bị vô hiệu hóa. Vui lòng liên hệ BQDrive để được hỗ trợ.";
+const DRIVER_LICENSE_CLASSES: DriverLicenseClass[] = ["B", "B1", "B2"];
+const PRIVATE_IDENTITY_FIELDS = [
+  "cccdNumber",
+  "cccdFrontImage",
+  "cccdBackImage",
+  "driverLicenseNumber",
+  "driverLicenseImage",
+] as const;
 
 class AuthRoute extends BaseRoute {
   constructor() {
@@ -67,19 +83,15 @@ class AuthRoute extends BaseRoute {
     }
   }
 
-  private normalizeUserRole(role?: string) {
-    const normalizedRole = role?.toUpperCase();
+private normalizeUserRole(role?: string) {
+  const normalizedRole = role?.toUpperCase();
 
-    if (
-      normalizedRole === UserRoleEnum.ADMIN ||
-      normalizedRole === UserRoleEnum.BUSINESS
-    ) {
-      return normalizedRole;
-    }
-
-    return UserRoleEnum.USER;
+  if (normalizedRole === UserRoleEnum.ADMIN) {
+    return UserRoleEnum.ADMIN;
   }
 
+  return UserRoleEnum.USER;
+}
   private async ensureNormalizedUserRole(user: any) {
     const normalizedRole = this.normalizeUserRole(user.role);
 
@@ -96,7 +108,22 @@ class AuthRoute extends BaseRoute {
     return value.trim().slice(0, maxLength);
   }
 
-  private toSafeUser(user: any, role?: string) {
+  private async assertEmailNotDeleted(email: string) {
+    const deletedUser = await UserModel.exists({
+      email,
+      isDeleted: true,
+    });
+
+    if (deletedUser) {
+      throw ErrorHelper.forbidden(DELETED_ACCOUNT_MESSAGE);
+    }
+  }
+
+  private toSafeUser(
+    user: any,
+    role?: string,
+    includePrivateIdentity = false,
+  ) {
     const userObject = user?.toObject ? user.toObject() : { ...(user || {}) };
     const hasLocalPassword =
       Boolean(userObject.password) &&
@@ -113,14 +140,65 @@ class AuthRoute extends BaseRoute {
       resetPasswordOtpAttempts,
       resetPasswordTokenHash,
       resetPasswordTokenExpiresAt,
+      cccdNumber,
+      cccdFrontImage,
+      cccdBackImage,
+      driverLicenseNumber,
+      driverLicenseImage,
       ...safeUser
     } = userObject;
 
     return {
       ...safeUser,
       role: role || safeUser.role,
+      identityVerificationStatus: getIdentityVerificationStatus(userObject),
       hasLocalPassword,
+      ...(includePrivateIdentity
+        ? {
+            cccdNumber,
+            cccdFrontImage,
+            cccdBackImage,
+            driverLicenseNumber,
+            driverLicenseImage,
+          }
+        : {}),
     };
+  }
+
+  private normalizeDriverLicenseClass(value: unknown, required = false) {
+    const normalized = String(value || "").trim().toUpperCase();
+
+    if (!normalized && !required) return undefined;
+    if (!DRIVER_LICENSE_CLASSES.includes(normalized as DriverLicenseClass)) {
+      throw ErrorHelper.requestDataInvalid(
+        "Hạng giấy phép lái xe chỉ hỗ trợ B, B1 hoặc B2",
+      );
+    }
+
+    return normalized as DriverLicenseClass;
+  }
+
+  private normalizePrivateIdentityImage(value: unknown) {
+    const normalized = this.cleanText(value, 500);
+
+    if (
+      normalized &&
+      !/^\/api\/uploads\/identity-documents\/[a-f\d]{24}$/i.test(normalized)
+    ) {
+      throw ErrorHelper.requestDataInvalid(
+        "Ảnh giấy tờ không hợp lệ hoặc chưa được upload",
+      );
+    }
+
+    return normalized;
+  }
+
+  private hasCompleteIdentityProfile(user: any) {
+    return Boolean(
+      PRIVATE_IDENTITY_FIELDS.every((field) =>
+        String(user?.[field] || "").trim(),
+      ) && this.normalizeDriverLicenseClass(user?.driverLicenseClass),
+    );
   }
 
   private generateOtp() {
@@ -330,10 +408,13 @@ class AuthRoute extends BaseRoute {
 
     const existedUser = await UserModel.findOne({
       email,
-      isDeleted: false,
     });
 
-    if (existedUser && existedUser.isVerified) {
+    if (existedUser?.isDeleted) {
+      throw ErrorHelper.forbidden(DELETED_ACCOUNT_MESSAGE);
+    }
+
+    if (existedUser?.isVerified) {
       throw ErrorHelper.userExisted();
     }
 
@@ -368,10 +449,10 @@ class AuthRoute extends BaseRoute {
 
   async verifyOtp(req: Request, res: Response) {
     const email = validateEmail(req.body.email);
-    const { otp } = req.body;
+    const otp = String(req.body?.otp || "").trim();
 
-    if (!otp) {
-      throw ErrorHelper.requestDataInvalid("Thiếu OTP");
+    if (!/^\d{6}$/.test(otp)) {
+      throw ErrorHelper.requestDataInvalid("OTP phải gồm đúng 6 chữ số");
     }
 
     const user = await UserModel.findOne({
@@ -380,6 +461,7 @@ class AuthRoute extends BaseRoute {
     });
 
     if (!user) {
+      await this.assertEmailNotDeleted(email);
       throw ErrorHelper.userNotExist();
     }
 
@@ -425,6 +507,7 @@ class AuthRoute extends BaseRoute {
     });
 
     if (!user) {
+      await this.assertEmailNotDeleted(email);
       throw ErrorHelper.requestDataInvalid(
         "Vui lòng xác thực OTP trước khi đăng ký",
       );
@@ -536,27 +619,22 @@ class AuthRoute extends BaseRoute {
     const user = await UserModel.findOne({
       _id: authUser.userId,
       isDeleted: false,
-    });
+    }).select(
+      "+cccdNumber +cccdFrontImage +cccdBackImage +driverLicenseNumber +driverLicenseImage",
+    );
 
     if (!user) {
       throw ErrorHelper.userNotExist();
     }
 
     const normalizedRole = await this.ensureNormalizedUserRole(user);
-    const business =
-      normalizedRole === UserRoleEnum.BUSINESS
-        ? await BusinessModel.findOne({
-            userId: user._id,
-            isDeleted: false,
-          }).populate("userId", "-password -otpCode")
-        : null;
-
+    const business = null;
     return res.status(200).json({
       status: 200,
       code: "200",
       message: "success",
       data: {
-        user: this.toSafeUser(user, normalizedRole),
+        user: this.toSafeUser(user, normalizedRole, true),
         ...(business ? { business } : {}),
       },
     });
@@ -567,7 +645,9 @@ class AuthRoute extends BaseRoute {
     const user = await UserModel.findOne({
       _id: authUser.userId,
       isDeleted: false,
-    });
+    }).select(
+      "+cccdNumber +cccdFrontImage +cccdBackImage +driverLicenseNumber +driverLicenseImage",
+    );
 
     if (!user) {
       throw ErrorHelper.userNotExist();
@@ -582,6 +662,57 @@ class AuthRoute extends BaseRoute {
     const province = this.cleanText(req.body.province, 100) || city;
     const district = this.cleanText(req.body.district, 100);
     const ward = this.cleanText(req.body.ward, 100);
+    const nextCccdNumber = this.cleanText(
+      Object.prototype.hasOwnProperty.call(req.body || {}, "cccdNumber")
+        ? req.body.cccdNumber
+        : user.cccdNumber,
+      32,
+    );
+    const nextCccdFrontImage = this.normalizePrivateIdentityImage(
+      Object.prototype.hasOwnProperty.call(req.body || {}, "cccdFrontImage")
+        ? req.body.cccdFrontImage
+        : user.cccdFrontImage,
+    );
+    const nextCccdBackImage = this.normalizePrivateIdentityImage(
+      Object.prototype.hasOwnProperty.call(req.body || {}, "cccdBackImage")
+        ? req.body.cccdBackImage
+        : user.cccdBackImage,
+    );
+    const nextDriverLicenseNumber = this.cleanText(
+      Object.prototype.hasOwnProperty.call(
+        req.body || {},
+        "driverLicenseNumber",
+      )
+        ? req.body.driverLicenseNumber
+        : user.driverLicenseNumber,
+      32,
+    );
+    const nextDriverLicenseImage = this.normalizePrivateIdentityImage(
+      Object.prototype.hasOwnProperty.call(
+        req.body || {},
+        "driverLicenseImage",
+      )
+        ? req.body.driverLicenseImage
+        : user.driverLicenseImage,
+    );
+    const nextDriverLicenseClass = this.normalizeDriverLicenseClass(
+      Object.prototype.hasOwnProperty.call(
+        req.body || {},
+        "driverLicenseClass",
+      )
+        ? req.body.driverLicenseClass
+        : user.driverLicenseClass,
+    );
+    const previousIdentityProfileCompleted = user.identityProfileCompleted === true;
+    const previousIdentityVerificationStatus = getIdentityVerificationStatus(user);
+    const identityFieldsChanged =
+      String(user.cccdNumber || "") !== nextCccdNumber ||
+      String(user.cccdFrontImage || "") !== nextCccdFrontImage ||
+      String(user.cccdBackImage || "") !== nextCccdBackImage ||
+      String(user.driverLicenseNumber || "") !== nextDriverLicenseNumber ||
+      String(user.driverLicenseImage || "") !== nextDriverLicenseImage ||
+      String(user.driverLicenseClass || "").toUpperCase() !==
+        String(nextDriverLicenseClass || "").toUpperCase();
 
     if (!name) {
       throw ErrorHelper.requestDataInvalid("Vui lòng nhập họ tên");
@@ -596,6 +727,37 @@ class AuthRoute extends BaseRoute {
     user.province = province;
     user.district = district;
     user.ward = ward;
+    user.cccdNumber = nextCccdNumber;
+    user.cccdFrontImage = nextCccdFrontImage;
+    user.cccdBackImage = nextCccdBackImage;
+    user.driverLicenseNumber = nextDriverLicenseNumber;
+    user.driverLicenseImage = nextDriverLicenseImage;
+    if (nextDriverLicenseClass) {
+      user.driverLicenseClass = nextDriverLicenseClass;
+    } else {
+      user.set("driverLicenseClass", undefined);
+    }
+    const identityProfileCompleted = this.hasCompleteIdentityProfile(user);
+    user.identityProfileCompleted = identityProfileCompleted;
+
+    if (!identityProfileCompleted) {
+      user.identityVerificationStatus = IdentityVerificationStatusEnum.INCOMPLETE;
+      user.set("identityVerificationReason", undefined);
+      user.set("identitySubmittedAt", undefined);
+      user.set("identityReviewedAt", undefined);
+      user.set("identityReviewedBy", undefined);
+    } else if (
+      !previousIdentityProfileCompleted ||
+      identityFieldsChanged ||
+      previousIdentityVerificationStatus === IdentityVerificationStatusEnum.INCOMPLETE
+    ) {
+      // Mỗi lần nộp mới hoặc đổi giấy tờ, Admin cần xác minh lại.
+      user.identityVerificationStatus = IdentityVerificationStatusEnum.PENDING;
+      user.identitySubmittedAt = new Date();
+      user.set("identityVerificationReason", undefined);
+      user.set("identityReviewedAt", undefined);
+      user.set("identityReviewedBy", undefined);
+    }
 
     await user.save();
 
@@ -604,7 +766,7 @@ class AuthRoute extends BaseRoute {
       code: "200",
       message: "Cập nhật hồ sơ thành công",
       data: {
-        user: this.toSafeUser(user, UserRoleEnum.USER),
+        user: this.toSafeUser(user, UserRoleEnum.USER, true),
       },
     });
   }
