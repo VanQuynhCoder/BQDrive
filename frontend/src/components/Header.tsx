@@ -5,6 +5,7 @@ import {
   ClipboardList,
   CreditCard,
   FileText,
+  Headphones,
   LayoutDashboard,
   LogOut,
   ShoppingCart,
@@ -20,6 +21,8 @@ import {
 import NotificationBadge from "./NotificationBadge";
 import NotificationBell from "./NotificationBell";
 import { useNotificationSummary } from "../hooks/useNotificationSummary";
+import SupportChatPanel from "./support/SupportChatPanel";
+import RejectedBookingRecommendationModal from "./booking/RejectedBookingRecommendationModal";
 
 type DashboardLink = {
   to: string;
@@ -51,11 +54,11 @@ export default function Header() {
   const [user, setUser] = useState(() => authService.getCurrentUser());
   const role = user?.role;
   const isAdmin = role === "ADMIN";
-  const isBusiness = role === "BUSINESS";
   const isUser = role === "USER";
   const canViewCustomerHistory = isUser;
   const canRentCars = isUser;
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isPaymentTodosOpen, setIsPaymentTodosOpen] = useState(false);
   const [paymentTodos, setPaymentTodos] = useState<PaymentTodo[]>([]);
   const [loadingPaymentTodos, setLoadingPaymentTodos] = useState(false);
@@ -84,12 +87,11 @@ export default function Header() {
   const paymentBadgeCount = getCount("remainingPaymentDue");
   const taskBadgeCount = contractBadgeCount + paymentBadgeCount;
 
-  let dashboardLink: DashboardLink | null = null;
-  if (isAdmin) {
-    dashboardLink = { to: "/admin", label: "Quản trị viên" };
-  } else if (isBusiness) {
-    dashboardLink = { to: "/business", label: "Quản lý doanh nghiệp" };
-  }
+let dashboardLink: DashboardLink | null = null;
+
+if (isAdmin) {
+  dashboardLink = { to: "/admin", label: "Quản trị viên" };
+}
 
   const accountMenuItemClass =
     "flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-primary transition duration-200 hover:bg-secondarySoft/45 active:scale-[0.98]";
@@ -212,7 +214,8 @@ export default function Header() {
   };
 
   return (
-    <header className="fixed left-0 top-0 z-50 flex h-20 w-full items-center justify-between border-b border-border bg-white/90 px-4 backdrop-blur sm:px-6 lg:px-8">
+    <>
+      <header className="fixed left-0 top-0 z-50 flex h-20 w-full items-center justify-between border-b border-border bg-white/90 px-4 backdrop-blur sm:px-6 lg:px-8">
       <div className="flex min-w-0 items-center gap-5 lg:gap-8">
         <Link
           to="/"
@@ -494,6 +497,21 @@ export default function Header() {
                         </span>
                       </Link>
 
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          closeAccountMenu();
+                          setIsSupportOpen(true);
+                        }}
+                        className={accountMenuItemClass}
+                      >
+                        <span className="flex min-w-0 items-center gap-3">
+                          <Headphones size={18} className="text-secondary" />
+                          <span>Hỗ trợ BQDrive</span>
+                        </span>
+                      </button>
+
                       <Link
                         to="/my-contracts"
                         role="menuitem"
@@ -564,11 +582,17 @@ export default function Header() {
           </>
         )}
       </div>
-    </header>
+      </header>
+      {isUser && (
+        <SupportChatPanel
+          open={isSupportOpen}
+          onClose={() => setIsSupportOpen(false)}
+        />
+      )}
+      {isUser && <RejectedBookingRecommendationModal />}
+    </>
   );
 }
-
-
 
 
 

@@ -26,10 +26,16 @@ export const BLOCKING_BOOKING_STATUSES = [
   BookingStatusEnum.AWAITING_EXTRA_CHARGE,
 ];
 
-const BLOCKING_EXTENSION_STATUSES = [
+export const BLOCKING_EXTENSION_STATUSES = [
   BookingExtensionStatusEnum.OWNER_APPROVED,
   BookingExtensionStatusEnum.PAYMENT_PENDING,
 ];
+
+export type CalendarUnavailableRange = {
+  startDate: Date;
+  endDate: Date;
+  type: "UNAVAILABLE";
+};
 
 type AvailabilityInput = {
   carId: string;
@@ -172,4 +178,104 @@ export async function assertCarAvailability(input: AvailabilityInput) {
       bufferHours: getBookingBufferHours(),
     });
   }
+}
+
+// Trả về các khoảng không thể đặt công khai cho lịch xe, dùng cùng điều kiện với assertCarAvailability.
+export async function getCarCalendarUnavailableRanges(input: {
+  carId: string;
+  from: Date;
+  to: Date;
+  now?: Date;
+}) {
+  const now = input.now || new Date();
+  const { bufferedStart: queryStart, bufferedEnd: queryEnd } =
+    getBufferedAvailabilityRange(input.from, input.to);
+  const cleaningBufferMs = getCarCleaningBufferMs();
+  const cleaningStartedAfter = new Date(input.from.getTime() - cleaningBufferMs);
+
+  const [bookings, carts, extensions, completedBookings] = await Promise.all([
+    BookingModel.find({
+      carId: input.carId,
+      status: { $in: BLOCKING_BOOKING_STATUSES },
+      isDeleted: false,
+      startDate: { $lt: queryEnd },
+      endDate: { $gt: queryStart },
+    } as any).select("startDate endDate").lean(),
+    CartModel.find({
+      carId: input.carId,
+      status: CartStatusEnum.ACTIVE,
+      expiredAt: { $gt: now },
+      startDate: { $lt: queryEnd },
+      endDate: { $gt: queryStart },
+    } as any).select("startDate endDate").lean(),
+    BookingExtensionModel.find({
+      carId: input.carId,
+      status: { $in: BLOCKING_EXTENSION_STATUSES },
+      isDeleted: false,
+      paymentDeadlineAt: { $gt: now },
+      oldEndAt: { $lt: queryEnd },
+      requestedEndAt: { $gt: queryStart },
+    } as any).select("oldEndAt requestedEndAt").lean(),
+    cleaningBufferMs > 0
+      ? BookingModel.find({
+          carId: input.carId,
+          status: BookingStatusEnum.COMPLETED,
+          isDeleted: false,
+          $or: [
+            { completedAt: { $gt: cleaningStartedAfter, $lt: input.to } },
+            {
+              completedAt: null,
+              updatedAt: { $gt: cleaningStartedAfter, $lt: input.to },
+            },
+          ],
+        } as any).select("completedAt updatedAt").lean()
+      : Promise.resolve([]),
+  ]);
+
+  const ranges: CalendarUnavailableRange[] = [];
+  const addBufferedRange = (startValue: Date, endValue: Date) => {
+    const { bufferedStart, bufferedEnd } = getBufferedAvailabilityRange(
+      new Date(startValue),
+      new Date(endValue),
+    );
+    if (bufferedStart < input.to && bufferedEnd > input.from) {
+      ranges.push({
+        startDate: bufferedStart,
+        endDate: bufferedEnd,
+        type: "UNAVAILABLE",
+      });
+    }
+  };
+
+  bookings.forEach((booking) => addBufferedRange(booking.startDate, booking.endDate));
+  carts.forEach((cart) => addBufferedRange(cart.startDate, cart.endDate));
+  extensions.forEach((extension) =>
+    addBufferedRange(extension.oldEndAt, extension.requestedEndAt),
+  );
+  completedBookings.forEach((booking) => {
+    const completedAt = booking.completedAt ?? booking.updatedAt;
+    if (!completedAt) return;
+
+    const cleaningUntil = getCarCleaningUnavailableUntil(new Date(completedAt));
+    if (new Date(completedAt) < input.to && cleaningUntil > input.from) {
+      ranges.push({
+        startDate: new Date(completedAt),
+        endDate: cleaningUntil,
+        type: "UNAVAILABLE",
+      });
+    }
+  });
+
+  return ranges
+    .sort((left, right) => left.startDate.getTime() - right.startDate.getTime())
+    .reduce<CalendarUnavailableRange[]>((merged, range) => {
+      const previous = merged[merged.length - 1];
+      if (previous && range.startDate <= previous.endDate) {
+        if (range.endDate > previous.endDate) previous.endDate = range.endDate;
+        return merged;
+      }
+
+      merged.push({ ...range });
+      return merged;
+    }, []);
 }

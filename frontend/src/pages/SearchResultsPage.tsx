@@ -25,16 +25,13 @@ type SearchCar = {
   images?: string[];
   image?: string;
   ownerName?: string;
-  ownerType?: "BUSINESS" | "USER" | string;
+
   province?: string;
   city?: string;
   district?: string;
   ward?: string;
   brandId?: {
     name?: string;
-  } | null;
-  businessId?: {
-    businessName?: string;
   } | null;
   rentalAvailability?:
     | "AVAILABLE"

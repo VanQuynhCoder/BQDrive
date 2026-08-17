@@ -50,7 +50,6 @@ function getRedirectPath(role?: string) {
   const normalizedRole = role?.toUpperCase();
 
   if (normalizedRole === "ADMIN") return "/admin";
-  if (normalizedRole === "BUSINESS") return "/business";
 
   return "/";
 }

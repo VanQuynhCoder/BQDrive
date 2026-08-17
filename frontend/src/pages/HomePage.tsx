@@ -70,14 +70,12 @@ type HomeCar = {
   brandId: {
     name?: string;
   };
-  businessId: {
-    businessName?: string;
-  };
   rentalAvailability?: RentalAvailability;
   availabilityLabel?: string;
   isBookable?: boolean;
   unavailableReason?: string;
   cleaningUntil?: string;
+  requiresScheduleCheck?: boolean;
   holdingCartId?: string;
   holdExpiredAt?: string;
   resumeBookingId?: string;
@@ -293,7 +291,6 @@ const popularAreas = [
   "Quận 1",
   "Bình Thạnh",
   "Quận 11",
-  "Quận 1",
   "Thủ Đức",
   "Quận 5",
   "TP.HCM",
@@ -816,6 +813,7 @@ export default function HomePage() {
       cars.filter(
         (car) =>
           car.isBookable !== false &&
+          !car.requiresScheduleCheck &&
           (car.rentalAvailability || "AVAILABLE") === "AVAILABLE",
       ).length,
     [cars],
@@ -1461,39 +1459,39 @@ export default function HomePage() {
           <img
             src={heroImage}
             alt="Dịch vụ thuê xe BQDrive"
-            className="absolute inset-0 h-full w-full object-cover opacity-45"
+            className="home-hero-image absolute inset-0 h-full w-full object-cover opacity-45"
           />
           <div className="absolute inset-0 bg-black/55" />
+          <div className="home-hero-ambient" aria-hidden="true" />
 
           <div className="relative mx-auto grid min-h-[650px] max-w-7xl items-center gap-10 px-6 py-16 lg:grid-cols-[minmax(0,1fr)_430px]">
             <div className="min-w-0 max-w-3xl">
               <div className="mb-5 flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-bold text-white ring-1 ring-white/20 backdrop-blur">
+                <span className="home-hero-reveal home-hero-reveal-1 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-bold text-white ring-1 ring-white/20 backdrop-blur">
                   <Sparkles size={17} />
                   Thuê xe linh hoạt cho mọi lịch trình
                 </span>
 
-                <span className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm font-extrabold text-primary">
+                <span className="home-hero-reveal home-hero-reveal-2 inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm font-extrabold text-primary">
                   <ShieldCheck size={17} />
                   Đối tác kiểm duyệt
                 </span>
               </div>
 
-              <h1 className="text-5xl font-extrabold leading-tight md:text-7xl">
+              <h1 className="home-hero-reveal home-hero-reveal-3 text-5xl font-extrabold leading-tight md:text-7xl">
                 BQDrive
               </h1>
 
-              <p className="mt-6 max-w-2xl break-words text-lg leading-8 text-white/80">
-                Nền tảng thuê xe kết nối khách hàng với doanh nghiệp và cá
-                nhân cho thuê xe uy tín, giúp đặt lịch nhanh, giá rõ ràng và
-                theo dõi booking thuận tiện.
+              <p className="home-hero-reveal home-hero-reveal-4 mt-6 max-w-2xl break-words text-lg leading-8 text-white/80">
+                Nền tảng thuê xe kết nối người thuê với các chủ xe ký gửi uy tín,
+                giúp đặt lịch nhanh, giá rõ ràng và theo dõi booking thuận tiện.
               </p>
 
               <div className="mt-9 grid max-w-2xl gap-3 sm:grid-cols-3">
                 {stats.map((item) => (
                   <div
                     key={item.label}
-                    className="border-l-2 border-secondary pl-4"
+                    className="home-hero-stat border-l-2 border-secondary pl-4"
                   >
                     <p className="text-2xl font-extrabold text-secondary">
                       {item.value}
@@ -1504,7 +1502,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="min-w-0 max-w-full rounded-lg bg-white p-5 text-primary shadow-2xl shadow-black/25 lg:w-full">
+            <div className="home-hero-search-card min-w-0 max-w-full rounded-3xl bg-white p-5 text-primary shadow-2xl shadow-black/25 lg:w-full">
               <div className="mb-5 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-bold uppercase text-secondary">
@@ -1954,14 +1952,14 @@ export default function HomePage() {
   </div>
 </aside>
 
-            <div className="min-w-0">
+            <div className="min-w-0 rounded-3xl border border-border bg-white p-5 shadow-[0_16px_45px_rgba(15,23,42,0.08)] md:p-7">
           <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-sm font-bold uppercase text-secondary">
                 Đội xe nổi bật
               </p>
               <h2 className="mt-2 text-3xl font-extrabold text-primary md:text-4xl">
-                Xe đã sẵn sàng cho chuyến đi của bạn
+                Khám phá xe cho chuyến đi của bạn
               </h2>
               <p className="mt-3 max-w-2xl leading-7 text-muted">
                 Những dòng xe được duyệt trên hệ thống, có thông tin giá và đơn
@@ -2121,8 +2119,8 @@ export default function HomePage() {
                 Quản lý xe cho thuê trên cùng một hệ thống
               </h2>
               <p className="mt-4 max-w-2xl leading-7 text-white/70">
-                BQDrive hỗ trợ doanh nghiệp và cá nhân đăng xe, nhận booking và
-                theo dõi trạng thái thuê xe theo từng lịch trình.
+                  BQDrive hỗ trợ người dùng ký gửi xe, nhận booking và theo dõi
+                  trạng thái thuê xe theo từng lịch trình.
               </p>
             </div>
 

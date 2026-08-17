@@ -10,6 +10,16 @@ export type UploadedCarImage = {
   format?: string;
 };
 
+export type IdentityDocumentKind =
+  | "CCCD_FRONT"
+  | "CCCD_BACK"
+  | "DRIVER_LICENSE";
+
+export type UploadedIdentityDocument = {
+  fileId: string;
+  path: string;
+};
+
 type ApiData<T> = {
   data: T;
 };
@@ -44,5 +54,25 @@ export const uploadService = {
       ...image,
       url: resolveUploadedImageUrl(image.url),
     };
+  },
+
+  uploadIdentityDocument: async (file: File, kind: IdentityDocumentKind) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    formData.append("kind", kind);
+
+    const res = await api.post("/uploads/identity-documents", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    return unwrap<{ image: UploadedIdentityDocument }>(res).image;
+  },
+
+  loadIdentityDocument: async (path: string) => {
+    const requestPath = path.startsWith("/api/") ? path.slice(4) : path;
+    const res = await api.get(requestPath, { responseType: "blob" });
+    return URL.createObjectURL(res.data);
   },
 };

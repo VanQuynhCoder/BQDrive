@@ -1,4 +1,4 @@
-// Shared UI: status badge used across ADMIN, BUSINESS, and USER management screens.
+//Thành phần hiển thị trạng thái dùng chung trong các màn hình quản lý.
 export type AdminStatusBadgeTone = "green" | "red" | "yellow" | "blue" | "gray";
 
 type AdminStatusBadgeProps = {

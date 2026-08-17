@@ -7,7 +7,6 @@ import {
   privateOwnerService,
   type PrivateOwnerPayment,
 } from "../../services/privateOwner.service";
-import { paymentService } from "../../services/payment.service";
 import {
   getBookingDisplayCode,
   getPaymentMethodLabel,
@@ -150,15 +149,19 @@ export default function PrivateOwnerPaymentsPage() {
     return payments.filter((payment) => payment.status === filter);
   }, [filter, payments]);
 
-  const markCashPaymentPaid = async (paymentId: string) => {
-    setUpdatingPaymentId(paymentId);
+  const markCashPaymentPaid = async (payment: PrivateOwnerPayment) => {
+    const bookingId = payment.bookingId?._id;
+    if (!bookingId) {
+      toast.error("Không xác định được booking của giao dịch này");
+      return;
+    }
+
+    setUpdatingPaymentId(payment._id);
 
     try {
-      await paymentService.updatePaymentStatus(paymentId, {
-        status: "PAID",
-      });
+      await privateOwnerService.confirmRemainingCash(bookingId);
       setPayments(await privateOwnerService.getMyPayments());
-      toast.success("Đã ghi nhận thanh toán tiền một");
+      toast.success("Đã ghi nhận thanh toán tiền mặt");
     } catch (error) {
       toast.error(getErrorMessage(error, "Không thể cập nhật thanh toán"));
     } finally {
@@ -292,10 +295,15 @@ export default function PrivateOwnerPaymentsPage() {
                           : "--"}
                       </td>
                       <td className="px-5 py-4">
-                        {MANUAL_CONFIRM_PAYMENT_METHODS.includes(payment.method || "") && payment.status === "PENDING" ? (
+                        {MANUAL_CONFIRM_PAYMENT_METHODS.includes(payment.method || "") &&
+                        payment.paymentType === "REMAINING" &&
+                        ["RETURN_INSPECTION", "AWAITING_EXTRA_CHARGE"].includes(
+                          payment.bookingId?.status || "",
+                        ) &&
+                        payment.status === "PENDING" ? (
                           <button
                             type="button"
-                            onClick={() => markCashPaymentPaid(payment._id)}
+                            onClick={() => void markCashPaymentPaid(payment)}
                             disabled={updatingPaymentId === payment._id}
                             className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-extrabold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                           >

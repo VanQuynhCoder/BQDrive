@@ -8,24 +8,43 @@ import {
 } from "../../constants/model.const";
 
 export type INotification = BaseDocument & {
+  /** User nhận thông báo. */
   recipientId: mongoose.Types.ObjectId;
+  /** Role của người nhận tại thời điểm phát thông báo. */
   recipientRole: UserRoleEnum;
+  /** Loại sự kiện để frontend chọn biểu tượng và hành động. */
   type: NotificationTypeEnum;
+  /** Tiêu đề ngắn của thông báo. */
   title: string;
+  /** Nội dung chi tiết hiển thị cho người dùng. */
   message: string;
+  /** User gây ra sự kiện, nếu có. */
   actorId?: mongoose.Types.ObjectId;
+  /** Role của actor, nếu có. */
   actorRole?: UserRoleEnum;
+  /** Loại entity liên quan như booking, xe hoặc hồ sơ. */
   entityType: NotificationEntityTypeEnum;
+  /** ID entity để điều hướng/tra cứu. */
   entityId?: mongoose.Types.ObjectId;
+  /** Booking liên quan trực tiếp, nếu có. */
   bookingId?: mongoose.Types.ObjectId;
+  /** Xe liên quan trực tiếp, nếu có. */
   carId?: mongoose.Types.ObjectId;
+  /** Khóa hành động để frontend hiển thị CTA phù hợp. */
   actionKey?: NotificationActionKeyEnum;
+  /** URL nội bộ khi người dùng bấm thông báo. */
   actionUrl?: string;
+  /** Dữ liệu mở rộng không ảnh hưởng schema nghiệp vụ chính. */
   metadata?: Record<string, unknown>;
+  /** Đã được người nhận đọc hay chưa. */
   isRead: boolean;
+  /** Thời điểm đánh dấu đã đọc. */
   readAt?: Date;
+  /** Xóa mềm thông báo. */
   isDeleted: boolean;
+  /** Thời điểm xóa mềm thông báo. */
   deletedAt?: Date;
+  /** Khóa chống phát trùng cùng một sự kiện. */
   dedupeKey: string;
 };
 

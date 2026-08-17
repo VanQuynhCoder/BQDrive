@@ -3,7 +3,6 @@ export type BookingPerspective = "RENTER" | "OWNER" | "ADMIN";
 export type BookingTimelineTone = "blue" | "green" | "yellow" | "red" | "gray";
 
 export type BookingTimelineAction =
-  | "COMPLETE_RENTER_INFO"
   | "PAY"
   | "CONFIRM"
   | "REJECT"
@@ -98,7 +97,6 @@ function buildSteps(
 }
 
 function getRenterCurrentIndex(status: string) {
-  if (status === "WAITING_RENTER_INFO") return 0;
   if (status === "REQUESTED") return 0;
   if (status === "OWNER_APPROVED") return 1;
   if (status === "PAYMENT_PENDING") return 2;
@@ -308,17 +306,6 @@ export function getBookingTimelineView({
         isPickupOverdue: overdue,
       };
     }
-  }
-
-  if (normalizedStatus === "WAITING_RENTER_INFO") {
-    return {
-      displayStatus: "Chờ hoàn tất thông tin thuê xe",
-      nextActionText: "Vui lòng hoàn tất thông tin thuê xe.",
-      tone: "yellow",
-      steps: buildSteps(perspective, getRenterCurrentIndex(normalizedStatus)),
-      allowedActions: perspective === "RENTER" ? ["COMPLETE_RENTER_INFO"] : [],
-      isPickupOverdue: overdue,
-    };
   }
 
   if (normalizedStatus === "REQUESTED") {

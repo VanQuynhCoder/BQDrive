@@ -5,18 +5,32 @@ import { ErrorHelper } from "../../base/error";
 import { BookingModel } from "../../models/booking/booking.model";
 import { CarModel } from "../../models/car/car.model";
 import { CartModel } from "../../models/cart/cart.model";
-import { UserModel } from "../../models/user/user.model";
-import { BusinessModel } from "../../models/business/business.model";
+import {
+  UserModel,
+  getIdentityVerificationStatus,
+} from "../../models/user/user.model";
 import { ContractModel } from "../../models/contract/contract.model";
 import { PaymentModel } from "../../models/payment/payment.model";
 import { ExtraChargeModel } from "../../models/extra-charge/extraCharge.model";
 import { ReturnInspectionModel } from "../../models/return-inspection/returnInspection.model";
 import { RefundModel } from "../../models/refund/refund.model";
-import { calculateRentalPrice } from "../../helper/rental.helper";
+import { ReviewModel, ReviewStatusEnum } from "../../models/review/review.model";
+import {
+  calculateRentalPrice,
+  getCarRentalSupport,
+  normalizeRentalMode,
+} from "../../helper/rental.helper";
 import { calculateLateReturnFee } from "../../helper/late-return-fee.helper";
 import { releaseCarIfNoConfirmedBooking } from "../../helper/car-status.helper";
 import { expireOldCarts } from "../../helper/cart.helper";
 import { assertCarAvailability } from "../../helper/car-availability.helper";
+import { getCarCleaningUnavailableUntil } from "../../helper/booking-availability.helper";
+import {
+  buildBookingMileagePolicySnapshot,
+  buildBookingRatePlanSnapshot,
+  getRentalBillableUnits,
+} from "../../helper/booking-rate-plan-snapshot.helper";
+
 import {
   expireAbandonedPendingBookings,
   getBookingHoldExpiresAt,
@@ -55,9 +69,9 @@ import {
   CarStatusEnum,
   CartStatusEnum,
   DeliveryAddressSourceEnum,
-  OwnerTypeEnum,
   DeliveryTypeEnum,
   ExtraChargeStatusEnum,
+  IdentityVerificationStatusEnum,
   MileageStatusEnum,
   PaymentMethodEnum,
   PaymentOptionEnum,
@@ -69,13 +83,22 @@ import {
   UserRoleEnum,
 } from "../../constants/model.const";
 import {
-  isValidEmail,
-  validateCccd,
-  validateDriverLicense,
   validatePhone,
 } from "../../utils/validators";
+import {
+  getBookingUpfrontPaymentAmount,
+} from "../../helper/payment-sync.helper";
 
 const RENTER_ROLES = [UserRoleEnum.USER];
+const DRIVER_LICENSE_CLASSES = ["B", "B1", "B2"] as const;
+const IDENTITY_PROFILE_REQUIRED_MESSAGE =
+  "Vui lòng cập nhật đầy đủ CCCD và giấy phép lái xe trong hồ sơ cá nhân trước khi đặt xe.";
+const IDENTITY_VERIFICATION_PENDING_MESSAGE =
+  "Hồ sơ giấy tờ của bạn đang chờ BQDrive xác minh. Vui lòng thử lại sau.";
+const IDENTITY_VERIFICATION_REJECTED_MESSAGE =
+  "Hồ sơ giấy tờ chưa được chấp nhận. Vui lòng cập nhật lại giấy tờ trong hồ sơ cá nhân.";
+const LICENSE_NOT_ELIGIBLE_MESSAGE =
+  "Giấy phép lái xe của bạn chưa phù hợp với điều kiện thuê xe.";
 const OWNER_REVIEW_BOOKING_STATUSES = [
   BookingStatusEnum.REQUESTED, // Trạng thái mới: khách vừa gửi yêu cầu, chủ xe cần duyệt
 ];
@@ -94,13 +117,17 @@ const HANDOVER_ALLOWED_BOOKING_STATUSES = [
   BookingStatusEnum.PAYMENT_PENDING,
   BookingStatusEnum.PAID,
 ];
-const MANUAL_PAYMENT_METHODS = [
-  PaymentMethodEnum.CASH,
+const HANDOVER_BLOCKING_BOOKING_STATUSES = [
+  BookingStatusEnum.IN_PROGRESS,
+  BookingStatusEnum.RETURN_INSPECTION,
+  BookingStatusEnum.AWAITING_EXTRA_CHARGE,
 ];
-const RENTER_INFO_REQUIRED_MESSAGE =
-  "Vui lòng hoàn tất thông tin người thuê trước khi gửi yêu cầu đặt xe.";
-const RENTER_INFO_MISSING_FOR_CONFIRM_MESSAGE =
-  "Booking thiếu thông tin người thuê, không thể duyệt.";
+const HANDOVER_OVERLAP_BOOKING_STATUSES = [
+  BookingStatusEnum.OWNER_APPROVED,
+  BookingStatusEnum.PAYMENT_PENDING,
+  BookingStatusEnum.PAID,
+];
+const HANDOVER_EARLY_ALLOWANCE_MINUTES = 15;
 const PICKUP_GRACE_MINUTES = 30;
 const NO_SHOW_ALLOWED_BOOKING_STATUSES = [
   BookingStatusEnum.OWNER_APPROVED,
@@ -108,6 +135,32 @@ const NO_SHOW_ALLOWED_BOOKING_STATUSES = [
   BookingStatusEnum.PAID,
 ];
 const OSRM_ROUTE_URL = "https://router.project-osrm.org/route/v1/driving";
+const RENTAL_DEPOSIT_RATE = 0.5;
+const PLATFORM_FEE_RATE = 0.1;
+const INSURANCE_FEE_PER_DAY = 30000;
+const VEHICLE_CONDITION_KEYS = [
+  "bodyOk",
+  "glassAndMirrorsOk",
+  "lightsOk",
+  "tiresOk",
+  "interiorClean",
+  "seatsAndSeatbeltsOk",
+  "airConditioningOk",
+  "dashboardWarningFree",
+] as const;
+const VEHICLE_ACCESSORY_KEYS = [
+  "vehicleKeysPresent",
+  "tireSupportKitPresent",
+  "basicToolkitPresent",
+  "warningTrianglePresent",
+  "chargingCableApplicable",
+  "chargingCablePresent",
+] as const;
+const VEHICLE_DOCUMENT_KEYS = [
+  "registrationPresent",
+  "inspectionCertificatePresent",
+  "insuranceCertificatePresent",
+] as const;
 
 function toCoordinate(value: unknown, min: number, max: number) {
   const coordinate = Number(value);
@@ -214,38 +267,28 @@ function normalizeDeliveryAddressSource(value: unknown) {
     : DeliveryAddressSourceEnum.MANUAL_TEXT;
 }
 
-function calculatePaymentAmounts(totalPrice: number, paymentOption: string) {
+function calculatePaymentAmounts(
+  totalPrice: number,
+  upfrontPaymentAmount: number,
+  paymentOption: string,
+) {
   if (paymentOption === PaymentOptionEnum.FULL) {
     return {
-      depositAmount: 0,
+      upfrontPaymentAmount,
       remainingAmount: totalPrice,
       paidAmount: 0,
     };
   }
 
-  const depositAmount = Math.round(totalPrice * 0.3);
-  const remainingAmount = totalPrice - depositAmount;
-
   return {
-    depositAmount,
-    remainingAmount,
+    upfrontPaymentAmount,
+    remainingAmount: Math.max(totalPrice - upfrontPaymentAmount, 0),
     paidAmount: 0,
   };
 }
 
-function hydrateLegacyBookingOwner(booking: any) {
-  if (!booking.ownerId && booking.businessId) {
-    booking.ownerId = booking.businessId;
-    booking.ownerType = OwnerTypeEnum.BUSINESS;
-    booking.ownerModel = "Business";
-  }
-}
-
 function assertUserIsNotCarOwner(car: any, userId: string) {
-  if (
-    car?.ownerType === OwnerTypeEnum.USER &&
-    String(car.ownerId || "") === String(userId)
-  ) {
+  if (String(car?.ownerId || "") === String(userId)) {
     throw ErrorHelper.requestDataInvalid(
       "Không thể thuê xe do chính bạn sở hữu",
     );
@@ -256,76 +299,95 @@ function getTrimmedString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function normalizeRenterInfo(rawInfo: any) {
+function getRenterContactSnapshot(rawInfo: any, user: any) {
   const renterInfo = rawInfo || {};
+  const fullName = getTrimmedString(user?.name);
+  const phone = validatePhone(user?.phone, false);
+  const email = getTrimmedString(user?.email).toLowerCase();
+  const note = getTrimmedString(renterInfo.note);
+
+  if (fullName.trim().length < 2 || !phone || !email) {
+    throw ErrorHelper.requestDataInvalid(
+      "Vui lòng cập nhật đầy đủ họ tên, số điện thoại và email trong hồ sơ cá nhân.",
+    );
+  }
+
+  if (note.length > 500) {
+    throw ErrorHelper.requestDataInvalid(
+      "Ghi chú không được vượt quá 500 ký tự",
+    );
+  }
+
+  return { fullName, phone, email, note };
+}
+
+async function getRenterBookingSnapshot(userId: string, rawInfo: any) {
+  const user = await UserModel.findOne({
+    _id: userId,
+    isDeleted: false,
+  }).select(
+    "+cccdNumber +cccdFrontImage +cccdBackImage +driverLicenseNumber +driverLicenseImage",
+  );
+
+  if (!user) {
+    throw ErrorHelper.userNotExist();
+  }
+
+  const driverLicenseClass = String(user.driverLicenseClass || "").toUpperCase();
+  const validLicenseClass = DRIVER_LICENSE_CLASSES.includes(
+    driverLicenseClass as (typeof DRIVER_LICENSE_CLASSES)[number],
+  );
+  const hasCompleteIdentityDocuments = Boolean(
+    user.cccdNumber &&
+      user.cccdFrontImage &&
+      user.cccdBackImage &&
+      user.driverLicenseNumber &&
+      user.driverLicenseImage &&
+      validLicenseClass,
+  );
+  const identityProfileCompleted =
+    user.identityProfileCompleted === true && hasCompleteIdentityDocuments;
+
+  if (!identityProfileCompleted) {
+    throw ErrorHelper.requestDataInvalid(IDENTITY_PROFILE_REQUIRED_MESSAGE);
+  }
+
+  const identityVerificationStatus = getIdentityVerificationStatus(user);
+  if (identityVerificationStatus === IdentityVerificationStatusEnum.PENDING) {
+    throw ErrorHelper.requestDataInvalid(IDENTITY_VERIFICATION_PENDING_MESSAGE);
+  }
+  if (identityVerificationStatus === IdentityVerificationStatusEnum.REJECTED) {
+    throw ErrorHelper.requestDataInvalid(IDENTITY_VERIFICATION_REJECTED_MESSAGE);
+  }
+  if (identityVerificationStatus !== IdentityVerificationStatusEnum.VERIFIED) {
+    throw ErrorHelper.requestDataInvalid(IDENTITY_PROFILE_REQUIRED_MESSAGE);
+  }
+
+  const licenseEligible = validLicenseClass;
+  if (!licenseEligible) {
+    throw ErrorHelper.requestDataInvalid(LICENSE_NOT_ELIGIBLE_MESSAGE);
+  }
 
   return {
-    fullName: getTrimmedString(renterInfo.fullName),
-    phone: validatePhone(renterInfo.phone, false),
-    email: getTrimmedString(renterInfo.email).toLowerCase(),
-    cccdNumber: validateCccd(renterInfo.cccdNumber, false),
-    cccdFrontImage: getTrimmedString(renterInfo.cccdFrontImage),
-    cccdBackImage: getTrimmedString(renterInfo.cccdBackImage),
-    driverLicenseNumber: validateDriverLicense(
-      renterInfo.driverLicenseNumber,
-      false,
-    ),
-    driverLicenseImage: getTrimmedString(renterInfo.driverLicenseImage),
-    note: getTrimmedString(renterInfo.note),
+    renterInfo: getRenterContactSnapshot(rawInfo, user),
+    renterEligibilitySnapshot: {
+      identityProfileCompleted,
+      identityVerificationStatus,
+      driverLicenseClass: driverLicenseClass as "B" | "B1" | "B2",
+      licenseEligible,
+      checkedAt: new Date(),
+    },
   };
 }
 
-function hasCompleteRenterInfo(rawInfo: any) {
-  const renterInfo = normalizeRenterInfo(rawInfo);
-
+function hasEligibleRenterSnapshot(snapshot: any) {
   return Boolean(
-    renterInfo.fullName &&
-      renterInfo.phone &&
-      renterInfo.email &&
-      renterInfo.cccdNumber &&
-      renterInfo.cccdFrontImage &&
-      renterInfo.cccdBackImage &&
-      renterInfo.driverLicenseNumber &&
-      renterInfo.driverLicenseImage,
+    snapshot?.identityProfileCompleted === true &&
+      (!snapshot?.identityVerificationStatus ||
+        snapshot.identityVerificationStatus === IdentityVerificationStatusEnum.VERIFIED) &&
+      snapshot?.licenseEligible === true &&
+      DRIVER_LICENSE_CLASSES.includes(snapshot?.driverLicenseClass),
   );
-}
-
-function validateAndNormalizeRenterInfo(rawInfo: any) {
-  const renterInfo = normalizeRenterInfo(rawInfo);
-
-  if (!hasCompleteRenterInfo(renterInfo)) {
-    throw ErrorHelper.requestDataInvalid(RENTER_INFO_REQUIRED_MESSAGE);
-  }
-
-  if (renterInfo.fullName.trim().length < 2) {
-    throw ErrorHelper.requestDataInvalid("Họ tên người thuê phải có ít nhất 2 ký tự");
-  }
-
-  if (!isValidEmail(renterInfo.email)) {
-    throw ErrorHelper.requestDataInvalid("Email người thuê không hợp lệ");
-  }
-
-  validatePhone(renterInfo.phone);
-  validateCccd(renterInfo.cccdNumber);
-  validateDriverLicense(renterInfo.driverLicenseNumber);
-
-  if (renterInfo.note.length > 500) {
-    throw ErrorHelper.requestDataInvalid("Ghi chú không được vượt quá 500 ký tự");
-  }
-
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(renterInfo.email)) {
-    throw ErrorHelper.requestDataInvalid("Email người thuê không hợp lệ");
-  }
-
-  if (renterInfo.phone.replace(/\D/g, "").length < 10) {
-    throw ErrorHelper.requestDataInvalid("Số điện thoại người thuê phải có ít nhất 10 số");
-  }
-
-  if (renterInfo.cccdNumber.replace(/\D/g, "").length < 9) {
-    throw ErrorHelper.requestDataInvalid("CCCD/CMND phải có ít nhất 9 số");
-  }
-
-  return renterInfo;
 }
 
 async function ensureNoOverlappedActiveBooking(booking: any) {
@@ -351,16 +413,95 @@ async function ensureNoOverlappedActiveBooking(booking: any) {
   }
 }
 
+export async function assertCarReadyForHandover(
+  booking: any,
+  options: { now?: Date; session?: ClientSession } = {},
+) {
+  const now = options.now || new Date();
+  const startAt = new Date(booking.startDate);
+  const endAt = new Date(booking.endDate);
+
+  if (Number.isNaN(startAt.getTime())) {
+    throw ErrorHelper.requestDataInvalid("Thời gian nhận xe không hợp lệ.");
+  }
+
+  if (Number.isNaN(endAt.getTime()) || endAt <= startAt) {
+    throw ErrorHelper.requestDataInvalid("Thời gian trả xe không hợp lệ.");
+  }
+
+  const earliestHandoverAt = new Date(
+    startAt.getTime() - HANDOVER_EARLY_ALLOWANCE_MINUTES * 60 * 1000,
+  );
+
+  if (now < earliestHandoverAt) {
+    throw ErrorHelper.requestDataInvalid(
+      `Chưa đến khung giờ bàn giao. Chỉ được bàn giao sớm tối đa ${HANDOVER_EARLY_ALLOWANCE_MINUTES} phút trước giờ nhận xe.`,
+    );
+  }
+
+  const activeBookingQuery = BookingModel.findOne({
+    _id: { $ne: booking._id },
+    carId: booking.carId,
+    status: { $in: HANDOVER_BLOCKING_BOOKING_STATUSES },
+    isDeleted: false,
+  } as any).select("_id status");
+
+  if (options.session) activeBookingQuery.session(options.session);
+
+  if (await activeBookingQuery) {
+    throw ErrorHelper.requestDataInvalid(
+      "Xe vẫn đang trong chuyến thuê trước hoặc quy trình trả xe chưa hoàn tất.",
+    );
+  }
+
+  const overlappingBookingQuery = BookingModel.findOne({
+    _id: { $ne: booking._id },
+    carId: booking.carId,
+    status: { $in: HANDOVER_OVERLAP_BOOKING_STATUSES },
+    isDeleted: false,
+    startDate: { $lt: endAt },
+    endDate: { $gt: startAt },
+  } as any).select("_id status");
+
+  if (options.session) overlappingBookingQuery.session(options.session);
+
+  if (await overlappingBookingQuery) {
+    throw ErrorHelper.requestDataInvalid(
+      "Xe đã có booking khác trùng thời gian bàn giao.",
+    );
+  }
+
+  const completedBookingQuery = BookingModel.findOne({
+    _id: { $ne: booking._id },
+    carId: booking.carId,
+    status: BookingStatusEnum.COMPLETED,
+    completedAt: { $ne: null, $lte: now },
+    isDeleted: false,
+  } as any)
+    .select("_id completedAt")
+    .sort({ completedAt: -1 });
+
+  if (options.session) completedBookingQuery.session(options.session);
+
+  const latestCompletedBooking = await completedBookingQuery;
+  if (!latestCompletedBooking?.completedAt) return;
+
+  const cleaningUntil = getCarCleaningUnavailableUntil(
+    new Date(latestCompletedBooking.completedAt),
+  );
+
+  if (cleaningUntil > now) {
+    throw ErrorHelper.carCleaningInProgress(cleaningUntil);
+  }
+}
+
 class BookingRoute extends BaseRoute {
   constructor() {
     super();
   }
 
   customRouting() {
-    this.router.post(
-      "/quote",
-      this.route(this.quoteBooking),
-    );
+    this.router.post("/quote", this.route(this.quoteBooking));
 
     this.router.post(
       "/createBooking",
@@ -397,85 +538,68 @@ class BookingRoute extends BaseRoute {
       [this.authentication, this.roleGuard(RENTER_ROLES)],
       this.route(this.getMyBooking),
     );
-
+    this.router.get(
+      "/:id/recommended-car",
+      [this.authentication, this.roleGuard(RENTER_ROLES)],
+      this.route(this.getRecommendedCar),
+    );
     this.router.get(
       "/getBusinessBookings",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
-      ],
-      this.route(this.getBusinessBookings),
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
+      this.route(this.getOwnerBookings),
+    );
+
+    this.router.get(
+      "/getOwnerBookings",
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
+      this.route(this.getOwnerBookings),
     );
 
     this.router.get(
       "/owner/history",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
       this.route(this.getOwnerBookingHistory),
     );
 
     this.router.post(
       "/cancelBooking/:id",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.USER, UserRoleEnum.BUSINESS]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
       this.route(this.cancelBookingWithRefund),
     );
 
     this.router.post(
       "/cancellation-preview/:id",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.USER, UserRoleEnum.BUSINESS]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
       this.route(this.previewCancellation),
     );
 
     this.router.post(
       "/confirmBooking/:id",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
       this.route(this.confirmBooking),
     );
 
     this.router.post(
       "/rejectBooking/:id",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
       this.route(this.rejectBooking),
     );
 
     this.router.post(
       "/completeBooking/:id",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
       this.route(this.completeBooking),
     );
 
     this.router.post(
       "/:id/receive-return",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
       this.route(this.receiveReturn),
     );
 
     this.router.post(
       "/:id/inspection/clear",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
       this.route(this.clearReturnInspection),
     );
 
@@ -483,91 +607,58 @@ class BookingRoute extends BaseRoute {
       "/:id/return-inspection",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.ADMIN, UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.ADMIN, UserRoleEnum.USER]),
       ],
       this.route(this.getReturnInspection),
     );
 
     this.router.post(
       "/handoverBooking/:id",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
       this.route(this.handoverBooking),
     );
 
     this.router.post(
+      "/:id/confirm-handover-received",
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
+      this.route(this.confirmHandoverReceived),
+    );
+
+    this.router.post(
+      "/:id/confirm-return",
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
+      this.route(this.confirmReturn),
+    );
+
+    this.router.post(
       "/:id/confirm-remaining-cash",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
       this.route(this.confirmRemainingCash),
     );
 
     this.router.post(
       "/noShowBooking/:id",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
       this.route(this.noShowBooking),
     );
 
     this.router.post(
       "/:id/no-show",
-      [
-        this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
-      ],
+      [this.authentication, this.roleGuard([UserRoleEnum.USER])],
       this.route(this.noShowBooking),
     );
   }
 
   private async getOwnerContext(authUser: any) {
-    if (authUser.role === UserRoleEnum.BUSINESS) {
-      const business = await BusinessModel.findOne({
-        userId: authUser.userId,
-        isDeleted: false,
-      });
-
-      if (!business) {
-        throw ErrorHelper.recordNotFound("Business");
-      }
-
-      return {
-        ownerId: business._id,
-        ownerType: OwnerTypeEnum.BUSINESS,
-        ownerModel: "Business",
-        business,
-      };
-    }
-
     return {
       ownerId: authUser.userId,
-      ownerType: OwnerTypeEnum.USER,
-      ownerModel: "User",
-      business: null,
     };
   }
 
   private buildOwnerFilter(owner: any) {
-    const ownerFilter = {
+    return {
       ownerId: owner.ownerId,
-      ownerType: owner.ownerType,
     };
-
-    if (owner.ownerType === OwnerTypeEnum.BUSINESS && owner.business?._id) {
-      return {
-        $or: [
-          ownerFilter,
-          { businessId: owner.business._id, ownerId: { $exists: false } },
-        ],
-      };
-    }
-
-    return ownerFilter;
   }
 
   private getPickupAddressSnapshot(car: any) {
@@ -581,13 +672,9 @@ class BookingRoute extends BaseRoute {
       return totalPrice;
     }
 
-    return Number(booking.depositAmount || Math.round(totalPrice * 0.3));
-  }
-
-  private getInitialHandoverPaymentType(booking: any) {
-    return booking.paymentOption === PaymentOptionEnum.FULL
-      ? PaymentTypeEnum.FULL
-      : PaymentTypeEnum.DEPOSIT;
+    return Number(
+      booking.upfrontPaymentAmount || getBookingUpfrontPaymentAmount(booking),
+    );
   }
 
   private getOutstandingAmount(booking: any) {
@@ -596,15 +683,6 @@ class BookingRoute extends BaseRoute {
     const storedRemainingAmount = Number(booking.remainingAmount || 0);
 
     return Math.max(storedRemainingAmount || totalPrice - paidAmount, 0);
-  }
-
-  private async findPendingManualPaymentForHandover(booking: any) {
-    return PaymentModel.findOne({
-      bookingId: booking._id,
-      method: { $in: MANUAL_PAYMENT_METHODS },
-      paymentType: this.getInitialHandoverPaymentType(booking),
-      status: PaymentStatusEnum.PENDING,
-    }).sort({ createdAt: -1 });
   }
 
   private assertHandoverPaymentIsSatisfied(booking: any) {
@@ -650,36 +728,55 @@ class BookingRoute extends BaseRoute {
       };
     }
 
-    const duplicatedRemainingPayment = await PaymentModel.findOne({
-      bookingId: booking._id,
-      paymentType: PaymentTypeEnum.REMAINING,
-      status: PaymentStatusEnum.PAID,
-    }).sort({ paidAt: -1, createdAt: -1 });
+    const confirmedAt = new Date();
+    const confirmationNote =
+      note?.slice(0, 500) ||
+      "Chủ xe xác nhận đã thu phần còn lại trực tiếp từ khách khi trả xe.";
+    let payment = await PaymentModel.findOneAndUpdate(
+      {
+        bookingId: booking._id,
+        method: PaymentMethodEnum.CASH,
+        paymentType: PaymentTypeEnum.REMAINING,
+        status: PaymentStatusEnum.PENDING,
+      },
+      {
+        $set: {
+          amount: remainingAmount,
+          status: PaymentStatusEnum.PAID,
+          paidAt: confirmedAt,
+          confirmedBy: authUser.userId,
+          confirmedByRole: authUser.role,
+          note: confirmationNote,
+        },
+      },
+      { new: true, sort: { createdAt: -1 } },
+    );
 
-    if (duplicatedRemainingPayment) {
-      const updatedSummary = await syncBookingPaymentFromPaidPayments(booking);
-
-      return {
-        payment: duplicatedRemainingPayment,
-        summary: updatedSummary,
-        message: "Booking đã thanh toán đủ.",
-      };
+    if (!payment) {
+      payment = await PaymentModel.create({
+        bookingId: booking._id,
+        userId: booking.userId,
+        amount: remainingAmount,
+        method: PaymentMethodEnum.CASH,
+        paymentType: PaymentTypeEnum.REMAINING,
+        status: PaymentStatusEnum.PAID,
+        paidAt: confirmedAt,
+        confirmedBy: authUser.userId,
+        confirmedByRole: authUser.role,
+        note: confirmationNote,
+      });
     }
 
-    const payment = await PaymentModel.create({
-      bookingId: booking._id,
-      userId: booking.userId,
-      amount: remainingAmount,
-      method: PaymentMethodEnum.CASH,
-      paymentType: PaymentTypeEnum.REMAINING,
-      status: PaymentStatusEnum.PAID,
-      paidAt: new Date(),
-      confirmedBy: authUser.userId,
-      confirmedByRole: authUser.role,
-      note:
-        note ||
-        "Chủ xe xác nhận đã thu phần còn lại trực tiếp từ khách.",
-    });
+    await PaymentModel.updateMany(
+      {
+        _id: { $ne: payment._id },
+        bookingId: booking._id,
+        method: PaymentMethodEnum.CASH,
+        paymentType: PaymentTypeEnum.REMAINING,
+        status: PaymentStatusEnum.PENDING,
+      },
+      { $set: { status: PaymentStatusEnum.FAILED } },
+    );
 
     const updatedSummary = await syncBookingPaymentFromPaidPayments(booking);
     await syncContractFromBooking(booking);
@@ -690,48 +787,6 @@ class BookingRoute extends BaseRoute {
       summary: updatedSummary,
       message: "Đã xác nhận thu phần còn lại.",
     };
-  }
-
-  private async confirmPendingManualRemainingAtHandover(booking: any) {
-    const outstandingAmount = this.getOutstandingAmount(booking);
-
-    if (outstandingAmount <= 0) return null;
-
-    const payment = await PaymentModel.findOne({
-      bookingId: booking._id,
-      method: { $in: MANUAL_PAYMENT_METHODS },
-      paymentType: PaymentTypeEnum.REMAINING,
-      status: PaymentStatusEnum.PENDING,
-    }).sort({ createdAt: -1 });
-
-    if (!payment) {
-      return null;
-    }
-
-    payment.amount = outstandingAmount;
-    payment.status = PaymentStatusEnum.PAID;
-    payment.paidAt = new Date();
-    payment.transactionCode =
-      payment.transactionCode || `HANDOVER-${String(booking._id)}-${Date.now()}`;
-    await payment.save();
-    await syncBookingPaymentFromPaidPayments(booking);
-
-    return payment;
-  }
-
-  private async assertNoOtherActiveBookingForHandover(booking: any) {
-    const overlappedBooking = await BookingModel.findOne({
-      _id: { $ne: booking._id },
-      carId: booking.carId,
-      status: { $in: BLOCKING_BOOKING_STATUSES },
-      isDeleted: false,
-      startDate: { $lt: booking.endDate },
-      endDate: { $gt: booking.startDate },
-    } as any).select("_id");
-
-    if (overlappedBooking) {
-      throw ErrorHelper.requestDataInvalid("Xe đang thuộc booking khác");
-    }
   }
 
   private parseRequiredNonNegativeInteger(value: unknown, fieldLabel: string) {
@@ -756,6 +811,33 @@ class BookingRoute extends BaseRoute {
     }
 
     return normalized;
+  }
+
+  private parseRequiredBooleanChecklist<T extends readonly string[]>(
+    value: unknown,
+    keys: T,
+    fieldLabel: string,
+  ): Record<T[number], boolean> {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw ErrorHelper.requestDataInvalid(
+        `${fieldLabel} phải được ghi nhận đầy đủ trước khi xác nhận biên bản.`,
+      );
+    }
+
+    const source = value as Record<string, unknown>;
+    const result = {} as Record<T[number], boolean>;
+
+    for (const key of keys) {
+      const checklistKey = key as T[number];
+      if (typeof source[checklistKey] !== "boolean") {
+        throw ErrorHelper.requestDataInvalid(
+          `${fieldLabel} phải ghi nhận rõ từng mục là đạt/có hoặc không đạt/không có.`,
+        );
+      }
+      result[checklistKey] = source[checklistKey] as boolean;
+    }
+
+    return result;
   }
 
   private buildMileageEvaluation(
@@ -827,7 +909,6 @@ class BookingRoute extends BaseRoute {
     if (end <= start) {
       throw ErrorHelper.requestDataInvalid("Ngày thuê không hợp lệ");
     }
-
   }
 
   private buildQuoteResponse(rentalResult: any) {
@@ -883,6 +964,31 @@ class BookingRoute extends BaseRoute {
         rentalResult.pricingSnapshot?.subtotal ??
         rentalResult.totalPrice,
       deliveryFee: Number(rentalResult.pricingSnapshot?.deliveryFee || 0),
+      rentalDepositRate: Number(
+        rentalResult.pricingSnapshot?.rentalDepositRate || 0,
+      ),
+
+      rentalDepositAmount: Number(
+        rentalResult.pricingSnapshot?.rentalDepositAmount || 0,
+      ),
+
+      platformFeeRate: Number(
+        rentalResult.pricingSnapshot?.platformFeeRate || 0,
+      ),
+
+      platformFee: Number(rentalResult.pricingSnapshot?.platformFee || 0),
+
+      insuranceFeePerDay: Number(
+        rentalResult.pricingSnapshot?.insuranceFeePerDay || 0,
+      ),
+
+      insuranceDays: Number(rentalResult.pricingSnapshot?.insuranceDays || 0),
+
+      insuranceFee: Number(rentalResult.pricingSnapshot?.insuranceFee || 0),
+
+      upfrontPaymentAmount: Number(
+        rentalResult.pricingSnapshot?.upfrontPaymentAmount || 0,
+      ),
       delivery: rentalResult.pricingSnapshot?.delivery,
       breakdown: normalizedBreakdown,
     };
@@ -917,8 +1023,7 @@ class BookingRoute extends BaseRoute {
     const deliveryFormattedAddress = cleanText(
       deliveryInput.deliveryFormattedAddress,
     );
-    const deliveryAddress =
-      deliveryAddressText || deliveryFormattedAddress;
+    const deliveryAddress = deliveryAddressText || deliveryFormattedAddress;
     const deliveryAddressSource = normalizeDeliveryAddressSource(
       deliveryInput.deliveryAddressSource,
     );
@@ -948,7 +1053,10 @@ class BookingRoute extends BaseRoute {
     const deliveryDistanceKm = routeMetrics.distanceKm;
     const deliveryMaxDistanceKm = Number(car.deliveryMaxDistanceKm || 0);
 
-    if (deliveryMaxDistanceKm > 0 && deliveryDistanceKm > deliveryMaxDistanceKm) {
+    if (
+      deliveryMaxDistanceKm > 0 &&
+      deliveryDistanceKm > deliveryMaxDistanceKm
+    ) {
       throw ErrorHelper.requestDataInvalid(
         "Khoảng cách giao xe vượt quá phạm vi hỗ trợ của chủ xe.",
       );
@@ -990,16 +1098,55 @@ class BookingRoute extends BaseRoute {
     const rentalSubtotal = Number(
       rentalResult.pricingSnapshot?.subtotal || rentalResult.totalPrice || 0,
     );
+
     const deliveryFee = Number(deliveryPricing.deliveryFee || 0);
-    const totalPrice = rentalSubtotal + deliveryFee;
+
+    // Phí dịch vụ mà BQDrive thu.
+    const platformFee = Math.round(rentalSubtotal * PLATFORM_FEE_RATE);
+
+    // Bảo hiểm tính theo số ngày bảo vệ chuyến đi.
+    // Thuê theo giờ hiện chỉ tối đa 24 giờ nên tính 1 ngày bảo hiểm.
+    const insuranceDays =
+      rentalResult.rentalMode === RentalModeEnum.HOURLY
+        ? 1
+        : Math.max(1, Math.ceil(Number(rentalResult.totalTime || 1)));
+
+    const insuranceFee = insuranceDays * INSURANCE_FEE_PER_DAY;
+
+    // Tiền cọc chỉ lấy 50% phần tiền thuê xe.
+    const rentalDepositAmount = Math.round(
+      rentalSubtotal * RENTAL_DEPOSIT_RATE,
+    );
+
+    // Khoản khách phải thanh toán online để giữ xe.
+    const upfrontPaymentAmount =
+      rentalDepositAmount + platformFee + insuranceFee;
+
+    // Tổng tiền thực tế khách phải chịu.
+    const totalPrice =
+      rentalSubtotal + deliveryFee + platformFee + insuranceFee;
 
     return {
       ...rentalResult,
       totalPrice,
       pricingSnapshot: {
         ...(rentalResult.pricingSnapshot || {}),
+
         subtotal: rentalSubtotal,
         rentalSubtotal,
+
+        rentalDepositRate: RENTAL_DEPOSIT_RATE,
+        rentalDepositAmount,
+
+        platformFeeRate: PLATFORM_FEE_RATE,
+        platformFee,
+
+        insuranceFeePerDay: INSURANCE_FEE_PER_DAY,
+        insuranceDays,
+        insuranceFee,
+
+        upfrontPaymentAmount,
+
         deliveryFee,
         totalPrice,
         delivery: deliveryPricing.delivery,
@@ -1068,8 +1215,19 @@ class BookingRoute extends BaseRoute {
 
     if (!inspection) {
       blockers.push("RETURN_INSPECTION_NOT_FOUND");
-    } else if (inspection.inspectionStatus !== ReturnInspectionStatusEnum.CLEARED) {
+    } else if (
+      inspection.inspectionStatus !== ReturnInspectionStatusEnum.CLEARED &&
+      !inspection.ownerConfirmedAt
+    ) {
       blockers.push("INSPECTION_NOT_CLEARED");
+    }
+
+    if (!inspection?.ownerConfirmedAt) {
+      blockers.push("OWNER_RETURN_CONFIRMATION_REQUIRED");
+    }
+
+    if (!inspection?.renterConfirmedAt) {
+      blockers.push("RENTER_RETURN_CONFIRMATION_REQUIRED");
     }
 
     if (this.getOutstandingAmount(booking) > 0) {
@@ -1110,24 +1268,9 @@ class BookingRoute extends BaseRoute {
       } as any)
         .populate("userId", "-password -otpCode")
         .populate("carId")
-        .populate("businessId")
+
         .populate("ownerId", "-password -otpCode");
     }
-
-    if (authUser.role === UserRoleEnum.BUSINESS) {
-      const owner = await this.getOwnerContext(authUser);
-
-      return BookingModel.findOne({
-        _id: id,
-        ...this.buildOwnerFilter(owner),
-        isDeleted: false,
-      } as any)
-        .populate("userId", "-password -otpCode")
-        .populate("carId")
-        .populate("businessId")
-        .populate("ownerId", "-password -otpCode");
-    }
-
     return BookingModel.findOne({
       _id: id,
       isDeleted: false,
@@ -1135,40 +1278,51 @@ class BookingRoute extends BaseRoute {
         { userId: authUser.userId },
         {
           ownerId: authUser.userId,
-          ownerType: OwnerTypeEnum.USER,
         },
       ],
     } as any)
       .populate("userId", "-password -otpCode")
       .populate("carId")
-      .populate("businessId")
+
       .populate("ownerId", "-password -otpCode");
   }
 
   private async refreshInspectionStatusFromExtraCharges(booking: any) {
     const inspection = await this.findReturnInspectionForBooking(booking._id);
 
-    if (!inspection || inspection.inspectionStatus === ReturnInspectionStatusEnum.CLEARED) {
+    if (
+      !inspection ||
+      inspection.inspectionStatus === ReturnInspectionStatusEnum.CLEARED
+    ) {
       return inspection;
     }
 
     if (await this.hasPendingExtraCharge(booking)) {
       inspection.inspectionStatus = ReturnInspectionStatusEnum.CHARGES_PENDING;
+
       if (booking.status !== BookingStatusEnum.AWAITING_EXTRA_CHARGE) {
         transitionBookingStatus(
           booking,
           BookingStatusEnum.AWAITING_EXTRA_CHARGE,
         );
+
         await booking.save();
       }
     } else if (
       inspection.inspectionStatus === ReturnInspectionStatusEnum.CHARGES_PENDING
     ) {
-      inspection.inspectionStatus = ReturnInspectionStatusEnum.CLEARED;
-      inspection.inspectedAt = inspection.inspectedAt || new Date();
+      // Phụ phí đã được xử lý hết, quay lại bước kiểm tra xe.
+      inspection.inspectionStatus = ReturnInspectionStatusEnum.INSPECTING;
+
+      if (booking.status === BookingStatusEnum.AWAITING_EXTRA_CHARGE) {
+        transitionBookingStatus(booking, BookingStatusEnum.RETURN_INSPECTION);
+
+        await booking.save();
+      }
     }
 
     await inspection.save();
+
     return inspection;
   }
 
@@ -1192,7 +1346,11 @@ class BookingRoute extends BaseRoute {
       );
     }
 
-    if (!NO_SHOW_ALLOWED_BOOKING_STATUSES.includes(booking.status as BookingStatusEnum)) {
+    if (
+      !NO_SHOW_ALLOWED_BOOKING_STATUSES.includes(
+        booking.status as BookingStatusEnum,
+      )
+    ) {
       throw ErrorHelper.requestDataInvalid(
         "Booking chưa đủ điều kiện để đánh dấu No-show.",
       );
@@ -1282,12 +1440,17 @@ class BookingRoute extends BaseRoute {
       );
     }
 
-    const { carId, startDate, endDate, rentalMode, note, paymentOption, renterInfo, delivery } =
-      req.body;
-    await Promise.all([
-      expireOldCarts(),
-      expireAbandonedPendingBookings(),
-    ]);
+    const {
+      carId,
+      startDate,
+      endDate,
+      rentalMode,
+      note,
+      paymentOption,
+      renterInfo,
+      delivery,
+    } = req.body;
+    await Promise.all([expireOldCarts(), expireAbandonedPendingBookings()]);
 
     if (!carId || !startDate || !endDate || !rentalMode) {
       throw ErrorHelper.requestDataInvalid(
@@ -1295,7 +1458,10 @@ class BookingRoute extends BaseRoute {
       );
     }
 
-    const normalizedRenterInfo = validateAndNormalizeRenterInfo(renterInfo);
+    const renterSnapshot = await getRenterBookingSnapshot(
+      authUser.userId,
+      renterInfo,
+    );
 
     if (!Object.values(RentalModeEnum).includes(rentalMode)) {
       throw ErrorHelper.requestDataInvalid("Hình thức thuê không hợp lệ");
@@ -1329,49 +1495,58 @@ class BookingRoute extends BaseRoute {
           session,
         );
 
+        const ratePlanSnapshot = buildBookingRatePlanSnapshot(car);
         const rentalResult = await this.applyDeliveryToRentalResult(
           car,
           await calculateRentalPrice(car, start, end, rentalMode),
           delivery,
         );
         const totalPrice = rentalResult.totalPrice;
+        const mileagePolicySnapshot = buildBookingMileagePolicySnapshot(
+          ratePlanSnapshot,
+          rentalResult.rentalMode,
+          getRentalBillableUnits(rentalResult),
+        );
         const paymentAmounts = calculatePaymentAmounts(
           totalPrice,
+          Number(
+            rentalResult.pricingSnapshot?.upfrontPaymentAmount || 0,
+          ),
           selectedPaymentOption,
         );
         const bookingCode = await generateBookingCode();
 
         [booking] = await BookingModel.create(
-          [{
-            bookingCode,
-            userId: authUser.userId,
-            ...(car.businessId ? { businessId: car.businessId } : {}),
-            ownerId: (car as any).ownerId || car.businessId,
-            ownerType: (car as any).ownerType || OwnerTypeEnum.BUSINESS,
-            ownerModel:
-              ((car as any).ownerType || OwnerTypeEnum.BUSINESS) ===
-              OwnerTypeEnum.USER
-                ? "User"
-                : "Business",
-            carId: car._id,
-            startDate: start,
-            endDate: end,
-            rentalMode: rentalResult.rentalMode,
-            totalPrice,
-            pricingSnapshot: rentalResult.pricingSnapshot,
-            paymentOption: selectedPaymentOption,
-            depositAmount: paymentAmounts.depositAmount,
-            remainingAmount: paymentAmounts.remainingAmount,
-            paidAmount: paymentAmounts.paidAmount,
-            isDepositRefundable: true,
-            cancellationPolicySnapshot:
-              cancellationRefundService.getPolicySnapshot(),
-            pickupAddressSnapshot: this.getPickupAddressSnapshot(car),
-            returnAddressSnapshot: this.getPickupAddressSnapshot(car),
-            renterInfo: normalizedRenterInfo,
-            note,
-            status: BookingStatusEnum.REQUESTED,
-          }],
+          [
+            {
+              bookingCode,
+              userId: authUser.userId,
+              ownerId: car.ownerId,
+
+              carId: car._id,
+              startDate: start,
+              endDate: end,
+              rentalMode: rentalResult.rentalMode,
+              ratePlanSnapshot,
+              ...(mileagePolicySnapshot ? { mileagePolicySnapshot } : {}),
+              totalPrice,
+              pricingSnapshot: rentalResult.pricingSnapshot,
+              paymentOption: selectedPaymentOption,
+              upfrontPaymentAmount: paymentAmounts.upfrontPaymentAmount,
+              remainingAmount: paymentAmounts.remainingAmount,
+              paidAmount: paymentAmounts.paidAmount,
+              isDepositRefundable: true,
+              cancellationPolicySnapshot:
+                cancellationRefundService.getPolicySnapshot(),
+              pickupAddressSnapshot: this.getPickupAddressSnapshot(car),
+              returnAddressSnapshot: this.getPickupAddressSnapshot(car),
+              renterInfo: renterSnapshot.renterInfo,
+              renterEligibilitySnapshot:
+                renterSnapshot.renterEligibilitySnapshot,
+              note,
+              status: BookingStatusEnum.REQUESTED,
+            },
+          ],
           { session },
         );
       });
@@ -1384,7 +1559,10 @@ class BookingRoute extends BaseRoute {
     }
 
     void sendBookingCreatedMail(booking);
-    void notificationCenterService.notifyBookingCreated(booking, authUser.userId);
+    void notificationCenterService.notifyBookingCreated(
+      booking,
+      authUser.userId,
+    );
 
     return res.status(201).json({
       status: 201,
@@ -1405,12 +1583,12 @@ class BookingRoute extends BaseRoute {
     }
 
     const { paymentOption, renterInfo, delivery } = req.body;
-    await Promise.all([
-      expireOldCarts(),
-      expireAbandonedPendingBookings(),
-    ]);
+    await Promise.all([expireOldCarts(), expireAbandonedPendingBookings()]);
 
-    const normalizedRenterInfo = validateAndNormalizeRenterInfo(renterInfo);
+    const renterSnapshot = await getRenterBookingSnapshot(
+      authUser.userId,
+      renterInfo,
+    );
 
     const selectedPaymentOption = paymentOption || PaymentOptionEnum.DEPOSIT;
 
@@ -1451,17 +1629,17 @@ class BookingRoute extends BaseRoute {
           session,
         );
 
+        const ratePlanSnapshot = buildBookingRatePlanSnapshot(car);
         const hasReusableCartPricing =
           hasValidPricingSnapshot(cart.pricingSnapshot) &&
           Number(cart.totalPrice) === Number(cart.pricingSnapshot?.subtotal);
-        const baseRentalResult =
-          hasReusableCartPricing
-            ? {
-                rentalMode: cart.rentalMode,
-                totalPrice: Number(cart.pricingSnapshot?.subtotal),
-                pricingSnapshot: cart.pricingSnapshot,
-              }
-            : await calculateRentalPrice(car, start, end, cart.rentalMode);
+        const baseRentalResult = hasReusableCartPricing
+          ? {
+              rentalMode: cart.rentalMode,
+              totalPrice: Number(cart.pricingSnapshot?.subtotal),
+              pricingSnapshot: cart.pricingSnapshot,
+            }
+          : await calculateRentalPrice(car, start, end, cart.rentalMode);
         const rentalResult = await this.applyDeliveryToRentalResult(
           car,
           baseRentalResult,
@@ -1470,43 +1648,51 @@ class BookingRoute extends BaseRoute {
         const totalPrice = Number(
           rentalResult.totalPrice || cart.totalPrice || 0,
         );
+        const mileagePolicySnapshot = buildBookingMileagePolicySnapshot(
+          ratePlanSnapshot,
+          rentalResult.rentalMode,
+          getRentalBillableUnits(rentalResult),
+        );
         const paymentAmounts = calculatePaymentAmounts(
           totalPrice,
+          Number(
+            rentalResult.pricingSnapshot?.upfrontPaymentAmount || 0,
+          ),
           selectedPaymentOption,
         );
         const bookingCode = await generateBookingCode();
 
         [booking] = await BookingModel.create(
-          [{
-            bookingCode,
-            userId: authUser.userId,
-            ...(car.businessId ? { businessId: car.businessId } : {}),
-            ownerId: (car as any).ownerId || car.businessId,
-            ownerType: (car as any).ownerType || OwnerTypeEnum.BUSINESS,
-            ownerModel:
-              ((car as any).ownerType || OwnerTypeEnum.BUSINESS) ===
-              OwnerTypeEnum.USER
-                ? "User"
-                : "Business",
-            carId: car._id,
-            cartId: cart._id,
-            startDate: cart.startDate,
-            endDate: cart.endDate,
-            rentalMode: rentalResult.rentalMode,
-            totalPrice,
-            pricingSnapshot: rentalResult.pricingSnapshot,
-            paymentOption: selectedPaymentOption,
-            depositAmount: paymentAmounts.depositAmount,
-            remainingAmount: paymentAmounts.remainingAmount,
-            paidAmount: paymentAmounts.paidAmount,
-            isDepositRefundable: true,
-            cancellationPolicySnapshot:
-              cancellationRefundService.getPolicySnapshot(),
-            pickupAddressSnapshot: this.getPickupAddressSnapshot(car),
-            returnAddressSnapshot: this.getPickupAddressSnapshot(car),
-            renterInfo: normalizedRenterInfo,
-            status: BookingStatusEnum.REQUESTED,
-          }],
+          [
+            {
+              bookingCode,
+              userId: authUser.userId,
+              ownerId: car.ownerId,
+
+              carId: car._id,
+              cartId: cart._id,
+              startDate: cart.startDate,
+              endDate: cart.endDate,
+              rentalMode: rentalResult.rentalMode,
+              ratePlanSnapshot,
+              ...(mileagePolicySnapshot ? { mileagePolicySnapshot } : {}),
+              totalPrice,
+              pricingSnapshot: rentalResult.pricingSnapshot,
+              paymentOption: selectedPaymentOption,
+              upfrontPaymentAmount: paymentAmounts.upfrontPaymentAmount,
+              remainingAmount: paymentAmounts.remainingAmount,
+              paidAmount: paymentAmounts.paidAmount,
+              isDepositRefundable: true,
+              cancellationPolicySnapshot:
+                cancellationRefundService.getPolicySnapshot(),
+              pickupAddressSnapshot: this.getPickupAddressSnapshot(car),
+              returnAddressSnapshot: this.getPickupAddressSnapshot(car),
+              renterInfo: renterSnapshot.renterInfo,
+              renterEligibilitySnapshot:
+                renterSnapshot.renterEligibilitySnapshot,
+              status: BookingStatusEnum.REQUESTED,
+            },
+          ],
           { session },
         );
 
@@ -1536,12 +1722,16 @@ class BookingRoute extends BaseRoute {
     }
 
     void sendBookingCreatedMail(booking);
-    void notificationCenterService.notifyBookingCreated(booking, authUser.userId);
+    void notificationCenterService.notifyBookingCreated(
+      booking,
+      authUser.userId,
+    );
 
     return res.status(201).json({
       status: 201,
       code: "201",
-      message: "Đã gửi yêu cầu đặt xe từ giỏ hàng, vui lòng chờ chủ xe xác nhận",
+      message:
+        "Đã gửi yêu cầu đặt xe từ giỏ hàng, vui lòng chờ chủ xe xác nhận",
       data: { booking },
     });
   }
@@ -1560,10 +1750,9 @@ class BookingRoute extends BaseRoute {
           "_id",
           "bookingCode",
           "userId",
-          "businessId",
+
           "ownerId",
-          "ownerType",
-          "ownerModel",
+
           "carId",
           "startDate",
           "endDate",
@@ -1571,7 +1760,7 @@ class BookingRoute extends BaseRoute {
           "rentalMode",
           "totalPrice",
           "paymentOption",
-          "depositAmount",
+          "upfrontPaymentAmount",
           "remainingAmount",
           "paidAmount",
           "isDepositRefundable",
@@ -1587,9 +1776,8 @@ class BookingRoute extends BaseRoute {
           "renterInfo.fullName",
           "renterInfo.phone",
           "renterInfo.email",
-          "renterInfo.cccdNumber",
-          "renterInfo.driverLicenseNumber",
           "renterInfo.note",
+          "renterEligibilitySnapshot",
         ].join(" "),
       )
       .populate({
@@ -1607,8 +1795,7 @@ class BookingRoute extends BaseRoute {
           images: { $slice: 1 },
         },
       })
-      .populate("businessId", "_id businessName")
-      .populate("ownerId", "_id name businessName")
+      .populate("ownerId", "_id name")
       .sort({ createdAt: -1 })
       .lean();
     const listBookings = bookings.map((booking: any) => {
@@ -1617,7 +1804,9 @@ class BookingRoute extends BaseRoute {
       if (!car || typeof car !== "object") return booking;
 
       const firstImage = Array.isArray(car.images)
-        ? car.images.find((image: unknown) => typeof image === "string" && image.trim()) || ""
+        ? car.images.find(
+            (image: unknown) => typeof image === "string" && image.trim(),
+          ) || ""
         : "";
       const thumbnail = toCloudinaryCardThumbnailUrl(firstImage);
       const carPayload = { ...car, thumbnail };
@@ -1665,18 +1854,12 @@ class BookingRoute extends BaseRoute {
 
   private getPaymentTodoOwnerName(booking: any) {
     const owner = booking.ownerId;
-    const business = booking.businessId;
 
-    if (booking.ownerType === OwnerTypeEnum.USER) {
-      return owner?.name || "Người dùng ký gửi";
-    }
-
-    return (
-      owner?.businessName ||
-      business?.businessName ||
-      business?.userId?.name ||
-      "Doanh nghiệp"
-    );
+    return {
+      ownerName: owner?.name || "Chủ xe",
+      ownerEmail: owner?.email || "",
+      ownerPhone: owner?.phone || "",
+    };
   }
 
   private buildPaymentTodoCarPayload(car: any) {
@@ -1717,8 +1900,7 @@ class BookingRoute extends BaseRoute {
           images: { $slice: 1 },
         },
       })
-      .populate("businessId", "businessName userId")
-      .populate("ownerId", "name businessName")
+      .populate("ownerId", "_id name")
       .sort({ startDate: 1, createdAt: -1 });
 
     const todos = [];
@@ -1744,7 +1926,7 @@ class BookingRoute extends BaseRoute {
         remainingAmount: summary.remainingAmount,
         paymentStatus: summary.paymentStatus,
         bookingStatus: plainBooking.status,
-        ownerName: this.getPaymentTodoOwnerName(plainBooking),
+        ...this.getPaymentTodoOwnerName(plainBooking),
       });
     }
 
@@ -1776,10 +1958,7 @@ class BookingRoute extends BaseRoute {
       isDeleted: false,
     } as any);
 
-    if (
-      !car ||
-      (car as any).isHidden
-    ) {
+    if (!car || (car as any).isHidden) {
       throw ErrorHelper.recordNotFound("Xe");
     }
 
@@ -1816,7 +1995,7 @@ class BookingRoute extends BaseRoute {
       isDeleted: false,
     } as any)
       .populate("carId")
-      .populate("businessId")
+
       .populate("ownerId", "-password -otpCode");
 
     if (!booking) {
@@ -1833,6 +2012,30 @@ class BookingRoute extends BaseRoute {
         ? (booking as any).toObject()
         : booking;
 
+    bookingPayload.renterInfo = {
+      fullName: bookingPayload.renterInfo?.fullName,
+      phone: bookingPayload.renterInfo?.phone,
+      email: bookingPayload.renterInfo?.email,
+      note: bookingPayload.renterInfo?.note,
+    };
+    if (bookingPayload.renterEligibilitySnapshot) {
+      bookingPayload.renterEligibilitySnapshot = {
+        identityProfileCompleted:
+          bookingPayload.renterEligibilitySnapshot.identityProfileCompleted === true,
+        ...(bookingPayload.renterEligibilitySnapshot.identityVerificationStatus
+          ? {
+              identityVerificationStatus:
+                bookingPayload.renterEligibilitySnapshot.identityVerificationStatus,
+            }
+          : {}),
+        driverLicenseClass:
+          bookingPayload.renterEligibilitySnapshot.driverLicenseClass || null,
+        licenseEligible:
+          bookingPayload.renterEligibilitySnapshot.licenseEligible === true,
+        checkedAt: bookingPayload.renterEligibilitySnapshot.checkedAt,
+      };
+    }
+
     return res.status(200).json({
       status: 200,
       code: "200",
@@ -1841,7 +2044,294 @@ class BookingRoute extends BaseRoute {
     });
   }
 
-  async getBusinessBookings(req: Request, res: Response) {
+  async getRecommendedCar(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const bookingId = String(req.params.id || "");
+
+    await Promise.all([expireOldCarts(), expireAbandonedPendingBookings()]);
+
+    const booking = await BookingModel.findOne({
+      _id: bookingId,
+      userId: authUser.userId,
+      isDeleted: false,
+    } as any)
+      .select("_id carId startDate endDate rentalMode status pricingSnapshot")
+      .lean();
+
+    if (!booking) {
+      throw ErrorHelper.recordNotFound("Booking");
+    }
+
+    if (booking.status !== BookingStatusEnum.REJECTED) {
+      return res.status(200).json({
+        status: 200,
+        code: "200",
+        message: "Booking chưa ở trạng thái bị từ chối",
+        data: { recommendation: null },
+      });
+    }
+
+    const start = new Date(booking.startDate);
+    const end = new Date(booking.endDate);
+    const rentalMode = normalizeRentalMode(booking.rentalMode);
+
+    if (!rentalMode || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+      return res.status(200).json({
+        status: 200,
+        code: "200",
+        message: "Booking không có đủ dữ liệu để tìm xe thay thế",
+        data: { recommendation: null },
+      });
+    }
+
+    const originalCar = await CarModel.findById(booking.carId)
+      .select("_id name brandId seats")
+      .lean();
+
+    if (!originalCar || !Number.isFinite(Number(originalCar.seats))) {
+      return res.status(200).json({
+        status: 200,
+        code: "200",
+        message: "Không tìm thấy thông tin xe cũ",
+        data: { recommendation: null },
+      });
+    }
+
+    let originalRentalSubtotal = Number(
+      (booking.pricingSnapshot as any)?.rentalSubtotal ??
+        (booking.pricingSnapshot as any)?.subtotal ??
+        0,
+    );
+
+    if (!(originalRentalSubtotal > 0)) {
+      const sourceCar = await CarModel.findById(booking.carId).lean();
+      if (sourceCar) {
+        try {
+          const sourceRental = await calculateRentalPrice(
+            sourceCar,
+            start,
+            end,
+            rentalMode,
+          );
+          originalRentalSubtotal = Number(
+            sourceRental.pricingSnapshot?.subtotal || sourceRental.totalPrice || 0,
+          );
+        } catch {
+          originalRentalSubtotal = 0;
+        }
+      }
+    }
+
+    if (!(originalRentalSubtotal > 0)) {
+      return res.status(200).json({
+        status: 200,
+        code: "200",
+        message: "Không đủ dữ liệu giá để tìm xe tương tự",
+        data: { recommendation: null },
+      });
+    }
+
+    const rentalSupportFilter =
+      rentalMode === RentalModeEnum.HOURLY
+        ? { $or: [{ allowHourlyRental: true }, { rentalUnit: "HOUR" }] }
+        : { $or: [{ allowDailyRental: true }, { rentalUnit: "DAY" }] };
+
+    const candidates = await CarModel.find({
+      _id: { $ne: booking.carId },
+      ownerId: { $ne: authUser.userId },
+      status: { $in: BOOKABLE_CAR_STATUSES },
+      isHidden: { $ne: true },
+      isDeleted: false,
+      seats: Number(originalCar.seats),
+      ...rentalSupportFilter,
+    } as any)
+      .select(
+        "_id name brandId seats transmission fuelType images pricing allowDailyRental allowHourlyRental rentalUnit pickupAddress pickupFormattedAddress pickupLocationText pickupProvince pickupDistrict pickupWard province city district ward pickupLat pickupLng latitude longitude deliveryEnabled",
+      )
+      .populate("brandId", "_id name")
+      .lean();
+
+    if (candidates.length === 0) {
+      return res.status(200).json({
+        status: 200,
+        code: "200",
+        message: "Không có xe tương tự phù hợp",
+        data: { recommendation: null },
+      });
+    }
+
+    const candidateIds = candidates.map((candidate) => candidate._id);
+    const reviewRows = await ReviewModel.aggregate([
+      {
+        $match: {
+          carId: { $in: candidateIds },
+          status: ReviewStatusEnum.VISIBLE,
+        },
+      },
+      {
+        $group: {
+          _id: "$carId",
+          averageRating: { $avg: "$rating" },
+          reviewCount: { $sum: 1 },
+        },
+      },
+    ]);
+    const reviewMap = new Map(
+      reviewRows.map((row: any) => [
+        String(row._id),
+        {
+          averageRating: Number(Number(row.averageRating || 0).toFixed(1)),
+          reviewCount: Number(row.reviewCount || 0),
+        },
+      ]),
+    );
+
+    const minSubtotal = originalRentalSubtotal * 0.8;
+    const maxSubtotal = originalRentalSubtotal * 1.2;
+    const validCandidates: Array<{
+      car: any;
+      rentalSubtotal: number;
+      priceDifference: number;
+      averageRating: number;
+      reviewCount: number;
+    }> = [];
+
+    for (const candidate of candidates) {
+      const support = getCarRentalSupport(candidate);
+      if (
+        (rentalMode === RentalModeEnum.DAILY && !support.allowDailyRental) ||
+        (rentalMode === RentalModeEnum.HOURLY && !support.allowHourlyRental)
+      ) {
+        continue;
+      }
+
+      let rentalSubtotal = 0;
+      try {
+        const rentalResult = await calculateRentalPrice(
+          candidate,
+          start,
+          end,
+          rentalMode,
+        );
+        rentalSubtotal = Number(
+          rentalResult.pricingSnapshot?.subtotal || rentalResult.totalPrice || 0,
+        );
+      } catch {
+        continue;
+      }
+
+      if (!(rentalSubtotal >= minSubtotal && rentalSubtotal <= maxSubtotal)) {
+        continue;
+      }
+
+      try {
+        await assertCarAvailability({
+          carId: String(candidate._id),
+          start,
+          end,
+        });
+      } catch {
+        continue;
+      }
+
+      const review = reviewMap.get(String(candidate._id)) || {
+        averageRating: 0,
+        reviewCount: 0,
+      };
+      validCandidates.push({
+        car: candidate,
+        rentalSubtotal,
+        priceDifference: Math.abs(rentalSubtotal - originalRentalSubtotal),
+        averageRating: review.averageRating,
+        reviewCount: review.reviewCount,
+      });
+    }
+
+    validCandidates.sort(
+      (left, right) =>
+        left.priceDifference - right.priceDifference ||
+        right.averageRating - left.averageRating ||
+        right.reviewCount - left.reviewCount ||
+        String(left.car._id).localeCompare(String(right.car._id)),
+    );
+
+    const selected = validCandidates[0];
+    if (!selected) {
+      return res.status(200).json({
+        status: 200,
+        code: "200",
+        message: "Không có xe tương tự phù hợp",
+        data: { recommendation: null },
+      });
+    }
+
+    const candidate = selected.car;
+    const brand = candidate.brandId
+      ? {
+          _id: String(candidate.brandId._id),
+          name: String(candidate.brandId.name || ""),
+        }
+      : null;
+    const pickupLocation =
+      candidate.pickupFormattedAddress ||
+      candidate.pickupAddress ||
+      candidate.pickupLocationText ||
+      [candidate.pickupWard || candidate.ward, candidate.pickupDistrict || candidate.district, candidate.pickupProvince || candidate.province || candidate.city]
+        .filter(Boolean)
+        .join(", ");
+    const modePricing =
+      rentalMode === RentalModeEnum.HOURLY
+        ? {
+            basePricePerUnit: Number(candidate.pricing?.basePricePerHour || 0),
+            weekendSurchargePerUnit: Number(candidate.pricing?.weekendSurchargePerHour || 0),
+            holidaySurchargePerUnit: Number(candidate.pricing?.holidaySurchargePerHour || 0),
+          }
+        : {
+            basePricePerUnit: Number(candidate.pricing?.basePricePerDay || 0),
+            weekendSurchargePerUnit: Number(candidate.pricing?.weekendSurchargePerDay || 0),
+            holidaySurchargePerUnit: Number(candidate.pricing?.holidaySurchargePerDay || 0),
+          };
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "success",
+      data: {
+        recommendation: {
+          bookingId: String(booking._id),
+          startDate: start.toISOString(),
+          endDate: end.toISOString(),
+          rentalMode,
+          originalRentalSubtotal,
+          candidateRentalSubtotal: selected.rentalSubtotal,
+          estimatedTotal: selected.rentalSubtotal,
+          priceDifference: selected.priceDifference,
+          car: {
+            _id: String(candidate._id),
+            name: candidate.name,
+            images: Array.isArray(candidate.images)
+              ? candidate.images.filter(Boolean).slice(0, 1)
+              : [],
+            brand,
+            seats: candidate.seats,
+            transmission: candidate.transmission,
+            fuelType: candidate.fuelType,
+            pricing: modePricing,
+            pickupLocation,
+            pickupLat: candidate.pickupLat ?? candidate.latitude,
+            pickupLng: candidate.pickupLng ?? candidate.longitude,
+            deliveryEnabled: candidate.deliveryEnabled === true,
+          },
+          reviewSummary: {
+            averageRating: selected.averageRating,
+            reviewCount: selected.reviewCount,
+          },
+        },
+      },
+    });
+  }
+
+  async getOwnerBookings(req: Request, res: Response) {
     const authUser = (req as any).user;
 
     const owner = await this.getOwnerContext(authUser);
@@ -1851,7 +2341,7 @@ class BookingRoute extends BaseRoute {
       ...this.buildOwnerFilter(owner),
       isDeleted: false,
     })
-      .populate("userId", "-password")
+      .populate("userId", "_id name email phone avatar")
       .populate("carId")
       .sort({ createdAt: -1 });
     const visibleBookingIds = bookings.map((booking) => booking._id);
@@ -1885,11 +2375,37 @@ class BookingRoute extends BaseRoute {
       inspectionByBookingId.set(String(inspection.bookingId || ""), inspection);
     });
 
-    const bookingsWithPayment = bookings.map((booking) => ({
-      ...booking.toObject(),
-      payment: paymentByBookingId.get(String(booking._id)) || null,
-      returnInspection: inspectionByBookingId.get(String(booking._id)) || null,
-    }));
+    const bookingsWithPayment = bookings.map((booking) => {
+      const payload = booking.toObject() as any;
+      payload.renterInfo = {
+        fullName: payload.renterInfo?.fullName,
+        phone: payload.renterInfo?.phone,
+        email: payload.renterInfo?.email,
+        note: payload.renterInfo?.note,
+      };
+      if (payload.renterEligibilitySnapshot) {
+        payload.renterEligibilitySnapshot = {
+          identityProfileCompleted:
+            payload.renterEligibilitySnapshot.identityProfileCompleted === true,
+          ...(payload.renterEligibilitySnapshot.identityVerificationStatus
+            ? {
+                identityVerificationStatus:
+                  payload.renterEligibilitySnapshot.identityVerificationStatus,
+              }
+            : {}),
+          driverLicenseClass:
+            payload.renterEligibilitySnapshot.driverLicenseClass || null,
+          licenseEligible:
+            payload.renterEligibilitySnapshot.licenseEligible === true,
+          checkedAt: payload.renterEligibilitySnapshot.checkedAt,
+        };
+      }
+      return {
+        ...payload,
+        payment: paymentByBookingId.get(String(booking._id)) || null,
+        returnInspection: inspectionByBookingId.get(String(booking._id)) || null,
+      };
+    });
 
     return res.status(200).json({
       status: 200,
@@ -1901,8 +2417,9 @@ class BookingRoute extends BaseRoute {
 
   private getOwnerHistoryPaymentStatus(
     totalPrice: number,
-    depositAmount: number,
+    upfrontPaymentAmount: number,
     paidAmount: number,
+    paymentOption: string,
     payments: any[],
   ) {
     const hasPendingPayment = payments.some(
@@ -1911,8 +2428,9 @@ class BookingRoute extends BaseRoute {
 
     return deriveContractPaymentStatus({
       totalPrice,
-      depositAmount,
+      upfrontPaymentAmount,
       paidAmount,
+      paymentOption,
       hasPendingPayment,
     });
   }
@@ -1942,33 +2460,30 @@ class BookingRoute extends BaseRoute {
       fullName: renterInfo.fullName || user.name || "--",
       email: renterInfo.email || user.email || "--",
       phone: renterInfo.phone || user.phone || "--",
-      cccdNumber: renterInfo.cccdNumber || "",
-      driverLicenseNumber: renterInfo.driverLicenseNumber || "",
+      identityProfileCompleted:
+        booking?.renterEligibilitySnapshot?.identityProfileCompleted === true,
+      identityVerificationStatus:
+        booking?.renterEligibilitySnapshot?.identityVerificationStatus || null,
+      driverLicenseClass:
+        booking?.renterEligibilitySnapshot?.driverLicenseClass || null,
+      licenseEligible:
+        booking?.renterEligibilitySnapshot?.licenseEligible === true,
     };
   }
 
   private buildOwnerHistoryOwnerPayload(owner: any, booking: any) {
-    const ownerType = (booking as any).ownerType || OwnerTypeEnum.BUSINESS;
-
-    if (ownerType === OwnerTypeEnum.USER) {
-      return {
-        id: String((booking as any).ownerId || ""),
-        type: OwnerTypeEnum.USER,
-        name: owner?.name || "Người dùng ký gửi",
-      };
-    }
-
     return {
-      id: String(owner?.business?._id || (booking as any).ownerId || booking?.businessId || ""),
-      type: OwnerTypeEnum.BUSINESS,
-      name: owner?.business?.businessName || "Doanh nghiệp",
+      id: String((booking as any).ownerId || owner?.ownerId || ""),
+      name: (booking as any).ownerId?.name || owner?.name || "Chủ xe",
     };
   }
 
   private buildOwnerHistoryPaymentPayload(payment: any) {
     return {
       id: String(payment._id || ""),
-      paymentCode: String(payment._id || "").slice(-8).toUpperCase(),
+      paymentCode: String(payment._id || "")
+        .slice(-8)
+        .toUpperCase(),
       amount: Number(payment.amount || 0),
       method: payment.method || "",
       status: payment.status || "",
@@ -1994,7 +2509,9 @@ class BookingRoute extends BaseRoute {
     ];
 
     return fields.some((field) =>
-      String(field || "").toLowerCase().includes(normalizedKeyword),
+      String(field || "")
+        .toLowerCase()
+        .includes(normalizedKeyword),
     );
   }
 
@@ -2103,17 +2620,24 @@ class BookingRoute extends BaseRoute {
 
     const histories = bookings.map((booking) => {
       const plainBooking = booking.toObject();
-      const bookingPayments = paymentsByBookingId.get(String(booking._id)) || [];
+      const bookingPayments =
+        paymentsByBookingId.get(String(booking._id)) || [];
       const paidAmount = bookingPayments
         .filter((payment) => payment.status === PaymentStatusEnum.PAID)
         .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
       const totalPrice = Number(plainBooking.totalPrice || 0);
-      const depositAmount = Number(plainBooking.depositAmount || 0);
-      const remainingAmount = Math.max(totalPrice - Math.min(paidAmount, totalPrice), 0);
+      const upfrontPaymentAmount = Number(
+        plainBooking.upfrontPaymentAmount || 0,
+      );
+      const remainingAmount = Math.max(
+        totalPrice - Math.min(paidAmount, totalPrice),
+        0,
+      );
       const summaryStatus = this.getOwnerHistoryPaymentStatus(
         totalPrice,
-        depositAmount,
+        upfrontPaymentAmount,
         paidAmount,
+        plainBooking.paymentOption,
         bookingPayments,
       );
       const contract = contractByBookingId.get(String(booking._id));
@@ -2137,7 +2661,7 @@ class BookingRoute extends BaseRoute {
         owner: this.buildOwnerHistoryOwnerPayload(owner, plainBooking),
         pricing: {
           totalPrice,
-          depositAmount,
+          upfrontPaymentAmount,
           paidAmount: Math.min(paidAmount, totalPrice),
           remainingAmount,
         },
@@ -2172,7 +2696,9 @@ class BookingRoute extends BaseRoute {
     });
     const filteredHistories = histories.filter(
       (item) =>
-        (!paymentStatus || paymentStatus === "ALL" || item.paymentStatus === paymentStatus) &&
+        (!paymentStatus ||
+          paymentStatus === "ALL" ||
+          item.paymentStatus === paymentStatus) &&
         this.matchesOwnerHistoryKeyword(item, String(keyword || "").trim()),
     );
     const total = filteredHistories.length;
@@ -2243,21 +2769,92 @@ class BookingRoute extends BaseRoute {
       reasonCode,
       reasonText || cancelReason,
     );
+    let autoRefundResult: any = null;
 
-    void notificationCenterService.notifyBookingCancelled(booking, authUser.userId);
-    if (refund) {
-      void notificationCenterService.notifyRefundCreated(refund, booking);
-    }
-    void sendBookingCancellationRefundMail(booking, refund);
+if (refund) {
+  try {
+    autoRefundResult =
+      await cancellationRefundService.processAutomaticVnpayRefund(
+        String(refund._id),
+        String(req.ip || "127.0.0.1"),
+      );
+  } catch (error) {
+    /*
+     * Booking đã hủy thành công nên không làm request hủy thất bại
+     * chỉ vì bước auto-refund gặp lỗi nội bộ.
+     *
+     * Refund vẫn còn trong DB để có thể recovery hoặc xử lý thủ công.
+     */
+    console.error(
+      "[BQDrive][VNPay Refund] Auto-refund sau khi hủy booking thất bại:",
+      error,
+    );
+  }
+}
+// Đọc lại dữ liệu mới nhất sau khi auto-refund xử lý.
+const refreshedBooking =
+  (await BookingModel.findById(booking._id)) ||
+  booking;
 
-    return res.status(200).json({
-      status: 200,
-      code: "200",
-      message: refund
-        ? "Booking đã được hủy. Yêu cầu hoàn tiền đang chờ xử lý thủ công."
-        : "Booking đã được hủy.",
-      data: { booking, refund },
-    });
+const refreshedRefund = refund
+  ? await RefundModel.findOne({
+      _id: refund._id,
+      isDeleted: false,
+    })
+  : null;
+
+  void notificationCenterService.notifyBookingCancelled(
+  refreshedBooking,
+  authUser.userId,
+);
+
+if (refreshedRefund) {
+  void notificationCenterService.notifyRefundCreated(
+    refreshedRefund,
+    refreshedBooking,
+  );
+}
+
+void sendBookingCancellationRefundMail(
+  refreshedBooking,
+  refreshedRefund,
+);
+
+const refundStatus = String(
+  refreshedRefund?.status || "",
+);
+
+const message = !refreshedRefund
+  ? "Booking đã được hủy."
+  : refundStatus === "SUCCEEDED"
+    ? "Booking đã được hủy và hoàn tiền thành công."
+    : refundStatus === "PROCESSING"
+      ? "Booking đã được hủy. Yêu cầu hoàn tiền đang được xử lý."
+      : "Booking đã được hủy. Yêu cầu hoàn tiền đang chờ xử lý.";
+
+return res.status(200).json({
+  status: 200,
+  code: "200",
+  message,
+  data: {
+    booking: refreshedBooking,
+    refund: refreshedRefund,
+
+    autoRefund: autoRefundResult
+      ? {
+          eligible:
+            autoRefundResult.eligible ?? false,
+          completed:
+            autoRefundResult.completed ?? false,
+          reason:
+            autoRefundResult.reason || null,
+          operationStatus:
+            autoRefundResult.operationStatus ||
+            null,
+        }
+      : null,
+  },
+});
   }
 
   async cancelBooking(req: Request, res: Response) {
@@ -2284,11 +2881,13 @@ class BookingRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Booking PENDING");
     }
 
-    hydrateLegacyBookingOwner(booking);
     transitionBookingStatus(booking, BookingStatusEnum.CANCELLED);
     booking.cancelReason = cancelReason || "Customer hủy booking";
     await booking.save();
-    void notificationCenterService.notifyBookingCancelled(booking, authUser.userId);
+    void notificationCenterService.notifyBookingCancelled(
+      booking,
+      authUser.userId,
+    );
 
     return res.status(200).json({
       status: 200,
@@ -2316,10 +2915,10 @@ class BookingRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Booking PENDING");
     }
 
-    hydrateLegacyBookingOwner(booking);
-
-    if (!hasCompleteRenterInfo((booking as any).renterInfo)) {
-      throw ErrorHelper.requestDataInvalid(RENTER_INFO_MISSING_FOR_CONFIRM_MESSAGE);
+    if (!hasEligibleRenterSnapshot(booking.renterEligibilitySnapshot)) {
+      throw ErrorHelper.requestDataInvalid(
+        "Booking chưa có hồ sơ giấy tờ hợp lệ để duyệt.",
+      );
     }
 
     await ensureNoOverlappedActiveBooking(booking);
@@ -2332,7 +2931,9 @@ class BookingRoute extends BaseRoute {
     } as any);
 
     if (!car) {
-      throw ErrorHelper.requestDataInvalid("Xe hiện không khả dụng để xác nhận");
+      throw ErrorHelper.requestDataInvalid(
+        "Xe hiện không khả dụng để xác nhận",
+      );
     }
     const ownerApprovedAt = new Date();
     const updatedBooking = await BookingModel.findOneAndUpdate(
@@ -2359,7 +2960,10 @@ class BookingRoute extends BaseRoute {
     }
 
     void sendBookingApprovedMail(updatedBooking);
-    void notificationCenterService.notifyBookingApproved(updatedBooking, authUser.userId);
+    void notificationCenterService.notifyBookingApproved(
+      updatedBooking,
+      authUser.userId,
+    );
 
     return res.status(200).json({
       status: 200,
@@ -2375,7 +2979,9 @@ class BookingRoute extends BaseRoute {
     const rejectReason = String(req.body?.rejectReason || "").trim();
 
     if (!rejectReason) {
-      throw ErrorHelper.requestDataInvalid("Vui lòng nhập lý do từ chối booking.");
+      throw ErrorHelper.requestDataInvalid(
+        "Vui lòng nhập lý do từ chối booking.",
+      );
     }
 
     if (rejectReason.length > 500) {
@@ -2398,7 +3004,6 @@ class BookingRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Booking PENDING");
     }
 
-    hydrateLegacyBookingOwner(booking);
     const updatedBooking = await BookingModel.findOneAndUpdate(
       {
         _id: booking._id,
@@ -2462,20 +3067,14 @@ class BookingRoute extends BaseRoute {
       );
     }
 
-    hydrateLegacyBookingOwner(booking);
-
     const allowedStatuses = [
-      BookingStatusEnum.OWNER_APPROVED,
-      BookingStatusEnum.PAYMENT_PENDING,
-      BookingStatusEnum.PAID,
-      BookingStatusEnum.IN_PROGRESS,
       BookingStatusEnum.RETURN_INSPECTION,
       BookingStatusEnum.AWAITING_EXTRA_CHARGE,
     ];
 
     if (!allowedStatuses.includes(booking.status as BookingStatusEnum)) {
       throw ErrorHelper.requestDataInvalid(
-        "Booking chưa đủ điều kiện xác nhận thu phần còn lại.",
+        "Chỉ được xác nhận tiền mặt sau khi đã tiếp nhận xe trả.",
       );
     }
 
@@ -2494,7 +3093,7 @@ class BookingRoute extends BaseRoute {
     const freshBooking = await BookingModel.findById(booking._id)
       .populate("userId", "-password")
       .populate("carId")
-      .populate("businessId")
+
       .populate("ownerId", "-password -otpCode");
 
     return res.status(200).json({
@@ -2524,6 +3123,59 @@ class BookingRoute extends BaseRoute {
     const handoverDashboardImage = String(
       req.body?.handoverDashboardImage || "",
     ).trim();
+    const handoverPhotos = this.normalizeReturnPhotos(req.body?.handoverPhotos);
+    const handoverConditionNotes = String(
+      req.body?.handoverConditionNotes || "",
+    ).trim();
+    const preparationOdometerKm = this.parseRequiredNonNegativeInteger(
+      req.body?.preparation?.odometerKm ?? handoverOdometerKm,
+      "ODO kiểm tra trước khi giao",
+    );
+    const preparationEnergyLevelPercent = this.parseRequiredEnergyPercent(
+      req.body?.preparation?.energyLevelPercent ?? handoverEnergyLevelPercent,
+      "Mức nhiên liệu/năng lượng kiểm tra trước khi giao",
+    );
+    const preparationNote = String(req.body?.preparation?.note || "").trim();
+    const preparationImages = this.normalizeReturnPhotos(
+      req.body?.preparation?.images,
+    );
+    const preparationDashboardImage = String(
+      req.body?.preparation?.dashboardImage || "",
+    ).trim();
+    const vehicleCondition = this.parseRequiredBooleanChecklist(
+      req.body?.vehicleCondition,
+      VEHICLE_CONDITION_KEYS,
+      "Tình trạng xe",
+    );
+    const accessoriesSnapshot = this.parseRequiredBooleanChecklist(
+      req.body?.accessoriesSnapshot,
+      VEHICLE_ACCESSORY_KEYS,
+      "Phụ kiện theo xe",
+    );
+    const vehicleDocumentsSnapshot = this.parseRequiredBooleanChecklist(
+      req.body?.vehicleDocumentsSnapshot,
+      VEHICLE_DOCUMENT_KEYS,
+      "Giấy tờ theo xe",
+    );
+
+    if (!accessoriesSnapshot.chargingCableApplicable) {
+      accessoriesSnapshot.chargingCablePresent = false;
+    }
+
+    if (handoverConditionNotes.length > 1000 || preparationNote.length > 1000) {
+      throw ErrorHelper.requestDataInvalid(
+        "Ghi chú tình trạng xe không được vượt quá 1000 ký tự.",
+      );
+    }
+
+    if (
+      Object.values(vehicleCondition).some((isOk) => !isOk) &&
+      !handoverConditionNotes
+    ) {
+      throw ErrorHelper.requestDataInvalid(
+        "Vui lòng ghi chú cụ thể khi có hạng mục tình trạng xe không đạt.",
+      );
+    }
 
     await expireAbandonedPendingBookings();
 
@@ -2535,12 +3187,19 @@ class BookingRoute extends BaseRoute {
     } as any);
 
     if (!booking) {
-      throw ErrorHelper.requestDataInvalid("Booking chưa đủ điều kiện bàn giao");
+      throw ErrorHelper.requestDataInvalid(
+        "Booking chưa đủ điều kiện bàn giao",
+      );
     }
 
-    hydrateLegacyBookingOwner(booking);
+    if (booking.handoverSnapshot?.ownerConfirmedAt) {
+      throw ErrorHelper.requestDataInvalid(
+        "Chủ xe đã xác nhận biên bản bàn giao; dữ liệu này đã được khóa.",
+      );
+    }
+
     await syncBookingPaymentFromPaidPayments(booking);
-    await this.assertNoOtherActiveBookingForHandover(booking);
+    await assertCarReadyForHandover(booking);
 
     const car = await CarModel.findOne({
       _id: booking.carId,
@@ -2565,72 +3224,130 @@ class BookingRoute extends BaseRoute {
       );
     }
 
-    if (
-      Number(booking.paidAmount || 0) <
-      this.getRequiredHandoverPaymentAmount(booking)
-    ) {
-      const pendingManualPayment =
-        await this.findPendingManualPaymentForHandover(booking);
+    this.assertHandoverPaymentIsSatisfied(booking);
+    const recordedAt = new Date();
+    const updatedBooking = await BookingModel.findOneAndUpdate(
+      {
+        _id: booking._id,
+        ...this.buildOwnerFilter(owner),
+        status: { $in: HANDOVER_ALLOWED_BOOKING_STATUSES },
+        actualPickupAt: null,
+        "handoverSnapshot.ownerConfirmedAt": { $in: [null] },
+        isDeleted: false,
+      } as any,
+      {
+        $set: {
+          handoverSnapshot: {
+            preparation: {
+              odometerKm: preparationOdometerKm,
+              energyLevelPercent: preparationEnergyLevelPercent,
+              images: preparationImages,
+              ...(preparationDashboardImage ? { dashboardImage: preparationDashboardImage } : {}),
+              ...(preparationNote ? { note: preparationNote } : {}),
+              recordedAt,
+              recordedBy: authUser.userId,
+            },
+            handoverOdometerKm,
+            handoverEnergyLevelPercent,
+            handoverPhotos,
+            ...(handoverDashboardImage ? { handoverDashboardImage } : {}),
+            ...(handoverConditionNotes
+              ? { handoverConditionNotes }
+              : {}),
+            vehicleCondition,
+            accessoriesSnapshot,
+            vehicleDocumentsSnapshot,
+            handoverRecordedAt: recordedAt,
+            handoverRecordedBy: authUser.userId,
+            ownerConfirmedAt: recordedAt,
+            ownerConfirmedBy: authUser.userId,
+          },
+        },
+      },
+      { new: true, runValidators: true },
+    );
 
-      if (!pendingManualPayment) {
-        this.assertHandoverPaymentIsSatisfied(booking);
-      } else {
-        pendingManualPayment.status = PaymentStatusEnum.PAID;
-        pendingManualPayment.paidAt = new Date();
-        await pendingManualPayment.save();
-        await syncBookingPaymentFromPaidPayments(booking);
-      }
+    if (!updatedBooking) {
+      throw ErrorHelper.requestDataInvalid(
+        "Booking đã được xác nhận bàn giao hoặc thay đổi trạng thái ở phiên khác.",
+      );
     }
 
-    this.assertHandoverPaymentIsSatisfied(booking);
-    await this.confirmPendingManualRemainingAtHandover(booking);
-    const actualPickupAt = new Date();
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "Đã xác nhận biên bản bàn giao, đang chờ người thuê xác nhận nhận xe.",
+      data: { booking: updatedBooking },
+    });
+  }
+
+  async confirmHandoverReceived(req: Request, res: Response) {
+    const authUser = (req as any).user;
+    const id = String(req.params.id);
     const session = await mongoose.startSession();
-    let updatedBooking: any = null;
+    let booking: any = null;
 
     try {
       await session.withTransaction(async () => {
-        updatedBooking = await BookingModel.findOneAndUpdate(
+        const currentBooking = await BookingModel.findOne({
+          _id: id,
+          userId: authUser.userId,
+          status: { $in: HANDOVER_ALLOWED_BOOKING_STATUSES },
+          actualPickupAt: null,
+          "handoverSnapshot.ownerConfirmedAt": { $ne: null },
+          "handoverSnapshot.renterConfirmedAt": { $in: [null] },
+          isDeleted: false,
+        } as any).session(session);
+
+        if (!currentBooking) {
+          throw ErrorHelper.requestDataInvalid(
+            "Biên bản bàn giao chưa sẵn sàng để bạn xác nhận hoặc đã được xác nhận trước đó.",
+          );
+        }
+
+        this.assertHandoverPaymentIsSatisfied(currentBooking);
+        const confirmedAt = new Date();
+        await assertCarReadyForHandover(currentBooking, {
+          now: confirmedAt,
+          session,
+        });
+        booking = await BookingModel.findOneAndUpdate(
           {
-            _id: booking._id,
-            ...this.buildOwnerFilter(owner),
-            status: { $in: HANDOVER_ALLOWED_BOOKING_STATUSES },
+            _id: currentBooking._id,
+            userId: authUser.userId,
+            status: currentBooking.status,
             actualPickupAt: null,
+            "handoverSnapshot.ownerConfirmedAt": { $ne: null },
+            "handoverSnapshot.renterConfirmedAt": { $in: [null] },
             isDeleted: false,
           } as any,
           {
             $set: {
               status: BookingStatusEnum.IN_PROGRESS,
-              actualPickupAt,
-              handoverSnapshot: {
-                handoverOdometerKm,
-                handoverEnergyLevelPercent,
-                ...(handoverDashboardImage ? { handoverDashboardImage } : {}),
-                handoverRecordedAt: actualPickupAt,
-                handoverRecordedBy: authUser.userId,
-              },
+              actualPickupAt: confirmedAt,
+              "handoverSnapshot.renterConfirmedAt": confirmedAt,
+              "handoverSnapshot.renterConfirmedBy": authUser.userId,
             },
           },
           { new: true, runValidators: true, session },
         );
 
-        if (!updatedBooking) {
+        if (!booking) {
           throw ErrorHelper.requestDataInvalid(
-            "Booking đã được bàn giao hoặc thay đổi trạng thái ở phiên khác.",
+            "Booking đã thay đổi ở phiên khác, vui lòng tải lại.",
           );
         }
 
         const updatedCar = await CarModel.findOneAndUpdate(
           {
             _id: booking.carId,
-            ...this.buildOwnerFilter(owner),
             status: { $in: [CarStatusEnum.APPROVED, CarStatusEnum.RENTED] },
             isDeleted: false,
           } as any,
           {
             $set: {
               status: CarStatusEnum.RENTED,
-              currentOdometerKm: handoverOdometerKm,
+              currentOdometerKm: booking.handoverSnapshot.handoverOdometerKm,
             },
           },
           { new: true, runValidators: true, session },
@@ -2638,7 +3355,7 @@ class BookingRoute extends BaseRoute {
 
         if (!updatedCar) {
           throw ErrorHelper.requestDataInvalid(
-            "Xe không còn đủ điều kiện bàn giao.",
+            "Xe không còn đủ điều kiện để bắt đầu chuyến thuê.",
           );
         }
       });
@@ -2646,14 +3363,14 @@ class BookingRoute extends BaseRoute {
       await session.endSession();
     }
 
-    void sendBookingHandoverMail(updatedBooking);
-    void notificationCenterService.notifyHandoverCompleted(updatedBooking, authUser.userId);
+    void sendBookingHandoverMail(booking);
+    void notificationCenterService.notifyHandoverCompleted(booking, authUser.userId);
 
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Bàn giao xe thành công",
-      data: { booking: updatedBooking },
+      message: "Đã xác nhận nhận xe. Booking bắt đầu được tính là đang thuê.",
+      data: { booking },
     });
   }
 
@@ -2674,8 +3391,6 @@ class BookingRoute extends BaseRoute {
       );
     }
 
-    hydrateLegacyBookingOwner(booking);
-
     if (booking.actualReturnAt) {
       throw ErrorHelper.requestDataInvalid(
         "Thời gian trả xe thực tế đã được ghi nhận trước đó.",
@@ -2688,7 +3403,9 @@ class BookingRoute extends BaseRoute {
       );
     }
 
-    const existedInspection = await this.findReturnInspectionForBooking(booking._id);
+    const existedInspection = await this.findReturnInspectionForBooking(
+      booking._id,
+    );
 
     if (existedInspection) {
       throw ErrorHelper.requestDataInvalid(
@@ -2728,10 +3445,44 @@ class BookingRoute extends BaseRoute {
     );
 
     const conditionNotes = String(req.body?.conditionNotes || "").trim();
+    const vehicleCondition = this.parseRequiredBooleanChecklist(
+      req.body?.vehicleCondition,
+      VEHICLE_CONDITION_KEYS,
+      "Tình trạng xe khi nhận lại",
+    );
+    const accessoriesSnapshot = this.parseRequiredBooleanChecklist(
+      req.body?.accessoriesSnapshot,
+      VEHICLE_ACCESSORY_KEYS,
+      "Phụ kiện khi nhận lại",
+    );
+    const vehicleDocumentsSnapshot = this.parseRequiredBooleanChecklist(
+      req.body?.vehicleDocumentsSnapshot,
+      VEHICLE_DOCUMENT_KEYS,
+      "Giấy tờ khi nhận lại",
+    );
+    const handoverChargingCableApplicable =
+      booking.handoverSnapshot?.accessoriesSnapshot?.chargingCableApplicable;
+
+    if (typeof handoverChargingCableApplicable === "boolean") {
+      accessoriesSnapshot.chargingCableApplicable =
+        handoverChargingCableApplicable;
+    }
+    if (!accessoriesSnapshot.chargingCableApplicable) {
+      accessoriesSnapshot.chargingCablePresent = false;
+    }
 
     if (conditionNotes.length > 1000) {
       throw ErrorHelper.requestDataInvalid(
         "Ghi chú tình trạng xe không được vượt quá 1000 ký tự.",
+      );
+    }
+
+    if (
+      Object.values(vehicleCondition).some((isOk) => !isOk) &&
+      !conditionNotes
+    ) {
+      throw ErrorHelper.requestDataInvalid(
+        "Vui lòng ghi chú cụ thể khi có hạng mục tình trạng xe không đạt.",
       );
     }
 
@@ -2744,12 +3495,8 @@ class BookingRoute extends BaseRoute {
       bookingId: booking._id,
       carId: booking.carId,
       renterId: booking.userId,
-      ownerId: booking.ownerId || booking.businessId,
-      ownerType: booking.ownerType || OwnerTypeEnum.BUSINESS,
-      ownerModel:
-        (booking.ownerType || OwnerTypeEnum.BUSINESS) === OwnerTypeEnum.USER
-          ? "User"
-          : "Business",
+      ownerId: booking.ownerId,
+
       receivedAt: new Date(),
       receivedBy: authUser.userId,
       actualReturnAt,
@@ -2764,6 +3511,9 @@ class BookingRoute extends BaseRoute {
       hasDamage: Boolean(req.body?.hasDamage),
       hasCleaningIssue: Boolean(req.body?.hasCleaningIssue),
       hasFuelShortage: Boolean(req.body?.hasFuelShortage),
+      vehicleCondition,
+      accessoriesSnapshot,
+      vehicleDocumentsSnapshot,
       inspectionStatus: ReturnInspectionStatusEnum.RECEIVED,
     };
 
@@ -2822,10 +3572,16 @@ class BookingRoute extends BaseRoute {
       await session.endSession();
     }
 
-    void notificationCenterService.notifyReturnReceived(updatedBooking, authUser.userId);
+    void notificationCenterService.notifyReturnReceived(
+      updatedBooking,
+      authUser.userId,
+    );
     void sendReturnInspectionCompletedMail(updatedBooking, inspection);
 
-    const completionState = await this.buildReturnCompletionState(updatedBooking, inspection);
+    const completionState = await this.buildReturnCompletionState(
+      updatedBooking,
+      inspection,
+    );
 
     return res.status(200).json({
       status: 200,
@@ -2848,8 +3604,8 @@ class BookingRoute extends BaseRoute {
       throw ErrorHelper.recordNotFound("Booking");
     }
 
-    hydrateLegacyBookingOwner(booking);
-    const inspection = await this.refreshInspectionStatusFromExtraCharges(booking);
+    const inspection =
+      await this.refreshInspectionStatusFromExtraCharges(booking);
     const extraCharges = await ExtraChargeModel.find({
       bookingId: booking._id,
       isDeleted: false,
@@ -2880,7 +3636,7 @@ class BookingRoute extends BaseRoute {
     const session = await mongoose.startSession();
     let booking: any;
     let inspection: any;
-    let pendingChargeBlocked = false;
+    let hasPendingExtraCharge = false;
 
     try {
       await session.withTransaction(async () => {
@@ -2902,7 +3658,6 @@ class BookingRoute extends BaseRoute {
           );
         }
 
-        hydrateLegacyBookingOwner(booking);
         inspection = await ReturnInspectionModel.findOne({
           bookingId: booking._id,
           isDeleted: false,
@@ -2914,9 +3669,9 @@ class BookingRoute extends BaseRoute {
           );
         }
 
-        if (inspection.inspectionStatus === ReturnInspectionStatusEnum.CLEARED) {
+        if (inspection.ownerConfirmedAt) {
           throw ErrorHelper.requestDataInvalid(
-            "Biên bản kiểm tra đã được hoàn tất.",
+            "Chủ xe đã xác nhận biên bản trả xe; dữ liệu này đã được khóa.",
           );
         }
 
@@ -2929,16 +3684,18 @@ class BookingRoute extends BaseRoute {
           .session(session);
 
         if (pendingExtraCharge) {
-          pendingChargeBlocked = true;
+          hasPendingExtraCharge = true;
           inspection = await ReturnInspectionModel.findOneAndUpdate(
             {
               _id: inspection._id,
-              inspectionStatus: { $ne: ReturnInspectionStatusEnum.CLEARED },
+              ownerConfirmedAt: { $in: [null] },
               isDeleted: false,
             } as any,
             {
               $set: {
                 inspectionStatus: ReturnInspectionStatusEnum.CHARGES_PENDING,
+                ownerConfirmedAt: new Date(),
+                ownerConfirmedBy: authUser.userId,
               },
             },
             { new: true, session },
@@ -2963,7 +3720,7 @@ class BookingRoute extends BaseRoute {
         inspection = await ReturnInspectionModel.findOneAndUpdate(
           {
             _id: inspection._id,
-            inspectionStatus: { $ne: ReturnInspectionStatusEnum.CLEARED },
+            ownerConfirmedAt: { $in: [null] },
             isDeleted: false,
           } as any,
           {
@@ -2974,6 +3731,8 @@ class BookingRoute extends BaseRoute {
               inspectionStatus: ReturnInspectionStatusEnum.CLEARED,
               inspectedAt: new Date(),
               inspectedBy: authUser.userId,
+              ownerConfirmedAt: new Date(),
+              ownerConfirmedBy: authUser.userId,
             },
           },
           { new: true, session },
@@ -2988,23 +3747,22 @@ class BookingRoute extends BaseRoute {
       await session.endSession();
     }
 
-    if (pendingChargeBlocked) {
-      throw ErrorHelper.requestDataInvalid(
-        "Booking vẫn còn phí phát sinh đang chờ xử lý.",
-      );
-    }
-
     void notificationCenterService.notifyReturnInspectionCleared(
       booking,
       authUser.userId,
     );
 
-    const completionState = await this.buildReturnCompletionState(booking, inspection);
+    const completionState = await this.buildReturnCompletionState(
+      booking,
+      inspection,
+    );
 
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Đã xác nhận xe không có phát sinh.",
+      message: hasPendingExtraCharge
+        ? "Đã xác nhận nhận lại xe. Booking đang chờ xử lý phụ phí."
+        : "Đã xác nhận nhận lại xe, đang chờ người thuê xác nhận đã trả xe.",
       data: {
         booking,
         inspection: this.withLateReturnCalculation(booking, inspection),
@@ -3035,7 +3793,6 @@ class BookingRoute extends BaseRoute {
       );
     }
 
-    hydrateLegacyBookingOwner(paymentSyncBooking);
     await syncBookingPaymentFromPaidPayments(paymentSyncBooking);
 
     const session = await mongoose.startSession();
@@ -3061,10 +3818,10 @@ class BookingRoute extends BaseRoute {
           );
         }
 
-        hydrateLegacyBookingOwner(currentBooking);
         const inspection = await ReturnInspectionModel.findOne({
           bookingId: currentBooking._id,
-          inspectionStatus: ReturnInspectionStatusEnum.CLEARED,
+          ownerConfirmedAt: { $ne: null },
+          renterConfirmedAt: { $ne: null },
           isDeleted: false,
         } as any).session(session);
 
@@ -3117,7 +3874,10 @@ class BookingRoute extends BaseRoute {
     await syncContractFromBooking(booking);
     await releaseCarIfNoConfirmedBooking(booking.carId);
     void sendBookingCompletedMail(booking);
-    void notificationCenterService.notifyBookingCompleted(booking, authUser.userId);
+    void notificationCenterService.notifyBookingCompleted(
+      booking,
+      authUser.userId,
+    );
 
     return res.status(200).json({
       status: 200,
@@ -3127,47 +3887,321 @@ class BookingRoute extends BaseRoute {
     });
   }
 
-  async noShowBooking(req: Request, res: Response) {
+  async confirmReturn(req: Request, res: Response) {
     const authUser = (req as any).user;
     const id = String(req.params.id);
-    const { noShowReason } = req.body;
+    const session = await mongoose.startSession();
+    let booking: any = null;
+    let inspection: any = null;
+    let hasPendingExtraCharge = false;
 
-    const owner = await this.getOwnerContext(authUser);
+    try {
+      await session.withTransaction(async () => {
+        booking = await BookingModel.findOne({
+          _id: id,
+          userId: authUser.userId,
+          status: {
+            $in: [
+              BookingStatusEnum.RETURN_INSPECTION,
+              BookingStatusEnum.AWAITING_EXTRA_CHARGE,
+            ],
+          },
+          isDeleted: false,
+        } as any).session(session);
 
-    const booking = await BookingModel.findOne({
-      _id: id,
-      ...this.buildOwnerFilter(owner),
-      isDeleted: false,
-    } as any);
+        if (!booking) {
+          throw ErrorHelper.requestDataInvalid(
+            "Booking chưa ở bước xác nhận trả xe hoặc không thuộc tài khoản của bạn.",
+          );
+        }
 
-    if (!booking) {
-      throw ErrorHelper.requestDataInvalid(
-        "Bạn không có quyền xử lý booking này.",
-      );
+        inspection = await ReturnInspectionModel.findOne({
+          bookingId: booking._id,
+          renterId: authUser.userId,
+          ownerConfirmedAt: { $ne: null },
+          renterConfirmedAt: { $in: [null] },
+          isDeleted: false,
+        } as any).session(session);
+
+        if (!inspection) {
+          throw ErrorHelper.requestDataInvalid(
+            "Chủ xe chưa xác nhận biên bản trả xe hoặc biên bản đã được xác nhận trước đó.",
+          );
+        }
+
+        const confirmedAt = new Date();
+        inspection = await ReturnInspectionModel.findOneAndUpdate(
+          {
+            _id: inspection._id,
+            renterConfirmedAt: { $in: [null] },
+            isDeleted: false,
+          } as any,
+          {
+            $set: {
+              renterConfirmedAt: confirmedAt,
+              renterConfirmedBy: authUser.userId,
+            },
+          },
+          { new: true, runValidators: true, session },
+        );
+
+        if (!inspection) {
+          throw ErrorHelper.requestDataInvalid(
+            "Biên bản trả xe đã thay đổi ở phiên khác, vui lòng tải lại.",
+          );
+        }
+
+        const pendingCharge = await ExtraChargeModel.findOne({
+          bookingId: booking._id,
+          status: ExtraChargeStatusEnum.PENDING,
+          isDeleted: false,
+        } as any)
+          .select("_id")
+          .session(session);
+
+        hasPendingExtraCharge = Boolean(pendingCharge);
+        if (hasPendingExtraCharge && booking.status !== BookingStatusEnum.AWAITING_EXTRA_CHARGE) {
+          booking = await BookingModel.findOneAndUpdate(
+            { _id: booking._id, isDeleted: false } as any,
+            { $set: { status: BookingStatusEnum.AWAITING_EXTRA_CHARGE } },
+            { new: true, session },
+          );
+        }
+      });
+    } finally {
+      await session.endSession();
     }
 
-    hydrateLegacyBookingOwner(booking);
-    this.assertBookingCanBeNoShow(booking);
+    if (!hasPendingExtraCharge) {
+      await syncBookingPaymentFromPaidPayments(booking);
+      if (this.getOutstandingAmount(booking) <= 0) {
+        const completedBooking = await BookingModel.findOneAndUpdate(
+          {
+            _id: booking._id,
+            status: BookingStatusEnum.RETURN_INSPECTION,
+            isDeleted: false,
+          } as any,
+          {
+            $set: {
+              status: BookingStatusEnum.COMPLETED,
+              completedAt: new Date(),
+            },
+          },
+          { new: true },
+        );
 
-    transitionBookingStatus(booking, BookingStatusEnum.NO_SHOW);
-    booking.isDepositRefundable = false;
-    booking.noShowReason =
-      noShowReason || "Khách hàng không đến nhận xe đúng thời gian.";
-    booking.noShowAt = new Date();
+        if (completedBooking) {
+          booking = completedBooking;
+          await syncContractFromBooking(booking);
+          await releaseCarIfNoConfirmedBooking(booking.carId);
+          void sendBookingCompletedMail(booking);
+          void notificationCenterService.notifyBookingCompleted(booking, authUser.userId);
+        }
+      }
+    }
 
-    await booking.save();
-    await releaseCarIfNoConfirmedBooking(booking.carId);
-    void sendBookingNoShowMail(booking);
-    void notificationCenterService.notifyNoShow(booking, authUser.userId);
+    const completionState = await this.buildReturnCompletionState(booking, inspection);
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: hasPendingExtraCharge
+        ? "Đã xác nhận trả xe. Phụ phí (nếu có) vẫn được xử lý độc lập."
+        : booking.status === BookingStatusEnum.COMPLETED
+          ? "Đã xác nhận trả xe và hoàn tất booking."
+          : "Đã xác nhận trả xe. Booking sẽ hoàn tất sau khi đủ điều kiện thanh toán.",
+      data: {
+        booking,
+        inspection: this.withLateReturnCalculation(booking, inspection),
+        completionState,
+      },
+    });
+  }
+
+async noShowBooking(req: Request, res: Response) {
+  const authUser = (req as any).user;
+  const id = String(req.params.id);
+  const { noShowReason } = req.body;
+
+  const owner = await this.getOwnerContext(authUser);
+
+  const booking = await BookingModel.findOne({
+    _id: id,
+    ...this.buildOwnerFilter(owner),
+    isDeleted: false,
+  } as any);
+
+  if (!booking) {
+    throw ErrorHelper.requestDataInvalid(
+      "Bạn không có quyền xử lý booking này.",
+    );
+  }
+
+  /*
+   * Trường hợp recovery:
+   *
+   * Booking có thể đã chuyển sang NO_SHOW thành công nhưng request trước
+   * bị lỗi trước khi Refund được tạo.
+   *
+   * Khi chủ xe gửi lại request, không chặn ngay mà cho service kiểm tra
+   * và tạo Refund còn thiếu bằng idempotencyKey.
+   */
+  if (
+    String(booking.status || "") ===
+    BookingStatusEnum.NO_SHOW
+  ) {
+    const refundResult =
+      await cancellationRefundService.ensureNoShowRefund(
+        booking,
+        authUser.userId,
+      );
+
+    const refreshedBooking =
+      (await BookingModel.findById(booking._id)) ||
+      booking;
+
+    await syncContractFromBooking(
+      refreshedBooking,
+    );
+
+    await releaseCarIfNoConfirmedBooking(
+      refreshedBooking.carId,
+    );
 
     return res.status(200).json({
       status: 200,
       code: "200",
-      message: "Đã đánh dấu khách không nhận xe.",
-      data: { booking },
+      message:
+        "Booking đã được đánh dấu khách không nhận xe.",
+      data: {
+        booking: refreshedBooking,
+        refund: refundResult.refund,
+        refundSummary: {
+          paidAmountAtNoShow:
+            refundResult.paidAmountAtNoShow,
+          cancellationFee:
+            refundResult.cancellationFee,
+          refundAmount:
+            refundResult.refundAmount,
+          rentalDepositAmount:
+            refundResult.rentalDepositAmount,
+          platformFee:
+            refundResult.platformFee,
+          deliveryFee:
+            refundResult.deliveryFee,
+          retainedDeliveryFee:
+            refundResult.retainedDeliveryFee,
+          policyRuleApplied:
+            refundResult.policyRuleApplied,
+        },
+      },
     });
   }
+
+  /*
+   * Với booking chưa phải NO_SHOW, vẫn áp dụng toàn bộ kiểm tra cũ:
+   * - đúng trạng thái;
+   * - chưa bàn giao;
+   * - đã qua giờ nhận xe + 30 phút.
+   */
+  this.assertBookingCanBeNoShow(booking);
+
+  transitionBookingStatus(
+    booking,
+    BookingStatusEnum.NO_SHOW,
+  );
+
+  /*
+   * Cọc thuê không được hoàn khi khách NO_SHOW.
+   * Phí bảo hiểm và phần tiền trả vượt cọc vẫn có thể được hoàn
+   * theo chính sách Refund riêng.
+   */
+  booking.isDepositRefundable = false;
+
+  booking.noShowReason =
+    String(noShowReason || "").trim() ||
+    "Khách hàng không đến nhận xe đúng thời gian.";
+
+  booking.noShowAt = new Date();
+
+  await booking.save();
+
+  /*
+   * Phải tạo/khôi phục Refund sau khi booking đã thực sự ở NO_SHOW.
+   *
+   * Nếu bước này lỗi:
+   * - booking vẫn là NO_SHOW;
+   * - request trả lỗi;
+   * - lần gọi lại sẽ đi vào nhánh recovery phía trên;
+   * - idempotencyKey ngăn tạo hai Refund.
+   */
+  const refundResult =
+    await cancellationRefundService.ensureNoShowRefund(
+      booking,
+      authUser.userId,
+    );
+
+  /*
+   * ensureNoShowRefund cập nhật cancellationSummary trực tiếp trong DB,
+   * nên đọc lại booking để response và Contract sử dụng dữ liệu mới nhất.
+   */
+  const refreshedBooking =
+    (await BookingModel.findById(booking._id)) ||
+    booking;
+
+  await syncContractFromBooking(
+    refreshedBooking,
+  );
+
+  await releaseCarIfNoConfirmedBooking(
+    refreshedBooking.carId,
+  );
+
+  void sendBookingNoShowMail(
+    refreshedBooking,
+  );
+
+  void notificationCenterService.notifyNoShow(
+    refreshedBooking,
+    authUser.userId,
+  );
+
+  return res.status(200).json({
+    status: 200,
+    code: "200",
+    message: "Đã đánh dấu khách không nhận xe.",
+    data: {
+      booking: refreshedBooking,
+
+      refund: refundResult.refund,
+
+      refundSummary: {
+        paidAmountAtNoShow:
+          refundResult.paidAmountAtNoShow,
+
+        cancellationFee:
+          refundResult.cancellationFee,
+
+        refundAmount:
+          refundResult.refundAmount,
+
+        rentalDepositAmount:
+          refundResult.rentalDepositAmount,
+
+        platformFee:
+          refundResult.platformFee,
+
+        deliveryFee:
+          refundResult.deliveryFee,
+
+        retainedDeliveryFee:
+          refundResult.retainedDeliveryFee,
+
+        policyRuleApplied:
+          refundResult.policyRuleApplied,
+      },
+    },
+  });
+}
 }
 
 export default new BookingRoute().router;
-

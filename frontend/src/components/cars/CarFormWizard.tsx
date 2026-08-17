@@ -1,4 +1,4 @@
-// Shared owner UI: car form wizard used by BUSINESS and USER consignment pages.
+// Biểu mẫu nhiều bước dùng để thêm hoặc cập nhật xe ký gửi.
 import {
   Check,
   ChevronLeft,

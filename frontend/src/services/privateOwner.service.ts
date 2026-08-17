@@ -38,22 +38,6 @@ export type PrivateOwnerBrand = {
   description?: string;
 };
 
-export type PrivateOwnerProfile = {
-  _id: string;
-  businessName: string;
-  businessType?: string;
-  phone?: string;
-  address?: string;
-  province?: string;
-  city?: string;
-  district?: string;
-  ward?: string;
-  description?: string;
-  isApproved: boolean;
-  isRejected: boolean;
-  userId: PrivateOwnerUser;
-};
-
 export type PrivateOwnerCar = {
   _id: string;
   carCode?: string | null;
@@ -61,7 +45,6 @@ export type PrivateOwnerCar = {
   type?: string;
   licensePlate?: string;
   brandId: PrivateOwnerBrand;
-  businessId?: PrivateOwnerProfile;
   pricing?: CarPricing;
   allowDailyRental?: boolean;
   allowHourlyRental?: boolean;
@@ -123,7 +106,7 @@ export type PrivateOwnerBooking = {
   pickupAddressSnapshot?: string;
   returnAddressSnapshot?: string;
   paymentOption?: string;
-  depositAmount?: number;
+  upfrontPaymentAmount?: number;
   remainingAmount?: number;
   paidAmount?: number;
   pricingSnapshot?: {
@@ -157,12 +140,14 @@ export type PrivateOwnerBooking = {
     fullName?: string;
     phone?: string;
     email?: string;
-    cccdNumber?: string;
-    cccdFrontImage?: string;
-    cccdBackImage?: string;
-    driverLicenseNumber?: string;
-    driverLicenseImage?: string;
     note?: string;
+  };
+  renterEligibilitySnapshot?: {
+    identityProfileCompleted?: boolean;
+    identityVerificationStatus?: "INCOMPLETE" | "PENDING" | "VERIFIED" | "REJECTED";
+    driverLicenseClass?: "B" | "B1" | "B2";
+    licenseEligible?: boolean;
+    checkedAt?: string;
   };
   createdAt?: string;
   payment?: PrivateOwnerPayment | null;
@@ -265,7 +250,6 @@ export type PrivateOwnerDashboard = {
   topRatedCars?: RatedCar[];
   lowRatedCars?: RatedCar[];
   mostReviewedCars?: RatedCar[];
-  profile?: PrivateOwnerProfile;
 };
 
 export type CreatePrivateOwnerCarData = {
@@ -387,7 +371,7 @@ export const privateOwnerService = {
   },
 
   getMyBookings: async () => {
-    const res = await api.get("/bookings/getBusinessBookings");
+    const res = await api.get("/bookings/getOwnerBookings");
     return unwrap<{ bookings: PrivateOwnerBooking[] }>(res).bookings;
   },
 
@@ -449,15 +433,15 @@ export const privateOwnerService = {
     return unwrap<{ booking: PrivateOwnerBooking }>(res).booking;
   },
 
-  noShowBooking: async (id: string, noShowReason?: string) => {
-    const res = await api.post(`/bookings/noShowBooking/${id}`, {
-      noShowReason,
-    });
-    return unwrap<{ booking: PrivateOwnerBooking }>(res).booking;
-  },
+noShowBooking: async (id: string, noShowReason?: string) => {
+  const res = await api.post(`/bookings/${id}/no-show`, {
+    noShowReason,
+  });
 
+  return unwrap<{ booking: PrivateOwnerBooking }>(res).booking;
+},
   getMyPayments: async () => {
-    const res = await api.get("/payments/getBusinessPayments");
+    const res = await api.get("/payments/getOwnerPayments");
     return unwrap<{ payments: PrivateOwnerPayment[] }>(res).payments;
   },
 };

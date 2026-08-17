@@ -4,13 +4,13 @@ import { ErrorHelper } from "../base/error";
 import {
   BookingStatusEnum,
   ContractStatusEnum,
-  OwnerTypeEnum,
+
   PaymentOptionEnum,
+  UserRoleEnum,
 } from "../constants/model.const";
 import { formatAddress } from "./address.helper";
 import { getContractStatusForBookingStatus } from "./payment-sync.helper";
 import { deriveContractPaymentStatus } from "./status.helper";
-import { BusinessModel } from "../models/business/business.model";
 import { ContractModel } from "../models/contract/contract.model";
 import { UserModel } from "../models/user/user.model";
 
@@ -46,19 +46,17 @@ function getContractRenterInfo(booking: any) {
   const renterInfo = booking.renterInfo || {};
   const renterName = String(renterInfo.fullName || "").trim();
   const renterPhone = String(renterInfo.phone || "").trim();
-  const renterIdentityNumber = String(renterInfo.cccdNumber || "").trim();
   const renterAddress = String(
     renterInfo.address || booking.pickupAddressSnapshot || "",
   ).trim();
 
-  if (!renterName || !renterPhone || !renterIdentityNumber || !renterAddress) {
+  if (!renterName || !renterPhone || !renterAddress) {
     throw ErrorHelper.requestDataInvalid(RENTER_INFO_REQUIRED_MESSAGE);
   }
 
   return {
     renterName,
     renterPhone,
-    renterIdentityNumber,
     renterAddress,
     note: String(renterInfo.note || "").trim(),
   };
@@ -68,26 +66,29 @@ async function getOwnerAddressSnapshot(
   booking: any,
   session?: ClientSession,
 ) {
-  const ownerType = booking.ownerType || OwnerTypeEnum.BUSINESS;
+  const ownerRef = booking.ownerId as any;
 
-  if (ownerType === OwnerTypeEnum.USER) {
-    const query = UserModel.findById(booking.ownerId)
-      .select("-password -otpCode")
-      .lean();
-    if (session) query.session(session);
-    const ownerUser = await query;
+if (
+  ownerRef &&
+  typeof ownerRef === "object" &&
+  ownerRef.address
+) {
+  return formatAddress(ownerRef);
+}
 
-    return ownerUser ? formatAddress(ownerUser) : "";
-  }
+const ownerUserId =
+  ownerRef?._id || ownerRef;
 
-  const ownerBusinessId = booking.ownerId || booking.businessId;
-  if (!ownerBusinessId) return "";
+if (!ownerUserId) {
+  return "";
+}
 
-  const query = BusinessModel.findById(ownerBusinessId).lean();
-  if (session) query.session(session);
-  const ownerBusiness = await query;
+const ownerUser =
+  await UserModel.findById(ownerUserId).lean();
 
-  return ownerBusiness ? formatAddress(ownerBusiness) : "";
+return ownerUser
+  ? formatAddress(ownerUser)
+  : "";
 }
 
 async function generateContractCode(session?: ClientSession) {
@@ -153,8 +154,9 @@ export async function ensureContractForPayment(
   }
 
   const paymentOption = getValidatedPaymentOption(booking);
-  const ownerId = booking.ownerId || booking.businessId;
-  const ownerType = booking.ownerType || OwnerTypeEnum.BUSINESS;
+const ownerId =
+  (booking.ownerId as any)?._id ||
+  booking.ownerId;
 
   if (!ownerId) {
     throw ErrorHelper.requestDataInvalid(
@@ -169,27 +171,24 @@ export async function ensureContractForPayment(
   const renterInfo = getContractRenterInfo(booking);
   const paidAmount = Number(booking.paidAmount || 0);
   const totalPrice = Number(booking.totalPrice || 0);
-  const depositAmount = Number(booking.depositAmount || 0);
+  const upfrontPaymentAmount = Number(booking.upfrontPaymentAmount || 0);
   const remainingAmount = Number(booking.remainingAmount || 0);
   const snapshot = {
     userId: booking.userId,
     carId: booking.carId,
-    ...(booking.businessId ? { businessId: booking.businessId } : {}),
     ownerId,
-    ownerType,
-    ownerModel:
-      ownerType === OwnerTypeEnum.USER ? "User" : "Business",
     ...renterInfo,
     startDate: booking.startDate,
     endDate: booking.endDate,
     totalPrice,
-    depositAmount,
+    upfrontPaymentAmount,
     paidAmount,
     remainingAmount,
     paymentStatus: deriveContractPaymentStatus({
       totalPrice,
-      depositAmount,
+      upfrontPaymentAmount,
       paidAmount,
+      paymentOption,
     }),
     paymentOption,
     pickupAddressSnapshot: booking.pickupAddressSnapshot,

@@ -1,4 +1,4 @@
-// Shared owner utility: car list logic for BUSINESS and USER consignment management.
+// Hàm hỗ trợ xử lý danh sách xe của người dùng có xe ký gửi.
 import type { CarPricing } from "../types/pricing";
 
 export type OwnerCarStatusFilter =

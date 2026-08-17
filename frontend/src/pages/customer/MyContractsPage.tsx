@@ -48,6 +48,8 @@ function getCar(contract: RentalContract) {
 }
 
 function getBookingId(contract: RentalContract) {
+  if (!contract.bookingId) return undefined;
+
   return typeof contract.bookingId === "object"
     ? contract.bookingId._id
     : contract.bookingId;

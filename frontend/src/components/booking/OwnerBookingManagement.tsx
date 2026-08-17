@@ -1,5 +1,5 @@
-// Shared owner module: booking management for BUSINESS and USER consignment dashboards.
-import { useEffect, useId, useRef, useState } from "react";
+//  Thành phần quản lý booking dành cho người dùng có xe ký gửi.
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import {
@@ -12,6 +12,7 @@ import {
   KeyRound,
   Loader2,
   MapPin,
+  MessageCircle,
   MoreVertical,
   RefreshCw,
   ReceiptText,
@@ -45,9 +46,15 @@ import { useOwnerBookingList } from "./useOwnerBookingList";
 import OwnerBookingActionModal, {
   type OwnerBookingActionPayload,
 } from "./OwnerBookingActionModal";
+import OwnerBookingProcessWizard from "./OwnerBookingProcessWizard";
 import ExtraChargeManager from "./ExtraChargeManager";
 import ReturnInspectionPanel from "./ReturnInspectionPanel";
 import BookingExtensionPanel from "./BookingExtensionPanel";
+import BookingChatPanel, {
+  canOpenBookingChat,
+  isBookingChatReadOnly,
+} from "./BookingChatPanel";
+import { authService } from "../../services/auth.service";
 
 type OwnerBookingManagementProps = {
   eyebrow: string;
@@ -87,6 +94,120 @@ const STATUS_TONES: Record<BookingStatus, AdminStatusBadgeTone> = {
 
 function formatDateTime(value?: string) {
   return formatVietnamDateTime(value, { dateStyle: "short", timeStyle: "short" });
+}
+
+const HANDOVER_EARLY_ALLOWANCE_MS = 15 * 60 * 1000;
+
+function getHandoverAvailableAt(startDate?: string) {
+  const pickupAt = new Date(startDate || "").getTime();
+  return Number.isFinite(pickupAt)
+    ? new Date(pickupAt - HANDOVER_EARLY_ALLOWANCE_MS)
+    : null;
+}
+
+function isHandoverAvailable(
+  booking: Pick<OwnerBookingListItem, "startDate">,
+  now = Date.now(),
+) {
+  const availableAt = getHandoverAvailableAt(booking.startDate);
+  return !availableAt || now >= availableAt.getTime();
+}
+
+function getHandoverAvailableLabel(
+  booking: Pick<OwnerBookingListItem, "startDate">,
+) {
+  const availableAt = getHandoverAvailableAt(booking.startDate);
+  if (!availableAt) return "Chưa xác định được thời điểm có thể bàn giao.";
+
+  const time = availableAt.toLocaleTimeString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const date = availableAt.toLocaleDateString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  return `Có thể bàn giao từ ${time} ngày ${date}.`;
+}
+
+const HANDOVER_CHECKLIST_GROUPS = [
+  {
+    title: "Tình trạng xe",
+    field: "vehicleCondition",
+    positive: "Đạt",
+    negative: "Không đạt",
+    labels: {
+      bodyOk: "Thân vỏ, vết trầy xước",
+      glassAndMirrorsOk: "Kính và gương",
+      lightsOk: "Hệ thống đèn",
+      tiresOk: "Lốp xe",
+      interiorClean: "Nội thất sạch sẽ",
+      seatsAndSeatbeltsOk: "Ghế và dây an toàn",
+      airConditioningOk: "Điều hòa",
+      dashboardWarningFree: "Bảng đồng hồ không có cảnh báo bất thường",
+    },
+  },
+  {
+    title: "Phụ kiện theo xe",
+    field: "accessoriesSnapshot",
+    positive: "Có",
+    negative: "Không có",
+    labels: {
+      vehicleKeysPresent: "Chìa khóa xe",
+      tireSupportKitPresent: "Lốp dự phòng hoặc bộ vá lốp",
+      basicToolkitPresent: "Kích xe và bộ dụng cụ cơ bản",
+      warningTrianglePresent: "Tam giác cảnh báo",
+      chargingCablePresent: "Cáp sạc",
+    },
+  },
+  {
+    title: "Giấy tờ theo xe",
+    field: "vehicleDocumentsSnapshot",
+    positive: "Có",
+    negative: "Không có",
+    labels: {
+      registrationPresent: "Đăng ký xe hoặc giấy tờ thay thế hợp pháp",
+      inspectionCertificatePresent: "Giấy chứng nhận đăng kiểm",
+      insuranceCertificatePresent: "Giấy chứng nhận bảo hiểm",
+    },
+  },
+] as const;
+
+function HandoverChecklistSummary({ snapshot }: { snapshot: NonNullable<OwnerBookingDetail["handoverSnapshot"]> }) {
+  return (
+    <div className="mt-3 grid gap-3 lg:grid-cols-3">
+      {HANDOVER_CHECKLIST_GROUPS.map((group) => {
+        const values = snapshot[group.field] as Record<string, boolean> | undefined;
+        const rows = Object.entries(group.labels).filter(([key]) => {
+          return key !== "chargingCablePresent" || snapshot.accessoriesSnapshot?.chargingCableApplicable;
+        });
+        return (
+          <section key={group.field} className="rounded-lg border border-slate-200 p-3 text-sm">
+            <p className="font-extrabold text-primary">{group.title}</p>
+            <div className="mt-2 space-y-2">
+              {rows.map(([key, label]) => (
+                <div key={key} className="flex items-start justify-between gap-3">
+                  <span className="font-semibold text-slate-600">{label}</span>
+                  {values?.[key] === undefined ? (
+                    <span className="shrink-0 text-slate-400">Chưa ghi nhận</span>
+                  ) : (
+                    <span className={`shrink-0 font-extrabold ${values[key] ? "text-emerald-700" : "text-red-700"}`}>
+                      {values[key] ? group.positive : group.negative}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
 }
 
 function formatCurrency(value?: number) {
@@ -132,6 +253,7 @@ const ACTION_LABELS: Record<OwnerBookingAction, string> = {
   return: "Nhận xe trả",
   inspection: "Xử lý xe trả",
   "extra-charge": "Xem phụ phí",
+  "confirm-remaining": "Xác nhận tiền mặt",
 };
 
 const ACTION_ICONS: Record<OwnerBookingAction, typeof CheckCircle2> = {
@@ -143,6 +265,7 @@ const ACTION_ICONS: Record<OwnerBookingAction, typeof CheckCircle2> = {
   return: RefreshCw,
   inspection: ClipboardCheck,
   "extra-charge": ReceiptText,
+  "confirm-remaining": WalletCards,
 };
 
 const MUTATION_ACTIONS: OwnerBookingMutationAction[] = [
@@ -156,6 +279,7 @@ const MUTATION_ACTIONS: OwnerBookingMutationAction[] = [
 const INLINE_DETAIL_ACTIONS = new Set<OwnerBookingAction>([
   "inspection",
   "extra-charge",
+  "confirm-remaining",
 ]);
 
 function isMutationAction(
@@ -470,23 +594,32 @@ function OwnerBookingActions({
   onView,
   onAction,
   variant,
+  currentTime,
 }: {
   booking: OwnerBookingListItem;
   onView: (id: string) => void;
   onAction: (id: string, action: OwnerBookingAction) => void;
   variant: "desktop" | "mobile";
+  currentTime: number;
 }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
-  const availableActions = booking.availableActions || [];
+  const handoverBlocked =
+    (booking.availableActions || []).includes("handover") &&
+    !isHandoverAvailable(booking, currentTime);
+  const handoverAvailableLabel = getHandoverAvailableLabel(booking);
+  const availableActions = (booking.availableActions || []).filter(
+    (action) => action !== "handover" || !handoverBlocked,
+  );
   const menuActions: Array<{
     key: "view" | OwnerBookingAction;
     label: string;
     icon: typeof Eye;
     tone?: "danger" | "default";
+    disabled?: boolean;
   }> = [
     { key: "view", label: "Xem chi tiết", icon: Eye },
     ...availableActions.map((action) => ({
@@ -499,6 +632,15 @@ function OwnerBookingActions({
           : ("default" as const),
     })),
   ];
+
+  if (handoverBlocked) {
+    menuActions.push({
+      key: "handover",
+      label: handoverAvailableLabel,
+      icon: KeyRound,
+      disabled: true,
+    });
+  }
 
   useEffect(() => {
     if (!open) return undefined;
@@ -584,8 +726,10 @@ function OwnerBookingActions({
                     key={item.key}
                     type="button"
                     role="menuitem"
+                    disabled={item.disabled}
                     onClick={(event) => {
                       event.stopPropagation();
+                      if (item.disabled) return;
                       setOpen(false);
                       if (item.key === "view") {
                         onView(booking._id);
@@ -593,7 +737,7 @@ function OwnerBookingActions({
                         onAction(booking._id, item.key);
                       }
                     }}
-                    className={`flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-secondary ${
+                    className={`flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-secondary disabled:cursor-not-allowed disabled:opacity-60 ${
                       item.tone === "danger"
                         ? "text-red-700 hover:bg-red-50"
                         : "text-primary hover:bg-slate-100"
@@ -610,7 +754,12 @@ function OwnerBookingActions({
         : null;
 
     return (
-      <div className="inline-flex" onClick={(event) => event.stopPropagation()}>
+      <div className="inline-flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
+        {handoverBlocked && (
+          <span className="hidden max-w-48 text-right text-xs font-bold leading-5 text-amber-700 lg:inline">
+            {handoverAvailableLabel}
+          </span>
+        )}
         <button
           ref={triggerRef}
           type="button"
@@ -655,11 +804,16 @@ function OwnerBookingActions({
           </button>
         );
       })}
+      {handoverBlocked && (
+        <p className="w-full text-right text-xs font-bold leading-5 text-amber-700">
+          {handoverAvailableLabel}
+        </p>
+      )}
     </div>
   );
 }
 
-function OwnerBookingTable({ bookings, onView, onAction }: { bookings: OwnerBookingListItem[]; onView: (id: string) => void; onAction: (id: string, action: OwnerBookingAction) => void }) {
+function OwnerBookingTable({ bookings, onView, onAction, currentTime }: { bookings: OwnerBookingListItem[]; onView: (id: string) => void; onAction: (id: string, action: OwnerBookingAction) => void; currentTime: number }) {
   return (
     <div className="hidden overflow-x-auto md:block">
       <table className="w-full min-w-[1160px] text-left text-sm">
@@ -678,7 +832,7 @@ function OwnerBookingTable({ bookings, onView, onAction }: { bookings: OwnerBook
               <td className="px-5 py-4"><p className={`font-bold ${booking.actualReturnAt ? "text-primary" : "text-slate-500"}`}>{booking.actualReturnAt ? formatDateTime(booking.actualReturnAt) : "Chưa ghi nhận"}</p></td>
               <td className="px-5 py-4"><p className="font-extrabold text-primary">{formatCurrency(booking.pricing.totalPrice)}</p><p className="mt-1 text-xs text-emerald-700">Đã trả: {formatCurrency(booking.pricing.paidAmount)}</p><p className="text-xs text-amber-700">Còn lại: {formatCurrency(booking.pricing.remainingAmount)}</p></td>
               <td className="px-5 py-4"><AdminStatusBadge label={getBookingStatusLabel(booking.status)} tone={STATUS_TONES[booking.status]} /></td>
-              <td className="px-5 py-4 text-right"><OwnerBookingActions booking={booking} onView={onView} onAction={onAction} variant="desktop" /></td>
+              <td className="px-5 py-4 text-right"><OwnerBookingActions booking={booking} onView={onView} onAction={onAction} variant="desktop" currentTime={currentTime} /></td>
             </tr>
           ))}
         </tbody>
@@ -687,7 +841,7 @@ function OwnerBookingTable({ bookings, onView, onAction }: { bookings: OwnerBook
   );
 }
 
-function OwnerBookingMobileCards({ bookings, onView, onAction }: { bookings: OwnerBookingListItem[]; onView: (id: string) => void; onAction: (id: string, action: OwnerBookingAction) => void }) {
+function OwnerBookingMobileCards({ bookings, onView, onAction, currentTime }: { bookings: OwnerBookingListItem[]; onView: (id: string) => void; onAction: (id: string, action: OwnerBookingAction) => void; currentTime: number }) {
   return (
     <div className="grid gap-3 p-3 md:hidden">
       {bookings.map((booking) => (
@@ -695,7 +849,7 @@ function OwnerBookingMobileCards({ bookings, onView, onAction }: { bookings: Own
           <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase text-slate-400">Mã đặt xe: {booking.bookingCode}</p><p className="mt-1 text-xs text-slate-500">{formatDateTime(booking.createdAt)}</p></div><AdminStatusBadge label={getBookingStatusLabel(booking.status)} tone={STATUS_TONES[booking.status]} /></div>
           <div className="mt-4 flex gap-3"><CarThumbnail booking={booking} /><div className="min-w-0"><h3 className="truncate font-extrabold text-primary">{booking.car.name}</h3><p className="text-xs font-bold text-secondaryDark">{booking.car.carCode || "Chưa được cấp"}</p><p className="text-xs text-slate-500">{booking.car.licensePlate || "--"}</p></div></div>
           <div className="mt-4 grid grid-cols-2 gap-3 border-y border-slate-100 py-3 text-sm"><div><p className="text-xs font-bold uppercase text-slate-400">Khách thuê</p><p className="mt-1 font-bold text-primary">{booking.customer.name}</p></div><div><p className="text-xs font-bold uppercase text-slate-400">Còn lại</p><p className="mt-1 font-extrabold text-amber-700">{formatCurrency(booking.pricing.remainingAmount)}</p></div><div><p className="text-xs text-slate-500">Nhận xe</p><p className="font-semibold text-primary">{formatDateTime(booking.startDate)}</p></div><div><p className="text-xs text-slate-500">Trả dự kiến</p><p className="font-semibold text-primary">{formatDateTime(booking.endDate)}</p></div><div className="col-span-2"><p className="text-xs text-slate-500">Trả thực tế</p><p className={`font-semibold ${booking.actualReturnAt ? "text-primary" : "text-slate-500"}`}>{booking.actualReturnAt ? formatDateTime(booking.actualReturnAt) : "Chưa ghi nhận"}</p></div></div>
-          <div className="mt-4"><OwnerBookingActions booking={booking} onView={onView} onAction={onAction} variant="mobile" /></div>
+          <div className="mt-4"><OwnerBookingActions booking={booking} onView={onView} onAction={onAction} variant="mobile" currentTime={currentTime} /></div>
         </article>
       ))}
     </div>
@@ -706,156 +860,45 @@ function DetailField({ label, value }: { label: string; value: string }) {
   return <div className="rounded-md border border-slate-200 bg-slate-50 p-3"><p className="text-xs font-bold uppercase text-slate-400">{label}</p><p className="mt-1 break-words font-bold text-primary">{value || "--"}</p></div>;
 }
 
-type IdentityDocumentImage = {
-  label: string;
-  value?: string;
-};
-
-function IdentityDocumentGallery({ detail }: { detail: OwnerBookingDetail }) {
-  const [preview, setPreview] = useState<IdentityDocumentImage | null>(null);
-  const documents: IdentityDocumentImage[] = [
-    {
-      label: "CCCD mặt trước",
-      value: detail.identityDocuments?.cccdFrontImage,
-    },
-    {
-      label: "CCCD mặt sau",
-      value: detail.identityDocuments?.cccdBackImage,
-    },
-    {
-      label: "Bằng lái xe",
-      value: detail.identityDocuments?.driverLicenseImage,
-    },
-  ];
-
-  useEffect(() => {
-    if (!preview) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setPreview(null);
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [preview]);
+function IdentityStatus({ detail }: { detail: OwnerBookingDetail }) {
+  const status = detail.identityStatus;
 
   return (
-    <section>
-      <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h4 className="font-extrabold text-primary">Giấy tờ xác minh người thuê</h4>
-          <p className="mt-1 text-sm text-slate-500">
-            Kiểm tra giấy tờ trước khi quyết định duyệt yêu cầu thuê xe.
-          </p>
-        </div>
-        {(detail.identityDocuments?.cccdNumber ||
-          detail.identityDocuments?.driverLicenseNumber) && (
-          <div className="text-sm text-slate-600 sm:text-right">
-            {detail.identityDocuments?.cccdNumber && (
-              <p>
-                CCCD: <strong className="text-primary">{detail.identityDocuments.cccdNumber}</strong>
-              </p>
-            )}
-            {detail.identityDocuments?.driverLicenseNumber && (
-              <p>
-                Số GPLX:{" "}
-                <strong className="text-primary">
-                  {detail.identityDocuments.driverLicenseNumber}
-                </strong>
-              </p>
-            )}
-          </div>
-        )}
+    <section className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <h4 className="font-extrabold text-primary">Hồ sơ giấy tờ người thuê</h4>
+      <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600 sm:grid-cols-3">
+        <p>
+          Hồ sơ định danh: {status?.identityVerificationStatus === "VERIFIED"
+            ? "Đã xác minh"
+            : status?.identityProfileCompleted
+              ? "Chưa xác minh"
+              : "Chưa hoàn tất"}
+        </p>
+        <p>Hạng GPLX: {status?.driverLicenseClass || "--"}</p>
+        <p>
+          Đủ điều kiện thuê xe: {status?.licenseEligible ? "Có" : "Không"}
+        </p>
       </div>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        {documents.map((documentImage) => {
-          const imageUrl = normalizeImageUrl(documentImage.value);
-
-          return (
-            <div
-              key={documentImage.label}
-              className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
-            >
-              <p className="px-3 pt-3 text-xs font-extrabold uppercase text-slate-500">
-                {documentImage.label}
-              </p>
-              {imageUrl ? (
-                <button
-                  type="button"
-                  onClick={() => setPreview(documentImage)}
-                  className="group relative m-3 mt-2 block aspect-[8/5] w-[calc(100%-1.5rem)] overflow-hidden rounded-md border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-secondary"
-                  aria-label={`Xem lớn ${documentImage.label}`}
-                >
-                  <img
-                    src={imageUrl}
-                    alt={documentImage.label}
-                    className="h-full w-full object-contain transition duration-200 group-hover:scale-[1.02]"
-                  />
-                  <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-primary/85 px-3 py-2 text-xs font-bold text-white opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
-                    <Eye size={15} /> Xem ảnh
-                  </span>
-                </button>
-              ) : (
-                <div className="m-3 mt-2 flex aspect-[8/5] items-center justify-center rounded-md border border-dashed border-slate-300 bg-white px-3 text-center text-sm font-semibold text-slate-400">
-                  Chưa cung cấp
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {preview &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[5200] flex items-center justify-center bg-slate-950/90 p-4"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Xem ${preview.label}`}
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) setPreview(null);
-            }}
-          >
-            <div className="flex max-h-full w-full max-w-5xl flex-col">
-              <div className="mb-3 flex items-center justify-between gap-4 text-white">
-                <p className="text-lg font-extrabold">{preview.label}</p>
-                <button
-                  type="button"
-                  onClick={() => setPreview(null)}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-secondary"
-                  aria-label="Đóng ảnh xem trước"
-                >
-                  <XCircle size={24} />
-                </button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-hidden rounded-lg bg-white p-2 shadow-2xl">
-                <img
-                  src={normalizeImageUrl(preview.value)}
-                  alt={preview.label}
-                  className="max-h-[82vh] w-full object-contain"
-                />
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
     </section>
   );
 }
 
 function BookingDetailContent({
   detail,
+  action,
   onChanged,
 }: {
   detail: OwnerBookingDetail;
+  action: OwnerBookingAction | null;
   onChanged: () => Promise<void> | void;
 }) {
   const [settlementVersion, setSettlementVersion] = useState(0);
   const [showCashConfirmation, setShowCashConfirmation] = useState(false);
   const [cashConfirmationNote, setCashConfirmationNote] = useState("");
   const [confirmingCash, setConfirmingCash] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [hasNewChatMessage, setHasNewChatMessage] = useState(false);
+  const currentUserId = authService.getCurrentUser()?._id || "";
   const hasReturnSettlement = [
     "RETURN_INSPECTION",
     "AWAITING_EXTRA_CHARGE",
@@ -864,14 +907,22 @@ function BookingDetailContent({
   const canConfirmRemainingCash =
     CASH_PAYMENT_UI_ENABLED &&
     detail.pricing.remainingAmount > 0 &&
-    [
-      "OWNER_APPROVED",
-      "PAYMENT_PENDING",
-      "PAID",
-      "IN_PROGRESS",
-      "RETURN_INSPECTION",
-      "AWAITING_EXTRA_CHARGE",
-    ].includes(detail.status);
+    ["RETURN_INSPECTION", "AWAITING_EXTRA_CHARGE"].includes(detail.status);
+
+  useEffect(() => {
+    if (action === "confirm-remaining" && canConfirmRemainingCash) {
+      setShowCashConfirmation(true);
+    }
+  }, [action, canConfirmRemainingCash]);
+
+  useEffect(() => {
+    setChatOpen(false);
+    setHasNewChatMessage(false);
+  }, [detail._id]);
+
+  const handleNewChatMessage = useCallback(() => {
+    setHasNewChatMessage(true);
+  }, []);
 
   const handleSettlementChanged = async () => {
     setSettlementVersion((current) => current + 1);
@@ -919,7 +970,38 @@ function BookingDetailContent({
         <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="text-xl font-extrabold text-primary">{detail.car.name}</h3><AdminStatusBadge label={getBookingStatusLabel(detail.status)} tone={STATUS_TONES[detail.status]} /></div><p className="mt-1 font-bold text-secondaryDark">{detail.car.carCode || "Chưa được cấp mã xe"}</p><p className="text-sm text-slate-500">{detail.car.licensePlate || "Chưa có biển số"}</p></div>
       </div>
       <section><h4 className="mb-3 font-extrabold text-primary">Thông tin booking</h4><div className="grid gap-3 sm:grid-cols-3"><DetailField label="Mã booking" value={detail.bookingCode} /><DetailField label="Ngày tạo" value={formatDateTime(detail.createdAt)} /><DetailField label="Hình thức thuê" value={detail.rentalMode === "HOURLY" ? "Thuê theo giờ" : "Thuê theo ngày"} /></div></section>
-      <section><h4 className="mb-3 flex items-center gap-2 font-extrabold text-primary"><UserRound size={18} className="text-secondaryDark" /> Khách thuê</h4><div className="grid gap-3 sm:grid-cols-3"><DetailField label="Họ tên" value={detail.customer.name} /><DetailField label="Email" value={detail.customer.email || "--"} /><DetailField label="Số điện thoại" value={detail.customer.phone || "--"} /></div></section>
+      <section>
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h4 className="flex items-center gap-2 font-extrabold text-primary">
+            <UserRound size={18} className="text-secondaryDark" /> Khách thuê
+          </h4>
+          {canOpenBookingChat(detail.status) && (
+            <button
+              type="button"
+              onClick={() => {
+                setHasNewChatMessage(false);
+                setChatOpen(true);
+              }}
+              className="relative inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-extrabold text-secondary shadow-sm transition hover:-translate-y-0.5 hover:bg-primaryDark hover:shadow-md"
+            >
+              <MessageCircle size={17} />
+              {isBookingChatReadOnly(detail.status)
+                ? "Xem lịch sử trò chuyện"
+                : "Nhắn với người thuê"}
+              {hasNewChatMessage && (
+                <span className="absolute -right-2 -top-2 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-md ring-2 ring-white">
+                  Mới
+                </span>
+              )}
+            </button>
+          )}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <DetailField label="Họ tên" value={detail.customer.name} />
+          <DetailField label="Email" value={detail.customer.email || "--"} />
+          <DetailField label="Số điện thoại" value={detail.customer.phone || "--"} />
+        </div>
+      </section>
       <section><h4 className="mb-3 flex items-center gap-2 font-extrabold text-primary"><CalendarDays size={18} className="text-secondaryDark" /> Thời gian thuê</h4><div className="grid gap-3 sm:grid-cols-2"><DetailField label="Nhận xe" value={formatDateTime(detail.startDate)} /><DetailField label="Trả xe" value={formatDateTime(detail.endDate)} /></div></section>
       <section><h4 className="mb-3 font-extrabold text-primary">Thông tin vận hành</h4><div className="grid gap-3 sm:grid-cols-3"><DetailField label="Nhận xe thực tế" value={detail.actualPickupAt ? formatDateTime(detail.actualPickupAt) : "Chưa ghi nhận"} /><DetailField label="Trả xe thực tế" value={detail.actualReturnAt ? formatDateTime(detail.actualReturnAt) : "Chưa ghi nhận"} /><DetailField label="ODO hiện tại" value={detail.currentOdometerKm === null || detail.currentOdometerKm === undefined ? "Chưa cập nhật" : `${new Intl.NumberFormat("vi-VN").format(detail.currentOdometerKm)} km`} /></div></section>
       <section><h4 className="mb-3 flex items-center gap-2 font-extrabold text-primary"><MapPin size={18} className="text-secondaryDark" /> Địa điểm</h4><div className="grid gap-3 sm:grid-cols-2"><DetailField label="Điểm nhận" value={detail.pickupLocation || "Chưa cập nhật"} /><DetailField label="Điểm trả" value={detail.returnLocation || detail.pickupLocation || "Chưa cập nhật"} /></div>{detail.delivery?.deliveryType === "DELIVERY_TO_CUSTOMER" && <div className="mt-3 rounded-md border border-yellow-200 bg-yellow-50 p-4"><p className="flex items-center gap-2 font-extrabold text-primary"><Truck size={18} /> Giao xe tận nơi</p><p className="mt-2 text-sm text-slate-600">{detail.delivery.address || "Địa chỉ giao xe theo booking"}</p></div>}</section>
@@ -933,7 +1015,10 @@ function BookingDetailContent({
           <DetailField label="Còn lại" value={formatCurrency(detail.pricing.remainingAmount)} />
         </div>
         {canConfirmRemainingCash && (
-          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div
+            id="owner-cash-payment-section"
+            className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-4"
+          >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-extrabold text-primary">
@@ -1008,7 +1093,26 @@ function BookingDetailContent({
         onChanged={onChanged}
       />
       {detail.note && <section><h4 className="mb-2 font-extrabold text-primary">Ghi chú</h4><p className="rounded-md bg-slate-50 p-4 text-sm leading-6 text-slate-600">{detail.note}</p></section>}
-      <IdentityDocumentGallery detail={detail} />
+      <IdentityStatus detail={detail} />
+      {detail.handoverSnapshot && (
+        <section className="rounded-lg border border-slate-200 bg-white p-4 print:border-0">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase text-secondary">BQDrive</p>
+              <h4 className="mt-1 font-extrabold text-primary">Biên bản bàn giao xe</h4>
+            </div>
+            {detail.handoverSnapshot.ownerConfirmedAt && detail.handoverSnapshot.renterConfirmedAt && (
+              <button type="button" onClick={() => window.print()} className="print:hidden rounded-lg border border-primary px-4 py-2 text-sm font-extrabold text-primary">In biên bản</button>
+            )}
+          </div>
+          <HandoverChecklistSummary snapshot={detail.handoverSnapshot} />
+          <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+            <div className="rounded-lg bg-slate-50 p-3"><p className="font-extrabold text-primary">I. Trước khi đi giao</p><p className="mt-1">ODO: {detail.handoverSnapshot.preparation?.odometerKm ?? detail.handoverSnapshot.handoverOdometerKm} km · Nhiên liệu/pin: {detail.handoverSnapshot.preparation?.energyLevelPercent ?? detail.handoverSnapshot.handoverEnergyLevelPercent}%</p><p className="mt-1 text-slate-600">{detail.handoverSnapshot.preparation?.note || "Không có ghi chú."}</p></div>
+            <div className="rounded-lg bg-slate-50 p-3"><p className="font-extrabold text-primary">II. Khi bàn giao</p><p className="mt-1">ODO: {detail.handoverSnapshot.handoverOdometerKm} km · Nhiên liệu/pin: {detail.handoverSnapshot.handoverEnergyLevelPercent}%</p><p className="mt-1 text-slate-600">{detail.handoverSnapshot.handoverConditionNotes || "Không có ghi chú."}</p></div>
+          </div>
+          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2"><p><span className="font-extrabold text-primary">Bên giao:</span> {detail.handoverSnapshot.ownerConfirmedAt ? `✓ Đã xác nhận ${formatVietnamDateTime(detail.handoverSnapshot.ownerConfirmedAt, { dateStyle: "short", timeStyle: "short" })}` : "Chưa xác nhận"}</p><p><span className="font-extrabold text-primary">Bên nhận:</span> {detail.handoverSnapshot.renterConfirmedAt ? `✓ Đã xác nhận ${formatVietnamDateTime(detail.handoverSnapshot.renterConfirmedAt, { dateStyle: "short", timeStyle: "short" })}` : "Đang chờ người thuê xác nhận"}</p></div>
+        </section>
+      )}
       {hasReturnSettlement && (
         <section
           id="owner-return-settlement"
@@ -1023,16 +1127,22 @@ function BookingDetailContent({
             handoverEnergyLevelPercent={
               detail.handoverSnapshot?.handoverEnergyLevelPercent
             }
+            handoverVehicleCondition={detail.handoverSnapshot?.vehicleCondition}
+            handoverAccessoriesSnapshot={detail.handoverSnapshot?.accessoriesSnapshot}
+            handoverVehicleDocumentsSnapshot={detail.handoverSnapshot?.vehicleDocumentsSnapshot}
             getInspection={ownerBookingService.getReturnInspection}
             receiveReturn={async (id, payload) =>
               ownerBookingService.receiveReturn(id, {
-                returnOdometerKm: Number(payload.returnOdometer || 0),
-                returnEnergyLevelPercent: Number(payload.returnFuelLevel || 0),
+                returnOdometerKm: payload.returnOdometerKm,
+                returnEnergyLevelPercent: payload.returnEnergyLevelPercent,
                 returnPhotos: payload.returnPhotos,
                 conditionNotes: payload.conditionNotes,
                 hasDamage: payload.hasDamage,
                 hasCleaningIssue: payload.hasCleaningIssue,
                 hasFuelShortage: payload.hasFuelShortage,
+                vehicleCondition: payload.vehicleCondition,
+                accessoriesSnapshot: payload.accessoriesSnapshot,
+                vehicleDocumentsSnapshot: payload.vehicleDocumentsSnapshot,
               })
             }
             clearInspection={ownerBookingService.clearReturnInspection}
@@ -1048,6 +1158,18 @@ function BookingDetailContent({
           </div>
         </section>
       )}
+      <BookingChatPanel
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        bookingId={detail._id}
+        bookingCode={detail.bookingCode}
+        carName={detail.car.name}
+        counterpartName={detail.customer.name}
+        currentUserId={currentUserId}
+        readOnly={isBookingChatReadOnly(detail.status)}
+        listenWhenClosed
+        onNewMessage={handleNewChatMessage}
+      />
     </div>
   );
 }
@@ -1056,6 +1178,7 @@ export default function OwnerBookingManagement({ eyebrow, title, subtitle }: Own
   const state = useOwnerBookingList();
   const { action, closeAction, detail } = state;
   const [actionLoading, setActionLoading] = useState(false);
+  const [handoverAvailabilityNow, setHandoverAvailabilityNow] = useState(Date.now());
   const lastValidActionRef = useRef<{
     bookingId: string;
     action: OwnerBookingAction;
@@ -1064,12 +1187,23 @@ export default function OwnerBookingManagement({ eyebrow, title, subtitle }: Own
   const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1).filter((value) => Math.abs(value - state.page) <= 2 || value === 1 || value === totalPages);
 
   useEffect(() => {
+    const timer = window.setInterval(
+      () => setHandoverAvailabilityNow(Date.now()),
+      30 * 1000,
+    );
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     if (!action || !detail) {
       if (!action) lastValidActionRef.current = null;
       return;
     }
 
-    const actionIsAvailable = (detail.availableActions || []).includes(action);
+    const actionIsAvailable =
+      (detail.availableActions || []).includes(action) &&
+      (action !== "handover" || isHandoverAvailable(detail, handoverAvailabilityNow));
     if (actionIsAvailable) {
       lastValidActionRef.current = {
         bookingId: detail._id,
@@ -1084,12 +1218,14 @@ export default function OwnerBookingManagement({ eyebrow, title, subtitle }: Own
 
     if (!becameInvalidAfterRefresh) {
       toast.error(
-        "Hành động này không còn phù hợp với trạng thái booking hiện tại.",
+        action === "handover"
+          ? getHandoverAvailableLabel(detail)
+          : "Hành động này không còn phù hợp với trạng thái booking hiện tại.",
       );
     }
     lastValidActionRef.current = null;
     closeAction();
-  }, [action, closeAction, detail]);
+  }, [action, closeAction, detail, handoverAvailabilityNow]);
 
   useEffect(() => {
     if (!detail || !action || isMutationAction(action)) return;
@@ -1097,7 +1233,9 @@ export default function OwnerBookingManagement({ eyebrow, title, subtitle }: Own
     const targetId =
       action === "extra-charge"
         ? "owner-extra-charge-section"
-        : "owner-return-settlement";
+        : action === "confirm-remaining"
+          ? "owner-cash-payment-section"
+          : "owner-return-settlement";
     const timeoutId = window.setTimeout(() => {
       document.getElementById(targetId)?.scrollIntoView({
         behavior: "smooth",
@@ -1111,8 +1249,10 @@ export default function OwnerBookingManagement({ eyebrow, title, subtitle }: Own
   const handleAction = async (
     action: OwnerBookingMutationAction,
     payload: OwnerBookingActionPayload,
-  ) => {
-    if (!state.detail) return;
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!state.detail) {
+      return { success: false, error: "Không tìm thấy thông tin booking để xử lý." };
+    }
 
     setActionLoading(true);
     try {
@@ -1131,10 +1271,16 @@ export default function OwnerBookingManagement({ eyebrow, title, subtitle }: Own
       } else if (action === "handover" && "handoverOdometerKm" in payload) {
         await ownerBookingService.handoverBooking(state.detail._id, {
           handoverOdometerKm: Number(payload.handoverOdometerKm),
-          handoverEnergyLevelPercent: Number(
-            payload.handoverEnergyLevelPercent,
-          ),
+            handoverEnergyLevelPercent: Number(
+              payload.handoverEnergyLevelPercent,
+            ),
+          preparation: payload.preparation,
+          handoverPhotos: payload.handoverPhotos,
           handoverDashboardImage: payload.handoverDashboardImage,
+          handoverConditionNotes: payload.handoverConditionNotes,
+          vehicleCondition: payload.vehicleCondition,
+          accessoriesSnapshot: payload.accessoriesSnapshot,
+          vehicleDocumentsSnapshot: payload.vehicleDocumentsSnapshot,
         });
       } else if (action === "return" && "returnOdometerKm" in payload) {
         await ownerBookingService.receiveReturn(state.detail._id, {
@@ -1146,6 +1292,9 @@ export default function OwnerBookingManagement({ eyebrow, title, subtitle }: Own
           hasDamage: payload.hasDamage,
           hasCleaningIssue: payload.hasCleaningIssue,
           hasFuelShortage: payload.hasFuelShortage,
+          vehicleCondition: payload.vehicleCondition,
+          accessoriesSnapshot: payload.accessoriesSnapshot,
+          vehicleDocumentsSnapshot: payload.vehicleDocumentsSnapshot,
         });
       } else {
         throw new Error("Dữ liệu thao tác không hợp lệ.");
@@ -1162,6 +1311,7 @@ export default function OwnerBookingManagement({ eyebrow, title, subtitle }: Own
       notifyNotificationSummaryChanged();
       state.closeDetail();
       state.refresh();
+      return { success: true };
     } catch (error) {
       let message = "Không thể xử lý booking.";
       if (typeof error === "object" && error !== null && "response" in error) {
@@ -1172,16 +1322,31 @@ export default function OwnerBookingManagement({ eyebrow, title, subtitle }: Own
         message = error.message;
       }
       toast.error(message);
+      return { success: false, error: message };
     } finally {
       setActionLoading(false);
     }
   };
 
+  const detailHandoverBlocked = Boolean(
+    state.detail &&
+      (state.detail.availableActions || []).includes("handover") &&
+      !isHandoverAvailable(state.detail, handoverAvailabilityNow),
+  );
   const detailFooter = state.detail ? (
     <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
       <button type="button" onClick={state.closeDetail} className="min-h-11 rounded-lg border border-slate-200 bg-white px-5 py-2 font-bold text-primary transition hover:border-secondary hover:bg-secondarySoft/70">Đóng</button>
+      {detailHandoverBlocked && (
+        <p className="text-sm font-extrabold leading-5 text-amber-700">
+          {getHandoverAvailableLabel(state.detail)}
+        </p>
+      )}
       {(state.detail.availableActions || [])
-        .filter((action) => !INLINE_DETAIL_ACTIONS.has(action))
+        .filter(
+          (action) =>
+            !INLINE_DETAIL_ACTIONS.has(action) &&
+            (action !== "handover" || !detailHandoverBlocked),
+        )
         .map((action) => {
         const Icon = ACTION_ICONS[action];
         return <button key={action} type="button" onClick={() => state.openAction(state.detail!._id, action)} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-5 py-2 font-extrabold transition ${action === "reject" || action === "cancel" || action === "no-show" ? "border border-red-200 bg-white text-red-700 hover:bg-red-50" : "bg-secondary text-primary hover:bg-secondaryLight"}`}><Icon size={18} />{ACTION_LABELS[action]}</button>;
@@ -1189,12 +1354,17 @@ export default function OwnerBookingManagement({ eyebrow, title, subtitle }: Own
     </div>
   ) : undefined;
 
-  const mutationAction = isMutationAction(state.action) ? state.action : null;
+  const processAction =
+    state.action === "handover" || state.action === "return" ? state.action : null;
+  const mutationAction =
+    isMutationAction(state.action) && !processAction ? state.action : null;
   const mutationActionOpen = Boolean(mutationAction && state.detail);
+  const processActionOpen = Boolean(processAction && state.detail);
   const cancellationActionOpen = Boolean(
     state.action === "cancel" && state.detail,
   );
-  const actionUsesSeparateModal = mutationActionOpen || cancellationActionOpen;
+  const actionUsesSeparateModal =
+    mutationActionOpen || processActionOpen || cancellationActionOpen;
   const detailModalOpen =
     Boolean(state.bookingId) &&
     (!actionUsesSeparateModal || !state.detail);
@@ -1233,11 +1403,11 @@ export default function OwnerBookingManagement({ eyebrow, title, subtitle }: Own
       </section>
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h3 className="font-extrabold text-primary">Danh sách booking</h3><p className="mt-1 text-sm text-slate-500">{state.result.pagination.totalItems} booking phù hợp</p></div></div>
-        {state.loading ? <div className="px-5 py-14 text-center font-semibold text-slate-500">Đang tải danh sách booking...</div> : state.error ? <div className="px-5 py-14 text-center"><p className="font-semibold text-red-600">{state.error}</p><button type="button" onClick={state.retry} className="mt-4 rounded-md bg-primary px-5 py-2 font-bold text-secondary">Thử lại</button></div> : state.result.bookings.length === 0 ? <div className="px-5 py-14 text-center font-semibold text-slate-500">{state.searchInput || state.status || state.group !== "ALL" ? "Không tìm thấy booking phù hợp." : "Chưa có booking nào."}</div> : <><OwnerBookingTable bookings={state.result.bookings} onView={state.openDetail} onAction={state.openAction} /><OwnerBookingMobileCards bookings={state.result.bookings} onView={state.openDetail} onAction={state.openAction} /></>}
+        {state.loading ? <div className="px-5 py-14 text-center font-semibold text-slate-500">Đang tải danh sách booking...</div> : state.error ? <div className="px-5 py-14 text-center"><p className="font-semibold text-red-600">{state.error}</p><button type="button" onClick={state.retry} className="mt-4 rounded-md bg-primary px-5 py-2 font-bold text-secondary">Thử lại</button></div> : state.result.bookings.length === 0 ? <div className="px-5 py-14 text-center font-semibold text-slate-500">{state.searchInput || state.status || state.group !== "ALL" ? "Không tìm thấy booking phù hợp." : "Chưa có booking nào."}</div> : <><OwnerBookingTable bookings={state.result.bookings} onView={state.openDetail} onAction={state.openAction} currentTime={handoverAvailabilityNow} /><OwnerBookingMobileCards bookings={state.result.bookings} onView={state.openDetail} onAction={state.openAction} currentTime={handoverAvailabilityNow} /></>}
         {!state.loading && !state.error && totalPages > 1 && <div className="flex items-center justify-center gap-2 border-t border-slate-200 px-4 py-4"><button type="button" aria-label="Trang trước" disabled={state.page <= 1} onClick={() => state.setPage(state.page - 1)} className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 disabled:opacity-40"><ChevronLeft size={18} /></button>{pageNumbers.map((number, index) => <span key={number} className="contents">{index > 0 && number - pageNumbers[index - 1] > 1 && <span className="px-1 text-slate-400">...</span>}<button type="button" onClick={() => state.setPage(number)} className={`h-10 min-w-10 rounded-md px-3 font-extrabold ${number === state.page ? "bg-primary text-secondary" : "border border-slate-200 text-primary"}`}>{number}</button></span>)}<button type="button" aria-label="Trang sau" disabled={state.page >= totalPages} onClick={() => state.setPage(state.page + 1)} className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 disabled:opacity-40"><ChevronRight size={18} /></button></div>}
       </section>
       <AdminModal open={detailModalOpen} title={state.detail ? `Booking ${state.detail.bookingCode}` : "Chi tiết booking"} description="Thông tin booking thuộc xe của bạn" cancelText="Đóng" onClose={state.closeDetail} footer={detailFooter}>
-        {state.detailLoading ? <div className="py-14 text-center font-semibold text-slate-500">Đang tải chi tiết booking...</div> : state.detailError ? <div className="py-14 text-center"><p className="font-semibold text-red-600">{state.detailError}</p><button type="button" onClick={state.closeDetail} className="mt-4 rounded-md bg-primary px-5 py-2 font-bold text-secondary">Đóng</button></div> : state.detail ? <BookingDetailContent detail={state.detail} onChanged={state.refresh} /> : null}
+        {state.detailLoading ? <div className="py-14 text-center font-semibold text-slate-500">Đang tải chi tiết booking...</div> : state.detailError ? <div className="py-14 text-center"><p className="font-semibold text-red-600">{state.detailError}</p><button type="button" onClick={state.closeDetail} className="mt-4 rounded-md bg-primary px-5 py-2 font-bold text-secondary">Đóng</button></div> : state.detail ? <BookingDetailContent detail={state.detail} action={state.action} onChanged={state.refresh} /> : null}
       </AdminModal>
       {mutationActionOpen && state.detail && (
         <OwnerBookingActionModal
@@ -1247,6 +1417,18 @@ export default function OwnerBookingManagement({ eyebrow, title, subtitle }: Own
           loading={actionLoading}
           onClose={state.closeDetail}
           onSubmit={handleAction}
+        />
+      )}
+      {processActionOpen && state.detail && processAction && (
+        <OwnerBookingProcessWizard
+          key={`${state.detail._id}-${processAction}`}
+          mode={processAction}
+          detail={state.detail}
+          loading={actionLoading}
+          onClose={state.closeDetail}
+          onSubmit={(payload) =>
+            handleAction(processAction, payload as OwnerBookingActionPayload)
+          }
         />
       )}
       {cancellationActionOpen && state.detail && (

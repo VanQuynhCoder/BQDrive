@@ -1,4 +1,4 @@
-// Shared owner page: routed from both BUSINESS and USER consignment layouts.
+// Trang lịch sử booking dành cho người dùng có xe ký gửi.
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CalendarDays, Eye, FileText, Loader2, Search, X } from "lucide-react";
@@ -228,10 +228,21 @@ function BookingHistoryDetailModal({
               <DetailLine label="Khách thuê" value={booking.renter?.fullName} />
               <DetailLine label="Email khách thuê" value={booking.renter?.email} />
               <DetailLine label="Số điện thoại" value={booking.renter?.phone} />
-              <DetailLine label="CCCD/CMND" value={booking.renter?.cccdNumber} />
               <DetailLine
-                label="Bằng lái"
-                value={booking.renter?.driverLicenseNumber}
+                label="Hồ sơ giấy tờ"
+                value={
+                  booking.renter?.identityProfileCompleted
+                    ? "Đã hoàn tất"
+                    : "Chưa hoàn tất"
+                }
+              />
+              <DetailLine
+                label="Hạng GPLX"
+                value={booking.renter?.driverLicenseClass || "--"}
+              />
+              <DetailLine
+                label="Đủ điều kiện thuê xe"
+                value={booking.renter?.licenseEligible ? "Có" : "Không"}
               />
               <DetailLine
                 label="Hình thức thuê"
@@ -267,7 +278,10 @@ function BookingHistoryDetailModal({
 
           <div className="mt-5 grid gap-3 sm:grid-cols-4">
             <DetailLine label="Tổng tiền" value={formatCurrency(booking.pricing.totalPrice)} />
-            <DetailLine label="Tiền cọc" value={formatCurrency(booking.pricing.depositAmount)} />
+            <DetailLine
+              label="Thanh toán giữ chỗ"
+              value={formatCurrency(booking.pricing.upfrontPaymentAmount)}
+            />
             <DetailLine label="Đã thanh toán" value={formatCurrency(booking.pricing.paidAmount)} />
             <DetailLine label="Còn lại" value={formatCurrency(booking.pricing.remainingAmount)} />
           </div>

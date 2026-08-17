@@ -1,4 +1,4 @@
-// Shared owner UI: car performance for BUSINESS and USER consignment management.
+// Thành phần hiển thị hiệu quả hoạt động của xe ký gửi.
 import {
   Activity,
   Banknote,

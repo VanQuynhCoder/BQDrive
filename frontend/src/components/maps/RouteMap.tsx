@@ -182,16 +182,19 @@ export default function RouteMap({
   const [manualMode, setManualMode] = useState(false);
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [message, setMessage] = useState("");
+  const [routeError, setRouteError] = useState("");
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [mapTileError, setMapTileError] = useState(false);
+  const [mapRetryKey, setMapRetryKey] = useState(0);
   const routePositions = useMemo(() => getRoutePositions(route), [route]);
   const tileLayer = MAP_TILE_LAYERS[tileLayerKey];
 
   if (latitude === undefined || longitude === undefined) {
     return (
       <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-5 text-sm font-bold leading-6 text-slate-500">
-        Xe chưa cập nhật vị trí bản đồ, không thể tìm đường.
+        Vị trí chính xác của xe sẽ được hiển thị sau khi booking đủ điều kiện.
       </div>
     );
   }
@@ -206,12 +209,14 @@ export default function RouteMap({
     setOrigin(coordinate);
     setRoute(null);
     setMessage("");
+    setRouteError("");
   };
 
   const openLargePicker = () => {
     setManualMode(true);
     setIsPickerOpen(true);
     setMessage("");
+    setRouteError("");
   };
 
   const closeLargePicker = () => {
@@ -263,6 +268,7 @@ export default function RouteMap({
   const handleFindRoute = async () => {
     if (!origin) {
       setMessage("Vui lòng dùng vị trí hiện tại hoặc chọn điểm bắt đầu trên bản đồ.");
+      setRouteError("");
       return;
     }
 
@@ -279,17 +285,27 @@ export default function RouteMap({
 
       if (!response.success || !response.data) {
         setRoute(null);
-        setMessage(response.message || "Không tìm được tuyến đường phù hợp.");
+        const errorMessage = response.message || "Không tìm được tuyến đường phù hợp.";
+        setMessage(errorMessage);
+        setRouteError(errorMessage);
         return;
       }
 
       setRoute(response.data);
+      setRouteError("");
     } catch (error: unknown) {
       setRoute(null);
-      setMessage(getRouteErrorMessage(error));
+      const errorMessage = getRouteErrorMessage(error);
+      setMessage(errorMessage);
+      setRouteError(errorMessage);
     } finally {
       setLoadingRoute(false);
     }
+  };
+
+  const retryMapTiles = () => {
+    setMapTileError(false);
+    setMapRetryKey((value) => value + 1);
   };
 
   const osmDirectionsUrl = origin
@@ -375,9 +391,10 @@ export default function RouteMap({
           style={{ height, width: "100%" }}
         >
           <TileLayer
-            key={tileLayerKey}
+            key={`${tileLayerKey}-${mapRetryKey}`}
             attribution={tileLayer.attribution}
             url={tileLayer.url}
+            eventHandlers={{ tileerror: () => setMapTileError(true) }}
           />
           <ManualOriginPicker enabled={false} onPick={updateOrigin} />
           <RouteMapBounds
@@ -394,6 +411,18 @@ export default function RouteMap({
             />
           )}
         </MapContainer>
+        {mapTileError && (
+          <div className="absolute inset-x-4 bottom-4 z-[500] rounded-xl border border-amber-200 bg-amber-50/95 p-3 text-sm font-bold leading-6 text-amber-900 shadow-sm backdrop-blur">
+            <p>Không tải được lớp bản đồ lúc này. Vui lòng kiểm tra kết nối và thử lại.</p>
+            <button
+              type="button"
+              onClick={retryMapTiles}
+              className="mt-2 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-sm font-extrabold text-primary transition hover:bg-amber-100"
+            >
+              Thử lại tải bản đồ
+            </button>
+          </div>
+        )}
       </div>
 
       {showControls && (
@@ -436,7 +465,19 @@ export default function RouteMap({
 
           {message && (
             <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-bold leading-6 text-slate-700">
-              {message}
+              <p>{message}</p>
+              {routeError && origin && !loadingRoute && (
+                <button
+                  type="button"
+                  onClick={handleFindRoute}
+                  className="mt-2 rounded-lg border border-yellow-300 bg-white px-3 py-1.5 text-sm font-extrabold text-primary transition hover:bg-yellow-100"
+                >
+                  Thử lại tìm đường
+                </button>
+              )}
+              <p className="mt-2 text-xs font-semibold text-slate-600">
+                Bạn cũng có thể chọn lại điểm bắt đầu hoặc nhận xe tại địa điểm của chủ xe.
+              </p>
             </div>
           )}
         </div>
@@ -474,9 +515,10 @@ export default function RouteMap({
               >
                 <MapResizeOnOpen />
                 <TileLayer
-                  key={tileLayerKey}
+                  key={`${tileLayerKey}-${mapRetryKey}-picker`}
                   attribution={tileLayer.attribution}
                   url={tileLayer.url}
+                  eventHandlers={{ tileerror: () => setMapTileError(true) }}
                 />
                 <ManualOriginPicker enabled onPick={pickOriginFromLargeMap} />
                 <RouteMapBounds
@@ -495,6 +537,18 @@ export default function RouteMap({
                   />
                 )}
               </MapContainer>
+              {mapTileError && (
+                <div className="absolute inset-x-4 bottom-4 z-[500] rounded-xl border border-amber-200 bg-amber-50/95 p-3 text-sm font-bold leading-6 text-amber-900 shadow-sm backdrop-blur">
+                  <p>Không tải được lớp bản đồ lúc này. Vui lòng kiểm tra kết nối và thử lại.</p>
+                  <button
+                    type="button"
+                    onClick={retryMapTiles}
+                    className="mt-2 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-sm font-extrabold text-primary transition hover:bg-amber-100"
+                  >
+                    Thử lại tải bản đồ
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

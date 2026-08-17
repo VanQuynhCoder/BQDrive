@@ -12,8 +12,7 @@ import { assertCarAvailability } from "../../helper/car-availability.helper";
 import {
   BookingStatusEnum,
   CarStatusEnum,
-  CartStatusEnum,
-  OwnerTypeEnum,
+  CartStatusEnum, 
   RentalModeEnum,
   UserRoleEnum,
 } from "../../constants/model.const";
@@ -31,10 +30,7 @@ const BLOCKING_BOOKING_STATUSES = [
 const BOOKABLE_CAR_STATUSES = [CarStatusEnum.APPROVED, CarStatusEnum.RENTED];
 
 function assertUserIsNotCarOwner(car: any, userId: string) {
-  if (
-    car?.ownerType === OwnerTypeEnum.USER &&
-    String(car.ownerId || "") === String(userId)
-  ) {
+  if (String(car?.ownerId || "") === String(userId)) {
     throw ErrorHelper.requestDataInvalid(
       "Không thể thuê xe do chính bạn sở hữu",
     );

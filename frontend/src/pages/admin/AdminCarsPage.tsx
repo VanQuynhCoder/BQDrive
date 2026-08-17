@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import {
   ArrowRight,
-  Building2,
   Car,
   CheckCircle2,
   Eye,
@@ -38,8 +37,7 @@ import {
 } from "../../utils/pricing.util";
 
 type CarAction = "approve" | "reject";
-type OwnerType = "BUSINESS" | "USER";
-type OwnerFilter = "ALL" | OwnerType;
+type OwnerFilter = "ALL" | "USER";
 type RegistrationCardPreview = {
   src: string;
   label: string;
@@ -73,59 +71,32 @@ function getCarTypeLabel(type?: string) {
   return carTypeLabels[type] || type;
 }
 
-function getOwnerType(car: AdminCar): OwnerType {
-  if (car.ownerType === "USER") {
-    return "USER";
-  }
-
-  return "BUSINESS";
-}
-
-function getOwnerTypeLabel(car: AdminCar) {
-  return getOwnerType(car) === "USER" ? "Người dùng ký gửi" : "Doanh nghiệp";
-}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
 function getOwnerUser(car: AdminCar) {
-  if (car.ownerType === "USER" && isObject(car.ownerId)) {
-    return car.ownerId as {
-      name?: string;
-      email?: string;
-      phone?: string;
-      address: string;
-      province?: string;
-      city?: string;
-      district?: string;
-      ward?: string;
-    };
-  }
+  if (!isObject(car.ownerId)) return undefined;
 
-  return car.businessId?.userId;
+  return car.ownerId as {
+    _id?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    province?: string;
+    city?: string;
+    district?: string;
+    ward?: string;
+  };
 }
 
 function getOwnerName(car: AdminCar) {
-  if (car.ownerType === "USER") {
-    const ownerUser = getOwnerUser(car);
-    return ownerUser?.name || "--";
-  }
-
-  return car.businessId?.businessName || car.businessId?.userId?.name || "--";
+  return getOwnerUser(car)?.name || "--";
 }
 
 function getOwnerId(car: AdminCar) {
-  if (car.ownerType === "USER") {
-    return isObject(car.ownerId) && typeof car.ownerId._id === "string"
-      ? car.ownerId._id
-      : typeof car.ownerId === "string"
-        ? car.ownerId
-        : "";
-  }
-
-  if (car.businessId?._id) return car.businessId._id;
-
   return isObject(car.ownerId) && typeof car.ownerId._id === "string"
     ? car.ownerId._id
     : typeof car.ownerId === "string"
@@ -138,19 +109,11 @@ function getOwnerEmail(car: AdminCar) {
 }
 
 function getOwnerPhone(car: AdminCar) {
-  if (car.ownerType === "USER") {
-    return getOwnerUser(car)?.phone || "--";
-  }
-
-  return car.businessId?.phone || car.businessId?.userId?.phone || "--";
+  return getOwnerUser(car)?.phone || "--";
 }
 
 function getOwnerAddress(car: AdminCar) {
-  if (car.ownerType === "USER") {
-    return formatFullAddress(getOwnerUser(car), "--");
-  }
-
-  return formatFullAddress(car.businessId, "--");
+  return formatFullAddress(getOwnerUser(car), "--");
 }
 
 function getPriceLabel(car: AdminCar) {
@@ -310,70 +273,64 @@ export default function AdminCarsPage() {
     };
   }, []);
 
-  const stats = useMemo(() => {
-    const businessCars = cars.filter(
-      (car) => getOwnerType(car) === "BUSINESS",
-    ).length;
-    const privateOwnerCars = cars.filter(
-      (car) => getOwnerType(car) === "USER",
-    ).length;
-    const pendingCars = cars.filter((car) => car.status === "PENDING").length;
+    const stats = useMemo(() => {
+  const privateOwnerCars = cars.length;
 
-    return {
-      total: cars.length,
-      businessCars,
-      privateOwnerCars,
-      pendingCars,
-    };
-  }, [cars]);
+  const pendingCars = cars.filter(
+    (car) => car.status === "PENDING",
+  ).length;
 
-  const ownerOptions = useMemo(() => {
-    if (ownerFilter === "ALL") return [];
+  return {
+    total: cars.length,
+    privateOwnerCars,
+    pendingCars,
+  };
+}, [cars]);
+const ownerOptions = useMemo(() => {
+  if (ownerFilter === "ALL") return [];
 
-    const owners = new Map<string, { id: string; name: string; count: number }>();
-    cars
-      .filter((car) => getOwnerType(car) === ownerFilter)
-      .forEach((car) => {
-        const id = getOwnerId(car);
-        if (!id) return;
+  const owners = new Map<string, { id: string; name: string; count: number }>();
 
-        const current = owners.get(id);
-        owners.set(id, {
-          id,
-          name: getOwnerName(car),
-          count: (current?.count || 0) + 1,
-        });
-      });
+  cars.forEach((car) => {
+    const id = getOwnerId(car);
+    if (!id) return;
 
-    return [...owners.values()].sort((left, right) =>
-      left.name.localeCompare(right.name, "vi"),
-    );
-  }, [cars, ownerFilter]);
+    const current = owners.get(id);
 
-  const filteredCars = useMemo(() => {
-    return cars.filter((car) => {
-      if (ownerFilter !== "ALL" && getOwnerType(car) !== ownerFilter) {
-        return false;
-      }
-
-      return !selectedOwnerId || getOwnerId(car) === selectedOwnerId;
+    owners.set(id, {
+      id,
+      name: getOwnerName(car),
+      count: (current?.count || 0) + 1,
     });
-  }, [cars, ownerFilter, selectedOwnerId]);
+  });
 
-  const ownerFilterOptions: Array<{
+  return [...owners.values()].sort((left, right) =>
+    left.name.localeCompare(right.name, "vi"),
+  );
+}, [cars, ownerFilter]);
+
+const filteredCars = useMemo(() => {
+  if (ownerFilter === "ALL") {
+    return cars;
+  }
+
+  return cars.filter(
+    (car) => !selectedOwnerId || getOwnerId(car) === selectedOwnerId,
+  );
+}, [cars, ownerFilter, selectedOwnerId]);
+    const ownerFilterOptions: Array<{
     value: OwnerFilter;
     label: string;
     count: number;
   }> = [
-    { value: "ALL", label: "Tất cả", count: stats.total },
     {
-      value: "BUSINESS",
-      label: "Doanh nghiệp",
-      count: stats.businessCars,
+      value: "ALL",
+      label: "Tất cả",
+      count: stats.total,
     },
     {
       value: "USER",
-      label: "Người dùng ký gửi",
+      label: "Chủ xe ký gửi",
       count: stats.privateOwnerCars,
     },
   ];
@@ -442,12 +399,6 @@ export default function AdminCarsPage() {
       value: stats.total,
       icon: Car,
       tone: "bg-slate-100 text-slate-700",
-    },
-    {
-      label: "Xe doanh nghiệp",
-      value: stats.businessCars,
-      icon: Building2,
-      tone: "bg-primary text-secondary",
     },
     {
       label: "Xe ký gửi",
@@ -554,9 +505,7 @@ export default function AdminCarsPage() {
             {ownerFilter !== "ALL" && (
               <label className="block">
                 <span className="sr-only">
-                  {ownerFilter === "BUSINESS"
-                    ? "Lọc theo doanh nghiệp"
-                    : "Lọc theo người dùng ký gửi"}
+                  Lọc theo chủ xe ký gửi
                 </span>
                 <select
                   value={selectedOwnerId}
@@ -564,9 +513,7 @@ export default function AdminCarsPage() {
                   className="h-11 min-w-60 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-primary outline-none transition focus:border-secondary focus:ring-2 focus:ring-secondary/20"
                 >
                   <option value="">
-                    {ownerFilter === "BUSINESS"
-                      ? `Tất cả doanh nghiệp (${stats.businessCars} xe)`
-                      : `Tất cả người ký gửi (${stats.privateOwnerCars} xe)`}
+                    {`Tất cả chủ xe ký gửi (${stats.privateOwnerCars} xe)`}
                   </option>
                   {ownerOptions.map((owner) => (
                     <option key={owner.id} value={owner.id}>
@@ -611,7 +558,6 @@ export default function AdminCarsPage() {
               {!loading &&
                 filteredCars.map((car) => {
                   const status = getStatus(car.status);
-                  const ownerType = getOwnerType(car);
                   const pendingReview = isPendingCar(car);
 
                   return (
@@ -692,8 +638,8 @@ export default function AdminCarsPage() {
                       </td>
                       <td className="px-3 py-3">
                         <AdminStatusBadge
-                          tone={ownerType === "BUSINESS" ? "blue" : "green"}
-                          label={getOwnerTypeLabel(car)}
+                          tone="green"
+                          label="Chủ xe ký gửi"
                         />
                       </td>
                       <td className="px-3 py-3">
@@ -1128,7 +1074,7 @@ export default function AdminCarsPage() {
                     <div className="flex justify-between gap-3">
                       <dt className="text-slate-500">Nguồn</dt>
                       <dd className="font-extrabold text-primary">
-                        {getOwnerTypeLabel(detailCar)}
+                        Chủ xe ký gửi
                       </dd>
                     </div>
                     <div className="flex justify-between gap-3">
@@ -1347,7 +1293,7 @@ export default function AdminCarsPage() {
                     Nguồn xe
                   </p>
                   <p className="mt-1 font-extrabold text-primary">
-                    {getOwnerTypeLabel(action?.car)}
+                    chủ xe ký gửi
                   </p>
                 </div>
                 <div>

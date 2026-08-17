@@ -1,4 +1,4 @@
-﻿// Shared utility: normalizes image URLs for public, ADMIN, BUSINESS, and USER screens.
+﻿//Hàm hỗ trợ chuẩn hóa đường dẫn hình ảnh trong frontend.
 export const defaultCarImage =
   "https://images.unsplash.com/photo-1549924231-f129b911e442?q=80&w=1200";
 

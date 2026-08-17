@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Star,
   UserCircle,
+  Eye,
 } from "lucide-react";
 
 import Header from "../../components/Header";
@@ -23,6 +24,10 @@ import {
 } from "../../services/auth.service";
 import { formatVietnamDateTime } from "../../utils/date.util";
 import { isValidVietnamPhone, normalizePhone } from "../../utils/validators";
+import {
+  uploadService,
+  type IdentityDocumentKind,
+} from "../../services/upload.service";
 
 type ProfileForm = {
   name: string;
@@ -33,6 +38,12 @@ type ProfileForm = {
   ward: string;
   avatar: string;
   bio: string;
+  cccdNumber: string;
+  cccdFrontImage: string;
+  cccdBackImage: string;
+  driverLicenseNumber: string;
+  driverLicenseImage: string;
+  driverLicenseClass: "B" | "B1" | "B2" | "";
 };
 
 type PasswordForm = {
@@ -50,6 +61,12 @@ const emptyProfileForm: ProfileForm = {
   ward: "",
   avatar: "",
   bio: "",
+  cccdNumber: "",
+  cccdFrontImage: "",
+  cccdBackImage: "",
+  driverLicenseNumber: "",
+  driverLicenseImage: "",
+  driverLicenseClass: "",
 };
 
 const emptyPasswordForm: PasswordForm = {
@@ -58,6 +75,11 @@ const emptyPasswordForm: PasswordForm = {
   confirmPassword: "",
 };
 const maxAvatarImageSize = 1024 * 1024;
+const supportedUploadImageMimeTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 function readImageAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -119,6 +141,42 @@ function formatDate(value?: string) {
   });
 }
 
+function maskIdentityNumber(value?: string) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "--";
+  if (normalized.length <= 4) return "••••";
+  return `${"•".repeat(Math.max(normalized.length - 4, 4))}${normalized.slice(-4)}`;
+}
+
+function getIdentityVerificationDisplay(profile: CurrentUserProfile | null) {
+  switch (profile?.identityVerificationStatus) {
+    case "VERIFIED":
+      return {
+        title: "Hồ sơ đã được xác minh",
+        description: "Bạn có thể tạo booking mới trên BQDrive.",
+        className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+      };
+    case "PENDING":
+      return {
+        title: "Hồ sơ đang chờ BQDrive xác minh",
+        description: "BQDrive sẽ thông báo ngay sau khi hoàn tất kiểm tra.",
+        className: "border-amber-200 bg-amber-50 text-amber-800",
+      };
+    case "REJECTED":
+      return {
+        title: "Hồ sơ chưa được chấp nhận",
+        description: profile.identityVerificationReason || "Vui lòng cập nhật lại giấy tờ và lưu hồ sơ để gửi xác minh lại.",
+        className: "border-red-200 bg-red-50 text-red-800",
+      };
+    default:
+      return {
+        title: "Chưa hoàn thiện hồ sơ",
+        description: "Vui lòng cập nhật đủ CCCD và giấy phép lái xe để gửi BQDrive xác minh.",
+        className: "border-slate-200 bg-slate-50 text-slate-700",
+      };
+  }
+}
+
 export default function UserProfilePage() {
   const [profile, setProfile] = useState<CurrentUserProfile | null>(null);
   const [form, setForm] = useState<ProfileForm>(emptyProfileForm);
@@ -127,6 +185,13 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [documentPreviewUrls, setDocumentPreviewUrls] = useState<
+    Partial<Record<"cccdFrontImage" | "cccdBackImage" | "driverLicenseImage", string>>
+  >({});
+  const [revealedDocument, setRevealedDocument] = useState<
+    "cccdNumber" | "driverLicenseNumber" | null
+  >(null);
+  const identityVerificationDisplay = getIdentityVerificationDisplay(profile);
 
   useEffect(() => {
     let active = true;
@@ -145,6 +210,12 @@ export default function UserProfilePage() {
           ward: user.ward || "",
           avatar: user.avatar || "",
           bio: user.bio || "",
+          cccdNumber: user.cccdNumber || "",
+          cccdFrontImage: user.cccdFrontImage || "",
+          cccdBackImage: user.cccdBackImage || "",
+          driverLicenseNumber: user.driverLicenseNumber || "",
+          driverLicenseImage: user.driverLicenseImage || "",
+          driverLicenseClass: user.driverLicenseClass || "",
         });
       })
       .catch(() => toast.error("Không thể tải hồ sơ của bạn"))
@@ -157,6 +228,40 @@ export default function UserProfilePage() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const loadedUrls: string[] = [];
+    const fields = [
+      "cccdFrontImage",
+      "cccdBackImage",
+      "driverLicenseImage",
+    ] as const;
+
+    Promise.all(
+      fields.map(async (field) => {
+        const path = form[field];
+        if (!path) return [field, ""] as const;
+
+        try {
+          const url = await uploadService.loadIdentityDocument(path);
+          loadedUrls.push(url);
+          return [field, url] as const;
+        } catch {
+          return [field, ""] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (active) {
+        setDocumentPreviewUrls(Object.fromEntries(entries));
+      }
+    });
+
+    return () => {
+      active = false;
+      loadedUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [form.cccdFrontImage, form.cccdBackImage, form.driverLicenseImage]);
+
   const updateForm = (field: keyof ProfileForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
@@ -168,8 +273,8 @@ export default function UserProfilePage() {
   const handleAvatarChange = async (file?: File) => {
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      toast.error("Vui lòng chọn file hình ảnh.");
+    if (!supportedUploadImageMimeTypes.has(file.type)) {
+      toast.error("Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP; không hỗ trợ HEIC.");
       return;
     }
 
@@ -183,6 +288,32 @@ export default function UserProfilePage() {
       updateForm("avatar", image);
     } catch {
       toast.error("Không thể đọc ảnh đã chọn.");
+    }
+  };
+
+  const handleIdentityDocumentChange = async (
+    field: "cccdFrontImage" | "cccdBackImage" | "driverLicenseImage",
+    kind: IdentityDocumentKind,
+    file?: File,
+  ) => {
+    if (!file) return;
+
+    if (!supportedUploadImageMimeTypes.has(file.type)) {
+      toast.error("Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP; không hỗ trợ HEIC.");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Ảnh giấy tờ không được vượt quá 10MB.");
+      return;
+    }
+
+    try {
+      const uploaded = await uploadService.uploadIdentityDocument(file, kind);
+      updateForm(field, uploaded.path);
+      toast.success("Đã upload ảnh giấy tờ");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Upload ảnh giấy tờ thất bại"));
     }
   };
 
@@ -214,6 +345,12 @@ export default function UserProfilePage() {
         ward: form.ward.trim(),
         avatar: form.avatar.trim(),
         bio: form.bio.trim(),
+        cccdNumber: form.cccdNumber.trim(),
+        cccdFrontImage: form.cccdFrontImage.trim(),
+        cccdBackImage: form.cccdBackImage.trim(),
+        driverLicenseNumber: form.driverLicenseNumber.trim(),
+        driverLicenseImage: form.driverLicenseImage.trim(),
+        driverLicenseClass: form.driverLicenseClass || undefined,
       });
       setProfile(updated);
       toast.success("Đã cập nhật hồ sơ");
@@ -342,6 +479,11 @@ export default function UserProfilePage() {
                   Email và role không thể chỉnh sửa tại đây.
                 </p>
 
+                <div className={`mt-5 rounded-xl border px-4 py-3 text-sm font-semibold ${identityVerificationDisplay.className}`}>
+                  <p className="font-extrabold">{identityVerificationDisplay.title}</p>
+                  <p className="mt-1 leading-5">{identityVerificationDisplay.description}</p>
+                </div>
+
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <TextInput
                     label="Họ tên *"
@@ -386,7 +528,7 @@ export default function UserProfilePage() {
                             Chọn ảnh
                             <input
                               type="file"
-                              accept="image/*"
+                              accept="image/jpeg,image/png,image/webp"
                               className="hidden"
                               onChange={(event) => {
                                 void handleAvatarChange(event.target.files?.[0]);
@@ -462,6 +604,168 @@ export default function UserProfilePage() {
                   </button>
                 </div>
               </form>
+
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-secondarySoft p-3 text-secondary">
+                    <ShieldCheck size={22} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-extrabold text-primary">
+                      Thông tin giấy tờ
+                    </h3>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                      Thông tin này chỉ dùng để xác thực hồ sơ thuê xe và không hiển thị cho chủ xe.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-extrabold text-slate-700">
+                      Số CCCD
+                    </span>
+                    <div className="relative">
+                      <input
+                        type={revealedDocument === "cccdNumber" ? "text" : "password"}
+                        value={form.cccdNumber}
+                        onChange={(event) =>
+                          updateForm("cccdNumber", event.target.value.replace(/\D/g, ""))
+                        }
+                        inputMode="numeric"
+                        maxLength={12}
+                        className="min-h-11 w-full rounded-xl border border-slate-200 px-4 pr-12 text-sm font-semibold outline-none transition focus:border-secondary focus:ring-4 focus:ring-secondary/10"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Nhấn giữ để xem số CCCD"
+                        onPointerDown={() => setRevealedDocument("cccdNumber")}
+                        onPointerUp={() => setRevealedDocument(null)}
+                        onPointerLeave={() => setRevealedDocument(null)}
+                        onPointerCancel={() => setRevealedDocument(null)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                      >
+                        <Eye size={18} />
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs font-semibold text-slate-400">
+                      {maskIdentityNumber(form.cccdNumber)}
+                    </p>
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-extrabold text-slate-700">
+                      Số GPLX
+                    </span>
+                    <div className="relative">
+                      <input
+                        type={
+                          revealedDocument === "driverLicenseNumber"
+                            ? "text"
+                            : "password"
+                        }
+                        value={form.driverLicenseNumber}
+                        onChange={(event) =>
+                          updateForm(
+                            "driverLicenseNumber",
+                            event.target.value.replace(/\D/g, ""),
+                          )
+                        }
+                        inputMode="numeric"
+                        maxLength={12}
+                        className="min-h-11 w-full rounded-xl border border-slate-200 px-4 pr-12 text-sm font-semibold outline-none transition focus:border-secondary focus:ring-4 focus:ring-secondary/10"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Nhấn giữ để xem số GPLX"
+                        onPointerDown={() => setRevealedDocument("driverLicenseNumber")}
+                        onPointerUp={() => setRevealedDocument(null)}
+                        onPointerLeave={() => setRevealedDocument(null)}
+                        onPointerCancel={() => setRevealedDocument(null)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                      >
+                        <Eye size={18} />
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs font-semibold text-slate-400">
+                      {maskIdentityNumber(form.driverLicenseNumber)}
+                    </p>
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-extrabold text-slate-700">
+                      Hạng GPLX
+                    </span>
+                    <select
+                      value={form.driverLicenseClass}
+                      onChange={(event) =>
+                        updateForm(
+                          "driverLicenseClass",
+                          event.target.value as ProfileForm["driverLicenseClass"],
+                        )
+                      }
+                      className="min-h-11 w-full rounded-xl border border-slate-200 px-4 text-sm font-semibold outline-none transition focus:border-secondary focus:ring-4 focus:ring-secondary/10"
+                    >
+                      <option value="">Chọn hạng GPLX</option>
+                      <option value="B">B</option>
+                      <option value="B1">B1</option>
+                      <option value="B2">B2</option>
+                    </select>
+                  </label>
+
+                  {[
+                    ["cccdFrontImage", "CCCD mặt trước", "CCCD_FRONT"],
+                    ["cccdBackImage", "CCCD mặt sau", "CCCD_BACK"],
+                    ["driverLicenseImage", "Ảnh GPLX", "DRIVER_LICENSE"],
+                  ].map(([field, label, kind]) => (
+                    <label key={field} className="block">
+                      <span className="mb-2 block text-sm font-extrabold text-slate-700">
+                        {label}
+                      </span>
+                      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3">
+                        {documentPreviewUrls[field as keyof typeof documentPreviewUrls] ? (
+                          <img
+                            src={documentPreviewUrls[field as keyof typeof documentPreviewUrls]}
+                            alt={label}
+                            className="mb-3 h-28 w-full rounded-lg object-cover"
+                          />
+                        ) : (
+                          <p className="mb-3 text-xs font-semibold text-slate-400">
+                            Chưa có ảnh
+                          </p>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={(event) => {
+                            void handleIdentityDocumentChange(
+                              field as "cccdFrontImage" | "cccdBackImage" | "driverLicenseImage",
+                              kind as IdentityDocumentKind,
+                              event.target.files?.[0],
+                            );
+                            event.target.value = "";
+                          }}
+                          className="block w-full text-xs font-semibold text-slate-600"
+                        />
+                      </div>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="mt-5 flex justify-end border-t border-slate-200 pt-5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const formElement = document.querySelector("form");
+                      formElement?.requestSubmit();
+                    }}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-secondary px-5 py-2 font-extrabold text-primary transition hover:brightness-95"
+                  >
+                    <Save size={18} />
+                    Lưu giấy tờ
+                  </button>
+                </div>
+              </section>
 
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-start gap-3">

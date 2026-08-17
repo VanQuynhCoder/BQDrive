@@ -18,8 +18,10 @@ import AuthLayout from "../layouts/AuthLayout";
 import { authService } from "../services/auth.service";
 import {
   getEmailValidationError,
+  getOtpValidationError,
   isValidVietnamPhone,
   normalizeEmail,
+  normalizeOtp,
   normalizePhone,
 } from "../utils/validators";
 
@@ -71,13 +73,21 @@ export default function RegisterPage() {
   const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
+  const [otpError, setOtpError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value =
+      e.target.name === "otp" ? normalizeOtp(e.target.value) : e.target.value;
+
+    if (e.target.name === "otp") {
+      setOtpError("");
+    }
+
     setForm({
       ...form,
-      [e.target.name]: e.target.value,
+      [e.target.name]: value,
     });
   };
 
@@ -122,8 +132,10 @@ export default function RegisterPage() {
 
     const normalizedEmail = normalizeEmail(form.email);
 
-    if (!form.otp) {
-      toast.error("Vui lòng nhập OTP");
+    const otpErrorMessage = getOtpValidationError(form.otp);
+    if (otpErrorMessage) {
+      setOtpError(otpErrorMessage);
+      toast.error(otpErrorMessage);
       return;
     }
 
@@ -155,6 +167,7 @@ export default function RegisterPage() {
         email: normalizedEmail,
         otp: form.otp,
       });
+      setOtpError("");
 
       await authService.register({
         name: form.name,
@@ -166,7 +179,11 @@ export default function RegisterPage() {
       toast.success("Đăng ký thành công");
       navigate("/login");
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Đăng ký thất bại"));
+      const message = getErrorMessage(error, "Đăng ký thất bại");
+      if (/otp|mã xác thực/i.test(message)) {
+        setOtpError(message);
+      }
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -241,11 +258,25 @@ export default function RegisterPage() {
                 name="otp"
                 value={form.otp}
                 onChange={handleChange}
+                onBlur={() => setOtpError(getOtpValidationError(form.otp))}
                 placeholder="Nhập mã OTP"
                 inputMode="numeric"
+                maxLength={6}
+                pattern="[0-9]*"
+                aria-invalid={Boolean(otpError)}
+                aria-describedby={otpError ? "register-otp-error" : undefined}
                 className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/[0.35]"
               />
             </span>
+            {otpError && (
+              <span
+                id="register-otp-error"
+                role="alert"
+                className="mt-2 block text-sm font-bold text-red-300"
+              >
+                {otpError}
+              </span>
+            )}
           </label>
 
           <label className="block">

@@ -1,4 +1,4 @@
-// Shared owner UI: car action menu used by BUSINESS and USER consignment lists.
+// Thành phần chứa các thao tác quản lý xe của chủ xe ký gửi.
 import {
   Edit,
   Eye,

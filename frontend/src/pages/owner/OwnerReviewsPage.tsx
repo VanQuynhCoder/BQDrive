@@ -1,4 +1,4 @@
-// Shared owner page: routed from both BUSINESS and USER consignment layouts.
+// Trang quản lý đánh giá dành cho người dùng có xe ký gửi.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,

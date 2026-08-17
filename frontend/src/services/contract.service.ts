@@ -6,7 +6,6 @@ import type {
 } from "../constants/status.constants";
 
 export type { ContractStatus };
-export type OwnerType = "BUSINESS" | "USER";
 
 import type { CarPricing } from "../types/pricing";
 
@@ -30,17 +29,6 @@ export type ContractCar = {
   locationNote?: string;
 };
 
-export type ContractBusiness = {
-  _id: string;
-  businessName?: string;
-  userId: ContractOwnerUser;
-  phone?: string;
-  address?: string;
-  province?: string;
-  city?: string;
-  district?: string;
-  ward?: string;
-};
 
 export type ContractOwnerUser = {
   _id: string;
@@ -81,34 +69,130 @@ export type ContractBooking = {
 
 export type ContractPaymentSummary = {
   totalPrice: number;
-  depositAmount: number;
+  upfrontPaymentAmount: number;
   paidAmount: number;
   remainingAmount: number;
   paymentStatus: ContractPaymentStatus;
 };
 
+export type ContractChecklist = Record<string, boolean | undefined>;
+
+export type ContractAppendix = {
+  originalSchedule?: {
+    startDate?: string;
+    endDate?: string;
+  };
+  extensions: Array<{
+    _id: string;
+    requestType?: string;
+    sourceRentalMode?: string;
+    targetRentalMode?: string;
+    oldEndAt?: string;
+    requestedEndAt?: string;
+    additionalDurationMinutes?: number;
+    billableUnits?: number;
+    additionalAmount?: number;
+    status?: string;
+    requestedAt?: string;
+    ownerRespondedAt?: string;
+    paymentDeadlineAt?: string;
+    activatedAt?: string;
+    rejectReason?: string;
+    paymentId?: string;
+  }>;
+  payments: Array<{
+    _id: string;
+    paymentType?: string;
+    amount?: number;
+    method?: string;
+    status?: string;
+    paidAt?: string;
+    createdAt?: string;
+    transactionCode?: string;
+    gatewayOrderId?: string;
+    refundedAmount?: number;
+    refundStatus?: string;
+  }>;
+  handover?: {
+    recordedAt?: string;
+    odometerKm?: number;
+    energyLevelPercent?: number;
+    dashboardImage?: string;
+    photos?: string[];
+    conditionNotes?: string;
+    vehicleCondition?: ContractChecklist;
+    accessoriesSnapshot?: ContractChecklist;
+    vehicleDocumentsSnapshot?: ContractChecklist;
+    ownerConfirmedAt?: string;
+    renterConfirmedAt?: string;
+  } | null;
+  returnInspection?: {
+    actualReturnAt?: string;
+    receivedAt?: string;
+    returnOdometerKm?: number;
+    returnEnergyLevelPercent?: number;
+    dashboardImage?: string;
+    photos?: string[];
+    distanceTravelledKm?: number;
+    totalIncludedKm?: number;
+    overageKm?: number;
+    chargeableOverageKm?: number;
+    mileageStatus?: string;
+    isLate?: boolean;
+    lateMinutes?: number;
+    hasDamage?: boolean;
+    hasCleaningIssue?: boolean;
+    hasFuelShortage?: boolean;
+    conditionNotes?: string;
+    vehicleCondition?: ContractChecklist;
+    accessoriesSnapshot?: ContractChecklist;
+    vehicleDocumentsSnapshot?: ContractChecklist;
+    inspectionStatus?: string;
+    ownerConfirmedAt?: string;
+    renterConfirmedAt?: string;
+  } | null;
+  extraCharges: Array<{
+    _id: string;
+    type?: string;
+    amount?: number;
+    description?: string;
+    status?: string;
+    createdAt?: string;
+    paidAt?: string;
+    paymentMethod?: string;
+    evidenceImages?: string[];
+  }>;
+  refunds: Array<{
+    _id: string;
+    refundAmount?: number;
+    method?: string;
+    status?: string;
+    requestedAt?: string;
+    processingAt?: string;
+    succeededAt?: string;
+    reference?: string;
+  }>;
+};
+
 export type RentalContract = {
   _id: string;
-  bookingId: ContractBooking | string;
+  bookingId: ContractBooking | string | null;
   userId: ContractOwnerUser | string;
   carId: ContractCar | string;
-  businessId: ContractBusiness | string;
-  ownerId: ContractBusiness | ContractOwnerUser | string;
-  ownerType: OwnerType;
-  ownerModel?: "Business" | "User" | string;
+  ownerId: ContractOwnerUser | string;
   renterName: string;
   renterPhone: string;
-  renterIdentityNumber: string;
   renterAddress: string;
   note?: string;
   startDate: string;
   endDate: string;
   totalPrice: number;
-  depositAmount?: number;
+  upfrontPaymentAmount?: number;
   paidAmount?: number;
   remainingAmount?: number;
   paymentStatus?: ContractPaymentSummary["paymentStatus"];
   paymentSummary?: ContractPaymentSummary;
+  appendix?: ContractAppendix;
   paymentOption?: string;
   pickupAddressSnapshot: string;
   returnAddressSnapshot: string;
@@ -125,7 +209,6 @@ export type CreateContractData = {
   bookingId?: string;
   renterName?: string;
   renterPhone?: string;
-  renterIdentityNumber?: string;
   renterAddress?: string;
   note?: string;
 };

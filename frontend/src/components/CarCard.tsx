@@ -43,7 +43,6 @@ type CarCardProps = {
     images?: string[];
     image?: string;
     ownerName?: string;
-    ownerType?: "BUSINESS" | "USER" | string;
     pickupProvince?: string;
     pickupDistrict?: string;
     pickupWard?: string;
@@ -55,14 +54,12 @@ type CarCardProps = {
     brandId?: {
       name?: string;
     } | null;
-    businessId?: {
-      businessName?: string;
-    } | null;
     rentalAvailability?: RentalAvailability;
     availabilityLabel?: string;
     isBookable?: boolean;
     unavailableReason?: string;
     cleaningUntil?: string;
+    requiresScheduleCheck?: boolean;
     holdingCartId?: string;
     holdExpiredAt?: string;
     resumeBookingId?: string;
@@ -173,6 +170,15 @@ function getAvailabilityInfo(car: CarCardProps["car"], now: number) {
     };
   }
 
+  if (car.requiresScheduleCheck) {
+    return {
+      icon: Clock,
+      label: car.availabilityLabel || "Kiểm tra lịch thuê",
+      badgeClass: "bg-slate-100 text-slate-700 ring-1 ring-slate-200",
+      isBookable: true,
+    };
+  }
+
   if (car.isBookable === false) {
     return {
       icon: Clock,
@@ -216,11 +222,7 @@ export default function CarCard({ car, detailSearchParams = "" }: CarCardProps) 
     Boolean(carId);
   const canInteract = canOpenCart || canResumePayment || canOpenDetail;
   const detailUrl = `/cars/${carId}${detailSearchParams}`;
-  const ownerName =
-    car.ownerName ||
-    (car.ownerType === "USER"
-      ? "Người dùng ký gửi"
-      : car.businessId?.businessName || "Đối tác BQDrive");
+  const ownerName = car.ownerName || "Chủ xe ký gửi";
 
   useEffect(() => {
     if (!car.holdExpiredAt && !car.resumeExpiresAt && !car.cleaningUntil) return;

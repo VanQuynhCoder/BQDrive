@@ -1,6 +1,10 @@
 import { BaseRoute, Request, Response } from "../../base/baseRoute";
 import { ErrorHelper } from "../../base/error";
-import { RefundStatusEnum, UserRoleEnum } from "../../constants/model.const";
+import {
+  RefundMethodEnum,
+  RefundStatusEnum,
+  UserRoleEnum,
+} from "../../constants/model.const";
 import { BookingModel } from "../../models/booking/booking.model";
 import { RefundModel } from "../../models/refund/refund.model";
 import { cancellationRefundService } from "../../services/cancellation-refund.service";
@@ -21,7 +25,7 @@ class RefundRoute extends BaseRoute {
       "/my",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.USER, UserRoleEnum.BUSINESS]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.getMyRefunds),
     );
@@ -30,7 +34,7 @@ class RefundRoute extends BaseRoute {
       "/:id",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.USER, UserRoleEnum.BUSINESS]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.getRefundDetail),
     );
@@ -45,7 +49,7 @@ class RefundRoute extends BaseRoute {
       "/:id/manual-sent",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.USER, UserRoleEnum.BUSINESS]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.markManualSent),
     );
@@ -55,7 +59,16 @@ class RefundRoute extends BaseRoute {
       [this.authentication, this.roleGuard([UserRoleEnum.USER])],
       this.route(this.confirmReceived),
     );
+        this.router.post(
+      "/:id/check-vnpay-status",
+      [
+        this.authentication,
+        this.roleGuard([UserRoleEnum.USER]),
+      ],
+      this.route(this.checkVnpayStatus),
+    );
   }
+  
 
   private formatRecipientInfo(info: unknown, includeFull: boolean) {
     const value = (info || {}) as Record<string, unknown>;
@@ -138,7 +151,7 @@ class RefundRoute extends BaseRoute {
       .populate({
         path: "bookingId",
         select:
-          "_id bookingCode userId ownerId ownerType businessId carId status startDate endDate cancelReason cancelReasonText cancelledAt cancelledByRole",
+        "_id bookingCode userId ownerId carId status startDate endDate cancelReason cancelReasonText cancelledAt cancelledByRole",
         populate: [
           { path: "carId", select: "name licensePlate images" },
           { path: "userId", select: "name email phone" },
@@ -260,7 +273,182 @@ class RefundRoute extends BaseRoute {
       data: { refund: this.formatRefundResponse(refund, true) },
     });
   }
+async checkVnpayStatus(
+  req: Request,
+  res: Response,
+) {
+  const authUser = (req as any).user;
+  const refundId = String(req.params.id);
 
+  const refund = await RefundModel.findOne({
+    _id: refundId,
+    isDeleted: false,
+  });
+
+  if (!refund) {
+    throw ErrorHelper.recordNotFound("Refund");
+  }
+
+  /*
+   * Chỉ người có quyền xem Refund mới được
+   * yêu cầu hệ thống kiểm tra trạng thái VNPay.
+   */
+  await this.assertCanSeeRefund(
+    refund,
+    authUser,
+  );
+
+  /*
+   * Endpoint này chỉ dùng để kiểm tra một phiên
+   * auto-refund VNPay đã được tạo trước đó.
+   *
+   * Không cho dùng endpoint này để khởi tạo
+   * một yêu cầu hoàn tiền VNPay mới.
+   */
+  if (
+    refund.method !== RefundMethodEnum.VNPAY
+  ) {
+    throw ErrorHelper.requestDataInvalid(
+      "REFUND_METHOD_NOT_VNPAY",
+    );
+  }
+
+  /*
+   * Nếu Refund đã hoàn tất thì trả luôn dữ liệu hiện tại.
+   * Không cần gọi VNPay lần nữa.
+   */
+  if (
+    refund.status === RefundStatusEnum.SUCCEEDED
+  ) {
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "Khoản hoàn tiền đã hoàn tất.",
+      data: {
+        refund: this.formatRefundResponse(
+          refund,
+          true,
+        ),
+        completed: true,
+      },
+    });
+  }
+
+  /*
+   * Chỉ recovery Refund đang PROCESSING.
+   *
+   * Điều này rất quan trọng:
+   * processAutomaticVnpayRefund() cũng có khả năng
+   * bắt đầu một refund mới từ WAITING_FOR_REFUND_INFO.
+   *
+   * Route check trạng thái tuyệt đối không được
+   * vô tình khởi tạo refund mới.
+   */
+  if (
+    refund.status !== RefundStatusEnum.PROCESSING
+  ) {
+    throw ErrorHelper.requestDataInvalid(
+      "REFUND_NOT_PROCESSING",
+    );
+  }
+
+  const hasProviderOperations =
+    Array.isArray(refund.providerOperations) &&
+    refund.providerOperations.length > 0;
+
+  if (!hasProviderOperations) {
+    throw ErrorHelper.requestDataInvalid(
+      "VNPAY_REFUND_OPERATION_NOT_FOUND",
+    );
+  }
+
+ const result =
+  await cancellationRefundService.processAutomaticVnpayRefund(
+    refundId,
+    String(req.ip || "127.0.0.1"),
+    {
+      queryOnly: true,
+    },
+  );  
+
+  /*
+   * Đọc lại document sau khi QueryDr xử lý
+   * vì service có thể vừa cập nhật trạng thái.
+   */
+  const refreshedRefund =
+    await RefundModel.findOne({
+      _id: refundId,
+      isDeleted: false,
+    });
+
+  if (!refreshedRefund) {
+    throw ErrorHelper.recordNotFound("Refund");
+  }
+
+  const completed =
+    refreshedRefund.status ===
+    RefundStatusEnum.SUCCEEDED;
+
+  const operation = Array.isArray(refreshedRefund.providerOperations)
+    ? refreshedRefund.providerOperations.find(
+        (item: any) => item.provider === "VNPAY" && item.status !== "SUCCEEDED",
+      )
+    : undefined;
+  const operationStatus = String(result?.operationStatus || operation?.status || "");
+  const reason = String(
+    result?.reason || operation?.failureReason || refreshedRefund.failureReason || "",
+  );
+  const transactionStatus = String(operation?.transactionStatus || "");
+  const responseCode = String(operation?.responseCode || "");
+
+  let message = "Yêu cầu hoàn tiền VNPay vẫn đang được xử lý.";
+  if (completed) {
+    message = "Hoàn tiền VNPay đã hoàn tất.";
+  } else if (
+    refreshedRefund.status === RefundStatusEnum.MANUAL_REQUIRED ||
+    operationStatus === "FAILED"
+  ) {
+    message = "VNPay từ chối hoàn tiền tự động. Khoản hoàn sẽ được xử lý theo luồng thủ công.";
+  } else if (reason === "VNPAY_ORIGINAL_TRANSACTION_METADATA_MISSING") {
+    message = "Không đủ thông tin giao dịch VNPay để kiểm tra trạng thái hoàn tiền.";
+  } else if (
+    reason === "VNPAY_QUERY_RETURNED_ORIGINAL_PAYMENT" ||
+    reason === "VNPAY_QUERY_TRANSACTION_TYPE_MISMATCH" ||
+    reason === "VNPAY_QUERY_TXN_REF_MISMATCH"
+  ) {
+    message = "VNPay trả về giao dịch không khớp với yêu cầu hoàn tiền nên chưa thể xác nhận kết quả.";
+  } else if (/chữ ký phản hồi truy vấn VNPay không hợp lệ/i.test(reason)) {
+    message = "Không thể xác thực phản hồi từ VNPay; trạng thái hoàn tiền chưa được thay đổi.";
+  } else if (transactionStatus === "06") {
+    message = "VNPay đã gửi yêu cầu hoàn tiền sang ngân hàng và đang chờ xử lý.";
+  } else if (transactionStatus === "05") {
+    message = "VNPay đang xử lý yêu cầu hoàn tiền.";
+  } else if (responseCode === "94") {
+    message = "VNPay đang giới hạn tần suất kiểm tra. Vui lòng thử lại sau.";
+  } else if (responseCode && responseCode !== "00") {
+    message = "VNPay chưa trả kết quả cuối cùng cho yêu cầu hoàn tiền.";
+  } else if (operationStatus === "UNKNOWN") {
+    message = "Chưa xác định được trạng thái cuối cùng từ VNPay. Bạn có thể kiểm tra lại sau.";
+  }
+
+  return res.status(200).json({
+    status: 200,
+    code: "200",
+    message,
+    data: {
+      refund: this.formatRefundResponse(
+        refreshedRefund,
+        true,
+      ),
+
+      completed,
+
+      operationStatus: operationStatus || null,
+
+      reason: reason || null,
+    },
+  });
+}
   async confirmReceived(req: Request, res: Response) {
     const authUser = (req as any).user;
     const refund = await cancellationRefundService.confirmRefundReceived(

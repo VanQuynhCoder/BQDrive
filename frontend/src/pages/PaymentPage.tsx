@@ -48,7 +48,7 @@ type Booking = {
   endDate: string;
   rentalMode?: string;
   totalPrice?: number;
-  depositAmount: number;
+  upfrontPaymentAmount: number;
   remainingAmount: number;
   paidAmount: number;
   paymentOption: string;
@@ -60,12 +60,12 @@ type Booking = {
     fullName?: string;
     phone?: string;
     email?: string;
-    cccdNumber?: string;
-    cccdFrontImage?: string;
-    cccdBackImage?: string;
-    driverLicenseNumber?: string;
-    driverLicenseImage?: string;
     note?: string;
+  };
+  renterEligibilitySnapshot?: {
+    identityProfileCompleted?: boolean;
+    driverLicenseClass?: "B" | "B1" | "B2";
+    licenseEligible?: boolean;
   };
 };
 
@@ -81,7 +81,7 @@ const paymentMethods: Array<{
   {
     value: "CASH",
     label: "Tiền mặt",
-    description: "Thanh toán trực tiếp khi nhận xe.",
+    description: "Thanh toán trực tiếp với chủ xe khi trả xe.",
     icon: Wallet,
   },
   {
@@ -134,6 +134,40 @@ function calculateRentalTime(rentalMode: string | undefined, start: string, end:
   }
 
   return Math.max(1, Math.ceil(diffMs / HOUR_MS / 24));
+}
+
+function getBookingPricingAmounts(booking: Booking) {
+  const totalPrice = Number(booking.totalPrice || 0);
+  const platformFee = Number(booking.pricingSnapshot?.platformFee ?? 0);
+  const insuranceFee = Number(booking.pricingSnapshot?.insuranceFee ?? 0);
+  const deliveryFee = Number(
+    booking.pricingSnapshot?.deliveryFee ??
+      booking.pricingSnapshot?.delivery?.deliveryFee ??
+      0,
+  );
+  const rentalSubtotal = Number(
+    booking.pricingSnapshot?.rentalSubtotal ??
+      booking.pricingSnapshot?.subtotal ??
+      Math.max(totalPrice - platformFee - insuranceFee - deliveryFee, 0),
+  );
+  const rentalDepositAmount = Number(
+    booking.pricingSnapshot?.rentalDepositAmount ??
+      Math.round(rentalSubtotal * 0.5),
+  );
+  const upfrontPaymentAmount = Number(
+    booking.pricingSnapshot?.upfrontPaymentAmount ??
+      rentalDepositAmount + platformFee + insuranceFee,
+  );
+
+  return {
+    totalPrice,
+    rentalSubtotal,
+    rentalDepositAmount,
+    platformFee,
+    insuranceFee,
+    deliveryFee,
+    upfrontPaymentAmount,
+  };
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -219,10 +253,9 @@ export default function PaymentPage() {
   const availablePaymentTypes = useMemo(() => {
     if (!booking) return [];
 
-    const totalPrice = booking.totalPrice || 0;
+    const { totalPrice, upfrontPaymentAmount } =
+      getBookingPricingAmounts(booking);
     const paidAmount = booking.paidAmount || 0;
-    const depositAmount =
-      booking.depositAmount || Math.round(totalPrice * 0.3);
     const outstandingAmount = Math.max(
       booking.remainingAmount || totalPrice - paidAmount,
       0,
@@ -236,9 +269,10 @@ export default function PaymentPage() {
       return [
         {
           value: "DEPOSIT" as const,
-          label: "Đặt cọc trước",
-          description: "Thanh toán tiền cọc để giữ xe, phần còn lại trả sau.",
-          amount: depositAmount,
+          label: "Thanh toán giữ chỗ",
+          description:
+            "Thanh toán khoản giữ chỗ để xác nhận booking, phần còn lại trả sau.",
+          amount: upfrontPaymentAmount,
         },
         {
           value: "FULL" as const,
@@ -267,29 +301,44 @@ export default function PaymentPage() {
     availablePaymentTypes.find((item) => item.value === paymentType)?.value ||
     availablePaymentTypes[0]?.value ||
     paymentType;
+  const canUseCashForRemaining =
+    CASH_PAYMENT_UI_ENABLED &&
+    effectivePaymentType === "REMAINING" &&
+    ["RETURN_INSPECTION", "AWAITING_EXTRA_CHARGE"].includes(
+      booking?.status || "",
+    );
+
+  useEffect(() => {
+    if (method === "CASH" && !canUseCashForRemaining) {
+      setMethod("VNPAY");
+    }
+  }, [canUseCashForRemaining, method]);
 
   const paymentSummary = useMemo(() => {
     if (!booking) {
       return {
         totalPrice: 0,
-        depositAmount: 0,
+        rentalSubtotal: 0,
+        rentalDepositAmount: 0,
+        platformFee: 0,
+        insuranceFee: 0,
+        deliveryFee: 0,
+        upfrontPaymentAmount: 0,
         paidAmount: 0,
         outstandingAmount: 0,
       };
     }
 
-    const totalPrice = booking.totalPrice || 0;
+    const pricingAmounts = getBookingPricingAmounts(booking);
+    const { totalPrice } = pricingAmounts;
     const paidAmount = booking.paidAmount || 0;
-    const depositAmount =
-      booking.depositAmount || Math.round(totalPrice * 0.3);
     const outstandingAmount = Math.max(
       booking.remainingAmount || totalPrice - paidAmount,
       0,
     );
 
     return {
-      totalPrice,
-      depositAmount,
+      ...pricingAmounts,
       paidAmount,
       outstandingAmount,
     };
@@ -316,8 +365,20 @@ export default function PaymentPage() {
       return;
     }
 
-    if (!booking.renterInfo?.fullName || !booking.renterInfo?.cccdNumber) {
-      toast.error("Booking thiếu thông tin người thuê, không thể thanh toán");
+    if (method === "CASH" && !canUseCashForRemaining) {
+      toast.error(
+        "Tiền mặt chỉ được dùng để thanh toán phần còn lại sau khi chủ xe tiếp nhận xe trả.",
+      );
+      return;
+    }
+
+    if (
+      booking.renterEligibilitySnapshot?.identityProfileCompleted !== true ||
+      booking.renterEligibilitySnapshot?.licenseEligible !== true
+    ) {
+      toast.error(
+        "Vui lòng cập nhật đầy đủ CCCD và giấy phép lái xe trong hồ sơ cá nhân trước khi thanh toán.",
+      );
       navigate(`/bookings/${booking._id}`);
       return;
     }
@@ -470,24 +531,19 @@ export default function PaymentPage() {
                 <ReadonlyField label="Họ tên" value={booking.renterInfo?.fullName} />
                 <ReadonlyField label="Số điện thoại" value={booking.renterInfo?.phone} />
                 <ReadonlyField label="Email" value={booking.renterInfo?.email} />
-                <ReadonlyField label="CCCD/CMND" value={booking.renterInfo?.cccdNumber} />
                 <ReadonlyField
-                  label="Số bằng lái"
-                  value={booking.renterInfo?.driverLicenseNumber}
+                  label="Hồ sơ giấy tờ"
+                  value={
+                    booking.renterEligibilitySnapshot?.identityProfileCompleted
+                      ? "Đã hoàn tất"
+                      : "Chưa hoàn tất"
+                  }
+                />
+                <ReadonlyField
+                  label="Hạng GPLX"
+                  value={booking.renterEligibilitySnapshot?.driverLicenseClass}
                 />
                 <ReadonlyField label="Ghi chú" value={booking.renterInfo?.note || "--"} />
-                <DocumentPreview
-                  label="CCCD mặt trước"
-                  value={booking.renterInfo?.cccdFrontImage}
-                />
-                <DocumentPreview
-                  label="CCCD mặt sau"
-                  value={booking.renterInfo?.cccdBackImage}
-                />
-                <DocumentPreview
-                  label="Bằng lái xe"
-                  value={booking.renterInfo?.driverLicenseImage}
-                />
               </div>
             </div>
 
@@ -569,8 +625,15 @@ export default function PaymentPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 {paymentMethods
-                  .filter(({ value }) => CASH_PAYMENT_UI_ENABLED || value !== "CASH")
-                  .map(({ value, label, description, icon: Icon }) => (
+                .filter(({ value }) => {
+                  // Tiền mặt chỉ dùng cho phần còn lại sau khi chủ xe tiếp nhận xe trả.
+                  if (value === "CASH") {
+                    return canUseCashForRemaining;
+                  }
+
+                  return true;
+                })
+                .map(({ value, label, description, icon: Icon }) => (
                   <button
                     key={value}
                     type="button"
@@ -594,8 +657,8 @@ export default function PaymentPage() {
 
               <div className="mt-6 rounded-lg border border-secondary/20 bg-secondarySoft/25 p-5">
                 <p className="font-bold text-yellow-700">
-                  Nếu khách hàng không đến nhận xe đúng hẹn, tiền cọc sẽ không
-                  được hoàn lại.
+                  Nếu khách hàng không đến nhận xe đúng hẹn, tiền cọc thuê xe
+                  sẽ không được hoàn lại.
                 </p>
               </div>
             </div>
@@ -636,17 +699,36 @@ export default function PaymentPage() {
                 <SummaryRow label={rental.label} value={`${rentalTime} ${rental.unit}`} />
                 <SummaryRow
                   label="Tiền thuê xe"
-                  value={formatPrice(
-                    booking?.pricingSnapshot?.rentalSubtotal ??
-                      paymentSummary.totalPrice,
-                  )}
+                  value={formatPrice(paymentSummary.rentalSubtotal)}
                 />
                 <SummaryRow
-                  label="Phí giao xe"
-                  value={formatPrice(booking?.pricingSnapshot?.deliveryFee || 0)}
+                  label="Tiền cọc thuê xe (50% tiền thuê)"
+                  value={formatPrice(paymentSummary.rentalDepositAmount)}
                 />
-                <SummaryRow label="Tổng booking" value={formatPrice(paymentSummary.totalPrice)} />
-                <SummaryRow label="Tiền cọc" value={formatPrice(paymentSummary.depositAmount)} />
+                <SummaryRow
+                  label="Phí nền tảng"
+                  value={formatPrice(paymentSummary.platformFee)}
+                />
+
+                <SummaryRow
+                  label="Phí bảo hiểm"
+                  value={formatPrice(paymentSummary.insuranceFee)}
+                />
+
+                <SummaryRow
+                  label="Phí giao xe"
+                  value={formatPrice(paymentSummary.deliveryFee)}
+                />
+
+                <SummaryRow
+                  label="Tổng thanh toán"
+                  value={formatPrice(paymentSummary.totalPrice)}
+                />
+
+                <SummaryRow
+                  label="Thanh toán giữ chỗ"
+                  value={formatPrice(paymentSummary.upfrontPaymentAmount)}
+                />
                 <SummaryRow label="Đã thanh toán" value={formatPrice(paymentSummary.paidAmount)} />
                 <SummaryRow label="Còn lại" value={formatPrice(paymentSummary.outstandingAmount)} />
               </div>
@@ -698,25 +780,6 @@ function ReadonlyField({ label, value }: { label: string; value?: string }) {
       <p className="mt-1 break-words font-extrabold text-primary">
         {value || "--"}
       </p>
-    </div>
-  );
-}
-
-function DocumentPreview({ label, value }: { label: string; value?: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-white p-3">
-      <p className="mb-2 text-xs font-bold uppercase text-muted">{label}</p>
-      {value ? (
-        <img
-          src={value}
-          alt={label}
-          className="h-32 w-full rounded-lg object-cover"
-        />
-      ) : (
-        <div className="flex h-32 items-center justify-center rounded-lg bg-soft text-sm font-bold text-muted">
-          Chưa có ảnh
-        </div>
-      )}
     </div>
   );
 }

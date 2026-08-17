@@ -1,4 +1,4 @@
-// Shared owner hook: wizard navigation for BUSINESS and USER consignment car forms.
+// Hook điều khiển các bước của biểu mẫu xe ký gửi.
 import { useState } from "react";
 import toast from "react-hot-toast";
 

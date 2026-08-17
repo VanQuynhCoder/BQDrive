@@ -3,14 +3,14 @@ import net from "net";
 import nodemailer from "nodemailer";
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import { UserModel } from "../models/user/user.model";
-import { BusinessModel } from "../models/business/business.model";
+
 import { CarModel } from "../models/car/car.model";
 import { BookingModel } from "../models/booking/booking.model";
 import { PaymentModel } from "../models/payment/payment.model";
 import { getBookingDisplayCode } from "./booking-code.helper";
 import {
   ExtraChargeTypeEnum,
-  OwnerTypeEnum,
+
   PaymentMethodEnum,
   UserRoleEnum,
 } from "../constants/model.const";
@@ -259,7 +259,7 @@ function getWebsiteUrl() {
   );
 }
 
-function renderBusinessMail(payload: MailPayload) {
+function renderNotificationMail(payload: MailPayload) {
   const lines = compactLines(payload.lines || []);
 
   return `
@@ -295,7 +295,7 @@ function renderBusinessMail(payload: MailPayload) {
   `;
 }
 
-export async function sendBusinessNotificationMail(payload: MailPayload) {
+export async function sendNotificationMail(payload: MailPayload) {
   const recipients = Array.isArray(payload.to) ? payload.to : [payload.to];
   const to = recipients.map((item) => item?.trim()).filter(Boolean);
 
@@ -327,10 +327,10 @@ export async function sendBusinessNotificationMail(payload: MailPayload) {
           from: getMailFrom(),
           to,
           subject: payload.subject,
-          html: renderBusinessMail(payload),
+          html: renderNotificationMail(payload),
         });
 
-        console.log("Business notification email sent successfully", {
+        console.log("Notification email sent successfully", {
           host: smtpConfig.host,
           resolvedHost: resolvedSmtpHost,
           port,
@@ -341,7 +341,7 @@ export async function sendBusinessNotificationMail(payload: MailPayload) {
         return;
       } catch (error: any) {
         lastError = error;
-        console.error("Business notification email send attempt failed", {
+        console.error("Notification email send attempt failed", {
           host: smtpConfig.host,
           resolvedHost: resolvedSmtpHost,
           port,
@@ -388,18 +388,6 @@ async function getUserById(userId: unknown) {
 
   return UserModel.findById(userId).select("name email").lean();
 }
-
-async function getBusinessById(businessId: unknown) {
-  if (!businessId) return null;
-  if (typeof businessId === "object" && "businessName" in (businessId as any)) {
-    return businessId as any;
-  }
-
-  return BusinessModel.findById(businessId)
-    .populate("userId", "name email")
-    .lean();
-}
-
 async function getCarById(carId: unknown) {
   if (!carId) return null;
   if (typeof carId === "object" && "name" in (carId as any)) {
@@ -408,7 +396,6 @@ async function getCarById(carId: unknown) {
 
   return CarModel.findById(carId)
     .populate("brandId", "name")
-    .populate("businessId")
     .populate("ownerId", "name email")
     .lean();
 }
@@ -430,38 +417,21 @@ async function getBookingCar(booking: any) {
   return getCarById(booking?.carId);
 }
 
-async function getOwnerRecipient(ownerType: unknown, ownerId: unknown, businessId?: unknown) {
-  if (ownerType === OwnerTypeEnum.USER) {
-    const user = await getUserById(ownerId);
-    return {
-      email: user?.email,
-      name: user?.name || "Chủ xe ký gửi",
-    };
-  }
-
-  const business = await getBusinessById(ownerId || businessId);
-  const businessUser = business?.userId as any;
+async function getOwnerRecipient(ownerId: unknown) {
+  const user = await getUserById(ownerId);
 
   return {
-    email: businessUser?.email,
-    name: business?.businessName || businessUser?.name || "Doanh nghiệp",
+    email: user?.email,
+    name: user?.name || "Chủ xe ký gửi",
   };
 }
 
 async function getOwnerRecipientFromBooking(booking: any) {
-  return getOwnerRecipient(
-    booking?.ownerType || OwnerTypeEnum.BUSINESS,
-    booking?.ownerId,
-    booking?.businessId,
-  );
+  return getOwnerRecipient(booking?.ownerId);
 }
 
 async function getOwnerRecipientFromCar(car: any) {
-  return getOwnerRecipient(
-    car?.ownerType || OwnerTypeEnum.BUSINESS,
-    car?.ownerId,
-    car?.businessId,
-  );
+  return getOwnerRecipient(car?.ownerId);
 }
 
 async function getAdminEmails() {
@@ -476,58 +446,39 @@ async function getAdminEmails() {
 }
 
 async function getHolidayPricingRecipients() {
-  const cars = await CarModel.find({
+  const ownerIds = await CarModel.distinct("ownerId", {
+    ownerId: { $exists: true, $ne: null },
     isDeleted: false,
-    ownerType: { $in: [OwnerTypeEnum.USER, OwnerTypeEnum.BUSINESS] },
-  })
-    .select("ownerId ownerType businessId")
-    .lean();
-  const userOwnerIds = cars
-    .filter((car: any) => car.ownerType === OwnerTypeEnum.USER && car.ownerId)
-    .map((car: any) => car.ownerId);
-  const businessOwnerIds = cars
-    .filter((car: any) => car.ownerType === OwnerTypeEnum.BUSINESS)
-    .map((car: any) => car.ownerId || car.businessId)
-    .filter(Boolean);
+  });
 
-  const [users, businesses] = await Promise.all([
-    UserModel.find({
-      _id: { $in: userOwnerIds },
-      isDeleted: false,
-    })
-      .select("name email")
-      .lean(),
-    BusinessModel.find({
-      _id: { $in: businessOwnerIds },
-      isDeleted: false,
-    })
-      .populate("userId", "name email")
-      .select("businessName userId")
-      .lean(),
-  ]);
+  if (ownerIds.length === 0) {
+    return [];
+  }
+
+  const users = await UserModel.find({
+    _id: { $in: ownerIds },
+    isDeleted: false,
+  })
+    .select("name email")
+    .lean();
+
   const recipients = new Map<string, string>();
 
   users.forEach((user: any) => {
     if (user.email) {
-      recipients.set(user.email, user.name || "Người dùng ký gửi");
-    }
-  });
-
-  businesses.forEach((business: any) => {
-    const businessUser = business.userId as any;
-
-    if (businessUser?.email) {
       recipients.set(
-        businessUser.email,
-        business.businessName || businessUser.name || "Doanh nghiệp",
+        user.email,
+        user.name || "Chủ xe ký gửi",
       );
     }
   });
 
-  return Array.from(recipients.entries()).map(([email, name]) => ({
-    email,
-    name,
-  }));
+  return Array.from(recipients.entries()).map(
+    ([email, name]) => ({
+      email,
+      name,
+    }),
+  );
 }
 
 function getCarName(car: any) {
@@ -819,7 +770,7 @@ export async function sendPasswordResetOtpMail(email: string, otp: string, name?
 
 export async function sendPasswordChangedMail(email: string, name?: string) {
   await safeSendMail("sendPasswordChangedMail", async () => {
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: email,
       subject: "BQDrive - Mật khẩu đã được thay đổi",
       intro: `Chào ${name || "bạn"}, mật khẩu tài khoản BQDrive của bạn đã được thay đổi thành công.`,
@@ -839,7 +790,7 @@ export async function sendBookingCreatedMail(booking: any) {
       getBookingCustomer(booking),
     ]);
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: owner.email,
       subject: "BQDrive - Có yêu cầu thuê xe mới",
       intro:
@@ -857,7 +808,7 @@ export async function sendBookingApprovedMail(booking: any) {
       getBookingCar(booking),
     ]);
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: customer?.email,
       subject: "BQDrive - Yêu cầu thuê xe đã được duyệt",
       intro:
@@ -875,7 +826,7 @@ export async function sendBookingRejectedMail(booking: any) {
       getBookingCar(booking),
     ]);
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: customer?.email,
       subject: "BQDrive - Yêu cầu thuê xe bị từ chối",
       intro:
@@ -895,7 +846,7 @@ export async function sendBookingRequestTimeoutMail(booking: any) {
       getBookingCar(booking),
     ]);
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: customer?.email,
       subject: "BQDrive - Yêu cầu thuê xe đã được hủy tự động",
       intro:
@@ -919,7 +870,7 @@ export async function sendBookingPaymentTimeoutMail(booking: any) {
       getBookingCar(booking),
     ]);
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: customer?.email,
       subject: "BQDrive - Booking đã được hủy tự động",
       intro:
@@ -944,7 +895,7 @@ export async function sendCashPaymentSelectedMail(booking: any, payment?: any) {
       getBookingCustomer(booking),
     ]);
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: owner.email,
       subject: "BQDrive - Khách chọn thanh toán khi nhận xe",
       intro:
@@ -988,7 +939,7 @@ export async function sendPaymentSuccessMail(booking: any, payment?: any) {
 
     await Promise.all(
       recipients.map((recipientEmail) =>
-        sendBusinessNotificationMail({
+        sendNotificationMail({
           to: recipientEmail,
           subject: "BQDrive - Thanh toán thành công",
           intro,
@@ -1068,7 +1019,7 @@ export async function sendDepositRemainingPaymentMail(booking: any, payment?: an
 
     const bookingCode = getBookingDisplayCode(booking);
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: customer?.email,
       subject: "BQDrive - Thanh toán cọc thành công, còn lại cần thanh toán",
       intro:
@@ -1115,7 +1066,7 @@ export async function sendRemainingCashConfirmedMail(booking: any, payment?: any
       getBookingCar(booking),
     ]);
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: customer?.email,
       subject: "BQDrive - Chủ xe đã xác nhận thu phần còn lại",
       intro:
@@ -1139,7 +1090,7 @@ export async function sendBookingHandoverMail(booking: any) {
       getBookingCar(booking),
     ]);
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: customer?.email,
       subject: "BQDrive - Chuyến thuê đã bắt đầu",
       intro:
@@ -1162,7 +1113,7 @@ export async function sendBookingReturnReminderMail(booking: any) {
       throw new Error("Missing renter email for return reminder");
     }
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: recipientEmail,
       subject: "BQDrive - Sắp đến hạn trả xe",
       intro:
@@ -1190,7 +1141,7 @@ export async function sendHolidayPricingReminderMail(holiday: any) {
 
     await Promise.all(
       recipients.map((recipient) =>
-        sendBusinessNotificationMail({
+        sendNotificationMail({
           to: recipient.email,
           subject: "BQDrive - Admin vừa cập nhật ngày lễ",
           intro:
@@ -1220,7 +1171,7 @@ export async function sendBookingCompletedMail(booking: any) {
     const bookingCode = getBookingDisplayCode(booking);
     const reviewUrl = `${getWebsiteUrl().replace(/\/$/, "")}/bookings/${booking?._id}`;
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: customer?.email || booking?.renterInfo?.email,
       subject:
         "Cảm ơn Quý khách đã tin tưởng và đồng hành cùng BQDrive, Vui lòng hãy để lại đánh giá trên hệ thống của chúng tôi!",
@@ -1251,7 +1202,7 @@ export async function sendBookingNoShowMail(booking: any) {
       getBookingCar(booking),
     ]);
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: customer?.email,
       subject: "BQDrive - Booking được đánh dấu không nhận xe",
       intro:
@@ -1275,7 +1226,7 @@ export async function sendBookingCancellationRefundMail(booking: any, refund?: a
     const bookingCode = getBookingDisplayCode(booking);
     const refundAmount = Number(refund?.refundAmount || 0);
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: customer?.email || booking?.renterInfo?.email,
       subject: refundAmount > 0
         ? "BQDrive - Booking đã hủy, yêu cầu hoàn tiền đang chờ xử lý"
@@ -1311,15 +1262,11 @@ export async function sendNewReviewMail(review: any, rawBooking?: any) {
 
     const [car, owner, reviewer] = await Promise.all([
       getCarById(review?.carId || booking.carId),
-      getOwnerRecipient(
-        review?.ownerType || booking.ownerType,
-        review?.ownerId || booking.ownerId,
-        booking.businessId,
-      ),
+      getOwnerRecipient(review?.ownerId || booking.ownerId),
       getUserById(review?.renterId || booking.userId),
     ]);
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: owner.email,
       subject: "BQDrive - Xe của bạn vừa nhận được đánh giá mới",
       intro: `${owner.name}, xe của bạn vừa nhận được đánh giá từ khách thuê.`,
@@ -1356,7 +1303,7 @@ export async function sendNewExtraChargeMail(
     const mileage = extraCharge?.mileageSnapshot;
     const lateReturn = extraCharge?.lateReturnSnapshot;
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: customerEmail,
       subject: "BQDrive - Bạn có một khoản phí phát sinh mới",
       intro:
@@ -1433,7 +1380,7 @@ export async function sendExtraChargePaidMail(
     const recipientEmail = isCash
       ? customer?.email || booking?.renterInfo?.email
       : owner.email;
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: recipientEmail,
       subject: isCash
         ? "BQDrive - Chủ xe đã xác nhận thu phí phát sinh"
@@ -1472,7 +1419,7 @@ export async function sendExtraChargeCancelledMail(
       getBookingCar(booking),
     ]);
     const customerEmail = customer?.email || booking?.renterInfo?.email;
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: customerEmail,
       subject: "BQDrive - Khoản phí phát sinh đã được hủy",
       intro:
@@ -1504,7 +1451,7 @@ export async function sendRefundRecipientInfoSubmittedMail(
       getOwnerRecipientFromBooking(booking),
       getBookingCar(booking),
     ]);
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: owner.email,
       subject: "BQDrive - Người thuê đã cung cấp thông tin nhận tiền hoàn",
       intro: `${owner.name}, người thuê đã hoàn tất bước cung cấp thông tin nhận tiền hoàn.`,
@@ -1533,7 +1480,7 @@ export async function sendRefundSentMail(refund: any, rawBooking?: any) {
       getBookingCar(booking),
     ]);
     const customerEmail = customer?.email || booking?.renterInfo?.email;
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: customerEmail,
       subject: "BQDrive - Chủ xe đã xác nhận gửi tiền hoàn",
       intro:
@@ -1560,7 +1507,7 @@ export async function sendRefundReceivedMail(refund: any, rawBooking?: any) {
       getOwnerRecipientFromBooking(booking),
       getBookingCar(booking),
     ]);
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: owner.email,
       subject: "BQDrive - Người thuê đã xác nhận nhận tiền hoàn",
       intro: `${owner.name}, người thuê đã xác nhận nhận đủ khoản tiền hoàn.`,
@@ -1591,7 +1538,7 @@ export async function sendReturnInspectionCompletedMail(
     const returnOdometer =
       inspection?.returnOdometerKm ?? inspection?.returnOdometer;
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: customerEmail,
       subject: "BQDrive - Xe đã được chủ xe tiếp nhận và kiểm tra",
       intro:
@@ -1629,20 +1576,15 @@ export async function sendCarSubmittedToAdminMail(car: any) {
       getAdminEmails(),
       getOwnerRecipientFromCar(car),
     ]);
+    await sendNotificationMail({
+  to: adminEmails,
+  subject: "BQDrive - Có xe ký gửi mới chờ duyệt",
+  intro: "Có xe ký gửi mới từ người dùng cần admin kiểm duyệt.",
+  lines: getCarLines(car, owner.name),
+  actionText: "Admin vui lòng vào trang quản lý xe để kiểm duyệt.",
+});
 
-    const isUserConsignment = car?.ownerType === OwnerTypeEnum.USER;
 
-    await sendBusinessNotificationMail({
-      to: adminEmails,
-      subject: isUserConsignment
-        ? "BQDrive - Có xe ký gửi mới chờ duyệt"
-        : "BQDrive - Có xe doanh nghiệp mới chờ duyệt",
-      intro: isUserConsignment
-        ? "Có xe ký gửi mới từ người dùng cần admin kiểm duyệt."
-        : "Có xe mới từ doanh nghiệp cần admin kiểm duyệt.",
-      lines: getCarLines(car, owner.name),
-      actionText: "Admin vui lòng vào trang quản lý xe để kiểm duyệt.",
-    });
   });
 }
 
@@ -1650,7 +1592,7 @@ export async function sendCarApprovedMail(car: any) {
   await safeSendMail("sendCarApprovedMail", async () => {
     const owner = await getOwnerRecipientFromCar(car);
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: owner.email,
       subject: "BQDrive - Xe của bạn đã được duyệt",
       intro:
@@ -1665,7 +1607,7 @@ export async function sendCarRejectedMail(car: any) {
   await safeSendMail("sendCarRejectedMail", async () => {
     const owner = await getOwnerRecipientFromCar(car);
 
-    await sendBusinessNotificationMail({
+    await sendNotificationMail({
       to: owner.email,
       subject: "BQDrive - Xe của bạn bị từ chối",
       intro:
@@ -1679,12 +1621,20 @@ export async function sendCarRejectedMail(car: any) {
 }
 
 function getBookingExtensionLines(booking: any, extension: any) {
+  const isPlanConversion = extension?.requestType === "PLAN_CONVERSION";
   return compactLines([
     `Mã đặt xe: ${getBookingDisplayCode(booking)}`,
+    isPlanConversion ? "Loại yêu cầu: Chuyển từ gói giờ sang gói ngày" : undefined,
     `Thời gian trả cũ: ${formatDateTime(extension?.oldEndAt)}`,
     `Thời gian trả mới: ${formatDateTime(extension?.requestedEndAt)}`,
-    `Chi phí gia hạn: ${formatCurrency(extension?.additionalAmount)}`,
+    `${isPlanConversion ? "Chi phí chuyển gói" : "Chi phí gia hạn"}: ${formatCurrency(extension?.additionalAmount)}`,
   ]);
+}
+
+function getBookingExtensionMailLabel(extension: any) {
+  return extension?.requestType === "PLAN_CONVERSION"
+    ? "chuyển sang gói thuê ngày"
+    : "gia hạn chuyến thuê";
 }
 
 export async function sendBookingExtensionRequestedMail(
@@ -1693,10 +1643,11 @@ export async function sendBookingExtensionRequestedMail(
 ) {
   await safeSendMail("sendBookingExtensionRequestedMail", async () => {
     const owner = await getOwnerRecipientFromBooking(booking);
-    await sendBusinessNotificationMail({
+    const requestLabel = getBookingExtensionMailLabel(extension);
+    await sendNotificationMail({
       to: owner.email,
-      subject: "BQDrive - Khách yêu cầu gia hạn chuyến thuê",
-      intro: `${owner.name}, khách thuê vừa gửi yêu cầu gia hạn chuyến đi.`,
+      subject: `BQDrive - Khách yêu cầu ${requestLabel}`,
+      intro: `${owner.name}, khách thuê vừa gửi yêu cầu ${requestLabel}.`,
       lines: getBookingExtensionLines(booking, extension),
       actionText: "Vui lòng mở trang quản lý booking để duyệt hoặc từ chối yêu cầu.",
     });
@@ -1709,16 +1660,17 @@ export async function sendBookingExtensionApprovedMail(
 ) {
   await safeSendMail("sendBookingExtensionApprovedMail", async () => {
     const customer = await getBookingCustomer(booking);
-    await sendBusinessNotificationMail({
+    const requestLabel = getBookingExtensionMailLabel(extension);
+    await sendNotificationMail({
       to: customer?.email || booking?.renterInfo?.email,
-      subject: "BQDrive - Yêu cầu gia hạn đã được duyệt",
-      intro: "Chủ xe đã đồng ý yêu cầu gia hạn của bạn.",
+      subject: `BQDrive - Yêu cầu ${requestLabel} đã được duyệt`,
+      intro: `Chủ xe đã đồng ý yêu cầu ${requestLabel} của bạn.`,
       lines: compactLines([
         ...getBookingExtensionLines(booking, extension),
         `Hạn thanh toán: ${formatDateTime(extension?.paymentDeadlineAt)}`,
       ]),
       actionText:
-        "Vui lòng thanh toán đầy đủ phí gia hạn trước hạn. Thời gian trả mới chỉ có hiệu lực sau khi thanh toán thành công.",
+        "Vui lòng thanh toán online đầy đủ trước hạn. Thời gian trả mới và gói thuê chỉ có hiệu lực sau khi thanh toán thành công.",
     });
   });
 }
@@ -1729,10 +1681,11 @@ export async function sendBookingExtensionRejectedMail(
 ) {
   await safeSendMail("sendBookingExtensionRejectedMail", async () => {
     const customer = await getBookingCustomer(booking);
-    await sendBusinessNotificationMail({
+    const requestLabel = getBookingExtensionMailLabel(extension);
+    await sendNotificationMail({
       to: customer?.email || booking?.renterInfo?.email,
-      subject: "BQDrive - Yêu cầu gia hạn bị từ chối",
-      intro: "Chủ xe chưa thể đồng ý yêu cầu gia hạn của bạn.",
+      subject: `BQDrive - Yêu cầu ${requestLabel} bị từ chối`,
+      intro: `Chủ xe chưa thể đồng ý yêu cầu ${requestLabel} của bạn.`,
       lines: compactLines([
         ...getBookingExtensionLines(booking, extension),
         extension?.rejectReason
@@ -1753,19 +1706,20 @@ export async function sendBookingExtensionActivatedMail(
       getBookingCustomer(booking),
       getOwnerRecipientFromBooking(booking),
     ]);
+    const requestLabel = getBookingExtensionMailLabel(extension);
     const mail = {
-      subject: "BQDrive - Gia hạn chuyến thuê đã được áp dụng",
-      intro: "Khoản thanh toán gia hạn đã được ghi nhận thành công.",
+      subject: `BQDrive - ${requestLabel} đã được áp dụng`,
+      intro: `Yêu cầu ${requestLabel} đã được áp dụng thành công.`,
       lines: getBookingExtensionLines(booking, extension),
       actionText:
         "Thời gian trả xe mới đã được cập nhật trên booking và hợp đồng hiện tại.",
     };
     await Promise.all([
-      sendBusinessNotificationMail({
+      sendNotificationMail({
         ...mail,
         to: customer?.email || booking?.renterInfo?.email,
       }),
-      sendBusinessNotificationMail({ ...mail, to: owner.email }),
+      sendNotificationMail({ ...mail, to: owner.email }),
     ]);
   });
 }
@@ -1776,11 +1730,11 @@ export async function sendBookingExtensionExpiredMail(
 ) {
   await safeSendMail("sendBookingExtensionExpiredMail", async () => {
     const customer = await getBookingCustomer(booking);
-    await sendBusinessNotificationMail({
+    const requestLabel = getBookingExtensionMailLabel(extension);
+    await sendNotificationMail({
       to: customer?.email || booking?.renterInfo?.email,
-      subject: "BQDrive - Yêu cầu gia hạn đã hết hạn thanh toán",
-      intro:
-        "Yêu cầu gia hạn đã hết thời gian thanh toán và không được áp dụng.",
+      subject: `BQDrive - Yêu cầu ${requestLabel} đã hết hạn thanh toán`,
+      intro: `Yêu cầu ${requestLabel} đã hết thời gian thanh toán và không được áp dụng.`,
       lines: getBookingExtensionLines(booking, extension),
       actionText: "Booking vẫn giữ thời gian trả xe cũ.",
     });

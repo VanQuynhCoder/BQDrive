@@ -43,6 +43,7 @@ import CarPricingOverview from "../components/pricing/CarPricingOverview";
 import {
   carService,
   type CarMileagePolicy,
+  type CalendarUnavailableRange,
 } from "../services/car.service";
 import { cartService } from "../services/cart.service";
 import {
@@ -101,11 +102,9 @@ function ReviewAvatar({
 function OwnerIdentityImage({
   name,
   image,
-  isBusiness,
 }: {
   name: string;
   image?: string;
-  isBusiness: boolean;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   const imageUrl = normalizeImageUrl(image);
@@ -115,21 +114,17 @@ function OwnerIdentityImage({
     return (
       <img
         src={imageUrl}
-        alt={isBusiness ? `Logo ${name}` : `Ảnh đại diện ${name}`}
+        alt={`Ảnh đại diện ${name}`}
         onError={() => setImageFailed(true)}
-        className={`h-16 w-16 shrink-0 border-2 border-white/20 bg-white object-cover shadow-sm ${
-          isBusiness ? "rounded-lg" : "rounded-full"
-        }`}
+        className="h-16 w-16 shrink-0 rounded-full border-2 border-white/20 bg-white object-cover shadow-sm"
       />
     );
   }
 
   return (
     <div
-      className={`flex h-16 w-16 shrink-0 items-center justify-center border-2 border-white/20 bg-white/10 text-xl font-extrabold text-secondary ${
-        isBusiness ? "rounded-lg" : "rounded-full"
-      }`}
-      aria-label={isBusiness ? `Logo ${name}` : `Ảnh đại diện ${name}`}
+   className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-white/20 bg-white/10 text-xl font-extrabold text-secondary"
+      aria-label={`Ảnh đại diện ${name}`}
     >
       {initial}
     </div>
@@ -186,45 +181,28 @@ type CarDetail = {
     _id?: string;
     name?: string;
   } | null;
-  businessId?: {
-    businessName?: string;
-    logo?: string;
-    address?: string;
-    province?: string;
-    city?: string;
-    district?: string;
-    ward?: string;
-  } | null;
+
   ownerId?: {
-    name?: string;
-    businessName?: string;
-    avatar?: string;
-    logo?: string;
-    address?: string;
-    province?: string;
-    city?: string;
-    district?: string;
-    ward?: string;
-  } | null;
-  ownerType?: "USER" | "BUSINESS" | string;
+  name?: string;
+  avatar?: string;
+  address?: string;
+  province?: string;
+  city?: string;
+  district?: string;
+  ward?: string;
+} | null;
   status?: string;
   rentalAvailability?: RentalAvailability;
   availabilityLabel?: string;
   isBookable?: boolean;
   unavailableReason?: string;
   cleaningUntil?: string;
-  unavailableRanges: UnavailableRange[];
+  requiresScheduleCheck?: boolean;
+  unavailableRanges?: UnavailableRange[];
   currentUserActiveBooking?: CurrentUserActiveBooking | null;
 };
 
-type UnavailableRange = {
-  bookingId?: string;
-  startDate: string;
-  endDate: string;
-  status: string;
-  type?: "CLEANING" | string;
-  reason?: string;
-};
+type UnavailableRange = CalendarUnavailableRange;
 
 type CurrentUserActiveBooking = {
   _id: string;
@@ -234,7 +212,7 @@ type CurrentUserActiveBooking = {
   rentalMode?: RentalMode;
   totalPrice?: number;
   paidAmount: number;
-  depositAmount: number;
+  upfrontPaymentAmount: number;
   remainingAmount: number;
   paymentOption: string;
 };
@@ -291,7 +269,12 @@ const RENTAL_START_TIME = "08:00";
 const RENTAL_END_TIME = "18:00";
 const HOUR_MS = 1000 * 60 * 60;
 const TIME_OPTIONS = buildTimeOptions("08:00", "22:00", 30); // Dropdown giờ mỗi 30 phút, từ 08:00 đến 22:00.
-const HOURLY_DURATION_OPTIONS = [4, 5, 6, 7, 8]; // Thuê theo giờ chỉ cho 4-8 giờ.
+const HOURLY_RENTAL_MIN_HOURS = 4;
+const HOURLY_RENTAL_MAX_HOURS = 24;
+const HOURLY_DURATION_OPTIONS = Array.from(
+  { length: HOURLY_RENTAL_MAX_HOURS - HOURLY_RENTAL_MIN_HOURS + 1 },
+  (_, index) => HOURLY_RENTAL_MIN_HOURS + index,
+);
 const WEEKDAY_LABELS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"]; // Header lịch bắt đầu từ thứ hai.
 const DETAILED_PICKUP_STATUSES = [
   "OWNER_APPROVED",
@@ -327,14 +310,29 @@ function timeToMinutes(time: string) {
 }
 
 function minutesToTime(totalMinutes: number) {
-  const hour = Math.floor(totalMinutes / 60);
-  const minute = totalMinutes % 60;
+  const normalizedMinutes = ((totalMinutes % 1440) + 1440) % 1440;
+  const hour = Math.floor(normalizedMinutes / 60);
+  const minute = normalizedMinutes % 60;
 
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-function addHoursToTime(time: string, hours: number) {
-  return minutesToTime(timeToMinutes(time) + hours * 60);
+function getHourlyRentalEnd(
+  startDate: string,
+  startTime: string,
+  durationHours: number,
+) {
+  const parsedStartDate = parseDateValue(startDate);
+  if (!parsedStartDate || !startTime || durationHours <= 0) return null;
+
+  const totalMinutes = timeToMinutes(startTime) + durationHours * 60;
+  const dayOffset = Math.floor(totalMinutes / 1440);
+  const endDate = addDays(parsedStartDate, dayOffset);
+
+  return {
+    date: formatDateValue(endDate),
+    time: minutesToTime(totalMinutes),
+  };
 }
 
 function formatDateValue(date: Date) {
@@ -676,6 +674,26 @@ function groupQuoteBreakdown(quote?: BookingPriceQuote | null) {
   return Array.from(groupMap.values());
 }
 
+function getQuoteSurchargeTotal(quote?: BookingPriceQuote | null) {
+  if (!quote) return 0;
+
+  return quote.breakdown.reduce(
+    (sum, item) =>
+      sum +
+      Number(item.surchargeAmount || 0) * Number(item.unitCount || 1),
+    0,
+  );
+}
+
+function getQuoteBaseRentalSubtotal(quote?: BookingPriceQuote | null) {
+  if (!quote) return 0;
+
+  const rentalSubtotal = Number(
+    quote.rentalSubtotal ?? quote.totalPrice ?? 0,
+  );
+  return Math.max(rentalSubtotal - getQuoteSurchargeTotal(quote), 0);
+}
+
 function calculateRentalTime(rentalMode: RentalMode, start: Date, end: Date) {
   const diffMs = end.getTime() - start.getTime();
 
@@ -704,11 +722,7 @@ function formatUnavailableRange(range: UnavailableRange) {
     year: "numeric",
   });
 
-  if (range.type === "CLEANING" || range.status === "CLEANING") {
-    return `Vệ sinh xe: từ ${formatter.format(start)} đến ${formatter.format(end)}`;
-  }
-
-  return `Đã có lịch thuê: từ ${formatter.format(start)} đến ${formatter.format(end)}`;
+  return `Xe không khả dụng: từ ${formatter.format(start)} đến ${formatter.format(end)}`;
 }
 
 function findOverlappingUnavailableRange(
@@ -764,13 +778,44 @@ function isDateInsideUnavailableRange(
   const dayStart = new Date(`${dateValue}T00:00:00`);
   const dayEnd = new Date(`${dateValue}T23:59:59`);
 
-  return doesRangeOverlapUnavailable(
-    ranges.filter(
-      (range) => range.type !== "CLEANING" && range.status !== "CLEANING",
-    ),
-    dayStart,
-    dayEnd,
-  );
+  return doesRangeOverlapUnavailable(ranges, dayStart, dayEnd);
+}
+
+function isDateFullyUnavailable(
+  ranges: UnavailableRange[] | undefined,
+  dateValue: string,
+) {
+  if (!ranges?.length || !dateValue) return false;
+
+  const businessStart = new Date(buildVietnamDateTime(dateValue, "08:00"));
+  const businessEnd = new Date(buildVietnamDateTime(dateValue, "22:00"));
+
+  return ranges.some((range) => {
+    const start = new Date(range.startDate);
+    const end = new Date(range.endDate);
+    return !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) &&
+      start <= businessStart && end >= businessEnd;
+  });
+}
+
+function isHourlyDateFullyUnavailable(
+  ranges: UnavailableRange[] | undefined,
+  dateValue: string,
+) {
+  const availableStartTimes = TIME_OPTIONS.filter((time) => {
+    const end = getHourlyRentalEnd(dateValue, time, HOURLY_RENTAL_MIN_HOURS);
+    if (!end || end.date !== dateValue || timeToMinutes(end.time) > timeToMinutes("22:00")) {
+      return false;
+    }
+
+    return !doesRangeOverlapUnavailable(
+      ranges,
+      new Date(buildVietnamDateTime(dateValue, time)),
+      new Date(buildVietnamDateTime(end.date, end.time)),
+    );
+  });
+
+  return availableStartTimes.length === 0;
 }
 
 function getCarImages(car?: CarDetail) {
@@ -862,6 +907,16 @@ function getAvailabilityInfo(car?: CarDetail | null, now = Date.now()) {
     };
   }
 
+  if (car?.requiresScheduleCheck) {
+    return {
+      label: car.availabilityLabel || "Kiểm tra lịch thuê",
+      badgeClass: "bg-slate-100 text-slate-700 ring-1 ring-slate-200",
+      isBookable: true,
+      isCleaning: false,
+      message: "Vui lòng chọn thời gian nhận và trả xe để kiểm tra lịch thuê.",
+    };
+  }
+
   return {
     label: car?.availabilityLabel || "Sẵn sàng",
     badgeClass:
@@ -894,6 +949,10 @@ export default function CarDetailPage() {
   const [pickerMonth, setPickerMonth] = useState(
     () => parseDateValue(getVietnamTodayDate()) || new Date(),
   ); // Tháng đang hiển thị trong lịch.
+  const [calendarUnavailableRanges, setCalendarUnavailableRanges] = useState<UnavailableRange[]>([]);
+  const [isCalendarAvailabilityLoading, setIsCalendarAvailabilityLoading] = useState(false);
+  const [calendarAvailabilityError, setCalendarAvailabilityError] = useState("");
+  const [calendarAvailabilityVersion, setCalendarAvailabilityVersion] = useState(0);
   const [holidayDateMap, setHolidayDateMap] = useState<Record<string, HolidayDateInfo>>({});
   const [activeHolidayDate, setActiveHolidayDate] = useState("");
   const [hourlyDuration, setHourlyDuration] = useState(4); // Mặc định thuê theo giờ tối thiểu 4 giờ.
@@ -1172,6 +1231,38 @@ export default function CarDetailPage() {
     };
   }, [isRentalPickerOpen, pickerMonth]);
 
+  useEffect(() => {
+    if (!id || !isRentalPickerOpen) return;
+
+    let active = true;
+    const visibleStart = new Date(pickerMonth.getFullYear(), pickerMonth.getMonth(), 1);
+    const visibleEnd = getMonthEnd(addMonths(pickerMonth, 1));
+
+    setIsCalendarAvailabilityLoading(true);
+    setCalendarAvailabilityError("");
+    carService
+      .getAvailabilityCalendar(id, {
+        from: formatDateValue(visibleStart),
+        to: formatDateValue(visibleEnd),
+      })
+      .then((ranges) => {
+        if (active) setCalendarUnavailableRanges(ranges);
+      })
+      .catch(() => {
+        if (active) {
+          setCalendarUnavailableRanges([]);
+          setCalendarAvailabilityError("Không thể tải lịch xe. Hệ thống sẽ kiểm tra lại khi bạn đặt xe.");
+        }
+      })
+      .finally(() => {
+        if (active) setIsCalendarAvailabilityLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [calendarAvailabilityVersion, id, isRentalPickerOpen, pickerMonth]);
+
   const supportedRentalModes = getRentalModes(car);
   const rentalInfo = car
     ? getRentalInfo(car, rentalMode)
@@ -1191,6 +1282,7 @@ export default function CarDetailPage() {
     ? "ngày"
     : "giờ";
   const availabilityInfo = getAvailabilityInfo(car, availabilityNow);
+  const unavailableRanges = calendarUnavailableRanges;
 
   const rentalTime = useMemo(() => {
     if (!car || !startDate || !endDate || !startTime || !endTime) return 0;
@@ -1220,33 +1312,15 @@ export default function CarDetailPage() {
     }
 
     const overlappingRange = findOverlappingUnavailableRange(
-      car.unavailableRanges,
+      unavailableRanges,
       start,
       end,
     );
 
     if (!overlappingRange) return "";
 
-    if (
-      overlappingRange.type === "CLEANING" ||
-      overlappingRange.status === "CLEANING"
-    ) {
-      const cleaningUntil = new Date(overlappingRange.endDate);
-      const formattedUntil = Number.isNaN(cleaningUntil.getTime())
-        ? "thời điểm vệ sinh kết thúc"
-        : cleaningUntil.toLocaleString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          });
-
-      return `Xe đang được vệ sinh đến ${formattedUntil}. Vui lòng chọn giờ nhận xe sau thời điểm này.`;
-    }
-
-    return "Xe đã được thuê trong khoảng thời gian bạn chọn";
-  }, [car, startDate, endDate, startTime, endTime]);
+    return "Khoảng thời gian đã chọn trùng với lịch thuê hiện có của xe.";
+  }, [endDate, endTime, startDate, startTime, unavailableRanges]);
   const rentalModeValidationMessage = useMemo(() => {
     if (rentalMode === "DAILY" && !supportedRentalModes.allowDailyRental) {
       return "Xe không hỗ trợ thuê theo ngày";
@@ -1256,8 +1330,13 @@ export default function CarDetailPage() {
       return "Xe không hỗ trợ thuê theo giờ";
     }
 
-    if (rentalMode === "HOURLY" && rentalTime > 0 && (rentalTime < 4 || rentalTime > 8)) {
-      return "Thuê theo giờ chỉ hỗ trợ từ 4 đến 8 giờ";
+    if (
+      rentalMode === "HOURLY" &&
+      rentalTime > 0 &&
+      (rentalTime < HOURLY_RENTAL_MIN_HOURS ||
+        rentalTime > HOURLY_RENTAL_MAX_HOURS)
+    ) {
+      return `Thuê theo giờ chỉ hỗ trợ từ ${HOURLY_RENTAL_MIN_HOURS} đến ${HOURLY_RENTAL_MAX_HOURS} giờ`;
     }
 
     return "";
@@ -1371,20 +1450,26 @@ export default function CarDetailPage() {
     currentUserBookingRentalTime > 0 ? currentUserBookingRentalTime : rentalTime;
   const displayTotalPrice = currentUserBooking?.totalPrice || totalPrice;
   const quoteBreakdownGroups = groupQuoteBreakdown(priceQuote);
+  const quoteSurchargeTotal = getQuoteSurchargeTotal(priceQuote);
+  const quoteBaseRentalSubtotal = getQuoteBaseRentalSubtotal(priceQuote);
   const quoteUnitLabel = getQuoteUnitLabel(priceQuote);
   const hasRentalSelection = Boolean(startDate && endDate);
 
-  const unavailableRanges = car?.unavailableRanges || [];
   const activeHolidayInfo = activeHolidayDate
     ? holidayDateMap[activeHolidayDate]
     : undefined;
-  const latestHourlyStartTime = minutesToTime(timeToMinutes("22:00") - hourlyDuration * 60);
   const hourlyStartTimeOptions = useMemo(
     () =>
-      TIME_OPTIONS.filter(
-        (time) => timeToMinutes(time) <= timeToMinutes(latestHourlyStartTime),
-      ),
-    [latestHourlyStartTime],
+      TIME_OPTIONS.filter((time) => {
+        const endMinuteOfDay =
+          (timeToMinutes(time) + hourlyDuration * 60) % 1440;
+
+        return (
+          endMinuteOfDay >= timeToMinutes("08:00") &&
+          endMinuteOfDay <= timeToMinutes("22:00")
+        );
+      }),
+    [hourlyDuration],
   );
   const rentalPickerSummary = formatRentalPickerSummary(
     rentalMode,
@@ -1417,15 +1502,30 @@ export default function CarDetailPage() {
       (isSameDateValue(startDate, endDate) &&
         timeToMinutes(time) <= timeToMinutes(startTime)),
   }));
+  const isHourlySelectionUnavailable = useCallback(
+    (dateValue: string, time: string, duration: number) => {
+      const end = getHourlyRentalEnd(dateValue, time, duration);
+      if (!end) return true;
+
+      return doesRangeOverlapUnavailable(
+        unavailableRanges,
+        new Date(buildVietnamDateTime(dateValue, time)),
+        new Date(buildVietnamDateTime(end.date, end.time)),
+      );
+    },
+    [unavailableRanges],
+  );
   const hourlyStartWheelOptions: WheelOption[] = hourlyStartTimeOptions.map((time) => ({
     label: time,
     value: time,
-    disabled: isPastTimeForDate(startDate, time),
+    disabled:
+      isPastTimeForDate(startDate, time) ||
+      isHourlySelectionUnavailable(startDate, time, hourlyDuration),
   }));
   const hourlyDurationWheelOptions: WheelOption[] = HOURLY_DURATION_OPTIONS.map((duration) => ({
     label: `${duration} giờ`,
     value: duration,
-    disabled: false,
+    disabled: Boolean(startDate) && isHourlySelectionUnavailable(startDate, startTime, duration),
   }));
   const firstEnabledDailyStartTime = dailyStartTimeOptions.find(
     (option) => !option.disabled,
@@ -1440,27 +1540,29 @@ export default function CarDetailPage() {
   useEffect(() => {
     if (rentalMode !== "HOURLY") return;
 
-    // Khi thuê theo giờ, ngày trả luôn bằng ngày nhận và giờ trả tính từ số giờ thuê.
-    const nextStartTime =
-      hourlyStartTimeOptions.includes(startTime) && !isPastTimeForDate(startDate, startTime)
-        ? startTime
-        : firstEnabledHourlyStartTime;
+    // Gói thuê dài có thể trả vào ngày kế tiếp; giờ nhận và trả vẫn nằm trong khung 08:00-22:00.
+    const nextStartTime = hourlyStartWheelOptions.some(
+      (option) => option.value === startTime && !option.disabled,
+    )
+      ? startTime
+      : firstEnabledHourlyStartTime;
 
     if (nextStartTime && nextStartTime !== startTime) {
       queueMicrotask(() => setStartTime(nextStartTime));
       return;
     }
 
-    if (startDate && endDate !== startDate) {
-      queueMicrotask(() => setEndDate(startDate));
-      return;
-    }
-
-    if (nextStartTime) {
-      const nextEndTime = addHoursToTime(nextStartTime, hourlyDuration);
-      if (endTime !== nextEndTime) {
-        queueMicrotask(() => setEndTime(nextEndTime));
-      }
+    const nextEnd = nextStartTime
+      ? getHourlyRentalEnd(startDate, nextStartTime, hourlyDuration)
+      : null;
+    if (
+      nextEnd &&
+      (endDate !== nextEnd.date || endTime !== nextEnd.time)
+    ) {
+      queueMicrotask(() => {
+        setEndDate(nextEnd.date);
+        setEndTime(nextEnd.time);
+      });
     }
   }, [
     endDate,
@@ -1469,6 +1571,7 @@ export default function CarDetailPage() {
     firstEnabledHourlyStartTime,
     hourlyStartTimeOptions,
     isPastTimeForDate,
+    isHourlySelectionUnavailable,
     rentalMode,
     startDate,
     startTime,
@@ -1501,8 +1604,13 @@ export default function CarDetailPage() {
     startTime,
   ]);
 
-  const isCalendarDateDisabled = (dateValue: string) =>
-    dateValue < today || isDateInsideUnavailableRange(unavailableRanges, dateValue); // Khóa ngày quá khả và ngày xe đã được thuê.
+  const isCalendarDateDisabled = (dateValue: string) => {
+    if (dateValue < today) return true;
+
+    return rentalMode === "DAILY"
+      ? isDateFullyUnavailable(unavailableRanges, dateValue)
+      : isHourlyDateFullyUnavailable(unavailableRanges, dateValue);
+  };
 
   const isCalendarDateSelected = (dateValue: string) =>
     dateValue === startDate || dateValue === endDate;
@@ -1517,8 +1625,15 @@ export default function CarDetailPage() {
     setRentalMode(nextMode);
 
     if (nextMode === "HOURLY") {
-      if (startDate) setEndDate(startDate);
-      setEndTime(addHoursToTime(startTime, hourlyDuration));
+      const nextEnd = getHourlyRentalEnd(
+        startDate,
+        startTime,
+        hourlyDuration,
+      );
+      if (nextEnd) {
+        setEndDate(nextEnd.date);
+        setEndTime(nextEnd.time);
+      }
     }
   };
 
@@ -1532,15 +1647,22 @@ export default function CarDetailPage() {
     }
 
     if (isCalendarDateDisabled(dateValue)) {
-      toast.error("Xe không khả dụng trong ngày này");
+      toast.error("Xe đã có lịch thuê trong thời gian này.");
       return;
     }
 
     if (rentalMode === "HOURLY") {
-      // Thuê theo giờ chỉ chọn ngày bắt đầu, không chọn ngày trả riêng.
+      // Ngày trả được tự động suy ra từ ngày nhận và số giờ thuê.
+      const nextEnd = getHourlyRentalEnd(
+        dateValue,
+        startTime,
+        hourlyDuration,
+      );
       setStartDate(dateValue);
-      setEndDate(dateValue);
-      setEndTime(addHoursToTime(startTime, hourlyDuration));
+      if (nextEnd) {
+        setEndDate(nextEnd.date);
+        setEndTime(nextEnd.time);
+      }
       return;
     }
 
@@ -1567,10 +1689,7 @@ export default function CarDetailPage() {
 
     if (overlappingRange) {
       toast.error(
-        overlappingRange.type === "CLEANING" ||
-          overlappingRange.status === "CLEANING"
-          ? "Giờ nhận xe trùng thời gian vệ sinh. Vui lòng chọn giờ muộn hơn."
-          : "Khoảng thời gian này trùng với lịch xe đã được thuê",
+        "Khoảng thời gian đã chọn trùng với lịch thuê hiện có của xe.",
       );
       return;
     }
@@ -1619,7 +1738,7 @@ export default function CarDetailPage() {
   };
 
   const handleStartDateChange = (value: string) => {
-    if (isDateInsideUnavailableRange(car?.unavailableRanges, value)) {
+    if (isCalendarDateDisabled(value)) {
       toast.error("Ngày nhận xe nằm trong khoảng xe đã được thuê");
       setStartDate("");
       return;
@@ -1629,7 +1748,7 @@ export default function CarDetailPage() {
   };
 
   const handleEndDateChange = (value: string) => {
-    if (isDateInsideUnavailableRange(car?.unavailableRanges, value)) {
+    if (isCalendarDateDisabled(value)) {
       toast.error("Ngày trả xe nằm trong khoảng xe đã được thuê");
       setEndDate("");
       return;
@@ -1670,6 +1789,7 @@ export default function CarDetailPage() {
       toast.success("Đã thêm vào giỏ hàng");
       navigate("/cart");
     } catch (error: unknown) {
+      setCalendarAvailabilityVersion((value) => value + 1);
       if (isAuthenticationError(error)) {
         redirectToLogin();
         return;
@@ -1754,23 +1874,14 @@ export default function CarDetailPage() {
   }
 
   const brandName = car.brandId?.name || "BQDrive Select";
-  const ownerName =
-    car.ownerType === "USER"
-      ? car.ownerId?.name || "Người dùng ký gửi"
-      : car.businessId?.businessName ||
-        car.ownerId?.businessName ||
-        "Đối tác BQDrive";
-  const ownerLabel =
-    car.ownerType === "USER" ? "Chủ xe ký gửi" : "Đơn vị cho thuê";
-  const ownerImage =
-    car.ownerType === "USER"
-      ? car.ownerId?.avatar
-      : car.businessId?.logo || car.ownerId?.logo;
+  const ownerName = car.ownerId?.name || "Chủ xe ký gửi";
+  const ownerLabel = "Chủ xe ký gửi";
+  const ownerImage = car.ownerId?.avatar;
+
   const canShowDetailedPickupAddress =
-    car.ownerType !== "USER" ||
-    DETAILED_PICKUP_STATUSES.includes(
-      car.currentUserActiveBooking?.status || "",
-    );
+  DETAILED_PICKUP_STATUSES.includes(
+    car.currentUserActiveBooking?.status || "",
+  );
   const pickupArea = formatAddressArea(car);
   const pickupAddress = formatPickupAddress(car, {
     includeDetail: canShowDetailedPickupAddress,
@@ -1877,10 +1988,11 @@ export default function CarDetailPage() {
           </Link>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_390px]">
+        <section className="min-w-0 rounded-3xl border border-border bg-white p-5 shadow-[0_16px_45px_rgba(15,23,42,0.08)] md:p-7">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_390px]">
           <div className="space-y-10">
             <section>
-              <div className="mb-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-end">
+              <div className="mb-6">
                 <div>
                   <div className="mb-4 flex flex-wrap items-center gap-3">
                     <span
@@ -1904,28 +2016,6 @@ export default function CarDetailPage() {
                   </p>
                 </div>
 
-                <div className="grid gap-3 text-center sm:grid-cols-3">
-                  <div className="rounded-lg border border-border bg-white p-4">
-                    <ShieldCheck className="mx-auto text-secondary" size={22} />
-                    <p className="mt-2 text-xs font-semibold text-muted">
-                      Kiểm duyệt
-                    </p>
-                  </div>
-
-                  <div className="rounded-lg border border-border bg-white p-4">
-                    <Headphones className="mx-auto text-secondary" size={22} />
-                    <p className="mt-2 text-xs font-semibold text-muted">
-                      Hỗ trợ
-                    </p>
-                  </div>
-
-                  <div className="rounded-lg border border-border bg-white p-4">
-                    <Wallet className="mx-auto text-secondary" size={22} />
-                    <p className="mt-2 text-xs font-semibold text-muted">
-                      Minh bạch
-                    </p>
-                  </div>
-                </div>
               </div>
 
               <div className="grid gap-3 md:grid-cols-5 md:grid-rows-2">
@@ -2102,69 +2192,6 @@ export default function CarDetailPage() {
               </p>
             </section>
 
-            <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-              <div>
-                <p className="text-sm font-bold uppercase text-secondary">
-                  Dịch vụ đi kèm
-                </p>
-                <h2 className="mt-1 text-2xl font-extrabold text-primary">
-                  Trải nghiệm thuê xe rõ ràng, dễ kiểm soát
-                </h2>
-
-                <div className="mt-5 grid gap-3 md:grid-cols-2">
-                  {serviceBenefits.map((benefit) => (
-                    <div
-                      key={benefit}
-                      className="flex items-start gap-3 rounded-lg border border-border bg-white p-4"
-                    >
-                      <CheckCircle2
-                        className="mt-0.5 shrink-0 text-secondary"
-                        size={20}
-                      />
-                      <p className="text-sm font-semibold leading-6 text-primary">
-                        {benefit}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-lg bg-primary p-6 text-white">
-                <div className="flex items-center gap-4">
-                  <OwnerIdentityImage
-                    key={ownerImage || `${car.ownerType}-${ownerName}`}
-                    name={ownerName}
-                    image={ownerImage}
-                    isBusiness={car.ownerType !== "USER"}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm text-white/65">{ownerLabel}</p>
-                    <h3 className="mt-1 break-words text-2xl font-extrabold">
-                      {ownerName}
-                    </h3>
-                  </div>
-                </div>
-                <p className="mt-3 text-sm leading-6 text-white/70">
-                  Chủ xe đã được BQDrive kiểm duyệt trước khi nhận đặt xe từ
-                  khách hàng.
-                </p>
-                <div className="mt-5 border-t border-white/10 pt-4">
-                  <p className="flex items-center gap-2 text-sm font-bold text-secondary">
-                    <MapPin size={17} />
-                    Khu vực nhận xe
-                  </p>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-white/80">
-                    {pickupAddress}
-                  </p>
-                  {car.ownerType === "USER" && !canShowDetailedPickupAddress && (
-                    <p className="mt-2 text-xs leading-5 text-white/55">
-                      Địa chỉ chi tiết sẽ hiển thị sau khi booking được chủ xe duyệt.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
-
             <section>
               <div className="mb-5">
                 <p className="text-sm font-bold uppercase text-secondary">
@@ -2201,7 +2228,7 @@ export default function CarDetailPage() {
             </section>
           </div>
 
-          <aside className="lg:sticky lg:top-28 lg:self-start">
+          <aside className="lg:self-start">
             <div className="rounded-lg border border-border bg-white p-6 shadow-xl shadow-slate-900/10">
               <div className="flex items-start justify-between gap-5">
                 <div className="min-w-0 flex-1">
@@ -2276,48 +2303,6 @@ export default function CarDetailPage() {
                       </>
                     )}
 
-                  {hasRentalSelection &&
-                    !isQuoteLoading &&
-                    priceQuote &&
-                    priceQuote.appliedPriceType === "MIXED" && (
-                      <div>
-                        <p className="text-sm font-semibold text-muted">
-                          Tạm tính chuyến thuê
-                        </p>
-                        <div className="mt-3 space-y-2">
-                          {quoteBreakdownGroups.map((group) => (
-                            <div
-                              key={`${group.type}-${group.unitPrice}`}
-                              className="rounded-lg border border-secondary/50 bg-secondarySoft px-3 py-2"
-                            >
-                              <div className="flex items-center justify-between gap-3 text-sm">
-                                <span className="font-bold text-primary">
-                                  {group.label}
-                                </span>
-                                <span className="font-extrabold text-primary">
-                                  {formatPrice(group.price)}
-                                </span>
-                              </div>
-                              <p className="mt-1 text-xs font-semibold text-muted">
-                                {group.unitCount} {quoteUnitLabel} x {formatPrice(group.unitPrice)}
-                              </p>
-                              {group.holidayNames.length > 0 && (
-                                <p className="mt-1 text-xs font-semibold leading-5 text-muted">
-                                  Áp dụng cho: {group.holidayNames.join(", ")}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        <div className="mt-3 flex items-end justify-between border-t border-border pt-3">
-                          <span className="font-extrabold text-primary">Tổng</span>
-                          <span className="text-2xl font-extrabold text-secondary">
-                            {formatPrice(priceQuote.totalPrice)}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
                   {hasRentalSelection && !isQuoteLoading && !priceQuote && (
                     <p className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold text-primary">
                       Chọn lịch hợp lệ để xem giá áp dụng.
@@ -2340,7 +2325,7 @@ export default function CarDetailPage() {
                     <p className="mt-1 text-sm font-semibold leading-6 text-muted">
                       {pickupAddress}
                     </p>
-                    {car.ownerType === "USER" && !canShowDetailedPickupAddress && (
+                    {!canShowDetailedPickupAddress && (
                       <p className="mt-1 text-xs font-semibold leading-5 text-muted">
                         Khu vực công khai: {pickupArea}. Địa chỉ chi tiết chỉ mở khi booking hợp lệ.
                       </p>
@@ -2389,7 +2374,7 @@ export default function CarDetailPage() {
                   </span>
                   <span className="mt-3 block text-xs font-semibold text-muted">
                     {rentalMode === "HOURLY"
-                      ? `Thuê theo giờ từ 4 đến 8 giờ, hiện chọn ${hourlyDuration} giờ`
+                      ? `Thuê theo giờ từ ${HOURLY_RENTAL_MIN_HOURS} đến ${HOURLY_RENTAL_MAX_HOURS} giờ, hiện chọn ${hourlyDuration} giờ`
                       : "Thuê theo ngày với giờ nhận và giờ trả dạng dropdown 30 phút"}
                   </span>
                 </button>
@@ -2551,7 +2536,7 @@ export default function CarDetailPage() {
                             if (!label) return null;
 
                             return (
-                              <li key={range.bookingId || `${range.startDate}-${range.endDate}`}>
+                              <li key={`${range.startDate}-${range.endDate}`}>
                                 - {label}
                               </li>
                             );
@@ -2592,20 +2577,133 @@ export default function CarDetailPage() {
                   </dd>
                 </div>
 
-                <div className="flex items-end justify-between gap-4 border-t border-border pt-4">
-                  <dt>
-                    <span className="block text-base font-extrabold text-primary">
-                      Tổng tiền
-                    </span>
-                    <span className="text-xs text-muted">
-                      Chưa bao gồm phí phát sinh nếu có
-                    </span>
-                  </dt>
-                  <dd className="text-2xl font-extrabold text-secondary">
-                    {formatPrice(displayTotalPrice)}
-                  </dd>
-                </div>
+                {!hasRentalSelection || isQuoteLoading || !priceQuote ? (
+                  <div className="flex items-end justify-between gap-4 border-t border-border pt-4">
+                    <dt>
+                      <span className="block text-base font-extrabold text-primary">
+                        Tổng tiền
+                      </span>
+                      <span className="text-xs text-muted">
+                        Chưa bao gồm phí phát sinh nếu có
+                      </span>
+                    </dt>
+                    <dd className="text-2xl font-extrabold text-secondary">
+                      {formatPrice(displayTotalPrice)}
+                    </dd>
+                  </div>
+                ) : null}
               </dl>
+
+              {hasRentalSelection && !isQuoteLoading && priceQuote && (
+                <div className="mt-4 border-t border-border pt-4">
+                  <p className="text-sm font-extrabold text-primary">
+                    Tóm tắt chi phí
+                  </p>
+
+                  <div className="mt-3 space-y-2 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-muted">
+                        Tiền thuê xe
+                      </span>
+                      <span className="font-bold text-primary">
+                        {formatPrice(quoteBaseRentalSubtotal)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-muted">
+                        Phụ thu cuối tuần/ngày lễ
+                      </span>
+                      <span className="font-bold text-primary">
+                        {formatPrice(quoteSurchargeTotal)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-muted">
+                        Phí dịch vụ BQDrive
+                      </span>
+                      <span className="font-bold text-primary">
+                        {formatPrice(priceQuote.platformFee || 0)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <span className="font-semibold text-muted">
+                          Phí bảo hiểm chuyến đi
+                        </span>
+
+                        {!!priceQuote.insuranceDays &&
+                          !!priceQuote.insuranceFeePerDay && (
+                            <p className="mt-0.5 text-xs font-semibold text-muted">
+                              {formatPrice(priceQuote.insuranceFeePerDay)}
+                              {" × "}
+                              {priceQuote.insuranceDays} ngày
+                            </p>
+                          )}
+                      </div>
+
+                      <span className="font-bold text-primary">
+                        {formatPrice(priceQuote.insuranceFee || 0)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-muted">
+                        Phí giao xe
+                      </span>
+                      <span className="font-bold text-primary">
+                        {formatPrice(priceQuote.deliveryFee || 0)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+                      <span className="font-extrabold text-primary">
+                        Tổng thanh toán
+                      </span>
+                      <span className="text-lg font-extrabold text-secondary">
+                        {formatPrice(priceQuote.totalPrice)}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 rounded-lg bg-secondarySoft/60 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-extrabold text-primary">
+                          Thanh toán giữ chỗ
+                        </span>
+
+                        <span className="font-extrabold text-primary">
+                          {formatPrice(
+                            priceQuote.upfrontPaymentAmount || 0,
+                          )}
+                        </span>
+                      </div>
+
+                      <p className="mt-1 text-xs font-semibold leading-5 text-muted">
+                        Bao gồm 50% tiền thuê xe (đã gồm phụ thu), phí dịch vụ
+                        BQDrive và phí bảo hiểm chuyến đi.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-muted">
+                        Tiền thuê còn lại
+                      </span>
+
+                      <span className="font-bold text-primary">
+                        {formatPrice(
+                          Math.max(
+                            priceQuote.totalPrice -
+                              (priceQuote.upfrontPaymentAmount || 0),
+                            0,
+                          ),
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-6 space-y-3">
                 {currentUserBooking ? (
@@ -2664,8 +2762,72 @@ export default function CarDetailPage() {
                 </div>
               </div>
             </div>
+
+            <section className="mt-5 rounded-xl border border-border bg-white p-5 shadow-sm">
+              <div className="grid gap-3 text-center sm:grid-cols-3 lg:grid-cols-1">
+                <div className="rounded-lg border border-border bg-slate-50 p-4">
+                  <ShieldCheck className="mx-auto text-secondary" size={22} />
+                  <p className="mt-2 text-xs font-semibold text-muted">Xe đã kiểm duyệt</p>
+                </div>
+                <div className="rounded-lg border border-border bg-slate-50 p-4">
+                  <Headphones className="mx-auto text-secondary" size={22} />
+                  <p className="mt-2 text-xs font-semibold text-muted">Hỗ trợ booking</p>
+                </div>
+                <div className="rounded-lg border border-border bg-slate-50 p-4">
+                  <Wallet className="mx-auto text-secondary" size={22} />
+                  <p className="mt-2 text-xs font-semibold text-muted">Chi phí minh bạch</p>
+                </div>
+              </div>
+
+              <div className="mt-6 border-t border-border pt-5">
+                <p className="text-sm font-bold uppercase text-secondary">Dịch vụ đi kèm</p>
+                <h2 className="mt-1 text-xl font-extrabold text-primary">
+                  Thuê xe rõ ràng, dễ kiểm soát
+                </h2>
+                <div className="mt-4 space-y-3">
+                  {serviceBenefits.map((benefit) => (
+                    <div
+                      key={benefit}
+                      className="flex items-start gap-3 rounded-lg border border-border bg-slate-50 p-3"
+                    >
+                      <CheckCircle2 className="mt-0.5 shrink-0 text-secondary" size={19} />
+                      <p className="text-sm font-semibold leading-6 text-primary">{benefit}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-lg bg-primary p-5 text-white">
+                <div className="flex items-center gap-4">
+                  <OwnerIdentityImage
+                    key={ownerImage || ownerName}
+                    name={ownerName}
+                    image={ownerImage}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm text-white/65">{ownerLabel}</p>
+                    <h3 className="mt-1 break-words text-xl font-extrabold">{ownerName}</h3>
+                  </div>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-white/70">
+                  Chủ xe đã được BQDrive kiểm duyệt trước khi nhận đặt xe từ khách hàng.
+                </p>
+                <div className="mt-5 border-t border-white/10 pt-4">
+                  <p className="flex items-center gap-2 text-sm font-bold text-secondary">
+                    <MapPin size={17} /> Khu vực nhận xe
+                  </p>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-white/80">{pickupAddress}</p>
+                  {!canShowDetailedPickupAddress && (
+                    <p className="mt-2 text-xs leading-5 text-white/55">
+                      Địa chỉ chi tiết sẽ hiển thị sau khi booking được chủ xe duyệt.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </section>
           </aside>
         </div>
+        </section>
 
         <section className="mt-12 rounded-2xl border border-border bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -2923,7 +3085,7 @@ export default function CarDetailPage() {
                   <ChevronLeft size={20} />
                 </button>
                 <p className="text-sm font-bold text-muted">
-                  Ngày đã thuê sẽ bị khóa trên lịch
+                  {isCalendarAvailabilityLoading ? "Đang tải lịch xe..." : "Lịch xe được cập nhật theo thời gian thực"}
                 </p>
                 <button
                   type="button"
@@ -2960,6 +3122,9 @@ export default function CarDetailPage() {
 
                         const dateValue = formatDateValue(date);
                         const isDisabled = isCalendarDateDisabled(dateValue);
+                        const isBusy = isDateInsideUnavailableRange(unavailableRanges, dateValue);
+                        const isFullyBusy = isDateFullyUnavailable(unavailableRanges, dateValue);
+                        const isPartialBusy = isBusy && !isFullyBusy;
                         const isSelected = isCalendarDateSelected(dateValue);
                         const isInRange = isCalendarDateInRange(dateValue);
                         const isSunday = date.getDay() === 0;
@@ -2972,17 +3137,21 @@ export default function CarDetailPage() {
                             key={dateValue}
                             type="button"
                             aria-disabled={isDisabled}
-                            aria-label={holidayTitle || formatRentalDate(dateValue)}
+                            aria-label={isBusy ? `${formatRentalDate(dateValue)}: ${rentalMode === "HOURLY" && isPartialBusy ? "có một số khung giờ đã được đặt" : "xe đã có lịch thuê"}` : holidayTitle || formatRentalDate(dateValue)}
                             onClick={() => handleCalendarDateClick(dateValue)}
                             className={`group relative mx-auto flex h-11 w-11 items-center justify-center rounded-lg text-sm font-extrabold transition ${
                               isSelected
                                 ? "bg-secondary text-primary shadow-sm"
                                 : isInRange
                                   ? "bg-secondary/15 text-primary"
-                                  : isDisabled && isHoliday
-                                    ? "cursor-not-allowed border border-secondary/50 bg-white text-slate-400"
-                                    : isDisabled
-                                      ? "cursor-not-allowed bg-soft text-slate-300"
+                                  : isBusy && isDisabled
+                                    ? "cursor-not-allowed border border-red-200 bg-red-50 text-red-700"
+                                    : isPartialBusy
+                                      ? "border border-red-200 bg-red-50/70 text-red-700 hover:bg-red-100"
+                                      : isDisabled && isHoliday
+                                        ? "cursor-not-allowed border border-secondary/50 bg-white text-slate-400"
+                                      : isDisabled
+                                        ? "cursor-not-allowed bg-soft text-slate-300"
                                       : isHoliday
                                         ? "border border-secondary/60 bg-white text-primary hover:bg-secondarySoft/45"
                                         : isSunday
@@ -2990,12 +3159,19 @@ export default function CarDetailPage() {
                                           : "text-primary hover:bg-secondarySoft/45"
                             }`}
                             title={
-                              !holidayTitle && isDisabled
-                                ? "Xe không khả dụng ngày này"
-                                : undefined
+                              isBusy
+                                ? rentalMode === "HOURLY" && isPartialBusy
+                                  ? "Ngày này có một số khung giờ đã được đặt."
+                                  : "Xe đã có lịch thuê trong thời gian này."
+                                : !holidayTitle && isDisabled
+                                  ? "Không thể chọn ngày này"
+                                  : undefined
                             }
                           >
                             <span>{date.getDate()}</span>
+                            {isPartialBusy && (
+                              <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500" />
+                            )}
                             {isHoliday && (
                               <>
                                 <span
@@ -3019,7 +3195,11 @@ export default function CarDetailPage() {
               <div className="mt-5 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-white px-3 py-3 text-xs font-bold text-muted">
                 <span className="inline-flex items-center gap-2">
                   <span className="h-4 w-4 rounded border border-border bg-soft" />
-                  Ngày đã thuê
+                  Ngày đã qua
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-4 w-4 rounded border border-red-200 bg-red-50" />
+                  Ngày đã có lịch thuê
                 </span>
                 <span className="inline-flex items-center gap-2">
                   <span className="h-4 w-4 rounded border border-secondary/60 bg-secondarySoft" />
@@ -3030,6 +3210,18 @@ export default function CarDetailPage() {
                   Ngày đang chọn
                 </span>
               </div>
+
+              {rentalMode === "HOURLY" && (
+                <p className="mt-2 text-xs font-semibold text-muted">
+                  Ngày có chấm đỏ có một số khung giờ đã được đặt; các giờ trùng lịch sẽ bị khóa bên dưới.
+                </p>
+              )}
+
+              {calendarAvailabilityError && (
+                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                  {calendarAvailabilityError}
+                </p>
+              )}
 
               {activeHolidayInfo && (
                 <div className="mt-3 rounded-lg border border-secondary/60 bg-secondarySoft px-4 py-3 text-sm font-semibold text-primary">
@@ -3066,8 +3258,16 @@ export default function CarDetailPage() {
                       value={startTime}
                       onChange={(value) => {
                         const nextStartTime = String(value);
+                        const nextEnd = getHourlyRentalEnd(
+                          startDate,
+                          nextStartTime,
+                          hourlyDuration,
+                        );
                         setStartTime(nextStartTime);
-                        setEndTime(addHoursToTime(nextStartTime, hourlyDuration));
+                        if (nextEnd) {
+                          setEndDate(nextEnd.date);
+                          setEndTime(nextEnd.time);
+                        }
                       }}
                     />
                     <TimeWheelPicker
@@ -3076,8 +3276,16 @@ export default function CarDetailPage() {
                       value={hourlyDuration}
                       onChange={(value) => {
                         const nextDuration = Number(value);
+                        const nextEnd = getHourlyRentalEnd(
+                          startDate,
+                          startTime,
+                          nextDuration,
+                        );
                         setHourlyDuration(nextDuration);
-                        setEndTime(addHoursToTime(startTime, nextDuration));
+                        if (nextEnd) {
+                          setEndDate(nextEnd.date);
+                          setEndTime(nextEnd.time);
+                        }
                       }}
                     />
                     <section>
@@ -3157,8 +3365,17 @@ export default function CarDetailPage() {
                         <select
                           value={startTime}
                           onChange={(event) => {
-                            setStartTime(event.target.value);
-                            setEndTime(addHoursToTime(event.target.value, hourlyDuration));
+                            const nextStartTime = event.target.value;
+                            const nextEnd = getHourlyRentalEnd(
+                              startDate,
+                              nextStartTime,
+                              hourlyDuration,
+                            );
+                            setStartTime(nextStartTime);
+                            if (nextEnd) {
+                              setEndDate(nextEnd.date);
+                              setEndTime(nextEnd.time);
+                            }
                           }}
                           className="min-h-12 w-full appearance-none bg-transparent px-3 pr-10 text-sm font-extrabold text-primary outline-none"
                         >
@@ -3185,8 +3402,16 @@ export default function CarDetailPage() {
                           value={hourlyDuration}
                           onChange={(event) => {
                             const nextDuration = Number(event.target.value);
+                            const nextEnd = getHourlyRentalEnd(
+                              startDate,
+                              startTime,
+                              nextDuration,
+                            );
                             setHourlyDuration(nextDuration);
-                            setEndTime(addHoursToTime(startTime, nextDuration));
+                            if (nextEnd) {
+                              setEndDate(nextEnd.date);
+                              setEndTime(nextEnd.time);
+                            }
                           }}
                           className="min-h-12 w-full appearance-none bg-transparent px-3 pr-10 text-sm font-extrabold text-primary outline-none"
                         >
@@ -3225,7 +3450,7 @@ export default function CarDetailPage() {
                   </p>
                   <p className="mt-1 text-xs font-semibold text-muted">
                     {rentalMode === "HOURLY"
-                      ? "Chọn 1 ngày, thời lượng từ 4 đến 8 giờ."
+                      ? `Chọn ngày nhận và thời lượng từ ${HOURLY_RENTAL_MIN_HOURS} đến ${HOURLY_RENTAL_MAX_HOURS} giờ.`
                       : "Chọn ngày nhận và ngày trả, sau đó chọn giờ bằng dropdown."}
                   </p>
                 </div>

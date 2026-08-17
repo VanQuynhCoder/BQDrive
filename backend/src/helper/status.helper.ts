@@ -1,6 +1,7 @@
 import {
   BookingStatusEnum,
   ContractPaymentStatusEnum,
+  PaymentOptionEnum,
   PaymentRefundStatusEnum,
   RefundStatusEnum,
 } from "../constants/model.const";
@@ -38,11 +39,12 @@ const BOOKING_TRANSITIONS: Record<BookingStatusEnum, readonly BookingStatusEnum[
     BookingStatusEnum.NO_SHOW,
   ],
   [BookingStatusEnum.IN_PROGRESS]: [BookingStatusEnum.RETURN_INSPECTION],
-  [BookingStatusEnum.RETURN_INSPECTION]: [
+  [BookingStatusEnum.RETURN_INSPECTION]: 
+  [
     BookingStatusEnum.AWAITING_EXTRA_CHARGE,
     BookingStatusEnum.COMPLETED,
   ],
-  [BookingStatusEnum.AWAITING_EXTRA_CHARGE]: [BookingStatusEnum.COMPLETED],
+  [BookingStatusEnum.AWAITING_EXTRA_CHARGE]: [BookingStatusEnum.RETURN_INSPECTION],
   [BookingStatusEnum.COMPLETED]: [],
   [BookingStatusEnum.CANCELLED]: [],
   [BookingStatusEnum.REJECTED]: [],
@@ -102,18 +104,28 @@ export function derivePaymentRefundStatus(
 
 export function deriveContractPaymentStatus(input: {
   totalPrice: unknown;
-  depositAmount: unknown;
+  upfrontPaymentAmount: unknown;
   paidAmount: unknown;
+  paymentOption?: unknown;
   hasPendingPayment?: boolean;
 }) {
   const totalPrice = Math.max(Number(input.totalPrice || 0), 0);
-  const depositAmount = Math.max(Number(input.depositAmount || 0), 0);
+  const upfrontPaymentAmount = Math.max(
+    Number(input.upfrontPaymentAmount || 0),
+    0,
+  );
   const paidAmount = Math.max(Number(input.paidAmount || 0), 0);
+  const requiresFullPayment = input.paymentOption === PaymentOptionEnum.FULL;
 
   if (totalPrice > 0 && paidAmount >= totalPrice) {
     return ContractPaymentStatusEnum.PAID_FULL;
   }
-  if (paidAmount > 0 && depositAmount > 0 && paidAmount >= depositAmount) {
+  if (
+    !requiresFullPayment &&
+    paidAmount > 0 &&
+    upfrontPaymentAmount > 0 &&
+    paidAmount >= upfrontPaymentAmount
+  ) {
     return ContractPaymentStatusEnum.DEPOSIT_PAID;
   }
   if (paidAmount > 0) {
@@ -126,11 +138,17 @@ export function deriveContractPaymentStatus(input: {
 }
 
 const REFUND_TRANSITIONS: Record<RefundStatusEnum, readonly RefundStatusEnum[]> = {
-  [RefundStatusEnum.WAITING_FOR_REFUND_INFO]: [
+[RefundStatusEnum.WAITING_FOR_REFUND_INFO]: [
+  RefundStatusEnum.MANUAL_REQUIRED,
+  RefundStatusEnum.PROCESSING,
+],
+  [RefundStatusEnum.MANUAL_REQUIRED]: [RefundStatusEnum.PROCESSING],
+  [RefundStatusEnum.PROCESSING]: [
+    RefundStatusEnum.SUCCEEDED,
+    // VNPay đã từ chối giao dịch hoàn. Giữ record để chủ xe xử lý theo
+    // luồng hoàn thủ công hiện có, không tạo thêm enum/workflow mới.
     RefundStatusEnum.MANUAL_REQUIRED,
   ],
-  [RefundStatusEnum.MANUAL_REQUIRED]: [RefundStatusEnum.PROCESSING],
-  [RefundStatusEnum.PROCESSING]: [RefundStatusEnum.SUCCEEDED],
   [RefundStatusEnum.SUCCEEDED]: [],
 };
 

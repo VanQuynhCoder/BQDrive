@@ -1,7 +1,9 @@
 import mongoose from "mongoose";
 
 export type ISequence = {
+  /** Khóa định danh của bộ đếm, ví dụ mã booking hoặc refund. */
   key: string;
+  /** Giá trị tăng dần dùng để sinh mã nghiệp vụ duy nhất. */
   sequence: number;
 };
 

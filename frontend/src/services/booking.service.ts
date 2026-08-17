@@ -5,11 +5,6 @@ export type RenterInfo = {
   fullName: string;
   phone: string;
   email: string;
-  cccdNumber: string;
-  cccdFrontImage: string;
-  cccdBackImage: string;
-  driverLicenseNumber: string;
-  driverLicenseImage: string;
   note?: string;
 };
 
@@ -25,6 +20,17 @@ export type BookingPriceQuote = {
   totalPrice: number;
   rentalSubtotal?: number;
   deliveryFee?: number;
+  rentalDepositRate?: number;
+  rentalDepositAmount?: number;
+
+  platformFeeRate?: number;
+  platformFee?: number;
+
+  insuranceFeePerDay?: number;
+  insuranceDays?: number;
+  insuranceFee?: number;
+
+  upfrontPaymentAmount?: number;
   delivery?: BookingDeliveryPayload & {
     deliveryDistanceKm?: number;
     deliveryBaseFee?: number;
@@ -71,13 +77,25 @@ export type BookingHoldSummary = {
   createdAt: string;
 };
 
+export type BookingChatMessage = {
+  _id: string;
+  bookingId: string;
+  sender: {
+    _id: string;
+    name: string;
+    avatar?: string | null;
+  };
+  content: string;
+  createdAt: string;
+};
+
 export type CancellationPreview = {
   bookingId: string;
   bookingStatus: string;
   canCancel: boolean;
   hoursBeforeStart: number;
   totalPrice: number;
-  depositAmount: number;
+  upfrontPaymentAmount: number;
   paidAmount: number;
   paidAmountAtCancellation: number;
   policyRuleApplied: string;
@@ -95,13 +113,50 @@ export type BookingDeliveryPayload = {
   deliveryAddress?: string;
   deliveryAddressText?: string;
   deliveryFormattedAddress?: string;
-  deliveryAddressSource?: "MANUAL_TEXT" | "GEOCODE" | "CURRENT_LOCATION" | "MAP_PIN";
+  deliveryAddressSource?:
+    | "MANUAL_TEXT"
+    | "GEOCODE"
+    | "CURRENT_LOCATION"
+    | "MAP_PIN";
   deliveryLat?: number;
   deliveryLng?: number;
   deliveryDistanceKm?: number;
   deliveryDurationText?: string;
   deliveryFee?: number;
   deliveryNote?: string;
+};
+
+export type RejectedBookingRecommendation = {
+  bookingId: string;
+  startDate: string;
+  endDate: string;
+  rentalMode: "DAILY" | "HOURLY";
+  originalRentalSubtotal: number;
+  candidateRentalSubtotal: number;
+  estimatedTotal: number;
+  priceDifference: number;
+  car: {
+    _id: string;
+    name: string;
+    images: string[];
+    brand?: { _id: string; name: string } | null;
+    seats: number;
+    transmission?: string;
+    fuelType?: string;
+    pricing: {
+      basePricePerUnit: number;
+      weekendSurchargePerUnit: number;
+      holidaySurchargePerUnit: number;
+    };
+    pickupLocation?: string;
+    pickupLat?: number;
+    pickupLng?: number;
+    deliveryEnabled?: boolean;
+  };
+  reviewSummary: {
+    averageRating: number;
+    reviewCount: number;
+  };
 };
 
 export function notifyPaymentTodosChanged() {
@@ -151,6 +206,33 @@ export const bookingService = {
     return res.data.data.booking;
   },
 
+  getRecommendedCar: async (id: string) => {
+    const res = await api.get(`/bookings/${id}/recommended-car`);
+    return (res.data.data.recommendation || null) as RejectedBookingRecommendation | null;
+  },
+
+  getBookingChatMessages: async (id: string, limit = 100) => {
+    const res = await api.get(`/chat/bookings/${id}/messages`, {
+      params: { limit },
+    });
+    return (res.data.data.messages || []) as BookingChatMessage[];
+  },
+
+  confirmHandoverReceived: async (id: string) => {
+    const res = await api.post(`/bookings/${id}/confirm-handover-received`);
+    return res.data.data;
+  },
+
+  getReturnInspection: async (id: string) => {
+    const res = await api.get(`/bookings/${id}/return-inspection`);
+    return res.data.data;
+  },
+
+  confirmReturn: async (id: string) => {
+    const res = await api.post(`/bookings/${id}/confirm-return`);
+    return res.data.data;
+  },
+
   getMyPaymentTodos: async () => {
     const res = await api.get("/bookings/my-payment-todos");
     return (res.data.data.todos || []) as PaymentTodo[];
@@ -158,20 +240,29 @@ export const bookingService = {
 
   previewCancellation: async (
     id: string,
-    payload?: { reasonCode?: string; reasonText?: string; cancelReason?: string },
+    payload?: {
+      reasonCode?: string;
+      reasonText?: string;
+      cancelReason?: string;
+    },
   ) => {
-    const res = await api.post(`/bookings/cancellation-preview/${id}`, payload || {});
+    const res = await api.post(
+      `/bookings/cancellation-preview/${id}`,
+      payload || {},
+    );
     return res.data.data.preview as CancellationPreview;
   },
 
   cancelBooking: async (
     id: string,
-    payload?: string | {
-      reasonCode?: string;
-      reasonText?: string;
-      cancelReason?: string;
-      confirmed?: boolean;
-    },
+    payload?:
+      | string
+      | {
+          reasonCode?: string;
+          reasonText?: string;
+          cancelReason?: string;
+          confirmed?: boolean;
+        },
   ) => {
     const body =
       typeof payload === "string"

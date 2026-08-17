@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
-  Building2,
   Car,
   Loader2,
   MapPin,
@@ -12,7 +11,7 @@ import {
 import OwnerCarsMap from "../../components/maps/OwnerCarsMap";
 import { adminService } from "../../services/admin.service";
 import type { OwnerMapCar } from "../../services/ownerCarLocation.service";
-import { getCarStatusMeta, getOwnerTypeLabel } from "../../utils/display.util";
+import { getCarStatusMeta } from "../../utils/display.util";
 
 function hasCoordinate(car: OwnerMapCar) {
   return Number.isFinite(Number(car.pickupLat)) && Number.isFinite(Number(car.pickupLng));
@@ -121,8 +120,7 @@ export default function AdminCarMapPage() {
             {cars.map((car) => {
               const active = selectedCarId === car._id;
               const status = getCarStatusMeta(car.status);
-              const OwnerIcon =
-                car.ownerType === "BUSINESS" ? Building2 : UserRound;
+              const OwnerIcon = UserRound;
 
               return (
                 <button
@@ -154,7 +152,7 @@ export default function AdminCarMapPage() {
                   <div className="mt-3 rounded-lg bg-slate-50 p-3">
                     <p className="flex items-center gap-2 text-xs font-bold uppercase text-slate-400">
                       <OwnerIcon size={14} />
-                      {getOwnerTypeLabel(car.ownerType)}
+                      Chủ xe ký gửi
                     </p>
                     <p className="mt-1 font-extrabold text-primary">
                       {car.ownerName || "--"}

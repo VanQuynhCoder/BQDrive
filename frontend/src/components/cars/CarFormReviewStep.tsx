@@ -1,4 +1,4 @@
-// Shared owner module: final car-form review for BUSINESS and USER consignment flows.
+//  Bước kiểm tra lại thông tin trước khi gửi xe để xét duyệt.
 import { BadgeCheck, Images } from "lucide-react";
 
 import { formatPickupAddress } from "../../utils/address.util";

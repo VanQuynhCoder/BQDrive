@@ -1,4 +1,4 @@
-// Shared status source: canonical frontend values used by ADMIN, BUSINESS, and USER.
+//Nguồn trạng thái dùng chung cho toàn bộ frontend.
 export const BOOKING_STATUSES = [
   "REQUESTED",
   "OWNER_APPROVED",

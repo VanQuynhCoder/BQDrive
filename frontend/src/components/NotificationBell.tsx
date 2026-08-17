@@ -1,4 +1,4 @@
-// Shared UI: notification dropdown used by ADMIN, BUSINESS, and USER layouts.
+// Thành phần hiển thị danh sách thông báo của người dùng.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
@@ -8,13 +8,16 @@ import {
   CircleDollarSign,
   ClipboardCheck,
   FileText,
+  MessageCircle,
   Star,
   Trash2,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { io } from "socket.io-client";
 
 import NotificationBadge from "./NotificationBadge";
+import { authService } from "../services/auth.service";
 import {
   NOTIFICATION_CENTER_REFRESH_EVENT,
   notificationService,
@@ -29,6 +32,7 @@ type NotificationBellProps = {
 };
 
 function getNotificationIcon(type: string) {
+  if (type.includes("MESSAGE")) return MessageCircle;
   if (type.includes("PAYMENT") || type.includes("DEPOSIT")) return CircleDollarSign;
   if (type.includes("CAR")) return Car;
   if (type.includes("REVIEW")) return Star;
@@ -50,6 +54,16 @@ function formatTime(value?: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function getSocketOrigin() {
+  const configuredApiUrl = String(import.meta.env.VITE_API_URL || "").trim();
+
+  try {
+    return new URL(configuredApiUrl, window.location.origin).origin;
+  } catch {
+    return window.location.origin;
+  }
 }
 
 export default function NotificationBell({
@@ -97,6 +111,35 @@ export default function NotificationBell({
       window.removeEventListener(NOTIFICATION_CENTER_REFRESH_EVENT, handleRefresh);
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const token = authService.getToken();
+    if (!token) return;
+
+    const socket = io(`${getSocketOrigin()}/notifications`, {
+      auth: { token },
+    });
+    const handleNotificationCreated = (payload?: {
+      notification?: { type?: string; message?: string };
+    }) => {
+      if (
+        payload?.notification?.type === "BOOKING_MESSAGE" &&
+        payload.notification.message
+      ) {
+        toast(payload.notification.message, { icon: "💬" });
+      }
+      void refresh();
+    };
+
+    socket.on("notification_created", handleNotificationCreated);
+
+    return () => {
+      socket.off("notification_created", handleNotificationCreated);
+      socket.disconnect();
+    };
+  }, [enabled, refresh]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

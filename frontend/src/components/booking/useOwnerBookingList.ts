@@ -1,4 +1,4 @@
-// Shared owner hook: booking list state for BUSINESS and USER consignment dashboards.
+// Hook quản lý danh sách booking của người dùng có xe ký gửi.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -23,6 +23,7 @@ const ACTIONS: OwnerBookingAction[] = [
   "return",
   "inspection",
   "extra-charge",
+  "confirm-remaining",
 ];
 
 function getErrorMessage(error: unknown, fallback: string) {

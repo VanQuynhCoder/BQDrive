@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import {
   BarChart3,
-  BriefcaseBusiness,
   CalendarCheck,
   Car,
   Loader2,
@@ -16,13 +15,11 @@ import { adminService, type DashboardStats } from "../../services/admin.service"
 
 const defaultStats: DashboardStats = {
   totalUsers: 0,
-  totalBusinesses: 0,
   totalPrivateOwners: 0,
   totalConsignmentOwners: 0,
   totalCars: 0,
   pendingCars: 0,
   pendingConsignmentCars: 0,
-  pendingBusinessCars: 0,
   pendingBookings: 0,
 };
 
@@ -76,16 +73,9 @@ export default function AdminDashboardPage() {
       tone: "bg-primary text-secondary",
     },
     {
-      label: "Tổng doanh nghiệp",
-      value: formatNumber(overview.totalBusinesses),
-      detail: "Đối tác đang quản lý",
-      icon: BriefcaseBusiness,
-      tone: "bg-secondarySoft text-primary",
-    },
-    {
-      label: "USER có xe ký gửi",
+      label: "Chủ xe ký gửi",
       value: formatNumber(overview.totalConsignmentOwners),
-      detail: "Chủ xe ký gửi cá nhân",
+      detail: "Người dùng đang có xe  ký gửi cá nhân",
       icon: ShieldCheck,
       tone: "bg-slate-100 text-primary",
     },
@@ -99,7 +89,7 @@ export default function AdminDashboardPage() {
     {
       label: "Xe chờ duyệt",
       value: formatNumber(overview.pendingCars),
-      detail: `${formatNumber(stats.pendingBusinessCars)} doanh nghiệp, ${formatNumber(stats.pendingConsignmentCars)} ký gửi`,
+      detail: `${formatNumber(stats.pendingConsignmentCars)} xe ký gửi chờ duyệt`,
       icon: BarChart3,
       tone: "bg-secondarySoft text-primary",
     },
@@ -127,7 +117,7 @@ export default function AdminDashboardPage() {
           Dashboard quản trị BQDrive
         </h2>
         <p className="mt-2 max-w-2xl text-slate-500">
-          Theo dõi người dùng, doanh nghiệp, xe, booking và đánh giá trên toàn
+          Theo dõi người dùng, xe ký gửi , booking và đánh giá trên toàn
           hệ thống. Admin chỉ xem số liệu vận hành, không can thiệp thanh toán
           của chủ xe.
         </p>

@@ -1,4 +1,4 @@
-// Shared owner types: booking contracts for BUSINESS and USER consignment modules.
+//Kiểu dữ liệu booking dành cho các chức năng quản lý xe ký gửi.
 import type { BookingStatus } from "../constants/status.constants";
 
 export type OwnerBookingGroup =
@@ -26,7 +26,40 @@ export type OwnerBookingAction =
   | OwnerBookingMutationAction
   | "cancel"
   | "inspection"
-  | "extra-charge";
+  | "extra-charge"
+  | "confirm-remaining";
+
+export type VehicleConditionChecklist = {
+  bodyOk: boolean;
+  glassAndMirrorsOk: boolean;
+  lightsOk: boolean;
+  tiresOk: boolean;
+  interiorClean: boolean;
+  seatsAndSeatbeltsOk: boolean;
+  airConditioningOk: boolean;
+  dashboardWarningFree: boolean;
+};
+
+export type VehicleAccessoriesSnapshot = {
+  vehicleKeysPresent: boolean;
+  tireSupportKitPresent: boolean;
+  basicToolkitPresent: boolean;
+  warningTrianglePresent: boolean;
+  chargingCableApplicable: boolean;
+  chargingCablePresent: boolean;
+};
+
+export type VehicleDocumentsSnapshot = {
+  registrationPresent: boolean;
+  inspectionCertificatePresent: boolean;
+  insuranceCertificatePresent: boolean;
+};
+
+export type VehicleRecordChecklists = {
+  vehicleCondition: VehicleConditionChecklist;
+  accessoriesSnapshot: VehicleAccessoriesSnapshot;
+  vehicleDocumentsSnapshot: VehicleDocumentsSnapshot;
+};
 
 export type OwnerReturnInspection = {
   _id: string;
@@ -61,6 +94,9 @@ export type OwnerReturnInspection = {
   hasDamage?: boolean;
   hasCleaningIssue?: boolean;
   hasFuelShortage?: boolean;
+  vehicleCondition?: VehicleConditionChecklist;
+  accessoriesSnapshot?: VehicleAccessoriesSnapshot;
+  vehicleDocumentsSnapshot?: VehicleDocumentsSnapshot;
   inspectionStatus?: string;
 };
 
@@ -83,6 +119,10 @@ export type OwnerBookingListItem = {
     name: string;
     licensePlate: string;
     image?: string | null;
+    type?: string;
+    seats?: number;
+    fuelType?: string;
+    transmission?: string;
   };
   customer: {
     _id: string;
@@ -110,21 +150,35 @@ export type OwnerBookingDetail = OwnerBookingListItem & {
     email?: string;
     phone?: string;
   };
-  identityDocuments?: {
-    cccdNumber?: string;
-    cccdFrontImage?: string;
-    cccdBackImage?: string;
-    driverLicenseNumber?: string;
-    driverLicenseImage?: string;
+  identityStatus?: {
+    identityProfileCompleted?: boolean;
+    identityVerificationStatus?: "INCOMPLETE" | "PENDING" | "VERIFIED" | "REJECTED" | null;
+    driverLicenseClass?: "B" | "B1" | "B2" | null;
+    licenseEligible?: boolean;
   };
   actualPickupAt?: string | null;
   actualReturnAt?: string | null;
   currentOdometerKm?: number | null;
   handoverSnapshot?: {
+    preparation?: {
+      odometerKm: number;
+      energyLevelPercent: number;
+      images?: string[];
+      dashboardImage?: string;
+      note?: string;
+      recordedAt?: string;
+    };
     handoverOdometerKm: number;
     handoverEnergyLevelPercent: number;
+    handoverPhotos?: string[];
     handoverDashboardImage?: string;
+    handoverConditionNotes?: string;
+    vehicleCondition?: VehicleConditionChecklist;
+    accessoriesSnapshot?: VehicleAccessoriesSnapshot;
+    vehicleDocumentsSnapshot?: VehicleDocumentsSnapshot;
     handoverRecordedAt?: string;
+    ownerConfirmedAt?: string;
+    renterConfirmedAt?: string;
   } | null;
   mileagePolicySnapshot?: {
     rentalMode: string;
@@ -168,13 +222,22 @@ export type OwnerBookingListResponse = {
   };
 };
 
-export type OwnerHandoverPayload = {
+export type OwnerHandoverPayload = VehicleRecordChecklists & {
+  preparation?: {
+    odometerKm: number;
+    energyLevelPercent: number;
+    images?: string[];
+    dashboardImage?: string;
+    note?: string;
+  };
   handoverOdometerKm: number;
   handoverEnergyLevelPercent: number;
+  handoverPhotos?: string[];
   handoverDashboardImage?: string;
+  handoverConditionNotes?: string;
 };
 
-export type OwnerReturnPayload = {
+export type OwnerReturnPayload = VehicleRecordChecklists & {
   returnOdometerKm: number;
   returnEnergyLevelPercent: number;
   returnDashboardImage?: string;

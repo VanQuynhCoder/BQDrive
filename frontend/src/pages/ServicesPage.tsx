@@ -55,11 +55,11 @@ const serviceSections = [
   {
     number: "03",
     icon: Building2,
-    audience: "Dành cho doanh nghiệp và đối tác vận tải",
-    title: "Nâng tầm số hóa đội xe",
-    subtitle: "Giải pháp đồng hành toàn diện cho vận hành chuyên nghiệp",
+    audience: "Dành cho người dùng có xe ký gửi",
+    title: "Quản lý xe ký gửi thuận tiện",
+    subtitle: "Theo dõi xe và booking tập trung trên BQDrive",
     description:
-      "BQDrive là đòn bẩy công nghệ cho công ty cho thuê xe tự lái, doanh nghiệp vận tải hoặc nhà xe truyền thống muốn mở rộng khách hàng, giảm quản lý thủ công và tối ưu hóa quy trình vận hành.",
+      "BQDrive hỗ trợ người dùng đưa xe lên hệ thống để cho thuê, quản lý thông tin xe, theo dõi booking và xử lý các nghiệp vụ trong suốt chuyến thuê.",
     points: [
       "Tiếp cận khách hàng thế hệ mới có thói quen tìm kiếm và đặt xe qua website hoặc ứng dụng.",
       "Quản lý hàng chục đến hàng trăm xe trên một màn hình duy nhất.",

@@ -25,8 +25,7 @@ const aboutHighlights = [
   {
     icon: CalendarCheck2,
     title: "Đặt thuê minh bạch",
-    text: "Quy trình đặt xe rõ ràng từ chọn lịch trình, gửi yêu cầu thuê, theo dõi đơn đến xác nhận từ chủ xe hoặc doanh nghiệp.",
-  },
+    text: "Quy trình đặt xe rõ ràng từ chọn lịch trình, gửi yêu cầu thuê, theo dõi đơn đến xác nhận từ chủ xe.",  },
   {
     icon: Building2,
     title: "Quản lý cho chủ xe",
@@ -37,7 +36,7 @@ const aboutHighlights = [
 const aboutStats = [
   {
     value: "3 bên",
-    label: "Kết nối khách hàng, chủ xe và doanh nghiệp cho thuê xe.",
+    label: "Một tài khoản có thể thuê xe hoặc tham gia ký gửi xe trên hệ thống.",
   },
   {
     value: "Nhanh",
@@ -131,9 +130,8 @@ export default function AboutPage() {
                 Một nền tảng cho hành trình chủ động hơn
               </h2>
               <p className="mt-6 text-lg leading-8 text-muted">
-                Hệ thống kết nối khách hàng với các chủ xe và doanh nghiệp cho
-                thuê xe, mang đến quy trình đặt xe nhanh chóng, minh bạch và
-                tiền lại.
+                Hệ thống kết nối người thuê xe với các chủ xe ký gửi, mang đến
+                quy trình đặt xe nhanh chóng, minh bạch và tiện lợi..
               </p>
               <p className="mt-4 leading-8 text-muted">
                 Với BQ Drive, người dùng có thể xem thông tin chi tiết từng xe

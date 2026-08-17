@@ -1,5 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useCallback } from "react";
+import { Link } from "react-router-dom";
 import { CarFront, CreditCard, Eye, Loader2, ReceiptText, X } from "lucide-react";
 
 import Header from "../../components/Header";
@@ -11,9 +13,14 @@ import {
   type PaymentHistoryItem,
 } from "../../services/payment.service";
 import {
+  refundService,
+  type RefundBooking,
+  type RefundRecord,
+  type RefundStatus,
+} from "../../services/refund.service";
+import {
   getBookingStatusLabel,
   getBookingDisplayCode,
-  getOwnerTypeLabel,
   getPaymentMethodLabel,
   getPaymentRefundStatusLabel,
   getPaymentStatusLabel,
@@ -96,9 +103,62 @@ function getCarLabel(item: BookingPaymentHistory) {
   };
 }
 
-function getOwnerPrefix(type?: string) {
-  return type === "USER" ? "Người ký gửi" : "Doanh nghiệp";
+function getRefundBooking(refund: RefundRecord): RefundBooking | null {
+  return typeof refund.bookingId === "object" && refund.bookingId
+    ? refund.bookingId
+    : null;
 }
+
+function getRefundStatusMeta(status?: RefundStatus) {
+  const map: Record<
+    string,
+    { label: string; tone: "green" | "yellow" | "blue" | "gray" }
+  > = {
+    WAITING_FOR_REFUND_INFO: {
+      label: "Chờ thông tin hoàn tiền",
+      tone: "yellow",
+    },
+    MANUAL_REQUIRED: {
+      label: "Cần xử lý hoàn tiền",
+      tone: "yellow",
+    },
+    PROCESSING: {
+      label: "Đang xử lý",
+      tone: "blue",
+    },
+    SUCCEEDED: {
+      label: "Đã hoàn tiền",
+      tone: "green",
+    },
+  };
+
+  return map[status || ""] || { label: status || "--", tone: "gray" as const };
+}
+
+function getRefundMethodLabel(method?: string) {
+  const labels: Record<string, string> = {
+    VNPAY: "VNPay",
+    MOMO: "MoMo",
+    CASH: "Tiền mặt",
+    MANUAL: "Hoàn tiền thủ công",
+    NONE: "Chưa xác định",
+  };
+
+  return labels[String(method || "").toUpperCase()] || method || "Chưa xác định";
+}
+
+function getRefundReasonLabel(refund: RefundRecord) {
+  if (refund.reasonText?.trim()) return refund.reasonText.trim();
+
+  const labels: Record<string, string> = {
+    PAYMENT_AFTER_BOOKING_CANCELLED:
+      "Hoàn tiền do thanh toán sau khi booking đã hủy",
+    RENTER_NO_SHOW: "Khách không đến nhận xe sau thời gian chờ",
+  };
+
+  return labels[refund.reasonCode || ""] || refund.reasonCode || "Theo chính sách hoàn tiền";
+}
+
 
 function PaymentHistoryDetailModal({
   history,
@@ -162,8 +222,8 @@ function PaymentHistoryDetailModal({
                     {carLabel.details}
                   </p>
                   <p className="mt-4 text-sm font-bold text-primary">
-                    {getOwnerPrefix(history.owner?.type)}:{" "}
-                    {history.owner?.name || "--"}
+                      Chủ xe ký gửi:{" "}
+                      {history.owner?.name || "--"}
                   </p>
                   {history.owner?.phone && (
                     <p className="mt-1 text-sm font-semibold text-muted">
@@ -186,7 +246,7 @@ function PaymentHistoryDetailModal({
                   value={history.rentalMode === "HOURLY" ? "Theo giờ" : "Theo ngày"}
                 />
                 <SummaryRow label="Tổng tiền thuê" value={formatCurrency(history.totalPrice)} strong />
-                <SummaryRow label="Tiền cọc" value={formatCurrency(history.depositAmount)} />
+                <SummaryRow label="Thanh toán giữ chỗ" value={formatCurrency(history.upfrontPaymentAmount)} />
                 <SummaryRow label="Đã thanh toán" value={formatCurrency(history.paidAmount)} strong />
                 <SummaryRow label="Còn lại" value={formatCurrency(history.remainingAmount)} strong />
               </div>
@@ -292,11 +352,29 @@ function SummaryRow({
 }
 
 export default function MyPaymentsPage() {
+  const [activeTab, setActiveTab] = useState<"payments" | "refunds">("payments");
   const [histories, setHistories] = useState<BookingPaymentHistory[]>([]);
   const [selectedHistory, setSelectedHistory] =
     useState<BookingPaymentHistory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refunds, setRefunds] = useState<RefundRecord[]>([]);
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [refundError, setRefundError] = useState("");
+
+  const loadRefunds = useCallback(async () => {
+    setRefundLoading(true);
+    setRefundError("");
+
+    try {
+      const result = await refundService.getMyRefunds();
+      setRefunds(result.refunds);
+    } catch {
+      setRefundError("Không thể tải lịch sử hoàn tiền.");
+    } finally {
+      setRefundLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -322,6 +400,12 @@ export default function MyPaymentsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (activeTab !== "refunds") return;
+
+    void loadRefunds();
+  }, [activeTab, loadRefunds]);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -334,18 +418,49 @@ export default function MyPaymentsPage() {
             </div>
             <div>
               <p className="text-sm font-bold uppercase text-secondary">
-                Thanh toán
+                Tài chính
               </p>
               <h1 className="mt-2 text-4xl font-extrabold">
-                Lịch sử thanh toán
+                Tài chính của tôi
               </h1>
               <p className="mt-3 max-w-2xl text-white/70">
-                Theo dõi các khoản thanh toán đã tạo cho booking của bạn.
+                Theo dõi các giao dịch thanh toán và hoàn tiền của bạn.
               </p>
             </div>
           </div>
         </section>
 
+        <div className="mb-6 inline-flex w-full rounded-lg border border-border bg-white p-1 shadow-sm sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab("payments")}
+            className={`min-h-11 flex-1 rounded-md px-4 text-sm font-extrabold transition sm:flex-none ${
+              activeTab === "payments"
+                ? "bg-primary text-secondary shadow-sm"
+                : "text-slate-500 hover:bg-slate-50 hover:text-primary"
+            }`}
+          >
+            Lịch sử thanh toán
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("refunds");
+              if (activeTab === "refunds" && !refundLoading) {
+                void loadRefunds();
+              }
+            }}
+            className={`min-h-11 flex-1 rounded-md px-4 text-sm font-extrabold transition sm:flex-none ${
+              activeTab === "refunds"
+                ? "bg-primary text-secondary shadow-sm"
+                : "text-slate-500 hover:bg-slate-50 hover:text-primary"
+            }`}
+          >
+            Lịch sử hoàn tiền
+          </button>
+        </div>
+
+        {activeTab === "payments" ? (
         <section className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="min-w-[1180px] w-full text-left text-sm">
@@ -424,7 +539,7 @@ export default function MyPaymentsPage() {
                           {history.owner?.name || "--"}
                         </p>
                         <p className="mt-1 text-xs font-semibold text-muted">
-                          {getOwnerTypeLabel(history.owner?.type)}
+                          Chủ Xe ký gửi
                         </p>
                       </td>
                       <td className="px-5 py-4 font-extrabold text-primary">
@@ -473,6 +588,116 @@ export default function MyPaymentsPage() {
             </table>
           </div>
         </section>
+        ) : (
+          <section className="rounded-lg border border-border bg-white p-5 shadow-sm sm:p-6">
+            {refundLoading && (
+              <div className="flex min-h-48 items-center justify-center text-muted">
+                <span className="inline-flex items-center gap-2 font-bold">
+                  <Loader2 size={18} className="animate-spin text-secondary" />
+                  Đang tải lịch sử hoàn tiền...
+                </span>
+              </div>
+            )}
+
+            {!refundLoading && refundError && (
+              <div className="flex min-h-48 flex-col items-center justify-center text-center">
+                <p className="font-semibold text-red-600">{refundError}</p>
+                <button
+                  type="button"
+                  onClick={() => void loadRefunds()}
+                  className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-extrabold text-white transition hover:bg-primary/90"
+                >
+                  Thử lại
+                </button>
+              </div>
+            )}
+
+            {!refundLoading && !refundError && refunds.length === 0 && (
+              <div className="flex min-h-48 flex-col items-center justify-center text-center">
+                <ReceiptText size={32} className="text-secondary" />
+                <p className="mt-4 font-extrabold text-primary">
+                  Bạn chưa có giao dịch hoàn tiền nào.
+                </p>
+                <p className="mt-2 max-w-md text-sm font-semibold leading-6 text-muted">
+                  Các khoản hoàn tiền từ chuyến thuê sẽ xuất hiện tại đây.
+                </p>
+              </div>
+            )}
+
+            {!refundLoading && !refundError && refunds.length > 0 && (
+              <div className="space-y-4">
+                {refunds.map((refund) => {
+                  const booking = getRefundBooking(refund);
+                  const bookingId =
+                    booking?._id ||
+                    (typeof refund.bookingId === "string" ? refund.bookingId : "");
+                  const status = getRefundStatusMeta(refund.status);
+
+                  return (
+                    <article
+                      key={refund._id}
+                      className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5"
+                    >
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-xs font-extrabold uppercase text-secondary">
+                            Mã booking: {getBookingDisplayCode(booking?.bookingCode || bookingId || refund._id)}
+                          </p>
+                          <h2 className="mt-1 text-lg font-extrabold text-primary">
+                            {booking?.carId?.name || "Xe thuê"}
+                          </h2>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-muted">
+                            Lý do: {getRefundReasonLabel(refund)}
+                          </p>
+                        </div>
+                        <AdminStatusBadge tone={status.tone} label={status.label} />
+                      </div>
+
+                      <div className="mt-4 grid gap-3 rounded-lg border border-slate-200 bg-white p-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                          <p className="text-xs font-bold uppercase text-slate-400">Số tiền hoàn</p>
+                          <p className="mt-1 font-extrabold text-primary">
+                            {formatCurrency(refund.refundAmount)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase text-slate-400">Phương thức hoàn</p>
+                          <p className="mt-1 font-extrabold text-primary">
+                            {getRefundMethodLabel(refund.method)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase text-slate-400">Ngày yêu cầu</p>
+                          <p className="mt-1 font-bold text-primary">
+                            {formatDateTime(refund.requestedAt || refund.createdAt)}
+                          </p>
+                        </div>
+                        {refund.status === "SUCCEEDED" && refund.succeededAt && (
+                          <div>
+                            <p className="text-xs font-bold uppercase text-slate-400">Ngày hoàn</p>
+                            <p className="mt-1 font-bold text-primary">
+                              {formatDateTime(refund.succeededAt)}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {bookingId && (
+                        <Link
+                          to={`/bookings/${bookingId}`}
+                          className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-extrabold text-white transition hover:bg-primary/90"
+                        >
+                          <Eye size={16} />
+                          Xem chi tiết booking
+                        </Link>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
       </main>
 
       {selectedHistory && (

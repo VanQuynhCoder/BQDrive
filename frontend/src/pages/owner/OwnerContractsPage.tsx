@@ -1,4 +1,4 @@
-// Shared owner page: routed from both BUSINESS and USER consignment layouts.
+//Trang quản lý hợp đồng dành cho người dùng có xe ký gửi.
 import { useEffect, useState } from "react";
 import { Eye, FileText, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -63,9 +63,11 @@ function getRenter(contract: RentalContract) {
 }
 
 function getBookingCode(contract: RentalContract) {
+  if (!contract.bookingId) return "--";
+
   return typeof contract.bookingId === "object"
     ? contract.bookingId.bookingCode || String(contract.bookingId._id).slice(-8).toUpperCase()
-    : String(contract.bookingId || "").slice(-8).toUpperCase();
+    : String(contract.bookingId).slice(-8).toUpperCase();
 }
 
 function getPaymentSummary(contract: RentalContract) {

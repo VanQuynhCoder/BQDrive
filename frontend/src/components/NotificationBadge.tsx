@@ -1,4 +1,4 @@
-﻿// Shared UI: notification count badge used by ADMIN, BUSINESS, and USER navigation.
+﻿// Thành phần hiển thị số lượng thông báo chưa xử lý.
 type NotificationBadgeProps = {
   count: number;
   className?: string;

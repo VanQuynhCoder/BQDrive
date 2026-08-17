@@ -2,7 +2,6 @@
 export function getRoleLabel(role?: string) {
   const map: Record<string, string> = {
     ADMIN: "Quản trị viên",
-    BUSINESS: "Doanh nghiệp",
     USER: "Người dùng",
   };
 
@@ -158,32 +157,11 @@ export function getCarStatusMeta(status?: string): {
   );
 }
 
-export function getBusinessTypeLabel(type?: string) {
-  const map: Record<string, string> = {
-    COMPANY: "Công ty",
-    INDIVIDUAL: "Cá nhân",
-  };
-
-  return map[type || ""] || type || "--";
-}
-
-export function getOwnerTypeLabel(type?: string) {
-  const map: Record<string, string> = {
-    BUSINESS: "Doanh nghiệp",
-    USER: "Người dùng ký gửi",
-  };
-
-  return map[type || ""] || type || "--";
-}
-
 export function getContractStatusLabel(status?: string) {
   return CONTRACT_STATUS_LABELS[
     status as keyof typeof CONTRACT_STATUS_LABELS
   ] || status || "--";
 }
-
-
-
 
 import {
   BOOKING_STATUS_LABELS,

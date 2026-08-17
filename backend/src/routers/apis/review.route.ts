@@ -3,11 +3,10 @@ import mongoose from "mongoose";
 import { BaseRoute, Request, Response } from "../../base/baseRoute";
 import { ErrorHelper } from "../../base/error";
 import { BookingModel } from "../../models/booking/booking.model";
-import { BusinessModel } from "../../models/business/business.model";
 import { ReviewModel, ReviewStatusEnum, ReviewCriteria } from "../../models/review/review.model";
 import {
   BookingStatusEnum,
-  OwnerTypeEnum,
+
   UserRoleEnum,
 } from "../../constants/model.const";
 import { notificationCenterService } from "../../services/notification-center.service";
@@ -84,15 +83,7 @@ function normalizeImages(value: unknown) {
 }
 
 function getOwnerName(booking: any) {
-  if (booking.ownerType === OwnerTypeEnum.USER) {
-    return booking.ownerId?.name || "Người dùng ký gửi";
-  }
-
-  return (
-    booking.ownerId?.businessName ||
-    booking.businessId?.businessName ||
-    "Doanh nghiệp"
-  );
+  return booking.ownerId?.name || "Chủ xe";
 }
 
 function getReviewDeadline(booking: any) {
@@ -158,7 +149,7 @@ class ReviewRoute extends BaseRoute {
       "/booking/:bookingId",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.USER, UserRoleEnum.BUSINESS, UserRoleEnum.ADMIN]),
+        this.roleGuard([UserRoleEnum.USER,UserRoleEnum.ADMIN]),
       ],
       this.route(this.getBookingReview),
     );
@@ -168,26 +159,16 @@ class ReviewRoute extends BaseRoute {
     if (String(booking.userId?._id || booking.userId) === String(authUser.userId)) {
       return true;
     }
-
-    if (authUser.role === UserRoleEnum.ADMIN) return true;
-
-    if (authUser.role === UserRoleEnum.BUSINESS) {
-      const business = await BusinessModel.findOne({
-        userId: authUser.userId,
-        isDeleted: false,
-      }).select("_id");
-
-      return Boolean(
-        business &&
-          booking.ownerType === OwnerTypeEnum.BUSINESS &&
-          String(booking.ownerId?._id || booking.ownerId) === String(business._id),
-      );
+    if (authUser.role === UserRoleEnum.ADMIN) {
+      return true;
     }
 
     return (
-      booking.ownerType === OwnerTypeEnum.USER &&
-      String(booking.ownerId?._id || booking.ownerId) === String(authUser.userId)
+      authUser.role === UserRoleEnum.USER &&
+      String(booking.ownerId?._id || booking.ownerId) ===
+        String(authUser.userId)
     );
+    
   }
 
   async createReview(req: Request, res: Response) {
@@ -208,8 +189,7 @@ class ReviewRoute extends BaseRoute {
       isDeleted: false,
     } as any)
       .populate("carId", "name")
-      .populate("businessId", "businessName")
-      .populate("ownerId", "name businessName");
+      .populate("ownerId", "name");
 
     if (!booking) {
       throw ErrorHelper.permissionDeny();
@@ -243,11 +223,6 @@ class ReviewRoute extends BaseRoute {
       carId: plainBooking.carId?._id || plainBooking.carId,
       renterId: authUser.userId,
       ownerId: plainBooking.ownerId?._id || plainBooking.ownerId,
-      ownerType: plainBooking.ownerType || OwnerTypeEnum.BUSINESS,
-      ownerModel:
-        (plainBooking.ownerType || OwnerTypeEnum.BUSINESS) === OwnerTypeEnum.USER
-          ? "User"
-          : "Business",
       rating,
       criteria,
       comment,

@@ -1,4 +1,4 @@
-// Shared owner types: car performance data for BUSINESS and USER consignment modules.
+//  Kiểu dữ liệu thống kê hiệu quả hoạt động của xe ký gửi.
 export type OwnerCarPerformanceRange =
   | "today"
   | "7d"

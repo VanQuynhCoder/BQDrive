@@ -40,6 +40,12 @@ export type CarMileagePolicy = {
 
 export type PublicCarPricing = CarPricing;
 
+export type CalendarUnavailableRange = {
+  startDate: string;
+  endDate: string;
+  type: "UNAVAILABLE";
+};
+
 export const carService = {
   getHomeCars: async (params: HomeCarsParams = {}) => {
     const res = await api.get("/cars/getHomeCars", { params });
@@ -61,6 +67,11 @@ export const carService = {
   getOneCar: async (id: string, params: HomeCarsParams = {}) => {
     const res = await api.get(`/cars/getOneCar/${id}`, { params });
     return res.data.data.car;
+  },
+
+  getAvailabilityCalendar: async (id: string, params: { from: string; to: string }) => {
+    const res = await api.get(`/cars/${id}/availability-calendar`, { params });
+    return res.data.data.ranges as CalendarUnavailableRange[];
   },
 };
 

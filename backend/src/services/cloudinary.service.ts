@@ -8,6 +8,7 @@ import { ErrorHelper } from "../base/error";
 
 const CAR_IMAGE_FOLDER = "bqdrive/cars";
 const CAR_IMAGE_GRIDFS_BUCKET = "carImages";
+const IDENTITY_DOCUMENT_GRIDFS_BUCKET = "identityDocuments";
 const LOCAL_CAR_IMAGE_FOLDER = path.resolve(process.cwd(), "uploads", "cars");
 const SUPPORTED_IMAGE_MIME_TYPES = new Set([
   "image/jpeg",
@@ -106,6 +107,20 @@ function getCarImageGridFsBucket() {
   });
 }
 
+function getIdentityDocumentGridFsBucket() {
+  const database = mongoose.connection.db;
+
+  if (!database) {
+    throw ErrorHelper.somethingWentWrong(
+      "Cơ sở dữ liệu chưa sẵn sàng để lưu ảnh giấy tờ",
+    );
+  }
+
+  return new mongoose.mongo.GridFSBucket(database, {
+    bucketName: IDENTITY_DOCUMENT_GRIDFS_BUCKET,
+  });
+}
+
 function assertSupportedImage(buffer: Buffer, mimeType?: string) {
   const declaredMimeType = String(mimeType || "").toLowerCase();
   const detectedMimeType = getImageMimeFromSignature(buffer);
@@ -162,6 +177,77 @@ export async function findGridFsCarImage(fileId: string) {
   const bucket = getCarImageGridFsBucket();
   const objectId = new mongoose.mongo.ObjectId(fileId);
   const file = await bucket.find({ _id: objectId }).next();
+
+  if (!file) return null;
+
+  return { bucket, file };
+}
+
+export type IdentityDocumentKind =
+  | "CCCD_FRONT"
+  | "CCCD_BACK"
+  | "DRIVER_LICENSE";
+
+export async function uploadIdentityDocumentToGridFs(file: {
+  buffer: Buffer;
+  mimetype?: string;
+  ownerId: string;
+  kind: IdentityDocumentKind;
+}) {
+  assertSupportedImage(file.buffer, file.mimetype);
+
+  if (!mongoose.isValidObjectId(file.ownerId)) {
+    throw ErrorHelper.requestDataInvalid("Người sở hữu ảnh không hợp lệ");
+  }
+
+  const mimeType = String(file.mimetype || "").toLowerCase();
+  const extension = IMAGE_EXTENSION_BY_MIME_TYPE[mimeType] || "jpg";
+  const fileName = `${Date.now()}-${crypto.randomUUID()}.${extension}`;
+  const bucket = getIdentityDocumentGridFsBucket();
+
+  return new Promise<{ fileId: string; path: string }>((resolve, reject) => {
+    const uploadStream = bucket.openUploadStream(fileName, {
+      metadata: {
+        contentType: mimeType,
+        kind: file.kind,
+        ownerId: String(file.ownerId),
+      },
+    });
+
+    uploadStream.once("error", reject);
+    uploadStream.once("finish", () => {
+      const fileId = String(uploadStream.id);
+
+      resolve({
+        fileId,
+        path: `/api/uploads/identity-documents/${fileId}`,
+      });
+    });
+
+    uploadStream.end(file.buffer);
+  });
+}
+
+export async function findGridFsIdentityDocument(
+  fileId: string,
+  ownerId?: string,
+) {
+  if (
+    !mongoose.isValidObjectId(fileId) ||
+    (ownerId !== undefined && !mongoose.isValidObjectId(ownerId))
+  ) {
+    return null;
+  }
+
+  const bucket = getIdentityDocumentGridFsBucket();
+  const objectId = new mongoose.mongo.ObjectId(fileId);
+  const filter: Record<string, unknown> = { _id: objectId };
+
+  if (ownerId !== undefined) {
+    filter["metadata.ownerId"] = String(ownerId);
+  }
+
+  const file = await bucket.find(filter).next();
 
   if (!file) return null;
 

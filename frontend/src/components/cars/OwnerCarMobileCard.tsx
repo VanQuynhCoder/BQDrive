@@ -1,4 +1,4 @@
-// Shared owner UI: mobile car card for BUSINESS and USER consignment lists.
+//  Thẻ hiển thị xe ký gửi trên giao diện thiết bị di động.
 import { Car, Gauge, MapPin } from "lucide-react";
 
 import AdminStatusBadge from "../admin/AdminStatusBadge";

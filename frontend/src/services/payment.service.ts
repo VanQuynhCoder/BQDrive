@@ -52,13 +52,12 @@ export type BookingPaymentHistory = {
     image?: string;
   };
   owner: {
-    _id?: string;
-    type?: "BUSINESS" | "USER" | string;
-    name?: string;
-    phone?: string;
-  };
+  _id?: string;
+  name?: string;
+  phone?: string;
+};
   totalPrice: number;
-  depositAmount: number;
+  upfrontPaymentAmount: number;
   paidAmount: number;
   remainingAmount: number;
   paymentSummaryStatus: ContractPaymentStatus | (string & {});

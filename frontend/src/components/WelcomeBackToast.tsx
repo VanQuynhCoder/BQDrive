@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   consumeWelcomeBack,
@@ -18,7 +18,6 @@ const EXIT_DURATION_MS = 300;
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Quản trị viên",
-  BUSINESS: "Đối tác doanh nghiệp",
   USER: "Khách hàng",
 };
 
@@ -36,6 +35,7 @@ function getInitials(displayName: string) {
 
 export default function WelcomeBackToast() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [welcome, setWelcome] = useState<WelcomeBackPayload | null>(null);
   const [closing, setClosing] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
@@ -177,6 +177,23 @@ export default function WelcomeBackToast() {
           <p className="mt-1 text-xs font-semibold text-slate-400">
             Chúc bạn có một hành trình thuận lợi.
           </p>
+          {welcome.role === "USER" && !welcome.identityProfileCompleted && (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+              <p className="text-xs font-bold leading-5 text-amber-800">
+                Vui lòng cập nhật thông tin cá nhân để có thể đặt xe.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  closeWelcome();
+                  navigate("/profile");
+                }}
+                className="mt-2 rounded-lg bg-primary px-3 py-2 text-xs font-extrabold text-white transition hover:bg-primary/90"
+              >
+                CẬP NHẬT
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

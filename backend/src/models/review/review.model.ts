@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import { BaseDocument } from "../../base/baseModel";
-import { OwnerTypeEnum } from "../../constants/model.const";
 
 export enum ReviewStatusEnum {
   VISIBLE = "VISIBLE",
@@ -9,43 +8,72 @@ export enum ReviewStatusEnum {
 }
 
 export type ReviewCriteria = {
+  /** Điểm chất lượng xe. */
   vehicleQuality?: number;
+  /** Điểm vệ sinh xe. */
   cleanliness?: number;
+  /** Mức đúng với mô tả đăng xe. */
   descriptionAccuracy?: number;
+  /** Chất lượng phục vụ bàn giao. */
   handoverService?: number;
+  /** Thái độ chủ xe. */
   ownerAttitude?: number;
+  /** Đánh giá tính đúng giờ. */
   punctuality?: number;
 };
 
 export type IReview = BaseDocument & {
+  /** Booking đã hoàn tất làm nguồn của đánh giá. */
   bookingId: mongoose.Types.ObjectId;
-  carId: mongoose.Types.ObjectId;
-  renterId: mongoose.Types.ObjectId;
+  /** Chủ xe được đánh giá. */
   ownerId: mongoose.Types.ObjectId;
-  ownerType: OwnerTypeEnum;
-  ownerModel?: "Business" | "User";
+  /** Xe được đánh giá. */
+  carId: mongoose.Types.ObjectId;
+  /** Renter tạo đánh giá. */
+  renterId: mongoose.Types.ObjectId;
+  /** Điểm tổng từ 1 đến 5. */
   rating: number;
+  /** Điểm chi tiết theo từng tiêu chí. */
   criteria?: ReviewCriteria;
+  /** Nội dung nhận xét. */
   comment?: string;
+  /** Ảnh minh chứng/đánh giá, tối đa theo validator. */
   images?: string[];
+  /** Phản hồi của chủ xe đối với đánh giá. */
   ownerReply?: {
+    /** Nội dung phản hồi. */
     content?: string;
+    /** Thời điểm phản hồi lần đầu. */
     repliedAt?: Date;
+    /** Thời điểm cập nhật phản hồi. */
     updatedAt?: Date;
   };
+  /** Trạng thái hiển thị/moderation của đánh giá. */
   status: ReviewStatusEnum;
+  /** Thông tin báo cáo đánh giá. */
   report?: {
+    /** Lý do báo cáo. */
     reason?: string;
+    /** User gửi báo cáo. */
     reportedBy?: mongoose.Types.ObjectId;
+    /** Thời điểm báo cáo. */
     reportedAt?: Date;
   };
+  /** Lý do admin ẩn đánh giá. */
   hiddenReason?: string;
+  /** Admin ẩn đánh giá. */
   hiddenBy?: mongoose.Types.ObjectId;
+  /** Thời điểm đánh giá bị ẩn. */
   hiddenAt?: Date;
+  /** Số User đánh dấu hữu ích. */
   helpfulCount?: number;
+  /** Danh sách User đã đánh dấu hữu ích. */
   helpfulBy?: mongoose.Types.ObjectId[];
+  /** Tên renter snapshot để hiển thị lịch sử. */
   reviewerNameSnapshot?: string;
+  /** Tên xe snapshot để không phụ thuộc dữ liệu Car hiện tại. */
   carNameSnapshot?: string;
+  /** Tên chủ xe snapshot để hiển thị ổn định. */
   ownerNameSnapshot?: string;
 };
 
@@ -80,17 +108,7 @@ const reviewSchema = new mongoose.Schema(
     },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      refPath: "ownerModel",
-    },
-    ownerType: {
-      type: String,
-      enum: Object.values(OwnerTypeEnum),
-      required: true,
-    },
-    ownerModel: {
-      type: String,
-      enum: ["Business", "User"],
+      ref: "User",
       required: true,
     },
     rating: {
@@ -190,7 +208,7 @@ const reviewSchema = new mongoose.Schema(
 
 reviewSchema.index({ bookingId: 1, renterId: 1 }, { unique: true });
 reviewSchema.index({ carId: 1, status: 1, createdAt: -1 });
-reviewSchema.index({ ownerId: 1, ownerType: 1, createdAt: -1 });
+reviewSchema.index({ ownerId: 1, createdAt: -1 });
 reviewSchema.index({ status: 1, "report.reportedAt": -1 });
 
 const ReviewModel = mongoose.model<IReview>("Review", reviewSchema);

@@ -3,16 +3,15 @@ import {
   BookingStatusEnum,
   CarStatusEnum,
   ExtraChargeStatusEnum,
-  OwnerTypeEnum,
   PaymentMethodEnum,
   PaymentStatusEnum,
+  PaymentTypeEnum,
   RefundStatusEnum,
   ReturnInspectionStatusEnum,
   UserRoleEnum,
 } from "../constants/model.const";
 import { BookingModel } from "../models/booking/booking.model";
 import { getBookingDisplayCode } from "../helper/booking-code.helper";
-import { BusinessModel } from "../models/business/business.model";
 import { CarModel } from "../models/car/car.model";
 import { ExtraChargeModel } from "../models/extra-charge/extraCharge.model";
 import { PaymentModel } from "../models/payment/payment.model";
@@ -22,13 +21,17 @@ import { ReturnInspectionModel } from "../models/return-inspection/returnInspect
 
 export type TaskGroup = "ACTION_REQUIRED" | "WAITING";
 export type TaskPriority = "HIGH" | "MEDIUM" | "LOW";
-export type TaskEntityType = "BOOKING" | "CAR" | "BUSINESS" | "REVIEW" | "REFUND";
+export type TaskEntityType =
+  | "BOOKING"
+  | "CAR"
+  | "REVIEW"
+  | "REFUND";
 
 export type ActionCenterTask = {
   id: string;
   type: string;
   summaryKey: string;
-  context: "admin" | "business" | "customer" | "consignment";
+  context: "admin" | "customer" | "consignment";
   group: TaskGroup;
   priority: TaskPriority;
   title: string;
@@ -179,64 +182,32 @@ function dedupe(tasks: ActionCenterTask[]) {
 }
 
 function ownerActionUrl(
-  context: "business" | "consignment",
+  _context: string,
   bookingId: string,
   action: string,
 ) {
-  const base = context === "business" ? "/business/bookings" : "/consignment/bookings";
-  return `${base}?bookingId=${bookingId}&action=${action}`;
+  return `/consignment/bookings?bookingId=${bookingId}&action=${action}`;
 }
 
-async function getBusinessOwner(userId: string) {
-  const business = await BusinessModel.findOne({
-    userId: userId as any,
-    isDeleted: false,
-  }).select("_id businessName");
-
-  if (!business) return null;
-
-  return {
-    ownerId: business._id,
-    ownerType: OwnerTypeEnum.BUSINESS,
-    context: "business" as const,
-    ownerName: business.businessName,
-    bookingFilter: {
-      isDeleted: false,
-      $or: [
-        { ownerId: business._id, ownerType: OwnerTypeEnum.BUSINESS },
-        { businessId: business._id },
-      ],
-    },
-    carFilter: {
-      isDeleted: false,
-      $or: [
-        { ownerId: business._id, ownerType: OwnerTypeEnum.BUSINESS },
-        { businessId: business._id },
-      ],
-    },
-  };
-}
 
 function getConsignmentOwner(userId: string) {
   return {
     ownerId: new mongoose.Types.ObjectId(userId),
-    ownerType: OwnerTypeEnum.USER,
     context: "consignment" as const,
     ownerName: "",
     bookingFilter: {
       isDeleted: false,
       ownerId: userId as any,
-      ownerType: OwnerTypeEnum.USER,
     },
     carFilter: {
       isDeleted: false,
       ownerId: userId as any,
-      ownerType: OwnerTypeEnum.USER,
     },
   };
 }
-
-async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>> | ReturnType<typeof getConsignmentOwner>) {
+async function getOwnerTasks(
+  owner: ReturnType<typeof getConsignmentOwner>,
+) {
   if (!owner) return [];
 
   const tasks: ActionCenterTask[] = [];
@@ -261,13 +232,13 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
       ExtraChargeModel.find({
         bookingId: { $in: bookingIds },
         ownerId: owner.ownerId as any,
-        ownerType: owner.ownerType,
         status: ExtraChargeStatusEnum.PENDING,
         isDeleted: false,
       } as any).lean(),
       PaymentModel.find({
         bookingId: { $in: bookingIds },
         method: PaymentMethodEnum.CASH,
+        paymentType: PaymentTypeEnum.REMAINING,
         status: PaymentStatusEnum.PENDING,
       } as any).lean(),
       RefundModel.find({
@@ -309,10 +280,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
     const isWaitingForInfo =
       refund.status === RefundStatusEnum.WAITING_FOR_REFUND_INFO;
     const isManualRequired = refund.status === RefundStatusEnum.MANUAL_REQUIRED;
-    const actionUrl =
-      owner.context === "business"
-        ? `/business/refunds?refundId=${id}`
-        : `/consignment/refunds?refundId=${id}`;
+    const actionUrl = `/consignment/refunds?refundId=${id}`;
 
     tasks.push({
       id: `${isManualRequired ? "OWNER_REFUND_REQUIRED" : isWaitingForInfo ? "OWNER_REFUND_WAITING_INFO" : "OWNER_REFUND_WAITING_RENTER"}:${id}`,
@@ -322,16 +290,11 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
           ? "OWNER_REFUND_WAITING_INFO"
           : "OWNER_REFUND_WAITING_RENTER",
       summaryKey: isManualRequired
-        ? owner.context === "business"
-          ? "ownerManualRefundRequired"
-          : "consignmentOwnerManualRefundRequired"
-        : isWaitingForInfo
-          ? owner.context === "business"
-            ? "ownerRefundWaitingInfo"
-            : "consignmentOwnerRefundWaitingInfo"
-        : owner.context === "business"
-          ? "ownerRefundWaitingRenter"
-          : "consignmentOwnerRefundWaitingRenter",
+      ? "consignmentOwnerManualRefundRequired"
+      : isWaitingForInfo
+        ? "consignmentOwnerRefundWaitingInfo"
+        : "consignmentOwnerRefundWaitingRenter",
+
       context: owner.context,
       group: isManualRequired ? "ACTION_REQUIRED" : "WAITING",
       priority: isManualRequired ? "HIGH" : "LOW",
@@ -371,11 +334,11 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
     tasks.push({
       id: `CAR_REJECTED_NEEDS_UPDATE:${carId}`,
       type: "CAR_REJECTED_NEEDS_UPDATE",
-      summaryKey: owner.context === "business" ? "rejectedCars" : "consignmentRejectedCars",
+      summaryKey: "consignmentRejectedCars",
       context: owner.context,
       group: "ACTION_REQUIRED",
       priority: "MEDIUM",
-      title: owner.context === "business" ? "Xe doanh nghiệp bị từ chối" : "Xe ký gửi bị từ chối",
+      title:  "Xe ký gửi bị từ chối ",
       description: car.name || "Xe BQDrive",
       detail: car.rejectReason || "Vui lòng cập nhật thông tin xe trước khi gửi duyệt lại.",
       entityType: "CAR",
@@ -383,7 +346,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
       carId,
       actionKey: "edit-car",
       actionLabel: "Sửa xe",
-      actionUrl: owner.context === "business" ? `/business/cars?carId=${carId}` : `/consignment/cars?carId=${carId}`,
+      actionUrl: `/consignment/cars?carId=${carId}`,
       createdAt: car.createdAt || null,
       metadata: {
         carName: car.name,
@@ -405,7 +368,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
       tasks.push({
         id: `BOOKING_APPROVAL_REQUIRED:${id}`,
         type: "BOOKING_APPROVAL_REQUIRED",
-        summaryKey: owner.context === "business" ? "newBookingRequests" : "consignmentBookingRequests",
+       summaryKey: "consignmentBookingRequests",
         context: owner.context,
         group: "ACTION_REQUIRED",
         priority: "MEDIUM",
@@ -430,7 +393,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
       tasks.push({
         id: `HANDOVER_REQUIRED:${id}`,
         type: "HANDOVER_REQUIRED",
-        summaryKey: owner.context === "business" ? "paidAwaitingHandover" : "consignmentPaidAwaitingHandover",
+        summaryKey: "consignmentPaidAwaitingHandover",
         context: owner.context,
         group: "ACTION_REQUIRED",
         priority: isDueSoon(booking.startDate, 720) || isOverdue(booking.startDate) ? "HIGH" : "MEDIUM",
@@ -451,11 +414,17 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
       });
     }
 
-    if (pendingCashByBooking.has(id)) {
+    if (
+      pendingCashByBooking.has(id) &&
+      [
+        BookingStatusEnum.RETURN_INSPECTION,
+        BookingStatusEnum.AWAITING_EXTRA_CHARGE,
+      ].includes(status)
+    ) {
       tasks.push({
         id: `CASH_PAYMENT_CONFIRMATION_REQUIRED:${id}`,
         type: "CASH_PAYMENT_CONFIRMATION_REQUIRED",
-        summaryKey: owner.context === "business" ? "cashConfirmationRequired" : "consignmentCashConfirmationRequired",
+        summaryKey:"consignmentCashConfirmationRequired",
         context: owner.context,
         group: "ACTION_REQUIRED",
         priority: "HIGH",
@@ -469,8 +438,8 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
         actionKey: "confirm-cash",
         actionLabel: "Xác nhận đã thu",
         actionUrl: ownerActionUrl(owner.context, id, "confirm-remaining"),
-        dueAt: booking.startDate || null,
-        isOverdue: isOverdue(booking.startDate),
+        dueAt: booking.endDate || null,
+        isOverdue: isOverdue(booking.endDate),
         createdAt: booking.createdAt || null,
         metadata,
       });
@@ -481,7 +450,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
       tasks.push({
         id: `RECEIVE_RETURN_REQUIRED:${id}`,
         type: "RECEIVE_RETURN_REQUIRED",
-        summaryKey: owner.context === "business" ? "inProgressNeedReceiveReturn" : "consignmentInProgressNeedReceiveReturn",
+        summaryKey:"consignmentInProgressNeedReceiveReturn",
         context: owner.context,
         group: "ACTION_REQUIRED",
         priority: overdue ? "HIGH" : "MEDIUM",
@@ -517,7 +486,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
         tasks.push({
           id: `WAITING_EXTRA_CHARGE_PAYMENT:${id}`,
           type: "WAITING_EXTRA_CHARGE_PAYMENT",
-          summaryKey: owner.context === "business" ? "ownerPendingExtraCharges" : "consignmentPendingExtraCharges",
+          summaryKey:"consignmentPendingExtraCharges",
           context: owner.context,
           group: "WAITING",
           priority: "MEDIUM",
@@ -544,7 +513,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
           tasks.push({
             id: `COMPLETE_BOOKING_REQUIRED:${id}`,
             type: "COMPLETE_BOOKING_REQUIRED",
-            summaryKey: owner.context === "business" ? "completeBookingRequired" : "consignmentCompleteBookingRequired",
+            summaryKey:"consignmentCompleteBookingRequired",
             context: owner.context,
             group: "ACTION_REQUIRED",
             priority: "HIGH",
@@ -563,11 +532,11 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
             createdAt: booking.createdAt || null,
             metadata,
           });
-        } else {
+        } else if (!pendingCashByBooking.has(id)) {
           tasks.push({
             id: `WAITING_REMAINING_PAYMENT:${id}`,
             type: "WAITING_REMAINING_PAYMENT",
-            summaryKey: owner.context === "business" ? "approvedAwaitingPayment" : "consignmentAwaitingPayment",
+            summaryKey:"consignmentAwaitingPayment",
             context: owner.context,
             group: "WAITING",
             priority: "MEDIUM",
@@ -593,7 +562,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
       tasks.push({
         id: `RETURN_INSPECTION_REQUIRED:${id}`,
         type: "RETURN_INSPECTION_REQUIRED",
-        summaryKey: owner.context === "business" ? "returnInspectionPending" : "consignmentReturnInspectionPending",
+        summaryKey:  "consignmentReturnInspectionPending",
         context: owner.context,
         group: "ACTION_REQUIRED",
         priority: "MEDIUM",
@@ -623,7 +592,7 @@ async function getOwnerTasks(owner: Awaited<ReturnType<typeof getBusinessOwner>>
       tasks.push({
         id: `WAITING_CUSTOMER_PAYMENT:${id}`,
         type: "WAITING_CUSTOMER_PAYMENT",
-        summaryKey: "approvedAwaitingPayment",
+        summaryKey: "consignmentAwaitingPayment",
         context: owner.context,
         group: "WAITING",
         priority: "LOW",
@@ -656,8 +625,7 @@ async function getCustomerTasks(userId: string) {
     status: { $nin: TERMINAL_BOOKING_STATUSES },
   } as any)
     .populate("carId", "name licensePlate images")
-    .populate("businessId", "businessName")
-    .populate("ownerId", "name businessName")
+    .populate("ownerId", "name")
     .sort({ createdAt: -1 })
     .lean();
   const bookingIds = bookings.map((booking) => booking._id);
@@ -674,8 +642,7 @@ async function getCustomerTasks(userId: string) {
       status: BookingStatusEnum.CANCELLED,
     } as any)
       .populate("carId", "name licensePlate images")
-      .populate("businessId", "businessName")
-      .populate("ownerId", "name businessName")
+      .populate("ownerId", "name")
       .sort({ updatedAt: -1 })
       .lean(),
   ]);
@@ -773,13 +740,9 @@ async function getCustomerTasks(userId: string) {
     const status = booking.status as BookingStatusEnum;
     const remainingAmount = Number(booking.remainingAmount || 0);
     const paidAmount = Number(booking.paidAmount || 0);
-    const metadata = buildBookingMetadata(booking, {
-      ownerName:
-        booking.businessId?.businessName ||
-        booking.ownerId?.businessName ||
-        booking.ownerId?.name ||
-        "",
-    });
+const metadata = buildBookingMetadata(booking, {
+  ownerName: booking.ownerId?.name || "",
+});
 
     if (
       [
@@ -1024,28 +987,30 @@ async function getCustomerTasks(userId: string) {
 }
 
 async function getAdminTasks() {
-  const [pendingCars, pendingBusinesses, reportedReviews] = await Promise.all([
-    CarModel.find({ isDeleted: false, status: CarStatusEnum.PENDING })
+  const [pendingCars, reportedReviews] = await Promise.all([
+    CarModel.find({
+      isDeleted: false,
+      status: CarStatusEnum.PENDING,
+    })
       .select("_id name licensePlate images createdAt")
       .sort({ createdAt: -1 })
       .lean(),
-    BusinessModel.find({
-      isDeleted: false,
-      isApproved: false,
-      isRejected: { $ne: true },
+
+    ReviewModel.find({
+      status: ReviewStatusEnum.REPORTED,
     })
-      .select("_id businessName phone createdAt")
-      .sort({ createdAt: -1 })
-      .lean(),
-    ReviewModel.find({ status: ReviewStatusEnum.REPORTED })
-      .select("_id comment createdAt carNameSnapshot reviewerNameSnapshot")
+      .select(
+        "_id comment createdAt carNameSnapshot reviewerNameSnapshot",
+      )
       .sort({ createdAt: -1 })
       .lean(),
   ]);
+
   const tasks: ActionCenterTask[] = [];
 
   pendingCars.forEach((car) => {
     const id = idOf(car._id);
+
     tasks.push({
       id: `CAR_APPROVAL_REQUIRED:${id}`,
       type: "CAR_APPROVAL_REQUIRED",
@@ -1055,7 +1020,8 @@ async function getAdminTasks() {
       priority: "MEDIUM",
       title: "Xe chờ kiểm duyệt",
       description: car.name || "Xe BQDrive",
-      detail: "Admin cần kiểm tra hồ sơ xe trước khi hiển thị trên hệ thống.",
+      detail:
+        "Admin cần kiểm tra hồ sơ xe trước khi hiển thị trên hệ thống.",
       entityType: "CAR",
       entityId: id,
       carId: id,
@@ -1066,35 +1032,16 @@ async function getAdminTasks() {
       metadata: {
         carName: car.name,
         licensePlate: car.licensePlate,
-        carImage: Array.isArray(car.images) ? car.images.find(Boolean) || "" : "",
+        carImage: Array.isArray(car.images)
+          ? car.images.find(Boolean) || ""
+          : "",
       },
-    });
-  });
-
-  pendingBusinesses.forEach((business) => {
-    const id = idOf(business._id);
-    tasks.push({
-      id: `BUSINESS_APPROVAL_REQUIRED:${id}`,
-      type: "BUSINESS_APPROVAL_REQUIRED",
-      summaryKey: "pendingBusiness",
-      context: "admin",
-      group: "ACTION_REQUIRED",
-      priority: "MEDIUM",
-      title: "Doanh nghiệp chờ duyệt",
-      description: business.businessName || "Doanh nghiệp BQDrive",
-      detail: "Admin cần kiểm tra hồ sơ doanh nghiệp.",
-      entityType: "BUSINESS",
-      entityId: id,
-      actionKey: "approve-business",
-      actionLabel: "Xem doanh nghiệp",
-      actionUrl: `/admin/businesses?businessId=${id}`,
-      createdAt: business.createdAt || null,
-      metadata: { businessName: business.businessName, phone: business.phone },
     });
   });
 
   reportedReviews.forEach((review) => {
     const id = idOf(review._id);
+
     tasks.push({
       id: `REVIEW_REPORT_REQUIRED:${id}`,
       type: "REVIEW_REPORT_REQUIRED",
@@ -1104,14 +1051,18 @@ async function getAdminTasks() {
       priority: "LOW",
       title: "Đánh giá bị báo cáo",
       description: review.carNameSnapshot || "Đánh giá xe",
-      detail: review.comment || "Có đánh giá cần admin xem xét nội dung.",
+      detail:
+        review.comment ||
+        "Có đánh giá cần admin xem xét nội dung.",
       entityType: "REVIEW",
       entityId: id,
       actionKey: "review-report",
       actionLabel: "Xem đánh giá",
       actionUrl: "/admin/reviews",
       createdAt: review.createdAt || null,
-      metadata: { reviewerName: review.reviewerNameSnapshot },
+      metadata: {
+        reviewerName: review.reviewerNameSnapshot,
+      },
     });
   });
 
@@ -1204,29 +1155,16 @@ const SUMMARY_DEFINITIONS: Record<
     path: "/admin/cars",
     severity: "warning",
   },
-  pendingBusiness: {
-    label: "Doanh nghiệp chờ duyệt",
-    path: "/admin/businesses",
-    severity: "warning",
-  },
+
   reportedReviews: {
     label: "Đánh giá bị báo cáo",
     path: "/admin/reviews",
     severity: "success",
   },
-  rejectedCars: {
-    label: "Xe bị từ chối",
-    path: "/business/cars",
-    severity: "warning",
-  },
+
   consignmentRejectedCars: {
     label: "Xe ký gửi bị từ chối",
     path: "/consignment/cars",
-    severity: "warning",
-  },
-  newBookingRequests: {
-    label: "Booking cần xác nhận",
-    path: "/business/bookings",
     severity: "warning",
   },
   consignmentBookingRequests: {
@@ -1234,51 +1172,30 @@ const SUMMARY_DEFINITIONS: Record<
     path: "/consignment/bookings",
     severity: "warning",
   },
-  paidAwaitingHandover: {
-    label: "Cần bàn giao xe",
-    path: "/business/bookings",
-    severity: "warning",
-  },
   consignmentPaidAwaitingHandover: {
     label: "Cần bàn giao xe ký gửi",
     path: "/consignment/bookings",
     severity: "warning",
   },
-  cashConfirmationRequired: {
-    label: "Cần xác nhận đã nhận tiền mặt",
-    path: "/business/bookings",
-    severity: "danger",
-  },
+
   consignmentCashConfirmationRequired: {
     label: "Cần xác nhận tiền mặt xe ký gửi",
     path: "/consignment/bookings",
     severity: "danger",
   },
-  inProgressNeedReceiveReturn: {
-    label: "Cần tiếp nhận xe trả",
-    path: "/business/bookings",
-    severity: "warning",
-  },
+
   consignmentInProgressNeedReceiveReturn: {
     label: "Cần tiếp nhận xe ký gửi trả",
     path: "/consignment/bookings",
     severity: "warning",
   },
-  returnInspectionPending: {
-    label: "Cần kiểm tra xe sau thuê",
-    path: "/business/bookings",
-    severity: "warning",
-  },
+
   consignmentReturnInspectionPending: {
     label: "Cần kiểm tra xe ký gửi sau thuê",
     path: "/consignment/bookings",
     severity: "warning",
   },
-  completeBookingRequired: {
-    label: "Booking sẵn sàng hoàn tất",
-    path: "/business/bookings",
-    severity: "danger",
-  },
+
   consignmentCompleteBookingRequired: {
     label: "Booking xe ký gửi sẵn sàng hoàn tất",
     path: "/consignment/bookings",
@@ -1299,41 +1216,25 @@ const SUMMARY_DEFINITIONS: Record<
     path: "/tasks",
     severity: "danger",
   },
-  ownerPendingExtraCharges: {
-    label: "Phí phát sinh chờ khách xử lý",
-    path: "/business/bookings",
-    severity: "warning",
-  },
+
   consignmentPendingExtraCharges: {
     label: "Phí phát sinh xe ký gửi chờ xử lý",
     path: "/consignment/bookings",
     severity: "warning",
   },
-  ownerManualRefundRequired: {
-    label: "Hoàn tiền cần xử lý",
-    path: "/business/refunds",
-    severity: "danger",
-  },
+
   consignmentOwnerManualRefundRequired: {
     label: "Hoàn tiền xe ký gửi cần xử lý",
     path: "/consignment/refunds",
     severity: "danger",
   },
-  ownerRefundWaitingInfo: {
-    label: "Chờ người thuê cung cấp thông tin nhận tiền",
-    path: "/business/refunds",
-    severity: "warning",
-  },
+
   consignmentOwnerRefundWaitingInfo: {
     label: "Chờ người thuê cung cấp thông tin nhận tiền xe ký gửi",
     path: "/consignment/refunds",
     severity: "warning",
   },
-  ownerRefundWaitingRenter: {
-    label: "Chờ khách xác nhận hoàn tiền",
-    path: "/business/refunds",
-    severity: "warning",
-  },
+
   consignmentOwnerRefundWaitingRenter: {
     label: "Chờ khách xác nhận hoàn tiền xe ký gửi",
     path: "/consignment/refunds",
@@ -1431,6 +1332,16 @@ async function countOwnerCashConfirmationRequired(
   const rows = await BookingModel.aggregate([
     { $match: bookingMatch },
     {
+      $match: {
+        status: {
+          $in: [
+            BookingStatusEnum.RETURN_INSPECTION,
+            BookingStatusEnum.AWAITING_EXTRA_CHARGE,
+          ],
+        },
+      },
+    },
+    {
       $lookup: {
         from: PaymentModel.collection.name,
         let: { bookingId: "$_id" },
@@ -1439,6 +1350,7 @@ async function countOwnerCashConfirmationRequired(
             $match: {
               $expr: { $eq: ["$bookingId", "$$bookingId"] },
               method: PaymentMethodEnum.CASH,
+              paymentType: PaymentTypeEnum.REMAINING,
               status: PaymentStatusEnum.PENDING,
             },
           },
@@ -1658,11 +1570,11 @@ async function countOwnerReturnWorkflow(bookingMatch: Record<string, unknown>) {
 }
 
 async function getOwnerSummaryCounter(
-  owner: Awaited<ReturnType<typeof getBusinessOwner>> | ReturnType<typeof getConsignmentOwner>,
+  owner: ReturnType<typeof getConsignmentOwner>,
 ) {
   if (!owner) return EMPTY_COUNTER;
 
-  const isConsignment = owner.context === "consignment";
+
   const now = new Date();
   const soon = new Date(Date.now() + 720 * 60 * 1000);
   const bookingMatch = owner.bookingFilter as Record<string, unknown>;
@@ -1715,51 +1627,59 @@ async function getOwnerSummaryCounter(
     countOwnerReturnWorkflow(bookingMatch),
     countOwnerRefundWorkflow(bookingMatch),
   ]);
-  const keyPrefix = isConsignment ? "consignment" : "";
-  const key = (businessKey: string, consignmentKey: string) =>
-    keyPrefix ? consignmentKey : businessKey;
   const approvedAwaitingPayment =
     approvedAwaitingPaymentBase + returnWorkflow.approvedAwaitingPayment;
   const items = [
-    summaryItem(key("rejectedCars", "consignmentRejectedCars"), rejectedCars),
-    summaryItem(
-      key("newBookingRequests", "consignmentBookingRequests"),
-      newBookingRequests,
-    ),
-    summaryItem(
-      key("paidAwaitingHandover", "consignmentPaidAwaitingHandover"),
-      paidAwaitingHandover,
-    ),
-    summaryItem(
-      key("cashConfirmationRequired", "consignmentCashConfirmationRequired"),
-      cashConfirmationRequired,
-    ),
-    summaryItem(
-      key("inProgressNeedReceiveReturn", "consignmentInProgressNeedReceiveReturn"),
-      inProgressNeedReceiveReturn,
-    ),
-    summaryItem(
-      key("returnInspectionPending", "consignmentReturnInspectionPending"),
-      returnWorkflow.returnInspectionPending,
-    ),
-    summaryItem(
-      key("ownerPendingExtraCharges", "consignmentPendingExtraCharges"),
-      returnWorkflow.ownerPendingExtraCharges,
-    ),
-    summaryItem(
-      key("completeBookingRequired", "consignmentCompleteBookingRequired"),
-      returnWorkflow.completeBookingRequired,
-    ),
-    summaryItem(
-      key("ownerManualRefundRequired", "consignmentOwnerManualRefundRequired"),
-      refundWorkflow.manualRequired,
-    ),
-    summaryItem(
-      key("ownerRefundWaitingInfo", "consignmentOwnerRefundWaitingInfo"),
-      refundWorkflow.waitingForInfo,
-    ),
-  ].filter(Boolean) as NotificationSummaryItem[];
+  summaryItem(
+    "consignmentRejectedCars",
+    rejectedCars,
+  ),
 
+  summaryItem(
+    "consignmentBookingRequests",
+    newBookingRequests,
+  ),
+
+  summaryItem(
+    "consignmentPaidAwaitingHandover",
+    paidAwaitingHandover,
+  ),
+
+  summaryItem(
+    "consignmentCashConfirmationRequired",
+    cashConfirmationRequired,
+  ),
+
+  summaryItem(
+    "consignmentInProgressNeedReceiveReturn",
+    inProgressNeedReceiveReturn,
+  ),
+
+  summaryItem(
+    "consignmentReturnInspectionPending",
+    returnWorkflow.returnInspectionPending,
+  ),
+
+  summaryItem(
+    "consignmentPendingExtraCharges",
+    returnWorkflow.ownerPendingExtraCharges,
+  ),
+
+  summaryItem(
+    "consignmentCompleteBookingRequired",
+    returnWorkflow.completeBookingRequired,
+  ),
+
+  summaryItem(
+    "consignmentOwnerManualRefundRequired",
+    refundWorkflow.manualRequired,
+  ),
+
+  summaryItem(
+    "consignmentOwnerRefundWaitingInfo",
+    refundWorkflow.waitingForInfo,
+  ),
+].filter(Boolean) as NotificationSummaryItem[];
   return compactCounter({
     actionRequiredCount: 0,
     waitingCount:
@@ -2004,21 +1924,19 @@ async function getCustomerSummaryCounter(userId: string) {
 }
 
 async function getAdminSummaryCounter() {
-  const [pendingCars, pendingBusiness, reportedReviews] = await Promise.all([
+  const [pendingCars, reportedReviews] = await Promise.all([
     CarModel.countDocuments({
       isDeleted: false,
       status: CarStatusEnum.PENDING,
     }),
-    BusinessModel.countDocuments({
-      isDeleted: false,
-      isApproved: false,
-      isRejected: { $ne: true },
+
+    ReviewModel.countDocuments({
+      status: ReviewStatusEnum.REPORTED,
     }),
-    ReviewModel.countDocuments({ status: ReviewStatusEnum.REPORTED }),
   ]);
+
   const items = [
     summaryItem("pendingCars", pendingCars),
-    summaryItem("pendingBusiness", pendingBusiness),
     summaryItem("reportedReviews", reportedReviews),
   ].filter(Boolean) as NotificationSummaryItem[];
 
@@ -2037,13 +1955,6 @@ async function getNotificationSummaryCounter(authUser: any) {
   if (role === UserRoleEnum.ADMIN) {
     return mergeCounters([await getAdminSummaryCounter()]);
   }
-
-  if (role === UserRoleEnum.BUSINESS) {
-    return mergeCounters([
-      await getOwnerSummaryCounter(await getBusinessOwner(userId)),
-    ]);
-  }
-
   if (role === UserRoleEnum.USER) {
     const [customerCounter, ownerCounter] = await Promise.all([
       getCustomerSummaryCounter(userId),
@@ -2065,11 +1976,6 @@ export const taskService = {
     if (role === UserRoleEnum.ADMIN) {
       tasks = await getAdminTasks();
     }
-
-    if (role === UserRoleEnum.BUSINESS) {
-      tasks = await getOwnerTasks(await getBusinessOwner(userId));
-    }
-
     if (role === UserRoleEnum.USER) {
       const userTasks = await getCustomerTasks(userId);
       const ownerTasks = await getOwnerTasks(getConsignmentOwner(userId));

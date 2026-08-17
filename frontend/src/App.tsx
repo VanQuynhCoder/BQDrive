@@ -22,22 +22,16 @@ import UserProfilePage from "./pages/customer/UserProfilePage";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 import AdminLayout from "./layouts/AdminLayout";
-import BusinessLayout from "./layouts/BusinessLayout";
 import PrivateOwnerLayout from "./layouts/PrivateOwnerLayout";
 
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
-import AdminBusinessesPage from "./pages/admin/AdminBusinessesPage";
 import AdminBrandsPage from "./pages/admin/AdminBrandsPage";
 import AdminCarsPage from "./pages/admin/AdminCarsPage";
 import AdminCarMapPage from "./pages/admin/AdminCarMapPage";
 import AdminHolidaysPage from "./pages/admin/AdminHolidaysPage";
 import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
-import BusinessDashboardPage from "./pages/business/BusinessDashboardPage";
-import BusinessCarsPage from "./pages/business/BusinessCarsPage";
-import BusinessBookingsPage from "./pages/business/BusinessBookingsPage";
-import BusinessPaymentsPage from "./pages/business/BusinessPaymentsPage";
-import BusinessProfilePage from "./pages/business/BusinessProfilePage";
+import AdminSupportPage from "./pages/admin/AdminSupportPage";
 import PrivateOwnerDashboardPage from "./pages/private-owner/PrivateOwnerDashboardPage";
 import PrivateOwnerCarsPage from "./pages/private-owner/PrivateOwnerCarsPage";
 import PrivateOwnerBookingsPage from "./pages/private-owner/PrivateOwnerBookingsPage";
@@ -137,7 +131,7 @@ function App() {
       <Route
         path="/notifications"
         element={
-          <ProtectedRoute roles={["USER", "BUSINESS", "ADMIN"]}>
+          <ProtectedRoute roles={["USER","ADMIN"]}>
             <NotificationCenterPage />
           </ProtectedRoute>
         }
@@ -164,7 +158,7 @@ function App() {
       <Route
         path="/contracts/:id"
         element={
-          <ProtectedRoute roles={["USER", "BUSINESS"]}>
+          <ProtectedRoute roles={["USER"]}>
             <ContractDetailPage />
           </ProtectedRoute>
         }
@@ -179,89 +173,6 @@ function App() {
         }
       />
 
-      {/* Business */}
-      <Route
-        path="/business"
-        element={
-          <ProtectedRoute roles={["BUSINESS"]}>
-            <BusinessLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<BusinessDashboardPage />} />
-        <Route
-          path="tasks"
-          element={
-            <TaskCenterPage
-              context="business"
-              title="Việc cần làm"
-              subtitle="Tập trung các booking, xe và phí phát sinh cần doanh nghiệp xử lý."
-              embedded
-            />
-          }
-        />
-        <Route
-          path="notifications"
-          element={
-            <NotificationCenterPage
-              title="Thông báo doanh nghiệp"
-              subtitle="Lưu lại các sự kiện booking, thanh toán, xe, phí phát sinh và đánh giá của doanh nghiệp."
-              embedded
-            />
-          }
-        />
-        <Route path="cars" element={<BusinessCarsPage />} />
-        <Route
-          path="map"
-          element={
-            <OwnerCarLocationPage
-              title="Quản lý vị trí xe"
-              subtitle="Theo dõi và cập nhật vị trí nhận xe của toàn bộ xe doanh nghiệp trên bản đồ."
-              emptyText="Bạn chưa có xe nào để quản lý vị trí."
-            />
-          }
-        />
-        <Route path="bookings" element={<BusinessBookingsPage />} />
-        <Route
-          path="booking-history"
-          element={
-            <OwnerBookingHistoryPage
-              title="Lịch sử booking"
-              subtitle="Xem lại toàn bộ booking phát sinh từ xe doanh nghiệp, bao gồm booking hoàn tất, hủy, từ chối và no-show."
-              carColumnLabel="Xe"
-            />
-          }
-        />
-        <Route path="payments" element={<BusinessPaymentsPage />} />
-        <Route
-          path="contracts"
-          element={
-            <OwnerContractsPage
-              title="Hợp đồng xe doanh nghiệp"
-              subtitle="Xem các hợp đồng phát sinh từ booking thuộc xe của doanh nghiệp."
-            />
-          }
-        />
-        <Route
-          path="refunds"
-          element={
-            <OwnerRefundsPage
-              title="Quản lý hoàn tiền"
-              subtitle="Xử lý các hồ sơ hoàn tiền thủ công phát sinh sau khi booking bị hủy."
-            />
-          }
-        />
-        <Route
-          path="reviews"
-          element={
-            <OwnerReviewsPage
-              title="Đánh giá xe doanh nghiệp"
-              subtitle="Theo dõi nhận xét khách thuê để cải thiện chất lượng xe và dịch vụ bàn giao."
-            />
-          }
-        />
-        <Route path="profile" element={<BusinessProfilePage />} />
-      </Route>
 
       {/* User consignment */}
       <Route
@@ -380,10 +291,7 @@ function App() {
 
         <Route path="users" element={<AdminUsersPage />} />
 
-        <Route
-          path="businesses"
-          element={<AdminBusinessesPage />}
-        />
+        <Route path="support" element={<AdminSupportPage />} />
 
         <Route path="brands" element={<AdminBrandsPage />} />
 
@@ -410,5 +318,3 @@ function App() {
 }
 
 export default App;
-
-

@@ -1,4 +1,4 @@
-﻿// Shared UI: modal shell used by ADMIN and owner dashboards (BUSINESS/USER consignment).
+﻿ //Khung modal dùng chung cho khu vực quản trị và quản lý xe ký gửi.
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
 

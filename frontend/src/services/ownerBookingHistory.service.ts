@@ -1,4 +1,4 @@
-// Shared owner API: consumed by BUSINESS and USER consignment history pages.
+// API dùng chung cho chủ xe, phục vụ trang lịch sử booking của người dùng ký gửi xe.
 import api from "./api";
 
 export type OwnerBookingHistoryPayment = {
@@ -38,17 +38,17 @@ export type OwnerBookingHistoryItem = {
     fullName?: string;
     email?: string;
     phone?: string;
-    cccdNumber?: string;
-    driverLicenseNumber?: string;
+    identityProfileCompleted?: boolean;
+    driverLicenseClass?: "B" | "B1" | "B2" | null;
+    licenseEligible?: boolean;
   };
   owner: {
     id?: string;
-    type?: "BUSINESS" | "USER" | string;
     name?: string;
   };
   pricing: {
     totalPrice: number;
-    depositAmount: number;
+    upfrontPaymentAmount: number;
     paidAmount: number;
     remainingAmount: number;
   };

@@ -1,8 +1,8 @@
 ﻿import { BaseRoute, Request, Response } from "../../base/baseRoute";
 import { ErrorHelper } from "../../base/error";
 import { CarModel } from "../../models/car/car.model";
-import { BusinessModel } from "../../models/business/business.model";
 import { BookingModel } from "../../models/booking/booking.model";
+import { BookingExtensionModel } from "../../models/booking-extension/bookingExtension.model";
 import { ContractModel } from "../../models/contract/contract.model";
 import { CartModel } from "../../models/cart/cart.model";
 import { ReviewModel, ReviewStatusEnum } from "../../models/review/review.model";
@@ -32,14 +32,16 @@ import { generateCarCode } from "../../helper/car-code.helper";
 import {
   getCarCleaningBufferMs,
   getCarCleaningUnavailableUntil,
+  getBufferedAvailabilityRange,
 } from "../../helper/booking-availability.helper";
+import { getCarCalendarUnavailableRanges } from "../../helper/car-availability.helper";
 
 import {
   BookingStatusEnum,
+  BookingExtensionStatusEnum,
   CarStatusEnum,
   CartStatusEnum,
   ContractStatusEnum,
-  OwnerTypeEnum,
   UserRoleEnum,
   RentalModeEnum,
   RentalUnitEnum,
@@ -65,6 +67,10 @@ const BLOCKING_BOOKING_STATUSES = [
   BookingStatusEnum.IN_PROGRESS, // Xe đang được thuê
   BookingStatusEnum.RETURN_INSPECTION,
   BookingStatusEnum.AWAITING_EXTRA_CHARGE,
+];
+const BLOCKING_EXTENSION_STATUSES = [
+  BookingExtensionStatusEnum.OWNER_APPROVED,
+  BookingExtensionStatusEnum.PAYMENT_PENDING,
 ];
 const PUBLIC_CAR_STATUSES = [CarStatusEnum.APPROVED, CarStatusEnum.RENTED];
 const DELETE_BLOCKING_CONTRACT_STATUSES = [
@@ -568,9 +574,7 @@ function getDistanceKm(originLat?: number, originLng?: number, destLat?: number,
 const HOME_CAR_LIST_PROJECTION = {
   _id: 1,
   carCode: 1,
-  businessId: 1,
   ownerId: 1,
-  ownerType: 1,
   brandId: 1,
   name: 1,
   type: 1,
@@ -618,7 +622,7 @@ class CarRoute extends BaseRoute {
       "/createCar",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.createCar),
     );
@@ -626,13 +630,17 @@ class CarRoute extends BaseRoute {
     this.router.get("/getHomeCars", this.route(this.getHomeCars));
     this.router.get("/search", this.route(this.getHomeCars));
     this.router.get("/getOneCar/:id", this.route(this.getOneCar));
+    this.router.get(
+      "/:carId/availability-calendar",
+      this.route(this.getAvailabilityCalendar),
+    );
     this.router.get("/:carId/reviews", this.route(this.getCarReviews));
 
     this.router.get(
       "/getMyCars",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.getMyCars),
     );
@@ -641,7 +649,7 @@ class CarRoute extends BaseRoute {
       "/updateCar/:id",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.updateCar),
     );
@@ -650,7 +658,7 @@ class CarRoute extends BaseRoute {
       "/resubmitCar/:id",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.resubmitCar),
     );
@@ -659,7 +667,7 @@ class CarRoute extends BaseRoute {
       "/deleteCar/:id",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.deleteCar),
     );
@@ -668,7 +676,7 @@ class CarRoute extends BaseRoute {
       "/hideCar/:id",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.hideCar),
     );
@@ -677,7 +685,7 @@ class CarRoute extends BaseRoute {
       "/unhideCar/:id",
       [
         this.authentication,
-        this.roleGuard([UserRoleEnum.BUSINESS, UserRoleEnum.USER]),
+        this.roleGuard([UserRoleEnum.USER]),
       ],
       this.route(this.unhideCar),
     );
@@ -705,56 +713,23 @@ class CarRoute extends BaseRoute {
       [this.authentication, this.roleGuard([UserRoleEnum.ADMIN])],
       this.route(this.getAllCars),
     );
+    this.router.get(
+      "/layXeConTrong",
+      this.route(this.layXeConTrong),
+    );
   }
 
-  private async getOwnerContext(authUser: any, requireApproved = false) {
-    if (authUser.role === UserRoleEnum.BUSINESS) {
-      const business = await BusinessModel.findOne({
-        userId: authUser.userId,
-        isDeleted: false,
-      });
+private async getOwnerContext(authUser: any) {
+  return {
+    ownerId: authUser.userId,
+  };
+}
 
-      if (!business) {
-        throw ErrorHelper.recordNotFound("Business");
-      }
-
-      if (requireApproved && !business.isApproved) {
-        throw ErrorHelper.permissionDeny();
-      }
-
-      return {
-        ownerId: business._id,
-        ownerType: OwnerTypeEnum.BUSINESS,
-        ownerModel: "Business",
-        business,
-      };
-    }
-
-    return {
-      ownerId: authUser.userId,
-      ownerType: OwnerTypeEnum.USER,
-      ownerModel: "User",
-      business: null,
-    };
-  }
-
-  private buildOwnerFilter(owner: any) {
-    const ownerFilter = {
-      ownerId: owner.ownerId,
-      ownerType: owner.ownerType,
-    };
-
-    if (owner.ownerType === OwnerTypeEnum.BUSINESS && owner.business?._id) {
-      return {
-        $or: [
-          ownerFilter,
-          { businessId: owner.business._id, ownerId: { $exists: false } },
-        ],
-      };
-    }
-
-    return ownerFilter;
-  }
+ private buildOwnerFilter(owner: any) {
+  return {
+    ownerId: owner.ownerId,
+  };
+}
   private getOptionalAuthUser(req: Request) {
     try {
       const xToken = req.headers["x-token"];
@@ -781,38 +756,18 @@ class CarRoute extends BaseRoute {
     if (!authUserId || car.status !== CarStatusEnum.RENTED) {
       return false;
     }
-
     const ownerId = String(car.ownerId?._id || car.ownerId || "");
-    const businessId = String(car.businessId?._id || car.businessId || "");
-    const authRole = String(authUser?.role || "").toUpperCase();
-    const isUserOwner =
-      authRole === UserRoleEnum.USER &&
-      car.ownerType === OwnerTypeEnum.USER &&
-      ownerId === authUserId;
 
-    const [renterBooking, business] = await Promise.all([
-      BookingModel.exists({
-        carId: car._id,
-        userId: authUserId,
-        status: { $in: RENTED_CAR_DETAIL_BOOKING_STATUSES },
-        isDeleted: false,
-      } as any),
-      authRole === UserRoleEnum.BUSINESS
-        ? BusinessModel.findOne({
-            userId: authUserId,
-            isDeleted: false,
-          })
-            .select("_id")
-            .lean()
-        : null,
-    ]);
-    const relatedBusinessId = String(business?._id || "");
-    const isBusinessOwner =
-      authRole === UserRoleEnum.BUSINESS &&
-      Boolean(relatedBusinessId) &&
-      (ownerId === relatedBusinessId || businessId === relatedBusinessId);
+const isOwner = ownerId === authUserId;
 
-    return Boolean(renterBooking) || isUserOwner || isBusinessOwner;
+const renterBooking = await BookingModel.exists({
+  carId: car._id,
+  userId: authUserId,
+  status: { $in: RENTED_CAR_DETAIL_BOOKING_STATUSES },
+  isDeleted: false,
+} as any);
+
+return Boolean(renterBooking) || isOwner;
   }
 
   private async getRentalAvailabilityMap(carIds: unknown[]) {
@@ -918,10 +873,19 @@ class CarRoute extends BaseRoute {
     await expireOldCarts(now);
 
     const cleaningBufferMs = getCarCleaningBufferMs();
+    const { bufferedStart, bufferedEnd } = getBufferedAvailabilityRange(
+      requestedStart,
+      requestedEnd,
+    );
     const cleaningStartedAfter = new Date(
       requestedStart.getTime() - cleaningBufferMs,
     );
-    const [overlapBookingCarIds, overlapCartCarIds, cleaningBookings] =
+    const [
+      overlapBookingCarIds,
+      overlapCartCarIds,
+      overlapExtensionCarIds,
+      cleaningBookings,
+    ] =
       await Promise.all([
       BookingModel.distinct("carId", {
         carId: { $in: carIds },
@@ -932,8 +896,8 @@ class CarRoute extends BaseRoute {
           $in: BLOCKING_BOOKING_STATUSES,
         },
         isDeleted: false,
-        startDate: { $lt: requestedEnd },
-        endDate: { $gt: requestedStart },
+        startDate: { $lt: bufferedEnd },
+        endDate: { $gt: bufferedStart },
       } as any),
       CartModel.distinct("carId", {
         carId: { $in: carIds },
@@ -942,8 +906,16 @@ class CarRoute extends BaseRoute {
           : {}),
         status: CartStatusEnum.ACTIVE,
         expiredAt: { $gt: now },
-        startDate: { $lt: requestedEnd },
-        endDate: { $gt: requestedStart },
+        startDate: { $lt: bufferedEnd },
+        endDate: { $gt: bufferedStart },
+      } as any),
+      BookingExtensionModel.distinct("carId", {
+        carId: { $in: carIds },
+        status: { $in: BLOCKING_EXTENSION_STATUSES },
+        isDeleted: false,
+        paymentDeadlineAt: { $gt: now },
+        oldEndAt: { $lt: bufferedEnd },
+        requestedEndAt: { $gt: bufferedStart },
       } as any),
       cleaningBufferMs > 0
         ? BookingModel.find({
@@ -971,7 +943,11 @@ class CarRoute extends BaseRoute {
         : Promise.resolve([]),
     ]);
 
-    [...overlapBookingCarIds, ...overlapCartCarIds].forEach((carId) => {
+    [
+      ...overlapBookingCarIds,
+      ...overlapCartCarIds,
+      ...overlapExtensionCarIds,
+    ].forEach((carId) => {
       bookabilityMap.set(String(carId), {
         isBookable: false,
         unavailableReason: "Xe không khả dụng trong thời gian đã chọn",
@@ -1074,10 +1050,9 @@ class CarRoute extends BaseRoute {
       const ranges = rangeMap.get(carId) || [];
 
       ranges.push({
-        bookingId: booking._id,
         startDate: booking.startDate,
         endDate: booking.endDate,
-        status: booking.status,
+        type: "UNAVAILABLE",
       });
       rangeMap.set(carId, ranges);
     });
@@ -1094,12 +1069,9 @@ class CarRoute extends BaseRoute {
       const carId = String(booking.carId);
       const ranges = rangeMap.get(carId) || [];
       ranges.push({
-        bookingId: booking._id,
         startDate: completedAt,
         endDate: cleaningUntil,
-        status: RentalAvailabilityEnum.CLEANING,
         type: RentalAvailabilityEnum.CLEANING,
-        reason: "Xe cần được vệ sinh sau chuyến thuê trước khi giao cho khách tiếp theo.",
       });
       rangeMap.set(carId, ranges);
     });
@@ -1178,32 +1150,33 @@ class CarRoute extends BaseRoute {
     return validatePlateNumber(licensePlate);
   }
 
-  private getPublicCarAddress(carData: any, showDetailedUserAddress = false) {
-    const publicCarData = { ...carData };
-    delete publicCarData.registrationCardImages;
-    delete publicCarData.approvalSubmission;
+ private getPublicCarAddress(
+  carData: any,
+  showDetailedUserAddress = false,
+) {
+  const publicCarData = { ...carData };
 
-    if (
-      String(carData.ownerType || "") !== OwnerTypeEnum.USER ||
-      showDetailedUserAddress
-    ) {
-      return publicCarData;
-    }
+  delete publicCarData.registrationCardImages;
+  delete publicCarData.approvalSubmission;
 
-    delete publicCarData.pickupAddress;
-    delete publicCarData.address;
-    delete publicCarData.ward;
-    delete publicCarData.locationNote;
-    delete publicCarData.latitude;
-    delete publicCarData.longitude;
-    delete publicCarData.pickupFormattedAddress;
-    delete publicCarData.pickupPlaceId;
-    delete publicCarData.pickupLat;
-    delete publicCarData.pickupLng;
-    delete publicCarData.pickupNote;
-
+  if (showDetailedUserAddress) {
     return publicCarData;
   }
+
+  delete publicCarData.pickupAddress;
+  delete publicCarData.address;
+  delete publicCarData.ward;
+  delete publicCarData.locationNote;
+  delete publicCarData.latitude;
+  delete publicCarData.longitude;
+  delete publicCarData.pickupFormattedAddress;
+  delete publicCarData.pickupPlaceId;
+  delete publicCarData.pickupLat;
+  delete publicCarData.pickupLng;
+  delete publicCarData.pickupNote;
+
+  return publicCarData;
+}
 
   private withRentalAvailability(
     car: any,
@@ -1215,6 +1188,7 @@ class CarRoute extends BaseRoute {
     },
     unavailableRanges: any[] = [],
     showDetailedUserAddress = false,
+    hasRequestedSchedule = false,
   ) {
     const carData = typeof car.toObject === "function" ? car.toObject() : car;
     const publicCarData = this.getPublicCarAddress(
@@ -1232,6 +1206,10 @@ class CarRoute extends BaseRoute {
       availability === RentalAvailabilityEnum.AVAILABLE && activeCleaningRange
         ? RentalAvailabilityEnum.CLEANING
         : availability;
+    const requiresScheduleCheck =
+      publicCarData.status === CarStatusEnum.RENTED &&
+      !hasRequestedSchedule &&
+      effectiveAvailability === RentalAvailabilityEnum.AVAILABLE;
     const cleaningUntil = activeCleaningRange
       ? new Date(activeCleaningRange.endDate)
       : bookability?.cleaningUntil;
@@ -1239,9 +1217,11 @@ class CarRoute extends BaseRoute {
     return {
       ...publicCarData,
       rentalAvailability: effectiveAvailability,
-      availabilityLabel: isScheduleBookable
-        ? this.getAvailabilityLabel(effectiveAvailability)
-        : "Không khả dụng",
+      availabilityLabel: requiresScheduleCheck
+        ? "Kiểm tra lịch thuê"
+        : isScheduleBookable
+          ? this.getAvailabilityLabel(effectiveAvailability)
+          : "Không khả dụng",
       isBookable:
         availability === RentalAvailabilityEnum.AVAILABLE && isScheduleBookable,
       unavailableReason:
@@ -1252,45 +1232,40 @@ class CarRoute extends BaseRoute {
             })}. Bạn có thể chọn giờ nhận xe sau thời điểm này.`
           : undefined),
       cleaningUntil: cleaningUntil?.toISOString(),
+      requiresScheduleCheck,
       unavailableRanges,
     };
   }
 
-  private buildHomeCarListDto(car: any) {
-    const brand = car.brandId
-      ? {
-          _id: car.brandId._id,
-          name: car.brandId.name,
-        }
-      : null;
-    const business = car.businessId
-      ? {
-          _id: car.businessId._id,
-          businessName: car.businessId.businessName,
-        }
-      : null;
-    const firstImage = Array.isArray(car.images)
-      ? car.images.find((image: unknown) => typeof image === "string" && image.trim()) || ""
-      : "";
-    const thumbnail = firstImage;
-    const publicCar = { ...car };
+private buildHomeCarListDto(car: any) {
+  const brand = car.brandId
+    ? {
+        _id: car.brandId._id,
+        name: car.brandId.name,
+      }
+    : null;
 
-    delete publicCar.images;
-    delete publicCar.ownerId;
+  const firstImage = Array.isArray(car.images)
+    ? car.images.find(
+        (image: unknown) =>
+          typeof image === "string" && image.trim(),
+      ) || ""
+    : "";
 
-    return {
-      ...publicCar,
-      thumbnail,
-      brand,
-      brandId: brand,
-      businessId: business,
-      ownerName:
-        publicCar.ownerType === OwnerTypeEnum.USER
-          ? "Người dùng ký gửi"
-          : business?.businessName || "Đối tác BQDrive",
-    };
-  }
+  const thumbnail = firstImage;
+  const publicCar = { ...car };
 
+  delete publicCar.images;
+  delete publicCar.ownerId;
+
+  return {
+    ...publicCar,
+    thumbnail,
+    brand,
+    brandId: brand,
+    ownerName: "Người dùng ký gửi",
+  };
+}
   private async assertCarHasNoActiveWork(
     carId: string,
     owner: any,
@@ -1374,7 +1349,7 @@ class CarRoute extends BaseRoute {
       );
     }
 
-    const owner = await this.getOwnerContext(authUser, true);
+    const owner = await this.getOwnerContext(authUser);
 
     const {
       brandId,
@@ -1445,10 +1420,7 @@ class CarRoute extends BaseRoute {
 
     const car = await CarModel.create({
       carCode,
-      ...(owner.business ? { businessId: owner.business._id } : {}),
       ownerId: owner.ownerId,
-      ownerType: owner.ownerType,
-      ownerModel: owner.ownerModel,
       brandId,
       name,
       type,
@@ -1473,7 +1445,7 @@ class CarRoute extends BaseRoute {
         submissionType: "CREATE",
         submittedAt: new Date(),
         submittedBy: authUser.userId,
-        submittedByRole: owner.ownerType,
+        submittedByRole: UserRoleEnum.USER,
         changes: [],
       },
       status: CarStatusEnum.PENDING,
@@ -1523,9 +1495,7 @@ class CarRoute extends BaseRoute {
     const includeThumbnail = String(thumbnail || "") !== "false";
 
     const filter: any = {
-      status: isSearchRequest
-        ? CarStatusEnum.APPROVED
-        : { $in: PUBLIC_CAR_STATUSES },
+      status: { $in: PUBLIC_CAR_STATUSES },
       isDeleted: false,
       isHidden: { $ne: true },
     };
@@ -1655,7 +1625,6 @@ class CarRoute extends BaseRoute {
     const cars = await CarModel.find(filter)
       .select(buildHomeCarListProjection(includeThumbnail) as any)
       .populate("brandId", "_id name")
-      .populate("businessId", "_id businessName")
       .sort(sortOption as any)
       .lean();
 
@@ -1663,6 +1632,13 @@ class CarRoute extends BaseRoute {
       typeof startDate === "string" ? new Date(startDate) : undefined;
     const requestedEnd =
       typeof endDate === "string" ? new Date(endDate) : undefined;
+    const hasRequestedSchedule = Boolean(
+      requestedStart &&
+        requestedEnd &&
+        !Number.isNaN(requestedStart.getTime()) &&
+        !Number.isNaN(requestedEnd.getTime()) &&
+        requestedEnd > requestedStart,
+    );
     const carIds = cars.map((car) => car._id);
     const [bookabilityMap, unavailableRangeMap, reviewSummaryMap] = await Promise.all([
       this.getScheduleBookabilityMap(
@@ -1698,6 +1674,8 @@ class CarRoute extends BaseRoute {
         RentalAvailabilityEnum.AVAILABLE,
         bookabilityMap.get(String(car._id)),
         unavailableRangeMap.get(String(car._id)) || [],
+        false,
+        hasRequestedSchedule,
       ),
       )
       .map((car) => ({
@@ -1765,7 +1743,6 @@ class CarRoute extends BaseRoute {
       isDeleted: false,
     } as any)
       .populate("brandId")
-      .populate("businessId")
       .populate("ownerId", "-password -otpCode");
 
     if (!car) {
@@ -1792,6 +1769,13 @@ class CarRoute extends BaseRoute {
       typeof req.query.endDate === "string"
         ? new Date(req.query.endDate)
         : undefined;
+    const hasRequestedSchedule = Boolean(
+      requestedStart &&
+        requestedEnd &&
+        !Number.isNaN(requestedStart.getTime()) &&
+        !Number.isNaN(requestedEnd.getTime()) &&
+        requestedEnd > requestedStart,
+    );
     const [bookabilityMap, unavailableRangeMap] = await Promise.all([
       this.getScheduleBookabilityMap(
         [car._id],
@@ -1812,28 +1796,30 @@ class CarRoute extends BaseRoute {
           isDeleted: false,
         } as any)
           .select(
-            "_id status startDate endDate rentalMode totalPrice paidAmount depositAmount remainingAmount paymentOption",
+            "_id status startDate endDate rentalMode totalPrice paidAmount upfrontPaymentAmount remainingAmount paymentOption",
           )
           .sort({ createdAt: -1 })
           .lean()
       : null;
-    const ownerId = (car as any).ownerId?._id || (car as any).ownerId;
-    const isCurrentUserConsignmentOwner =
-      Boolean(authUserId) &&
-      String((car as any).ownerType || "") === OwnerTypeEnum.USER &&
-      String(ownerId || "") === authUserId;
-    const canShowDetailedPickupAddress =
-      String((car as any).ownerType || "") !== OwnerTypeEnum.USER ||
-      isCurrentUserConsignmentOwner ||
-      DETAILED_PICKUP_BOOKING_STATUSES.includes(
-        currentUserActiveBooking?.status as BookingStatusEnum,
-      );
+    const ownerId =
+  (car as any).ownerId?._id || (car as any).ownerId;
+
+const isCurrentUserOwner =
+  Boolean(authUserId) &&
+  String(ownerId || "") === authUserId;
+
+const canShowDetailedPickupAddress =
+  isCurrentUserOwner ||
+  DETAILED_PICKUP_BOOKING_STATUSES.includes(
+    currentUserActiveBooking?.status as BookingStatusEnum,
+  );
     const carWithAvailability = this.withRentalAvailability(
       car,
       RentalAvailabilityEnum.AVAILABLE,
       bookabilityMap.get(String(car._id)),
       unavailableRangeMap.get(String(car._id)) || [],
       canShowDetailedPickupAddress,
+      hasRequestedSchedule,
     );
 
     return res.status(200).json({
@@ -1845,6 +1831,56 @@ class CarRoute extends BaseRoute {
           ...carWithAvailability,
           currentUserActiveBooking,
         },
+      },
+    });
+  }
+
+  async getAvailabilityCalendar(req: Request, res: Response) {
+    const carId = String(req.params.carId || "");
+    const from = new Date(String(req.query.from || ""));
+    const to = new Date(String(req.query.to || ""));
+
+    if (
+      !/^[a-f\d]{24}$/i.test(carId) ||
+      Number.isNaN(from.getTime()) ||
+      Number.isNaN(to.getTime()) ||
+      to <= from
+    ) {
+      throw ErrorHelper.requestDataInvalid("Khoảng thời gian xem lịch không hợp lệ");
+    }
+
+    if (to.getTime() - from.getTime() > 1000 * 60 * 60 * 24 * 93) {
+      throw ErrorHelper.requestDataInvalid("Chỉ được xem lịch trong tối đa 3 tháng mỗi lần");
+    }
+
+    await expireOldCarts();
+    await expireAbandonedPendingBookings();
+
+    const car = await CarModel.exists({
+      _id: carId,
+      status: { $in: PUBLIC_CAR_STATUSES },
+      isDeleted: false,
+      isHidden: { $ne: true },
+      hiddenByOwner: { $ne: true },
+      hiddenByAdmin: { $ne: true },
+    } as any);
+
+    if (!car) {
+      throw ErrorHelper.recordNotFound("Xe");
+    }
+
+    const ranges = await getCarCalendarUnavailableRanges({ carId, from, to });
+
+    return res.status(200).json({
+      status: 200,
+      code: "200",
+      message: "success",
+      data: {
+        ranges: ranges.map((range) => ({
+          startDate: range.startDate.toISOString(),
+          endDate: range.endDate.toISOString(),
+          type: range.type,
+        })),
       },
     });
   }
@@ -2046,7 +2082,7 @@ class CarRoute extends BaseRoute {
                 submissionType: "UPDATE",
                 submittedAt: new Date(),
                 submittedBy: authUser.userId,
-                submittedByRole: owner.ownerType,
+                submittedByRole: UserRoleEnum.USER,
                 changes: approvalChanges,
               },
             }
@@ -2107,7 +2143,7 @@ class CarRoute extends BaseRoute {
       submissionType: "RESUBMIT",
       submittedAt: new Date(),
       submittedBy: authUser.userId,
-      submittedByRole: owner.ownerType,
+      submittedByRole: UserRoleEnum.USER,
       changes: [],
     };
     await existingCar.save();
@@ -2178,7 +2214,6 @@ class CarRoute extends BaseRoute {
       isDeleted: false,
     })
       .populate("brandId")
-      .populate("businessId")
       .populate("ownerId", "-password -otpCode")
       .sort({ createdAt: -1 });
 
@@ -2191,7 +2226,7 @@ class CarRoute extends BaseRoute {
   }
 
   async getAllCars(req: Request, res: Response) {
-    const { status, ownerType, brandId, type, keyword } = req.query;
+    const { status, brandId, type, keyword } = req.query;
     await syncRentedCarStatuses();
 
     const filter: any = {
@@ -2228,31 +2263,10 @@ class CarRoute extends BaseRoute {
         },
       ];
     }
-
-    if (ownerType && ownerType !== "ALL") {
-      if (ownerType === OwnerTypeEnum.USER) {
-        filter.ownerType = OwnerTypeEnum.USER;
-      }
-
-      if (ownerType === OwnerTypeEnum.BUSINESS) {
-        filter.$or = [
-          { ownerType: OwnerTypeEnum.BUSINESS },
-          { businessId: { $exists: true }, ownerId: { $exists: false } },
-        ];
-      }
-    }
-
     const cars = await CarModel.find(filter)
-      .populate("brandId")
-      .populate({
-        path: "businessId",
-        populate: {
-          path: "userId",
-          select: "-password -otpCode",
-        },
-      })
-      .populate("ownerId", "-password -otpCode")
-      .sort({ createdAt: -1 });
+    .populate("brandId")
+    .populate("ownerId", "-password -otpCode")
+    .sort({ createdAt: -1 });
 
     return res.status(200).json({
       status: 200,
@@ -2393,13 +2407,6 @@ class CarRoute extends BaseRoute {
         "Chỉ có thể duyệt xe đang chờ duyệt",
       );
     }
-
-    if (!(car as any).ownerId && car.businessId) {
-      (car as any).ownerId = car.businessId;
-      (car as any).ownerType = OwnerTypeEnum.BUSINESS;
-      (car as any).ownerModel = "Business";
-    }
-
     car.status = CarStatusEnum.APPROVED;
     car.rejectReason = "";
     await car.save();
@@ -2437,13 +2444,6 @@ class CarRoute extends BaseRoute {
         "Chỉ có thể từ chối xe đang chờ duyệt",
       );
     }
-
-    if (!(car as any).ownerId && car.businessId) {
-      (car as any).ownerId = car.businessId;
-      (car as any).ownerType = OwnerTypeEnum.BUSINESS;
-      (car as any).ownerModel = "Business";
-    }
-
     car.status = CarStatusEnum.REJECTED;
     car.rejectReason = rejectReason;
     await car.save();
@@ -2461,6 +2461,71 @@ class CarRoute extends BaseRoute {
       data: { car },
     });
   }
+async layXeConTrong(req: Request, res: Response) {
+  const {
+    startDate,
+    endDate,
+    rentalMode,
+  } = req.query;
+
+  if (!startDate || !endDate) {
+    throw ErrorHelper.requestDataInvalid(
+      "Vui lòng chọn thời gian thuê",
+    );
+  }
+
+  const start = new Date(String(startDate));
+  const end = new Date(String(endDate));
+
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    end <= start
+  ) {
+    throw ErrorHelper.requestDataInvalid(
+      "Thời gian thuê không hợp lệ",
+    );
+  }
+
+  const cars = await CarModel.find({
+    status: {
+      $in: [
+        CarStatusEnum.APPROVED,
+        CarStatusEnum.RENTED,
+      ],
+    },
+    isDeleted: false,
+    isHidden: { $ne: true },
+  }).lean();
+
+  const carIds = cars.map((car) => car._id);
+
+  const bookabilityMap =
+    await this.getScheduleBookabilityMap(
+      carIds,
+      start,
+      end,
+      String(rentalMode || ""),
+    );
+
+  const availableCars = cars.filter((car) => {
+    const availability = bookabilityMap.get(
+      String(car._id),
+    );
+
+    return availability?.isBookable !== false;
+  });
+
+  return res.status(200).json({
+    status: 200,
+    code: "200",
+    message: "Lấy danh sách xe còn trống thành công",
+    data: {
+      cars: availableCars,
+    },
+  });
+}
+
 }
 
 export default new CarRoute().router;
